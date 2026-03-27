@@ -15,16 +15,36 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup SSH key
+      - name: Validate secrets
+        shell: bash
         run: |
+          set -euo pipefail
+          missing=0
+          for k in DEPLOY_HOST DEPLOY_USER DEPLOY_SSH_KEY; do
+            if [ -z "${{ secrets[k] }}" ]; then
+              echo "::error title=Missing secret::$k is not set in repo secrets"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Setup SSH key
+        shell: bash
+        run: |
+          set -euo pipefail
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
           echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+          printf "\nHost *\n  StrictHostKeyChecking yes\n  IdentityFile ~/.ssh/id_ed25519\n" >> ~/.ssh/config
 
       - name: Rsync code to server
+        shell: bash
         run: |
+          set -euo pipefail
           rsync -az --delete \
             --exclude ".git" \
             --exclude "**/node_modules" \
@@ -35,7 +55,9 @@ jobs:
             ./ "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/ckad/current/"
 
       - name: Build and restart services
+        shell: bash
         run: |
+          set -euo pipefail
           ssh "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" "set -euo pipefail
             cd /opt/ckad/current/backend
             npm ci
@@ -51,7 +73,9 @@ jobs:
           "
 
       - name: Health check
+        shell: bash
         run: |
+          set -euo pipefail
           curl -fsS "https://old.angel-dress.ru/" >/dev/null
           curl -fsS "https://old.angel-dress.ru/api/pages" >/dev/null
 
