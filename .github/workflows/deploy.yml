@@ -19,14 +19,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          missing=0
-          for k in DEPLOY_HOST DEPLOY_USER DEPLOY_SSH_KEY; do
-            if [ -z "${{ secrets[k] }}" ]; then
-              echo "::error title=Missing secret::$k is not set in repo secrets"
-              missing=1
-            fi
-          done
-          if [ "$missing" -ne 0 ]; then
+          if [ -z "${{ secrets.DEPLOY_HOST }}" ]; then
+            echo "::error title=Missing secret::DEPLOY_HOST is not set in repo secrets"
+            exit 1
+          fi
+          if [ -z "${{ secrets.DEPLOY_USER }}" ]; then
+            echo "::error title=Missing secret::DEPLOY_USER is not set in repo secrets"
+            exit 1
+          fi
+          if [ -z "${{ secrets.DEPLOY_SSH_KEY }}" ]; then
+            echo "::error title=Missing secret::DEPLOY_SSH_KEY is not set in repo secrets"
             exit 1
           fi
 
