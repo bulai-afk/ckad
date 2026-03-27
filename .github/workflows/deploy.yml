@@ -1,0 +1,57 @@
+name: Deploy to Selectel
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Rsync code to server
+        run: |
+          rsync -az --delete \
+            --exclude ".git" \
+            --exclude "**/node_modules" \
+            --exclude "**/.next" \
+            --exclude "**/dist" \
+            --exclude "**/.env" \
+            --exclude "**/.env.*" \
+            ./ "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/ckad/current/"
+
+      - name: Build and restart services
+        run: |
+          ssh "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" "set -euo pipefail
+            cd /opt/ckad/current/backend
+            npm ci
+            npm run prisma:generate
+            npm run build
+
+            cd /opt/ckad/current/frontend
+            npm ci
+            npm run build
+
+            systemctl restart ckad-backend ckad-frontend
+            systemctl --no-pager -l status ckad-backend ckad-frontend
+          "
+
+      - name: Health check
+        run: |
+          curl -fsS "https://old.angel-dress.ru/" >/dev/null
+          curl -fsS "https://old.angel-dress.ru/api/pages" >/dev/null
+
