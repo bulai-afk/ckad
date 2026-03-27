@@ -1,0 +1,65 @@
+[
+  {
+    "name": "Каталогизация предметов снабжения",
+    "slug": "services/katlogizatsiya",
+    "description": "",
+    "preview": "",
+    "showInNavbar": false
+  },
+  {
+    "name": "Услуги",
+    "slug": "services",
+    "description": "",
+    "preview": "",
+    "showInNavbar": false
+  },
+  {
+    "name": "Функции центра каталогизации (заказчик/группа продукции)",
+    "slug": "services/vypolnenie-funktsiy-tsentra-katalogizatsii-gosudarstvennogo-zakazchika-i-tsentra-katalogizatsii-po-zakreplennoy-gruppe-odnorodnoy-produktsii",
+    "description": "",
+    "preview": "",
+    "showInNavbar": false
+  },
+  {
+    "name": "НИР и аналитика в каталогизации",
+    "slug": "services/nauchno-issledovatelskaya-deyatelnost-v-oblasti-katalogizatsii-produktsii-mnogokriterialnogo-sopostavitelnogo-analiza-i-podderzhki-prinyatiya-resheniy",
+    "description": "",
+    "preview": "",
+    "showInNavbar": false
+  },
+  {
+    "name": "Систематизация и автоматизация данных для ГОЗ",
+    "slug": "services/provedenie-rabot-po-sistematizatsii-i-avtomatizatsii-informatsii-dlya-golovnyh-ispolniteley-gosudarstvennogo-oboronnogo-zakaza",
+    "description": "",
+    "preview": "",
+    "showInNavbar": false
+  },
+  {
+    "name": "Электронная КД: разработка и согласование",
+    "slug": "services/organizatsiya-razrabotki-soglasovaniya-i-utverzhdeniya-elektronnoy-konstruktorskoy-dokumentatsii-po-zayavlennym-gruppam-odnorodnoy-produktsii",
+    "description": "",
+    "preview": "",
+    "showInNavbar": false
+  },
+  {
+    "name": "Документация по применению иностранной продукции",
+    "slug": "services/organizatsiya-razrabotki-soglasovaniya-i-utverzhdeniya-dokumentatsii-po-primeneniyu-produktsii-inostrannogo-proizvodstva",
+    "description": "",
+    "preview": "",
+    "showInNavbar": false
+  },
+  {
+    "name": "Обучение по каталогизации и ГОЗ",
+    "slug": "services/organizatsiya-obucheniya-v-oblasti-katalogizatsii-produktsii-i-po-drugim-napravleniyam-v-sfere-goz",
+    "description": "",
+    "preview": "",
+    "showInNavbar": false
+  },
+  {
+    "name": "Статьи",
+    "slug": "articles",
+    "description": "",
+    "preview": "",
+    "showInNavbar": true
+  }
+]
