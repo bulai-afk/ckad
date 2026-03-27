@@ -1577,7 +1577,8 @@ export function SiteNavbar({ initialFolderNavItems = [], siteSettings = null }: 
   }, [storedFoldersAll]);
 
   const navPartition = useMemo(() => partitionFolderNavItems(folderNavItems), [folderNavItems]);
-  const showServicesSection = hasServiceMenu || navPartition.services.length > 0;
+  // Always show "Услуги" immediately (avoid appearing a second later after async menu load).
+  const showServicesSection = true;
   const showArticlesSection = hasArticleMenu || navPartition.articles.length > 0;
   const otherFolders = useMemo(() => navPartition.other, [navPartition.other]);
 
