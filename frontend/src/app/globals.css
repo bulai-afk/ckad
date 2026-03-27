@@ -1,9 +1,20 @@
 @import "tailwindcss";
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 html {
   margin: 0;
   padding: 0;
-  overflow-x: hidden;
+  /* Prevent sideways page shifting on mobile (rubber-band / over-pan). */
+  max-width: 100%;
+  overflow-x: hidden !important;
+  overflow-x: clip;
+  overscroll-behavior-x: none;
+  touch-action: pan-y;
 }
 
 body {
@@ -11,5 +22,10 @@ body {
   margin: 0;
   padding: 0;
   padding-bottom: 0;
-  overflow-x: hidden;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden !important;
+  overflow-x: clip;
+  overscroll-behavior-x: none;
+  touch-action: pan-y;
 }
