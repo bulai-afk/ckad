@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { cookies } from "next/headers";
 import { GlobalFeedbackForm } from "@/components/GlobalFeedbackForm";
+import { PreventHorizontalPageScroll } from "@/components/PreventHorizontalPageScroll";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteNavbar } from "@/components/SiteNavbar";
 import { NAV_FOLDERS_COOKIE_NAME, parseNavFoldersCookie } from "@/lib/navFoldersCookie";
@@ -73,6 +74,7 @@ export default async function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} flex min-h-screen flex-col antialiased`}
         style={{ backgroundColor: "#f3f4f6", color: "#020617" }}
       >
+        <PreventHorizontalPageScroll />
         <SiteNavbar initialFolderNavItems={initialFolderNavItems} siteSettings={siteSettings} />
         <div className="flex min-h-0 flex-1 flex-col">{children}</div>
         <GlobalFeedbackForm />
