@@ -73,6 +73,12 @@ jobs:
             cd /opt/ckad/current/backend
             npm ci --no-audit --no-fund
             npm run prisma:generate
+                   # Apply DB migrations (idempotent)
+                   set -a
+                   . /opt/ckad/shared/env/backend.env
+                   set +a
+                   npx prisma migrate deploy
+                   npm run migrate:seed-admin-demo || true
             npm run build
 
             cd /opt/ckad/current/frontend
