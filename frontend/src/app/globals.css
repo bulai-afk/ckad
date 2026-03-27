@@ -29,3 +29,9 @@ body {
   overscroll-behavior-x: none;
   touch-action: pan-y;
 }
+
+/* Hide horizontal scrollbar indicator (keep vertical). */
+html::-webkit-scrollbar:horizontal,
+body::-webkit-scrollbar:horizontal {
+  height: 0;
+}
