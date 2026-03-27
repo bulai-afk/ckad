@@ -207,7 +207,10 @@ export default function Page() {
                 href={`/${folderSlug}`}
                 className="rounded px-1 py-0.5 text-slate-600 hover:bg-slate-200 hover:text-slate-800"
               >
-                <PublicFolderBreadcrumbLabel folderSlug={folderSlug} fallbackTitle={folderTitle} />
+                <PublicFolderBreadcrumbLabel
+                  folderSlug={folderSlug}
+                  fallbackTitle={folderTitle ?? ""}
+                />
               </Link>
               <ChevronRightIcon className="h-4 w-4 text-slate-400" />
             </>
