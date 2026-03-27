@@ -61,13 +61,22 @@ jobs:
         run: |
           set -euo pipefail
           ssh "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" "set -euo pipefail
+            if ! swapon --show | grep -q '/swapfile'; then
+              echo '[deploy] no swapfile, creating 4G swap...'
+              fallocate -l 4G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=4096
+              chmod 600 /swapfile
+              mkswap /swapfile
+              swapon /swapfile
+              grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+            fi
+
             cd /opt/ckad/current/backend
-            npm ci
+            npm ci --no-audit --no-fund
             npm run prisma:generate
             npm run build
 
             cd /opt/ckad/current/frontend
-            npm ci
+            npm ci --no-audit --no-fund
             npm run build
 
             systemctl restart ckad-backend ckad-frontend
