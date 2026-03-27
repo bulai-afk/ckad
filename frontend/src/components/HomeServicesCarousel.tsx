@@ -26,7 +26,6 @@ type Props = {
 
 export function HomeServicesCarousel({ cards }: Props) {
   const trackRef = useRef<HTMLDivElement | null>(null);
-  const equalizeTimerRef = useRef<number | null>(null);
   const [index, setIndex] = useState(0);
   const [renderIndex, setRenderIndex] = useState(0);
   const [visibleCount, setVisibleCount] = useState(1);
@@ -35,81 +34,19 @@ export function HomeServicesCarousel({ cards }: Props) {
   useEffect(() => {
     const updateVisibleCount = () => {
       const width = window.innerWidth;
-      if (width < 1024) {
-        setVisibleCount(2);
-        return;
-      }
-      setVisibleCount(3);
+      if (width < 768) return setVisibleCount(1);
+      if (width < 1280) return setVisibleCount(2);
+      return setVisibleCount(3);
     };
     updateVisibleCount();
     window.addEventListener("resize", updateVisibleCount);
     return () => window.removeEventListener("resize", updateVisibleCount);
   }, []);
 
-  const equalizeHeights = useCallback(() => {
-    const track = trackRef.current;
-    if (!track) return;
-
-    // 1) Выровнять высоту карточек (чтобы кнопки/контент были на одном уровне).
-    const cardEls = Array.from(
-      track.querySelectorAll<HTMLElement>("[data-home-services-card='true']"),
-    ).filter((el) => {
-      const idxStr = el.getAttribute("data-slide-index");
-      const idx = idxStr ? Number(idxStr) : NaN;
-      if (!Number.isFinite(idx)) return true;
-      return isSlideInRenderRange(idx);
-    });
-    let maxCardHeight = 0;
-    for (const el of cardEls) {
-      el.style.height = "";
-      maxCardHeight = Math.max(maxCardHeight, el.getBoundingClientRect().height);
-    }
-    for (const el of cardEls) {
-      el.style.height = `${maxCardHeight}px`;
-    }
-
-    // 2) Выровнять высоту блока с картинкой.
-    const imageEls = Array.from(
-      track.querySelectorAll<HTMLElement>("[data-home-services-image='true']"),
-    ).filter((el) => {
-      const holder = el.closest<HTMLElement>("[data-home-services-card='true']");
-      const idxStr = holder?.getAttribute("data-slide-index") ?? "";
-      const idx = idxStr ? Number(idxStr) : NaN;
-      if (!Number.isFinite(idx)) return true;
-      return isSlideInRenderRange(idx);
-    });
-    let maxImageHeight = 0;
-    for (const el of imageEls) {
-      el.style.height = "";
-      maxImageHeight = Math.max(maxImageHeight, el.getBoundingClientRect().height);
-    }
-    for (const el of imageEls) {
-      el.style.height = `${maxImageHeight}px`;
-    }
-  }, []);
-
-  const scheduleEqualizeHeights = useCallback(() => {
-    if (equalizeTimerRef.current) window.clearTimeout(equalizeTimerRef.current);
-    equalizeTimerRef.current = window.setTimeout(() => equalizeHeights(), 50);
-  }, [equalizeHeights]);
-
-  useEffect(() => {
-    scheduleEqualizeHeights();
-    window.addEventListener("resize", scheduleEqualizeHeights);
-    return () => {
-      window.removeEventListener("resize", scheduleEqualizeHeights);
-      if (equalizeTimerRef.current) window.clearTimeout(equalizeTimerRef.current);
-    };
-  }, [scheduleEqualizeHeights]);
-
   const pageCards = useMemo(() => {
     // Не показываем пустые карточки (на случай если API вернуло странные узлы).
     return (cards || []).filter((c) => c && (c.pages?.length || c.isMetaFolder)).slice(0, 12);
   }, [cards]);
-
-  useEffect(() => {
-    scheduleEqualizeHeights();
-  }, [pageCards.length, scheduleEqualizeHeights]);
 
   const maxStart = Math.max(0, pageCards.length - visibleCount);
   const safeIndex = Math.max(0, Math.min(index, maxStart));
@@ -183,17 +120,15 @@ export function HomeServicesCarousel({ cards }: Props) {
         >
           <div
             ref={trackRef}
-            className="flex transition-transform duration-350"
+            className="flex items-stretch transition-transform duration-300 ease-out"
             style={{
               transform: `translate3d(-${safeIndex * (100 / visibleCount)}%, 0, 0)`,
               willChange: "transform",
-              transitionTimingFunction: "cubic-bezier(0.32, 0.72, 0, 1)",
             }}
             onTransitionEnd={(e) => {
               if (e.propertyName !== "transform") return;
               if (lastAnimIndexRef.current !== safeIndex) {
                 lastAnimIndexRef.current = safeIndex;
-                scheduleEqualizeHeights();
               }
               setRenderIndex(safeIndex);
             }}
@@ -217,7 +152,20 @@ export function HomeServicesCarousel({ cards }: Props) {
                       : { opacity: 0, visibility: "hidden", pointerEvents: "none" }
                   }
                 >
-                  <div className="why-us-card relative z-10 flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
+                  <div
+                    className="why-us-card relative z-10 flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200"
+                    style={{
+                      // Fix artifacts on GPU compositing during translate animations.
+                      transform: "translateZ(0)",
+                      backfaceVisibility: "hidden",
+                      contain: "layout paint",
+                      // Keep card height stable without layout thrash from JS measurements.
+                      minHeight:
+                        visibleCount === 1
+                          ? "clamp(520px, 140vw, 620px)"
+                          : "clamp(520px, 55vw, 620px)",
+                    }}
+                  >
                     <div className="relative p-6 sm:p-8">
                       <div className="flex flex-col">
                         <div
@@ -229,7 +177,6 @@ export function HomeServicesCarousel({ cards }: Props) {
                               src={node.preview}
                               alt={node.label}
                               className="h-full w-full object-contain p-3"
-                              onLoad={() => scheduleEqualizeHeights()}
                             />
                           ) : (
                             <div className="flex h-full w-full items-center justify-center text-center text-[12px] font-semibold text-slate-400">
