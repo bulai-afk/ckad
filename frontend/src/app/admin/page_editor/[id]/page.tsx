@@ -1277,7 +1277,7 @@ export default function PageEditorDetailsPage() {
   }
 
   function getCellPosition(cell: HTMLTableCellElement): { row: number; col: number } | null {
-    const table = cell.closest("table.page-editor-table");
+    const table = cell.closest("table.page-editor-table") as HTMLTableElement | null;
     if (!table) return null;
     const tbody = table.querySelector("tbody");
     if (!tbody) return null;
@@ -1427,7 +1427,7 @@ export default function PageEditorDetailsPage() {
     selectedCellRef.current = null;
     try {
       if (selectedCells.length > 0) {
-        const cell = selectedCells[0];
+        const cell = selectedCells[0] as HTMLTableCellElement;
         selectedCellRef.current = cell;
         const table = cell.closest("table.page-editor-table");
         let rows = 1;
@@ -1525,7 +1525,7 @@ export default function PageEditorDetailsPage() {
     if (selected.length === 0) return;
     const cell = selected[0];
     selectedCellRef.current = cell;
-    const table = cell.closest("table.page-editor-table");
+    const table = cell.closest("table.page-editor-table") as HTMLTableElement | null;
     let rows = 1;
     let cols = 1;
     if (table) {
@@ -3293,7 +3293,7 @@ export default function PageEditorDetailsPage() {
       }
     }
     if (selected.length === 0) return;
-    const table = selected[0].closest("table.page-editor-table");
+    const table = selected[0].closest("table.page-editor-table") as HTMLTableElement | null;
     const tbody = table?.querySelector("tbody");
     const rows = tbody?.querySelectorAll("tr");
     const colsToUpdate = new Set<number>();
@@ -3491,7 +3491,7 @@ export default function PageEditorDetailsPage() {
       cell = el.querySelector(".page-editor-table td[data-cell-selected]") as HTMLTableCellElement | null;
     }
     if (!cell) return;
-    const table = cell.closest("table.page-editor-table");
+    const table = cell.closest("table.page-editor-table") as HTMLTableElement | null;
     if (!table) return;
     const tbody = table.querySelector("tbody");
     if (!tbody) return;
@@ -4386,7 +4386,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
     if (!target) return;
     const cell = target as HTMLTableCellElement;
     if (cell.getAttribute("contenteditable") === "true") return;
-    const table = cell.closest("table.page-editor-table");
+    const table = cell.closest("table.page-editor-table") as HTMLTableElement | null;
     if (!table) return;
     setCellMenuOpen(false);
     cellDragStartRef.current = { cell, table };

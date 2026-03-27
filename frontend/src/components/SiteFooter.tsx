@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import type { ReactElement } from "react";
 
 const FALLBACK_FOOTER_SERVICES = [
   { href: "/services", label: "Каталогизация предметов снабжения" },
@@ -56,7 +57,7 @@ const headingClass = "site-footer-col-heading";
 type SocialDef = {
   key: keyof SiteSettings["social"];
   label: string;
-  svg: JSX.Element;
+  svg: ReactElement;
   externalSvgSrc?: string;
 };
 const SOCIAL_DEFS: SocialDef[] = [
@@ -136,7 +137,7 @@ function FooterBrandLink() {
 function FooterSocialList({
   items,
 }: {
-  items: { href: string; label: string; svg: JSX.Element; externalSvgSrc?: string }[];
+  items: { href: string; label: string; svg: ReactElement; externalSvgSrc?: string }[];
 }) {
   return (
     <ul className="site-footer-social" aria-label="Социальные сети">

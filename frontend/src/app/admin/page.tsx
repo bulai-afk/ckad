@@ -263,7 +263,7 @@ export default function AdminPage() {
   const titleInputRef = useRef<HTMLInputElement | null>(null);
   const pagePreviewInputRef = useRef<HTMLInputElement | null>(null);
   const editFolderNameInputRef = useRef<HTMLInputElement | null>(null);
-  const dragPreviewRef = useRef<HTMLDivElement | null>(null);
+  const dragPreviewRef = useRef<HTMLElement | null>(null);
   const dragSourceRef = useRef<HTMLElement | null>(null);
   const dragStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const dragOffsetRef = useRef<{ x: number; y: number }>({ x: 16, y: 16 });
@@ -885,7 +885,7 @@ export default function AdminPage() {
                 slug: newSlug,
                 description: editFolderDescription.trim(),
                 showInNavbar: editFolderShowInNavbar,
-                preview: nextPreview || oldEntry?.preview || "",
+                preview: nextPreview || "",
               },
             ];
         if (FOLDER_PREVIEW_DEBUG) {

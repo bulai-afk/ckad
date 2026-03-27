@@ -550,9 +550,18 @@ export function BannersEditorCarousel() {
               subtitleItalic: s.subtitleItalic,
               buttonBold: s.buttonBold,
               buttonItalic: s.buttonItalic,
-              titleWeight: (s as { titleWeight?: unknown }).titleWeight,
-              subtitleWeight: (s as { subtitleWeight?: unknown }).subtitleWeight,
-              buttonWeight: (s as { buttonWeight?: unknown }).buttonWeight,
+              titleWeight:
+                typeof (s as { titleWeight?: unknown }).titleWeight === "number"
+                  ? ((s as { titleWeight?: unknown }).titleWeight as number)
+                  : undefined,
+              subtitleWeight:
+                typeof (s as { subtitleWeight?: unknown }).subtitleWeight === "number"
+                  ? ((s as { subtitleWeight?: unknown }).subtitleWeight as number)
+                  : undefined,
+              buttonWeight:
+                typeof (s as { buttonWeight?: unknown }).buttonWeight === "number"
+                  ? ((s as { buttonWeight?: unknown }).buttonWeight as number)
+                  : undefined,
               lineHeight: s.lineHeight,
               textColor: s.textColor,
               bold: s.bold,
@@ -714,9 +723,18 @@ export function BannersEditorCarousel() {
                 id: s.id,
                 showOverlay: s.showOverlay,
                 textBand: s.textBand,
-                titleWeight: (s as unknown as { titleWeight?: unknown }).titleWeight,
-                subtitleWeight: (s as unknown as { subtitleWeight?: unknown }).subtitleWeight,
-                buttonWeight: (s as unknown as { buttonWeight?: unknown }).buttonWeight,
+                titleWeight:
+                  typeof (s as unknown as { titleWeight?: unknown }).titleWeight === "number"
+                    ? ((s as unknown as { titleWeight?: unknown }).titleWeight as number)
+                    : undefined,
+                subtitleWeight:
+                  typeof (s as unknown as { subtitleWeight?: unknown }).subtitleWeight === "number"
+                    ? ((s as unknown as { subtitleWeight?: unknown }).subtitleWeight as number)
+                    : undefined,
+                buttonWeight:
+                  typeof (s as unknown as { buttonWeight?: unknown }).buttonWeight === "number"
+                    ? ((s as unknown as { buttonWeight?: unknown }).buttonWeight as number)
+                    : undefined,
               }))
             : saved,
         );
@@ -753,9 +771,18 @@ export function BannersEditorCarousel() {
                 subtitleItalic: s.subtitleItalic,
                 buttonBold: s.buttonBold,
                 buttonItalic: s.buttonItalic,
-                titleWeight: (s as unknown as { titleWeight?: unknown }).titleWeight,
-                subtitleWeight: (s as unknown as { subtitleWeight?: unknown }).subtitleWeight,
-                buttonWeight: (s as unknown as { buttonWeight?: unknown }).buttonWeight,
+                titleWeight:
+                  typeof (s as unknown as { titleWeight?: unknown }).titleWeight === "number"
+                    ? ((s as unknown as { titleWeight?: unknown }).titleWeight as number)
+                    : undefined,
+                subtitleWeight:
+                  typeof (s as unknown as { subtitleWeight?: unknown }).subtitleWeight === "number"
+                    ? ((s as unknown as { subtitleWeight?: unknown }).subtitleWeight as number)
+                    : undefined,
+                buttonWeight:
+                  typeof (s as unknown as { buttonWeight?: unknown }).buttonWeight === "number"
+                    ? ((s as unknown as { buttonWeight?: unknown }).buttonWeight as number)
+                    : undefined,
                 lineHeight: s.lineHeight,
                 textColor: s.textColor,
                 bold: s.bold,
