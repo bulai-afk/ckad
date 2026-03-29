@@ -3,7 +3,11 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { CheckCircleIcon } from "@heroicons/react/20/solid";
-import type { ServiceListItem, ServiceTreeNode } from "@/lib/serviceTree";
+import {
+  folderCardPropsFromServiceNode,
+  type ServiceListItem,
+  type ServiceTreeNode,
+} from "@/lib/serviceTree";
 
 function ServiceHubCard({
   title,
@@ -57,15 +61,17 @@ export function ServicesFolderPublicTree({ node, depth = 0 }: { node: ServiceTre
   const hasContent = node.pages.length > 0 || node.children.length > 0 || Boolean(node.isMetaFolder);
   if (!hasContent) return null;
 
+  const hubFields = depth > 0 ? folderCardPropsFromServiceNode(node) : null;
+
   return (
     <>
       <div className={depth === 0 ? "space-y-6" : "space-y-2"}>
-        {depth > 0 ? (
+        {depth > 0 && hubFields ? (
           <ServiceHubCard
-            title={node.label}
-            description={node.description}
-            preview={node.preview}
-            previewAlt={node.label}
+            title={hubFields.label}
+            description={hubFields.description}
+            preview={hubFields.preview}
+            previewAlt={hubFields.label}
           >
             {node.pages.length > 0 ? (
               <>

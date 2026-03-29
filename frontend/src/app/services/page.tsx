@@ -5,12 +5,15 @@ import { apiGet } from "@/lib/api";
 import {
   buildServicesTree,
   collectServiceCards,
+  folderCardPropsFromServiceNode,
   isVisibleServicePage,
   normalizeSlug,
   type ServiceFolderMeta,
   type ServiceListItem,
   type ServiceTreeNode,
 } from "@/lib/serviceTree";
+
+export const dynamic = "force-dynamic";
 
 async function getServices(): Promise<ServiceListItem[]> {
   try {
@@ -53,12 +56,7 @@ export default async function ServicesPage() {
   const collected: ServiceTreeNode[] = [];
   collectServiceCards(tree, collected);
 
-  const cards = collected.map((n) => ({
-    slugPath: n.slugPath,
-    label: n.label,
-    description: n.description?.trim() || undefined,
-    preview: n.preview,
-  }));
+  const cards = collected.map((n) => folderCardPropsFromServiceNode(n));
 
   return (
     <div className="bg-slate-100 text-slate-900">

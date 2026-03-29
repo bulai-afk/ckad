@@ -26,7 +26,7 @@ type Props = {
   equalHeight?: boolean;
   /** Слайд карусели: сетка на всю ширину колонки без max-width 75rem */
   embedInCarousel?: boolean;
-  /** Вместо why-us-grid (на главной: services-home-grid — 2 колонки на мобильных) */
+  /** Вместо why-us-grid (на главной: services-home-grid — 1 колонка на мобильных) */
   gridClassName?: string;
   /** Выровнять все слоты по высоте самой высокой карточки (DOM, см. useEqualizeFolderCardSlots) */
   syncHeightsToTallest?: boolean;

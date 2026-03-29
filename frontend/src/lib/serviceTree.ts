@@ -166,3 +166,42 @@ export function collectServiceCards(node: ServiceTreeNode, out: ServiceTreeNode[
     collectServiceCards(child, out);
   }
 }
+
+export type ServiceFolderCardProps = {
+  slugPath: string;
+  label: string;
+  description?: string;
+  preview?: string;
+};
+
+/**
+ * Поля для карточки раздела на главной и в /services:
+ * приоритет — метаданные папки из `/api/pages/folders` (файл `folders.json` на бэкенде);
+ * если там пусто — подставляем описание/превью из страниц раздела (`/api/pages`, БД).
+ */
+export function folderCardPropsFromServiceNode(node: ServiceTreeNode): ServiceFolderCardProps {
+  const first = node.pages[0];
+  const folderDesc = node.description?.trim() ?? "";
+  const folderPreview = node.preview?.trim() ?? "";
+  const pageDesc = first?.description?.trim() ?? "";
+  const pagePreview = typeof first?.preview === "string" ? first.preview.trim() : "";
+
+  const description = (folderDesc || pageDesc) || undefined;
+  const preview = (folderPreview || pagePreview) || undefined;
+
+  let label: string;
+  if (node.isMetaFolder) {
+    label = node.label?.trim() || node.slugPath;
+  } else if (node.pages.length === 1 && first?.title?.trim()) {
+    label = first.title.trim();
+  } else {
+    label = node.label?.trim() || node.slugPath;
+  }
+
+  return {
+    slugPath: node.slugPath,
+    label,
+    description,
+    preview,
+  };
+}

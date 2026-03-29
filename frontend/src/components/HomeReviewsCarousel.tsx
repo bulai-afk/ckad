@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useCarouselSwipe } from "@/hooks/useCarouselSwipe";
 import { createPortal } from "react-dom";
 import {
@@ -53,7 +53,7 @@ export function HomeReviewsCarousel({ slides }: HomeReviewsCarouselProps) {
     })();
   }, [slides]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const updateVisibleCount = () => {
       const width = window.innerWidth;
       if (width < 640) return setVisibleCount(2);

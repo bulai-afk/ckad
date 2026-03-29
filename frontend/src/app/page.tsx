@@ -9,12 +9,15 @@ import { apiGet } from "@/lib/api";
 import {
   buildServicesTree,
   collectServiceCards,
+  folderCardPropsFromServiceNode,
   isVisibleServicePage,
   normalizeSlug,
   type ServiceFolderMeta,
   type ServiceListItem,
   type ServiceTreeNode,
 } from "@/lib/serviceTree";
+
+export const dynamic = "force-dynamic";
 import {
   AcademicCapIcon,
   SparklesIcon,
@@ -294,7 +297,7 @@ export default async function Home() {
               .services-home-grid {
                 display: grid;
                 gap: 0.75rem;
-                grid-template-columns: repeat(2, minmax(0, 1fr));
+                grid-template-columns: 1fr;
               }
               @media (min-width: 768px) {
                 .services-home-grid {
@@ -371,12 +374,7 @@ export default async function Home() {
               <HomeServicesFolderCards
                 equalHeight
                 gridClassName="services-home-grid"
-                cards={homeServiceCards.map((n) => ({
-                  slugPath: n.slugPath,
-                  label: n.label,
-                  description: n.description,
-                  preview: n.preview,
-                }))}
+                cards={homeServiceCards.map((n) => folderCardPropsFromServiceNode(n))}
               />
             </div>
           </section>

@@ -693,6 +693,7 @@ pagesRouter.put("/partners", async (req, res) => {
 
 pagesRouter.get("/folders", async (_req, res) => {
   const folders = await readFoldersFromFile();
+  res.set("Cache-Control", "private, no-store, max-age=0, must-revalidate");
   return res.json({ folders });
 });
 
@@ -811,6 +812,7 @@ pagesRouter.get("/", async (_req, res, next) => {
       orderBy: { id: "desc" },
       select: selectWithColumns,
     });
+    res.set("Cache-Control", "private, no-store, max-age=0, must-revalidate");
     return res.json(mapPagesToListJson(pages as unknown as PageListForApi[], true));
   } catch (e) {
     if (!isMissingDbColumnError(e)) return next(e);
@@ -818,6 +820,7 @@ pagesRouter.get("/", async (_req, res, next) => {
       orderBy: { id: "desc" },
       select: selectLegacy,
     });
+    res.set("Cache-Control", "private, no-store, max-age=0, must-revalidate");
     return res.json(mapPagesToListJson(pages as unknown as PageListForApi[], false));
   }
 });

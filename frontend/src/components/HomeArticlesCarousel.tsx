@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useCarouselSwipe } from "@/hooks/useCarouselSwipe";
 import { HomeServicesFolderCards } from "@/components/HomeServicesFolderCards";
 
@@ -26,7 +26,7 @@ export function HomeArticlesCarousel({ slides }: Props) {
   const [carouselHovered, setCarouselHovered] = useState(false);
   const [tabVisible, setTabVisible] = useState(true);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const updateVisibleCount = () => {
       const width = window.innerWidth;
       if (width < 640) return setVisibleCount(2);

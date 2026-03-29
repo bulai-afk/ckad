@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useCarouselSwipe } from "@/hooks/useCarouselSwipe";
 
 const AUTOPLAY_INTERVAL_MS = 5500;
@@ -47,7 +47,7 @@ export function HomePartnersCarousel({ slides }: HomePartnersCarouselProps) {
     })();
   }, [slides]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const updateVisibleCount = () => {
       const width = window.innerWidth;
       if (width < 640) return setVisibleCount(2);
