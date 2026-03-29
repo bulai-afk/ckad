@@ -1417,37 +1417,49 @@ export default function AdminPage() {
               />
             </label>
 
-            <label className="mt-4 flex flex-col gap-1 text-sm">
+            <div className="mt-4 flex flex-col gap-1 text-sm">
               <span className="font-semibold text-slate-700">
                 Фото папки
               </span>
-              <label className="mt-1 inline-flex w-fit cursor-pointer flex-col items-start gap-1">
-                <span className="text-[11px] font-medium text-slate-500">Мини-превью (нажмите для загрузки)</span>
-                <div className="h-24 w-24 overflow-hidden rounded-lg border border-slate-200 bg-slate-50 shadow-sm">
-                  {newFolderPreview.trim() ? (
-                    <img
-                      src={newFolderPreview}
-                      alt="Превью папки"
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center px-2 text-center text-[10px] font-medium leading-tight text-slate-400">
-                      Выбрать изображение
-                    </div>
-                  )}
-                </div>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] ?? null;
-                    void handlePickNewFolderPreviewFile(file);
-                    e.currentTarget.value = "";
-                  }}
-                />
-              </label>
-            </label>
+              <div className="mt-1 flex flex-col items-start gap-2">
+                <label className="inline-flex w-fit cursor-pointer flex-col items-start gap-1">
+                  <span className="text-[11px] font-medium text-slate-500">Мини-превью (нажмите для загрузки)</span>
+                  <div className="h-48 w-48 overflow-hidden rounded-lg border border-slate-200 bg-slate-50 shadow-sm">
+                    {newFolderPreview.trim() ? (
+                      <img
+                        src={newFolderPreview}
+                        alt="Превью папки"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center px-2 text-center text-[10px] font-medium leading-tight text-slate-400">
+                        Выбрать изображение
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] ?? null;
+                      void handlePickNewFolderPreviewFile(file);
+                      e.currentTarget.value = "";
+                    }}
+                  />
+                </label>
+                {newFolderPreview.trim() ? (
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-medium text-red-700 transition-colors hover:bg-red-100"
+                    onClick={() => setNewFolderPreview("")}
+                  >
+                    <TrashIcon className="h-3.5 w-3.5 shrink-0 [stroke-width:2]" />
+                    Удалить превью
+                  </button>
+                ) : null}
+              </div>
+            </div>
 
             <label className="mt-4 flex flex-col gap-1 text-sm">
               <span className="font-semibold text-slate-700">
@@ -1596,37 +1608,49 @@ export default function AdminPage() {
               </div>
             </label>
 
-            <label className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
+            <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
               <span className="font-semibold text-slate-700">
                 Фото папки
               </span>
-              <label className="inline-flex w-fit cursor-pointer flex-col items-start gap-1">
-                <span className="text-[11px] font-medium text-slate-500">Мини-превью (нажмите для загрузки)</span>
-                <div className="h-24 w-24 overflow-hidden rounded-lg border border-slate-200 bg-slate-50 shadow-sm">
-                  {editFolderPreview.trim() ? (
-                    <img
-                      src={editFolderPreview}
-                      alt="Превью папки"
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center px-2 text-center text-[10px] font-medium leading-tight text-slate-400">
-                      Выбрать изображение
-                    </div>
-                  )}
-                </div>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] ?? null;
-                    void handlePickEditFolderPreviewFile(file);
-                    e.currentTarget.value = "";
-                  }}
-                />
-              </label>
-            </label>
+              <div className="flex flex-col items-end gap-2">
+                <label className="inline-flex w-fit cursor-pointer flex-col items-start gap-1">
+                  <span className="text-[11px] font-medium text-slate-500">Мини-превью (нажмите для загрузки)</span>
+                  <div className="h-48 w-48 overflow-hidden rounded-lg border border-slate-200 bg-slate-50 shadow-sm">
+                    {editFolderPreview.trim() ? (
+                      <img
+                        src={editFolderPreview}
+                        alt="Превью папки"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center px-2 text-center text-[10px] font-medium leading-tight text-slate-400">
+                        Выбрать изображение
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] ?? null;
+                      void handlePickEditFolderPreviewFile(file);
+                      e.currentTarget.value = "";
+                    }}
+                  />
+                </label>
+                {editFolderPreview.trim() ? (
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-medium text-red-700 transition-colors hover:bg-red-100"
+                    onClick={() => setEditFolderPreview("")}
+                  >
+                    <TrashIcon className="h-3.5 w-3.5 shrink-0 [stroke-width:2]" />
+                    Удалить превью
+                  </button>
+                ) : null}
+              </div>
+            </div>
 
             <label className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
               <span className="font-semibold text-slate-700">
@@ -1822,45 +1846,57 @@ export default function AdminPage() {
                 />
               </label>
 
-              <label className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
+              <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
                 <span className="font-semibold text-slate-700">Фото страницы</span>
-                <label className="inline-flex w-fit cursor-pointer flex-col items-start gap-1">
-                  <span className="text-[11px] font-medium text-slate-500">Мини-превью (нажмите для загрузки)</span>
-                  <div className="h-24 w-24 overflow-hidden rounded-lg border border-slate-200 bg-slate-50 shadow-sm">
-                    {pagePreview.trim() ? (
-                      <img
-                        src={pagePreview}
-                        alt="Превью страницы"
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center px-2 text-center text-[10px] font-medium leading-tight text-slate-400">
-                        Выбрать изображение
-                      </div>
-                    )}
-                  </div>
-                  <input
-                    ref={pagePreviewInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={async (e) => {
-                      const input = e.currentTarget;
-                      const f = e.target.files?.[0];
-                      if (!f) return;
-                      try {
-                        const webpDataUrl = await fileToWebpDataUrl(f);
-                        setPagePreview(webpDataUrl);
-                        setError(null);
-                      } catch {
-                        setError("Не удалось обработать файл превью. Попробуйте другое изображение.");
-                      } finally {
-                        input.value = "";
-                      }
-                    }}
-                  />
-                </label>
-              </label>
+                <div className="flex flex-col items-end gap-2">
+                  <label className="inline-flex w-fit cursor-pointer flex-col items-start gap-1">
+                    <span className="text-[11px] font-medium text-slate-500">Мини-превью (нажмите для загрузки)</span>
+                    <div className="h-48 w-48 overflow-hidden rounded-lg border border-slate-200 bg-slate-50 shadow-sm">
+                      {pagePreview.trim() ? (
+                        <img
+                          src={pagePreview}
+                          alt="Превью страницы"
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center px-2 text-center text-[10px] font-medium leading-tight text-slate-400">
+                          Выбрать изображение
+                        </div>
+                      )}
+                    </div>
+                    <input
+                      ref={pagePreviewInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const input = e.currentTarget;
+                        const f = e.target.files?.[0];
+                        if (!f) return;
+                        try {
+                          const webpDataUrl = await fileToWebpDataUrl(f);
+                          setPagePreview(webpDataUrl);
+                          setError(null);
+                        } catch {
+                          setError("Не удалось обработать файл превью. Попробуйте другое изображение.");
+                        } finally {
+                          input.value = "";
+                        }
+                      }}
+                    />
+                  </label>
+                  {pagePreview.trim() ? (
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-medium text-red-700 transition-colors hover:bg-red-100"
+                      onClick={() => setPagePreview("")}
+                    >
+                      <TrashIcon className="h-3.5 w-3.5 shrink-0 [stroke-width:2]" />
+                      Удалить превью
+                    </button>
+                  ) : null}
+                </div>
+              </div>
               </div>
 
             {error && <div className="mt-2 text-xs text-red-600">{error}</div>}

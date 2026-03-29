@@ -121,9 +121,23 @@ export function buildServicesTree(
     folderNode.pages.push({ ...item, slug });
   }
 
+  /** Все страницы в этой папке и во вложенных (для сортировки «сначала разделы с большим объёмом»). */
+  function countPagesInSubtree(node: ServiceTreeNode): number {
+    let c = node.pages.length;
+    for (const ch of node.children) {
+      c += countPagesInSubtree(ch);
+    }
+    return c;
+  }
+
   const sortNode = (n: ServiceTreeNode) => {
     n.pages.sort((a, b) => a.title.localeCompare(b.title, "ru"));
-    n.children.sort((a, b) => a.label.localeCompare(b.label, "ru"));
+    n.children.sort((a, b) => {
+      const da = countPagesInSubtree(a);
+      const db = countPagesInSubtree(b);
+      if (db !== da) return db - da;
+      return a.label.localeCompare(b.label, "ru");
+    });
     n.children.forEach(sortNode);
   };
   sortNode(root);
