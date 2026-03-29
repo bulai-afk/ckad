@@ -89,7 +89,7 @@ export default function AdminSettingsPage() {
 
           <main className="flex-1 overflow-y-auto p-6">
             <div className="space-y-4">
-              <div className="rounded-2xl border border-slate-200 bg-white p-6">
+            <div className="rounded-2xl border border-slate-200 bg-white p-6">
                 <div className="text-sm font-medium text-slate-900">Страница настроек</div>
                 <p className="mt-2 text-sm text-slate-600">
                   Здесь можно указать контакты, ссылки на соцсети и реквизиты — они будут использоваться на публичных страницах.

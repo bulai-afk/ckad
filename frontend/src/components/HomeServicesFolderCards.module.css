@@ -1,0 +1,319 @@
+/*
+ * Колонки как у блока «Преимущества работы с нами»: класс why-us-grid + глобальные стили в page.tsx / [...slug].
+ */
+.list {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: min(100%, 75rem);
+  margin-left: auto;
+  margin-right: auto;
+  min-width: 0;
+  padding: 0;
+  grid-auto-rows: max-content;
+}
+
+/* Внутри карусели колонка уже ограничена шириной — без max-width и без центрирования, на всю ширину слайда */
+.listEmbed {
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+/*
+ * В карусели нельзя вешать глобальный .why-us-grid (на главной там 4 колонки):
+ * одна карточка оказывалась только в первой колонке ≈25% ширины слайда.
+ */
+.gridCarousel {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: stretch;
+}
+
+/* Одинаковая высота карточек в строке: строки сетки + цепочка flex в карусели */
+.listEqualHeight {
+  min-height: 0;
+  grid-auto-rows: minmax(0, auto);
+  align-items: stretch;
+}
+
+.list.listEqualHeight.listEmbed {
+  height: 100%;
+  flex: 1 1 0%;
+  min-height: 0;
+  min-width: 0;
+}
+
+.itemSlot {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.itemSlotStretch {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  align-items: stretch;
+}
+
+.cardRoot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+  max-width: 100%;
+  max-height: none;
+  flex: 0 0 auto;
+  height: auto;
+  min-height: auto;
+  align-self: start;
+  overflow: visible;
+  isolation: isolate;
+  border-radius: 0.75rem;
+  border: 1px solid rgb(226 232 240 / 0.8);
+  padding: 0.75rem;
+  box-sizing: border-box;
+  background-color: rgb(248 250 252);
+  transition: border-color 0.25s ease;
+  box-shadow:
+    0 6px 24px rgba(73, 109, 179, 0.18),
+    0 0 32px rgba(73, 109, 179, 0.14),
+    0 0 64px rgba(73, 109, 179, 0.09);
+}
+
+.cardRoot.cardRootStretch {
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  align-self: stretch;
+}
+
+/* Дублирует data-preview-always: класс гарантированно попадает в бандл и в DOM */
+.cardPreviewAlways {
+  outline: 0 solid transparent;
+}
+
+@media (min-width: 640px) {
+  .cardRoot {
+    padding: 1rem;
+  }
+}
+
+/* Превью — фон всей карточки при наведении */
+.cardBgStack {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  overflow: hidden;
+}
+
+.cardBgImageWrap {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.32s ease;
+}
+
+.cardRoot:hover .cardBgImageWrap,
+.cardRoot[data-preview-always] .cardBgImageWrap,
+.cardRoot.cardPreviewAlways .cardBgImageWrap {
+  opacity: 1;
+}
+
+.cardBgImg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.cardBgImgLogo {
+  object-fit: contain;
+  object-position: center;
+  padding: 1.25rem 1.5rem;
+  box-sizing: border-box;
+}
+
+.cardBgDim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  background-color: rgb(0 0 0 / 0.52);
+  opacity: 0;
+  transition: opacity 0.32s ease;
+  pointer-events: none;
+}
+
+.cardRoot:hover .cardBgDim,
+.cardRoot[data-preview-always] .cardBgDim,
+.cardRoot.cardPreviewAlways .cardBgDim {
+  opacity: 1;
+}
+
+.cardBgGradient {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  background: linear-gradient(
+    to top,
+    rgb(0 0 0 / 0.62) 0%,
+    rgb(0 0 0 / 0.28) 45%,
+    rgb(0 0 0 / 0.06) 100%
+  );
+  opacity: 0;
+  transition: opacity 0.32s ease;
+  pointer-events: none;
+}
+
+.cardRoot:hover .cardBgGradient,
+.cardRoot[data-preview-always] .cardBgGradient,
+.cardRoot.cardPreviewAlways .cardBgGradient {
+  opacity: 1;
+}
+
+.content {
+  position: relative;
+  z-index: 10;
+  display: block;
+  min-width: 0;
+  max-height: none;
+  overflow: visible;
+}
+
+.footer {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-shrink: 0;
+  justify-content: center;
+  margin-top: 0.75rem;
+  padding-top: 0;
+}
+
+.footer.footerStick {
+  margin-top: auto;
+  padding-top: 0.75rem;
+}
+
+.contentGrow {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.title {
+  margin: 0;
+  min-width: 0;
+  max-height: none;
+  overflow: visible;
+  font-size: 112%;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #496db3;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  transition: color 0.25s ease, text-shadow 0.25s ease;
+}
+
+.description {
+  margin: 0.35rem 0 0;
+  min-width: 0;
+  max-height: none;
+  overflow: visible;
+  font-size: 112%;
+  line-height: 1.35;
+  color: #496db3;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: pre-wrap;
+  overflow: visible;
+  transition: color 0.25s ease, text-shadow 0.25s ease;
+}
+
+.cardRoot:hover,
+.cardRoot[data-preview-always],
+.cardRoot.cardPreviewAlways {
+  border-color: rgb(71 85 105 / 0.55);
+}
+
+.cardRoot:hover .content,
+.cardRoot[data-preview-always] .content,
+.cardRoot.cardPreviewAlways .content {
+  color: #fff;
+}
+
+.cardRoot:hover .content .title,
+.cardRoot:hover .content .description,
+.cardRoot:hover .content > p,
+.cardRoot[data-preview-always] .content .title,
+.cardRoot[data-preview-always] .content .description,
+.cardRoot[data-preview-always] .content > p,
+.cardRoot.cardPreviewAlways .content .title,
+.cardRoot.cardPreviewAlways .content .description,
+.cardRoot.cardPreviewAlways .content > p {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+
+.cardRoot:hover .content .title,
+.cardRoot[data-preview-always] .content .title,
+.cardRoot.cardPreviewAlways .content .title {
+  text-shadow: 0 1px 3px rgb(0 0 0 / 0.45);
+}
+
+.cardRoot:hover .content .description,
+.cardRoot[data-preview-always] .content .description,
+.cardRoot.cardPreviewAlways .content .description {
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+}
+
+.cardRoot:hover .content,
+.cardRoot:hover .footer,
+.cardRoot[data-preview-always] .content,
+.cardRoot[data-preview-always] .footer,
+.cardRoot.cardPreviewAlways .content,
+.cardRoot.cardPreviewAlways .footer {
+  z-index: 20;
+}
+
+.link {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 2.5rem;
+  padding: 0 1rem;
+  border: none;
+  border-radius: 9999px;
+  background-color: #496db3;
+  color: #fff !important;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.25;
+  text-decoration: none !important;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.link:hover {
+  background-color: #e53935 !important;
+  color: #fff !important;
+}
+
+.link:focus-visible {
+  outline: 2px solid #496db3;
+  outline-offset: 2px;
+}

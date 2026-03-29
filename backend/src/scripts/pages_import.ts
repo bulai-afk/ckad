@@ -12,6 +12,8 @@ type ImportedPage = {
   title: string;
   slug: string;
   status?: "DRAFT" | "PUBLISHED";
+  description?: string | null;
+  preview?: string | null;
   blocks?: ImportedBlock[];
 };
 
@@ -37,6 +39,9 @@ function sanitizePages(raw: unknown): ImportedPage[] {
       title: typeof p.title === "string" ? p.title : "",
       slug: typeof p.slug === "string" ? p.slug : "",
       status: p.status === "PUBLISHED" ? ("PUBLISHED" as const) : ("DRAFT" as const),
+      description:
+        typeof p.description === "string" ? p.description : p.description === null ? null : undefined,
+      preview: typeof p.preview === "string" ? p.preview : p.preview === null ? null : undefined,
       blocks: Array.isArray(p.blocks)
         ? p.blocks
             .filter((b) => typeof b === "object" && b !== null)
@@ -66,17 +71,25 @@ async function main() {
     const blocks = p.blocks ?? [];
 
     await prisma.$transaction(async (tx) => {
+      const description =
+        p.description !== undefined ? (p.description?.trim() ? p.description.trim() : null) : undefined;
+      const preview =
+        p.preview !== undefined ? (p.preview?.trim() ? p.preview.trim() : null) : undefined;
       const page = await tx.page.upsert({
         where: { slug: p.slug },
         update: {
           title: p.title,
           status: p.status ?? "DRAFT",
+          ...(description !== undefined ? { description } : {}),
+          ...(preview !== undefined ? { preview } : {}),
         },
         create: {
           title: p.title,
           slug: p.slug,
           status: p.status ?? "DRAFT",
           authorId,
+          ...(description !== undefined ? { description } : {}),
+          ...(preview !== undefined ? { preview } : {}),
         },
         select: { id: true },
       });

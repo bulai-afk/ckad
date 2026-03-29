@@ -4,7 +4,17 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { PublicCarouselViewportSync } from "@/components/PublicCarouselViewportSync";
 import { PublicFolderBreadcrumbLabel } from "@/components/PublicFolderBreadcrumbLabel";
+import { HomeServicesFolderCards } from "@/components/HomeServicesFolderCards";
 import { apiGet } from "@/lib/api";
+import {
+  buildServicesTree,
+  findServiceTreeNode,
+  isVisibleServicePage,
+  normalizeSlug,
+  type ServiceFolderMeta,
+  type ServiceListItem,
+  type ServiceTreeNode,
+} from "@/lib/serviceTree";
 import Link from "next/link";
 import { ChevronRightIcon, HomeIcon } from "@heroicons/react/20/solid";
 
@@ -76,6 +86,8 @@ export default function Page() {
     [slugParts],
   );
   const [page, setPage] = useState<PageData | null>(null);
+  /** Нет CMS-страницы по slug, но есть папка в /api/pages/folders — показываем тот же хаб, что на /services */
+  const [serviceFolderHub, setServiceFolderHub] = useState<ServiceTreeNode | null>(null);
   const [loading, setLoading] = useState(true);
   const [callbackModalOpen, setCallbackModalOpen] = useState(false);
   const [firstName, setFirstName] = useState("");
@@ -94,26 +106,32 @@ export default function Page() {
   useEffect(() => {
     if (!normalizedSlug) {
       setPage(null);
+      setServiceFolderHub(null);
       setLoading(false);
       return;
     }
     let cancelled = false;
     const cacheKey = `${PAGE_CACHE_KEY_PREFIX}${normalizedSlug}`;
-    try {
-      const raw = window.localStorage.getItem(cacheKey);
-      if (raw) {
-        const parsed = JSON.parse(raw) as PageData;
-        if (!cancelled && parsed?.slug) {
-          setPage(parsed);
-          setLoading(false);
-        }
-      } else {
-        setLoading(true);
-      }
-    } catch {
-      setLoading(true);
-    }
+
     void (async () => {
+      setLoading(true);
+      setServiceFolderHub(null);
+      setPage(null);
+
+      try {
+        const raw = window.localStorage.getItem(cacheKey);
+        if (raw) {
+          const parsed = JSON.parse(raw) as PageData;
+          if (!cancelled && parsed?.slug) {
+            setPage(parsed);
+            setLoading(false);
+            return;
+          }
+        }
+      } catch {
+        // fetch fresh
+      }
+
       try {
         const data = await apiGet<PageData>(`/api/pages/slug/${normalizedSlug}`);
         if (!cancelled) {
@@ -125,20 +143,163 @@ export default function Page() {
           }
         }
       } catch {
-        if (!cancelled) setPage(null);
+        if (!cancelled) {
+          setPage(null);
+          const path = slugParts.join("/");
+          if (slugParts[0] === "services" && slugParts.length >= 2) {
+            try {
+              const [pages, foldersPayload] = await Promise.all([
+                apiGet<ServiceListItem[]>("/api/pages"),
+                apiGet<{ folders?: ServiceFolderMeta[] }>("/api/pages/folders"),
+              ]);
+              if (cancelled) return;
+              const folders = Array.isArray(foldersPayload?.folders) ? foldersPayload.folders : [];
+              const folderMetaBySlug = new Map(
+                folders
+                  .filter((f) => typeof f?.name === "string" && typeof f?.slug === "string")
+                  .map((f) => ({
+                    name: String(f.name || "").trim(),
+                    slug: normalizeSlug(String(f.slug || "")),
+                    description: typeof f.description === "string" ? f.description : "",
+                    preview: typeof f.preview === "string" ? f.preview : "",
+                  }))
+                  .filter((f) => f.slug === "services" || f.slug.startsWith("services/"))
+                  .map((f) => [f.slug, f] as const),
+              );
+              const servicePages = pages
+                .filter((p) => isVisibleServicePage(p) && normalizeSlug(p.slug).startsWith("services/"))
+                .map((p) => ({ ...p, slug: normalizeSlug(p.slug) }));
+              const tree = buildServicesTree(servicePages, folderMetaBySlug);
+              const node = findServiceTreeNode(tree, path);
+              if (
+                node &&
+                (node.isMetaFolder || node.pages.length > 0 || node.children.length > 0)
+              ) {
+                setServiceFolderHub(node);
+              }
+            } catch {
+              // остаётся «не найдено»
+            }
+          }
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
+
     return () => {
       cancelled = true;
     };
-  }, [normalizedSlug]);
+  }, [normalizedSlug, slugParts]);
 
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100 text-slate-900">
         <p className="text-sm text-slate-500">Загрузка страницы...</p>
+      </div>
+    );
+  }
+
+  if (!page && serviceFolderHub) {
+    const sectionDescription =
+      serviceFolderHub.description?.trim() ||
+      "Закрываем задачи «под ключ» в области классификации и анализа данных: от методики и каталогизации до сопровождения согласований — чтобы вы получали понятный результат в срок и без лишних рисков.";
+
+    return (
+      <div className="bg-slate-100 text-slate-900">
+        <div className="px-4 py-10 sm:px-6 lg:px-10">
+          <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-6">
+            <section className="bg-transparent p-0">
+              <nav
+                aria-label="Хлебные крошки"
+                className="mb-5 flex flex-wrap items-center gap-1.5 text-sm text-slate-500"
+              >
+                <Link
+                  href="/"
+                  className="inline-flex items-center rounded p-1 hover:bg-slate-200 hover:text-slate-700"
+                  aria-label="Главная"
+                >
+                  <HomeIcon className="h-4 w-4" />
+                </Link>
+                <ChevronRightIcon className="h-4 w-4 text-slate-400" />
+                <Link
+                  href="/services"
+                  className="rounded px-1 py-0.5 text-slate-600 hover:bg-slate-200 hover:text-slate-800"
+                >
+                  Услуги
+                </Link>
+                <ChevronRightIcon className="h-4 w-4 text-slate-400" />
+                <span className="rounded px-1 py-0.5 text-slate-700">{serviceFolderHub.label}</span>
+              </nav>
+
+              <div
+                className="mb-4 flex items-center justify-center text-[13px] font-semibold tracking-tight"
+                style={{ fontSize: "clamp(10px, 1.2vw, 16px)" }}
+              >
+                <h1
+                  className="text-center uppercase text-[#496db3]"
+                  style={{
+                    fontSize: "230%",
+                    lineHeight: 1.1,
+                    fontWeight: 950,
+                    textShadow:
+                      "0.35px 0 currentColor, -0.35px 0 currentColor, 0 0.35px currentColor, 0 -0.35px currentColor",
+                  }}
+                >
+                  {serviceFolderHub.label}
+                </h1>
+              </div>
+
+              <div className="mb-4" style={{ fontSize: "clamp(13px, 0.7vw, 14px)" }}>
+                <p
+                  className="whitespace-pre-wrap text-center font-semibold text-[#496db3]"
+                  style={{ fontSize: "112%", lineHeight: 1.35 }}
+                >
+                  {sectionDescription}
+                </p>
+              </div>
+
+              <div className="mt-4">
+                <HomeServicesFolderCards
+                  equalHeight
+                  ctaLabel="Перейти в услугу"
+                  limit={200}
+                  cards={[
+                    ...serviceFolderHub.children.map((c) => ({
+                      slugPath: c.slugPath,
+                      label: c.label,
+                      description: c.description?.trim() || undefined,
+                      preview: c.preview,
+                    })),
+                    ...serviceFolderHub.pages.map((p) => ({
+                      slugPath: p.slug,
+                      label: p.title,
+                      description: (typeof p.description === "string" && p.description.trim()) || undefined,
+                      preview: p.preview ?? undefined,
+                    })),
+                  ]}
+                />
+              </div>
+
+              <style>{`
+                .why-us-grid {
+                  grid-template-columns: 1fr;
+                  align-items: stretch;
+                }
+                @media (min-width: 768px) {
+                  .why-us-grid {
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
+                  }
+                }
+                @media (min-width: 1024px) {
+                  .why-us-grid {
+                    grid-template-columns: repeat(4, minmax(0, 1fr));
+                  }
+                }
+              `}</style>
+            </section>
+          </div>
+        </div>
       </div>
     );
   }
@@ -239,10 +400,15 @@ export default function Page() {
             }
             if (block.type === "text") {
               const html = typeof block.data.text === "string" ? block.data.text : "";
+              const isArticlesSection = slugParts[0] === "articles";
               return (
                 <div
                   key={block.id}
-                  className="page-content text-base leading-relaxed text-slate-800"
+                  className={
+                    isArticlesSection
+                      ? "article-page-content page-content"
+                      : "page-content text-base leading-relaxed text-slate-800"
+                  }
                   dangerouslySetInnerHTML={{ __html: html }}
                 />
               );

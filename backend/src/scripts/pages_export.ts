@@ -11,6 +11,8 @@ type ExportedPage = {
   title: string;
   slug: string;
   status: "DRAFT" | "PUBLISHED";
+  description: string | null;
+  preview: string | null;
   blocks: ExportedBlock[];
 };
 
@@ -29,6 +31,8 @@ async function main() {
     title: p.title,
     slug: p.slug,
     status: p.status,
+    description: p.description ?? null,
+    preview: p.preview ?? null,
     blocks: p.blocks.map((b) => ({
       type: b.type,
       order: b.order,

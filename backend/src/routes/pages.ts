@@ -6,6 +6,65 @@ import path from "node:path";
 
 export const pagesRouter = Router();
 
+/** БД без миграции `add_page_service_descriptions` — Prisma падает на SELECT/UPDATE несуществующих колонок. */
+function isMissingDbColumnError(e: unknown): boolean {
+  if (typeof e !== "object" || e === null) return false;
+  const code = "code" in e ? String((e as { code: unknown }).code) : "";
+  if (code === "P2022") return true;
+  const msg =
+    typeof (e as { message?: unknown }).message === "string"
+      ? (e as { message: string }).message
+      : "";
+  return /Unknown column|doesn't exist/i.test(msg);
+}
+
+type PageListForApi = {
+  id: number;
+  title: string;
+  slug: string;
+  status: "DRAFT" | "PUBLISHED";
+  createdAt: Date;
+  updatedAt: Date;
+  description?: string | null;
+  preview?: string | null;
+  blocks: { type: string; data: unknown }[];
+};
+
+function mapPagesToListJson(pages: PageListForApi[], preferDbColumns: boolean) {
+  return pages.map((p) => {
+    const summary = p.blocks?.find((b) => b.type === "summary");
+    const previewBlock = p.blocks?.find((b) => b.type === "preview");
+    const fromSummary = (summary?.data as { text?: string } | undefined)?.text;
+    const fromPreview = (previewBlock?.data as { src?: string } | undefined)?.src;
+    const description =
+      preferDbColumns &&
+      typeof p.description === "string" &&
+      p.description.trim() !== ""
+        ? p.description
+        : typeof fromSummary === "string"
+          ? fromSummary
+          : null;
+    const preview =
+      preferDbColumns &&
+      typeof p.preview === "string" &&
+      p.preview.trim() !== ""
+        ? p.preview
+        : typeof fromPreview === "string"
+          ? fromPreview
+          : null;
+    return {
+      id: p.id,
+      title: p.title,
+      slug: p.slug,
+      status: p.status,
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
+      description,
+      preview,
+    };
+  });
+}
+
 type BannerSlide = {
   id: string;
   title: string;
@@ -655,7 +714,12 @@ pagesRouter.put("/folders", async (req, res) => {
     })
     .map((item) => ({
       name: String(item.name ?? "").trim(),
-      slug: String(item.slug ?? "").trim().replace(/^\/+|\/+$/g, ""),
+      slug: String(item.slug ?? "")
+        .trim()
+        .replace(/^\/+|\/+$/g, "")
+        .replace(/\\/g, "/")
+        .replace(/\/+/g, "/")
+        .toLowerCase(),
       description:
         typeof item.description === "string" ? item.description.trim() : "",
       preview: typeof item.preview === "string" ? item.preview : "",
@@ -713,42 +777,49 @@ pagesRouter.put("/site-settings", async (req, res) => {
 });
 
 // Get list of pages
-pagesRouter.get("/", async (_req, res) => {
-  const pages = await prisma.page.findMany({
-    orderBy: { id: "desc" },
-    select: {
-      id: true,
-      title: true,
-      slug: true,
-      status: true,
-      createdAt: true,
-      updatedAt: true,
-      blocks: {
-        where: { type: { in: ["summary", "preview"] } },
-        select: { type: true, data: true },
-        take: 2,
-      },
-    },
-  });
+pagesRouter.get("/", async (_req, res, next) => {
+  const blockSubset = {
+    where: { type: { in: ["summary", "preview"] } },
+    select: { type: true, data: true },
+    take: 2,
+  };
 
-  const mapped = pages.map((p) => {
-    const summary = p.blocks?.find((b) => b.type === "summary");
-    const previewBlock = p.blocks?.find((b) => b.type === "preview");
-    const description = (summary?.data as any)?.text;
-    const preview = (previewBlock?.data as any)?.src;
-    return {
-    id: p.id,
-    title: p.title,
-    slug: p.slug,
-    status: p.status,
-    createdAt: p.createdAt,
-    updatedAt: p.updatedAt,
-      description: typeof description === "string" ? description : null,
-      preview: typeof preview === "string" ? preview : null,
-    };
-  });
+  const selectWithColumns = {
+    id: true,
+    title: true,
+    slug: true,
+    status: true,
+    createdAt: true,
+    updatedAt: true,
+    description: true,
+    preview: true,
+    blocks: blockSubset,
+  };
 
-  res.json(mapped);
+  const selectLegacy = {
+    id: true,
+    title: true,
+    slug: true,
+    status: true,
+    createdAt: true,
+    updatedAt: true,
+    blocks: blockSubset,
+  };
+
+  try {
+    const pages = await prisma.page.findMany({
+      orderBy: { id: "desc" },
+      select: selectWithColumns,
+    });
+    return res.json(mapPagesToListJson(pages as unknown as PageListForApi[], true));
+  } catch (e) {
+    if (!isMissingDbColumnError(e)) return next(e);
+    const pages = await prisma.page.findMany({
+      orderBy: { id: "desc" },
+      select: selectLegacy,
+    });
+    return res.json(mapPagesToListJson(pages as unknown as PageListForApi[], false));
+  }
 });
 
 // Get page by slug (for public client)
@@ -794,7 +865,7 @@ pagesRouter.get("/:id", async (req, res) => {
 
 // Create page with blocks
 pagesRouter.post("/", async (req, res) => {
-  const { title, slug, status = "DRAFT", blocks = [], description } = req.body ?? {};
+  const { title, slug, status = "DRAFT", blocks = [], description, preview } = req.body ?? {};
 
   if (!title || !slug) {
     return res.status(400).json({ error: "title and slug are required" });
@@ -839,6 +910,7 @@ pagesRouter.post("/", async (req, res) => {
       });
     }
     const descriptionValue = typeof description === "string" ? description.trim() : "";
+    const previewValue = typeof preview === "string" ? preview.trim() : "";
     if (descriptionValue) {
       initialBlocks.push({
         type: "summary",
@@ -846,25 +918,89 @@ pagesRouter.post("/", async (req, res) => {
         data: { text: descriptionValue },
       });
     }
+    if (previewValue) {
+      initialBlocks.push({
+        type: "preview",
+        order: initialBlocks.length,
+        data: { src: previewValue },
+      });
+    }
 
-    const page = await prisma.page.create({
-      data: {
-        title,
-        slug,
-        status,
-        authorId,
-        blocks: {
-          create: initialBlocks,
-        },
+    const createPayload = {
+      title,
+      slug,
+      status,
+      authorId,
+      blocks: {
+        create: initialBlocks,
       },
-      include: { blocks: true },
-    });
+    };
+    let page;
+    try {
+      page = await prisma.page.create({
+        data: {
+          ...createPayload,
+          description: descriptionValue || null,
+          preview: previewValue || null,
+        },
+        include: { blocks: true },
+      });
+    } catch (createErr) {
+      if (!isMissingDbColumnError(createErr)) throw createErr;
+      page = await prisma.page.create({
+        data: createPayload,
+        include: { blocks: true },
+      });
+    }
     return res.status(201).json({
       ...page,
       blocks: sortBlocksByOrder(page.blocks),
     });
   } catch (e: any) {
     if (e.code === "P2002") {
+      return res.status(409).json({ error: "Slug must be unique" });
+    }
+    // eslint-disable-next-line no-console
+    console.error(e);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Rename a folder slug (URL prefix) for all pages inside it — ДОЛЖЕН быть выше PUT /:id, иначе "folder-rename" попадает в :id.
+// Example: oldSlug="articles" -> pages.slug "articles/..." become "newSlug/..."
+pagesRouter.put("/folder-rename", async (req, res) => {
+  const { oldSlug, newSlug } = req.body ?? {};
+
+  if (!oldSlug || !newSlug) {
+    return res.status(400).json({ error: "oldSlug and newSlug are required" });
+  }
+  if (oldSlug === newSlug) {
+    return res.json({ renamed: 0 });
+  }
+
+  const oldPrefix = `${oldSlug}/`;
+  const newPrefix = `${newSlug}/`;
+
+  try {
+    const pagesToRename = await prisma.page.findMany({
+      where: {
+        slug: { startsWith: oldPrefix },
+      },
+      select: { id: true, slug: true },
+    });
+
+    const updates = pagesToRename.map((p) => {
+      const updatedSlug = p.slug.replace(oldPrefix, newPrefix);
+      return prisma.page.update({
+        where: { id: p.id },
+        data: { slug: updatedSlug },
+      });
+    });
+
+    await prisma.$transaction(updates);
+    return res.json({ renamed: pagesToRename.length });
+  } catch (e: any) {
+    if (e?.code === "P2002") {
       return res.status(409).json({ error: "Slug must be unique" });
     }
     // eslint-disable-next-line no-console
@@ -905,13 +1041,26 @@ pagesRouter.put("/:id", async (req, res) => {
       return res.status(404).json({ error: "Page not found" });
     }
 
-    await prisma.page.update({
-      where: { id },
-      data: {
-        title,
-        slug,
-      },
-    });
+    const descriptionValue = typeof description === "string" ? description.trim() : "";
+    const previewValue = typeof preview === "string" ? preview.trim() : "";
+
+    await prisma.page
+      .update({
+        where: { id },
+        data: {
+          title,
+          slug,
+          ...(hasDescription ? { description: descriptionValue || null } : {}),
+          ...(hasPreview ? { preview: previewValue || null } : {}),
+        },
+      })
+      .catch(async (err) => {
+        if (!isMissingDbColumnError(err)) throw err;
+        await prisma.page.update({
+          where: { id },
+          data: { title, slug },
+        });
+      });
 
     const firstTextBlock = existing.blocks.find((b) => b.type === "text");
     if (hasText) {
@@ -944,7 +1093,6 @@ pagesRouter.put("/:id", async (req, res) => {
 
     const firstSummaryBlock = existing.blocks.find((b) => b.type === "summary");
     if (hasDescription) {
-      const descriptionValue = typeof description === "string" ? description.trim() : "";
       if (descriptionValue) {
         if (firstSummaryBlock) {
           await prisma.block.update({
@@ -970,7 +1118,6 @@ pagesRouter.put("/:id", async (req, res) => {
 
     const firstPreviewBlock = existing.blocks.find((b) => b.type === "preview");
     if (hasPreview) {
-      const previewValue = typeof preview === "string" ? preview.trim() : "";
       if (previewValue) {
         if (firstPreviewBlock) {
           await prisma.block.update({
@@ -1037,48 +1184,3 @@ pagesRouter.delete("/:id", async (req, res) => {
     return res.status(500).json({ error: "Internal server error" });
   }
 });
-
-// Rename a folder slug (URL prefix) for all pages inside it.
-// Example: oldSlug="articles" -> pages.slug "articles/..." become "newSlug/..."
-pagesRouter.put("/folder-rename", async (req, res) => {
-  const { oldSlug, newSlug } = req.body ?? {};
-
-  if (!oldSlug || !newSlug) {
-    return res.status(400).json({ error: "oldSlug and newSlug are required" });
-  }
-  if (oldSlug === newSlug) {
-    return res.json({ renamed: 0 });
-  }
-
-  const oldPrefix = `${oldSlug}/`;
-  const newPrefix = `${newSlug}/`;
-
-  try {
-    const pagesToRename = await prisma.page.findMany({
-      where: {
-        slug: { startsWith: oldPrefix },
-      },
-      select: { id: true, slug: true },
-    });
-
-    const updates = pagesToRename.map((p) => {
-      const updatedSlug = p.slug.replace(oldPrefix, newPrefix);
-      return prisma.page.update({
-        where: { id: p.id },
-        data: { slug: updatedSlug },
-      });
-    });
-
-    await prisma.$transaction(updates);
-    return res.json({ renamed: pagesToRename.length });
-  } catch (e: any) {
-    if (e?.code === "P2002") {
-      // Unique constraint failed (slug collision)
-      return res.status(409).json({ error: "Slug must be unique" });
-    }
-    // eslint-disable-next-line no-console
-    console.error(e);
-    return res.status(500).json({ error: "Internal server error" });
-  }
-});
-

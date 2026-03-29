@@ -35,3 +35,64 @@ html::-webkit-scrollbar:horizontal,
 body::-webkit-scrollbar:horizontal {
   height: 0;
 }
+
+/* Текст публичных статей (CMS) — как у карточек услуг: база clamp, заголовки uppercase / 800, абзацы 112% / 500 */
+.article-page-content {
+  font-size: clamp(13px, 0.7vw, 14px);
+  color: #496db3;
+  font-weight: 500;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.article-page-content h1,
+.article-page-content h2,
+.article-page-content h3,
+.article-page-content h4 {
+  margin: 0;
+  font-size: 112%;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #496db3;
+  font-weight: 800;
+}
+
+.article-page-content p {
+  margin: 0.35rem 0 0;
+  font-size: 112%;
+  line-height: 1.35;
+  font-weight: 500;
+  color: #496db3;
+  white-space: pre-wrap;
+}
+
+.article-page-content > *:first-child {
+  margin-top: 0;
+}
+
+.article-page-content ul,
+.article-page-content ol {
+  margin: 0.35rem 0 0;
+  padding-left: 1.25rem;
+  font-size: 112%;
+  line-height: 1.35;
+  font-weight: 500;
+  color: #496db3;
+}
+
+.article-page-content li {
+  margin-top: 0.25rem;
+}
+
+.article-page-content a {
+  color: #496db3;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.article-page-content a:hover {
+  color: #e53935;
+}

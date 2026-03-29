@@ -75,6 +75,16 @@ function slugifyLatin(input: string): string {
     .replace(/^-|-$/g, "");
 }
 
+/** Путь slug в одном виде (нижний регистр, слеши). Иначе папка из страницы и из списка customFolders не совпадает — «Удалить» не показывается. */
+function normalizeUrlSlugPath(slug: string): string {
+  return slug
+    .trim()
+    .replace(/\\/g, "/")
+    .replace(/\/+/g, "/")
+    .replace(/^\/+|\/+$/g, "")
+    .toLowerCase();
+}
+
 function capitalizeFirst(s: string): string {
   if (!s) return s;
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -125,22 +135,29 @@ async function fileToWebpDataUrl(file: File, quality = 0.6): Promise<string> {
 }
 
 function getFolderPathFromPageSlug(slug: string): string {
-  const idx = slug.lastIndexOf("/");
-  return idx >= 0 ? slug.slice(0, idx) : "__root";
+  const s = normalizeUrlSlugPath(slug);
+  if (!s) return "__root";
+  const idx = s.lastIndexOf("/");
+  return idx >= 0 ? s.slice(0, idx) : "__root";
 }
 
 function getPageLeafSlug(slug: string): string {
-  const idx = slug.lastIndexOf("/");
-  return idx >= 0 ? slug.slice(idx + 1) : slug;
+  const s = normalizeUrlSlugPath(slug);
+  const idx = s.lastIndexOf("/");
+  return idx >= 0 ? s.slice(idx + 1) : s;
 }
 
 function getFolderParentPath(folderSlug: string): string {
-  const idx = folderSlug.lastIndexOf("/");
-  return idx >= 0 ? folderSlug.slice(0, idx) : "__root";
+  const s = normalizeUrlSlugPath(folderSlug);
+  if (!s) return "__root";
+  const idx = s.lastIndexOf("/");
+  return idx >= 0 ? s.slice(0, idx) : "__root";
 }
 
 function getFolderAncestors(folderSlug: string): string[] {
-  const parts = folderSlug.split("/").filter(Boolean);
+  const s = normalizeUrlSlugPath(folderSlug);
+  if (!s) return [];
+  const parts = s.split("/").filter(Boolean);
   const out: string[] = [];
   for (let i = 0; i < parts.length; i += 1) {
     out.push(parts.slice(0, i + 1).join("/"));
@@ -198,7 +215,7 @@ function readFoldersFromLocalStorage(): CustomFolder[] {
       })
       .map((f) => ({
         name: f.name,
-        slug: f.slug,
+        slug: normalizeUrlSlugPath(String(f.slug || "")),
         description: typeof f.description === "string" ? f.description : "",
         showInNavbar: Boolean(f.showInNavbar),
         preview: typeof f.preview === "string" ? f.preview : "",
@@ -292,16 +309,21 @@ export default function AdminPage() {
     void (async () => {
       try {
         const data = await apiGet<{ folders?: CustomFolder[] }>("/api/pages/folders");
-        const loaded = (Array.isArray(data?.folders) ? data.folders : [])
+        const loadedRaw = (Array.isArray(data?.folders) ? data.folders : [])
           .filter((f) => typeof f?.name === "string" && typeof f?.slug === "string")
           .map((f) => ({
             name: String(f.name || "").trim(),
-            slug: String(f.slug || "").trim(),
+            slug: normalizeUrlSlugPath(String(f.slug || "").trim()),
             description: typeof f.description === "string" ? f.description : "",
             showInNavbar: Boolean(f.showInNavbar),
             preview: typeof f.preview === "string" ? f.preview : "",
           }))
           .filter((f) => f.name && f.slug);
+        const seen = new Map<string, (typeof loadedRaw)[0]>();
+        for (const f of loadedRaw) {
+          if (!seen.has(f.slug)) seen.set(f.slug, f);
+        }
+        const loaded = Array.from(seen.values());
 
         if (loaded.length > 0) {
       setCustomFolders(loaded);
@@ -581,19 +603,23 @@ export default function AdminPage() {
   }
 
   async function handleMoveFolderIntoFolder(sourceFolder: string, targetFolder: string) {
-    const source = sourceFolder.trim();
-    const target = targetFolder.trim();
+    const source = normalizeUrlSlugPath(sourceFolder.trim());
+    const target =
+      targetFolder.trim() === "__root" ? "__root" : normalizeUrlSlugPath(targetFolder.trim());
     if (!source || source === "__root") return;
     if (source === target) return;
     if (target !== "__root" && target.startsWith(`${source}/`)) return;
 
     const sourceLeaf = source.split("/").pop() || source;
-    const newSlug = target === "__root" ? sourceLeaf : `${target}/${sourceLeaf}`;
+    const newSlug = normalizeUrlSlugPath(
+      target === "__root" ? sourceLeaf : `${target}/${sourceLeaf}`,
+    );
     if (!newSlug || newSlug === source) return;
 
-    const movingPages = pages.filter(
-      (p) => p.slug === source || p.slug.startsWith(`${source}/`),
-    );
+    const movingPages = pages.filter((p) => {
+      const ps = normalizeUrlSlugPath(p.slug);
+      return ps === source || ps.startsWith(`${source}/`);
+    });
     const movingPageIds = new Set(movingPages.map((p) => p.id));
     const occupied = new Set(
       pages
@@ -602,10 +628,9 @@ export default function AdminPage() {
     );
 
     for (const page of movingPages) {
+      const ps = normalizeUrlSlugPath(page.slug);
       const nextSlug =
-        page.slug === source
-          ? newSlug
-          : `${newSlug}${page.slug.slice(source.length)}`;
+        ps === source ? newSlug : `${newSlug}${ps.slice(source.length)}`;
       if (occupied.has(nextSlug)) {
         setError(`Нельзя переместить папку: slug "${nextSlug}" уже используется`);
         return;
@@ -617,17 +642,19 @@ export default function AdminPage() {
     const prevCurrentFolder = currentFolder;
 
     const mappedCustomFolders = customFolders.map((f) => {
-      if (f.slug === source) return { ...f, slug: newSlug };
-      if (f.slug.startsWith(`${source}/`)) {
-        return { ...f, slug: `${newSlug}${f.slug.slice(source.length)}` };
+      const fs = normalizeUrlSlugPath(f.slug);
+      if (fs === source) return { ...f, slug: newSlug };
+      if (fs.startsWith(`${source}/`)) {
+        return { ...f, slug: `${newSlug}${fs.slice(source.length)}` };
       }
       return f;
     });
     setCustomFolders(mappedCustomFolders);
     setCurrentFolder((prev) => {
       if (!prev) return prev;
-      if (prev === source) return newSlug;
-      if (prev.startsWith(`${source}/`)) return `${newSlug}${prev.slice(source.length)}`;
+      const p = normalizeUrlSlugPath(prev);
+      if (p === source) return newSlug;
+      if (p.startsWith(`${source}/`)) return `${newSlug}${p.slice(source.length)}`;
       return prev;
     });
 
@@ -661,7 +688,9 @@ export default function AdminPage() {
   const folders = Array.from(folderSet).sort((a, b) => a.localeCompare(b, "ru"));
 
   const currentFolderKey =
-    currentFolder && currentFolder !== "__root" ? currentFolder : "__root";
+    currentFolder && currentFolder !== "__root"
+      ? normalizeUrlSlugPath(currentFolder)
+      : "__root";
   const parentFolderForQuickDrop =
     currentFolderKey !== "__root" ? getFolderParentPath(currentFolderKey) : null;
   const childFolders = folders.filter((f) => getFolderParentPath(f) === currentFolderKey);
@@ -704,14 +733,14 @@ export default function AdminPage() {
     }
     const folderSlug =
       addFolderParentSlug && addFolderParentSlug !== "__root"
-        ? `${addFolderParentSlug}/${leafSlug}`
+        ? `${normalizeUrlSlugPath(addFolderParentSlug)}/${leafSlug}`
         : leafSlug;
 
     setCustomFolders((prev) => {
-      const existing = prev.find((f) => f.slug === folderSlug);
+      const existing = prev.find((f) => normalizeUrlSlugPath(f.slug) === normalizeUrlSlugPath(folderSlug));
       if (existing) {
         return prev.map((f) =>
-          f.slug === folderSlug
+          normalizeUrlSlugPath(f.slug) === normalizeUrlSlugPath(folderSlug)
             ? {
                 ...f,
                 name,
@@ -726,13 +755,13 @@ export default function AdminPage() {
         ...prev,
         {
           name,
-          slug: folderSlug,
+          slug: normalizeUrlSlugPath(folderSlug),
           description: newFolderDescription.trim(),
           preview: newFolderPreview.trim(),
         },
       ];
     });
-    setCurrentFolder(folderSlug);
+    setCurrentFolder(normalizeUrlSlugPath(folderSlug));
     setIsAddFolderModalOpen(false);
     setFolderModalError(null);
     setNewFolderName("");
@@ -771,16 +800,17 @@ export default function AdminPage() {
         );
       }
       setEditFolderPreview(webpDataUrl);
+      const oldN = normalizeUrlSlugPath(editFolderOldSlug);
       setCustomFolders((prev) =>
-        prev.some((f) => f.slug === editFolderOldSlug)
+        prev.some((f) => normalizeUrlSlugPath(f.slug) === oldN)
           ? prev.map((f) =>
-              f.slug === editFolderOldSlug ? { ...f, preview: webpDataUrl } : f,
+              normalizeUrlSlugPath(f.slug) === oldN ? { ...f, preview: webpDataUrl } : f,
             )
           : [
               ...prev,
               {
-                name: editFolderName.trim() || editFolderOldSlug.split("/").pop() || editFolderOldSlug,
-                slug: editFolderOldSlug,
+                name: editFolderName.trim() || oldN.split("/").pop() || oldN,
+                slug: oldN,
                 showInNavbar: editFolderShowInNavbar,
                 preview: webpDataUrl,
               },
@@ -793,19 +823,27 @@ export default function AdminPage() {
   }
 
   function handleDeleteFolder(folderSlug: string) {
+    const n = normalizeUrlSlugPath(folderSlug);
     setCustomFolders((prev) =>
-      prev.filter((f) => f.slug !== folderSlug && !f.slug.startsWith(`${folderSlug}/`)),
+      prev.filter(
+        (f) =>
+          normalizeUrlSlugPath(f.slug) !== n &&
+          !normalizeUrlSlugPath(f.slug).startsWith(`${n}/`),
+      ),
     );
-    setCurrentFolder((prev) =>
-      prev === folderSlug || (prev ? prev.startsWith(`${folderSlug}/`) : false) ? "__root" : prev,
-    );
+    setCurrentFolder((prev) => {
+      if (!prev || prev === "__root") return prev;
+      const p = normalizeUrlSlugPath(prev);
+      return p === n || p.startsWith(`${n}/`) ? "__root" : prev;
+    });
   }
 
   function openEditFolderModal(folderSlug: string) {
-    const entry = customFolders.find((f) => f.slug === folderSlug);
-    const parentPath = getFolderParentPath(folderSlug);
-    const leafSlug = folderSlug.split("/").pop() || folderSlug;
-    setEditFolderOldSlug(folderSlug);
+    const n = normalizeUrlSlugPath(folderSlug);
+    const entry = customFolders.find((f) => normalizeUrlSlugPath(f.slug) === n);
+    const parentPath = getFolderParentPath(n);
+    const leafSlug = n.split("/").pop() || n;
+    setEditFolderOldSlug(n);
     setEditFolderParentSlug(parentPath);
     setEditFolderSlug(leafSlug);
     setEditFolderName(entry?.name ?? humanizeFolderSlugSegment(leafSlug));
@@ -835,12 +873,12 @@ export default function AdminPage() {
       }
 
       const newLeaf = slugifyLatin(editFolderSlug.trim());
-      const oldSlug = editFolderOldSlug;
+      const oldSlug = normalizeUrlSlugPath(editFolderOldSlug);
       const parentSlug =
         editFolderParentSlug && editFolderParentSlug !== "__root"
-          ? editFolderParentSlug
+          ? normalizeUrlSlugPath(editFolderParentSlug)
           : "";
-      const newSlug = parentSlug ? `${parentSlug}/${newLeaf}` : newLeaf;
+      const newSlug = normalizeUrlSlugPath(parentSlug ? `${parentSlug}/${newLeaf}` : newLeaf);
 
       if (!newLeaf) {
         setEditFolderModalError("Некорректный служебный адрес папки");
@@ -856,12 +894,14 @@ export default function AdminPage() {
       // even if backend is temporarily unavailable, the folder list should reflect the change.
       setCustomFolders((prev) => {
         const hasExactCollision = prev.some(
-          (f) => f.slug === newSlug && f.slug !== oldSlug,
+          (f) =>
+            normalizeUrlSlugPath(f.slug) === newSlug && normalizeUrlSlugPath(f.slug) !== oldSlug,
         );
-        const oldEntry = prev.find((f) => f.slug === oldSlug);
+        const oldEntry = prev.find((f) => normalizeUrlSlugPath(f.slug) === oldSlug);
         const nextPreview = editFolderPreview.trim();
         const mapped = prev.map((f) => {
-          if (f.slug === oldSlug) {
+          const fs = normalizeUrlSlugPath(f.slug);
+          if (fs === oldSlug) {
             return {
               ...f,
               slug: newSlug,
@@ -871,8 +911,8 @@ export default function AdminPage() {
               preview: nextPreview || f.preview,
             };
           }
-          if (f.slug.startsWith(`${oldSlug}/`)) {
-            return { ...f, slug: `${newSlug}${f.slug.slice(oldSlug.length)}` };
+          if (fs.startsWith(`${oldSlug}/`)) {
+            return { ...f, slug: `${newSlug}${fs.slice(oldSlug.length)}` };
           }
           return f;
         });
@@ -897,15 +937,16 @@ export default function AdminPage() {
           console.log("[FOLDER_PREVIEW_DEBUG] confirmEditFolder next state", debugPayload);
         }
         if (hasExactCollision) {
-          return withUpsert.filter((f) => f.slug !== oldSlug);
+          return withUpsert.filter((f) => normalizeUrlSlugPath(f.slug) !== oldSlug);
         }
         return withUpsert;
       });
 
       setCurrentFolder((prev) => {
         if (!prev) return prev;
-        if (prev === oldSlug) return newSlug;
-        if (prev.startsWith(`${oldSlug}/`)) return `${newSlug}${prev.slice(oldSlug.length)}`;
+        const p = normalizeUrlSlugPath(prev);
+        if (p === oldSlug) return newSlug;
+        if (p.startsWith(`${oldSlug}/`)) return `${newSlug}${p.slice(oldSlug.length)}`;
         return prev;
       });
 
@@ -998,8 +1039,9 @@ export default function AdminPage() {
   }
 
   function getFolderDisplayName(folderSlug: string): string {
-    const entry = customFolders.find((f) => f.slug === folderSlug);
-    const fallback = folderSlug.split("/").pop() || folderSlug;
+    const n = normalizeUrlSlugPath(folderSlug);
+    const entry = customFolders.find((f) => normalizeUrlSlugPath(f.slug) === n);
+    const fallback = n.split("/").pop() || n;
     return entry?.name ?? humanizeFolderSlugSegment(fallback);
   }
 
@@ -1089,7 +1131,9 @@ export default function AdminPage() {
                       </div>
                     ) : null}
                     {childFolders.map((folder) => {
-                      const hasCustomEntry = customFolders.some((f) => f.slug === folder);
+                      const hasCustomEntry = customFolders.some(
+                        (f) => normalizeUrlSlugPath(f.slug) === normalizeUrlSlugPath(folder),
+                      );
                           return (
                         <div
                           key={folder}

@@ -2,10 +2,11 @@ import Link from "next/link";
 import type { BannerSlide } from "@/components/HomeBannersCarousel";
 import { HomeMainStack } from "@/components/HomeMainStack";
 import { HomeReviewsCarousel } from "@/components/HomeReviewsCarousel";
-import { HomeServicesCarousel } from "@/components/HomeServicesCarousel";
+import { HomeServicesFolderCards } from "@/components/HomeServicesFolderCards";
 import { HomeArticlesCarousel } from "@/components/HomeArticlesCarousel";
 import { HomePartnersCarousel } from "@/components/HomePartnersCarousel";
 import { apiGet } from "@/lib/api";
+import { collectServiceCards } from "@/lib/serviceTree";
 import {
   AcademicCapIcon,
   SparklesIcon,
@@ -167,13 +168,6 @@ function buildServicesTree(
   return root;
 }
 
-function collectServiceCards(node: ServiceTreeNode, out: ServiceTreeNode[]) {
-  for (const child of node.children) {
-    if (child.pages.length > 0 || child.isMetaFolder) out.push(child);
-    collectServiceCards(child, out);
-  }
-}
-
 export default async function Home() {
   let reviews: ReviewSlide[] = [];
   let bannerSlides: BannerSlide[] = [];
@@ -203,6 +197,7 @@ export default async function Home() {
   }
 
   let homeServiceCards: ServiceTreeNode[] = [];
+  let servicesRootFolderDescription: string | null = null;
   try {
     const [pages, foldersPayload] = await Promise.all([
       apiGet<ServiceListItem[]>("/api/pages"),
@@ -210,6 +205,9 @@ export default async function Home() {
     ]);
     const folders = Array.isArray(foldersPayload?.folders) ? foldersPayload.folders : [];
     const folderMetaBySlug = new Map(folders.map((f) => [normalizeSlug(f.slug), f] as const));
+    const rootMeta = folderMetaBySlug.get("services");
+    const rootDesc = rootMeta?.description?.trim();
+    if (rootDesc) servicesRootFolderDescription = rootDesc;
     const servicesPages = pages
       .filter((p) => isVisibleServicePage(p) && normalizeSlug(p.slug).startsWith("services/"))
       .map((p) => ({ ...p, slug: normalizeSlug(p.slug) }))
@@ -331,8 +329,8 @@ export default async function Home() {
               className="why-us-grid grid gap-3"
               style={{ fontSize: "clamp(13px, 0.7vw, 14px)" }}
             >
-              <article className="why-us-card rounded-xl border border-slate-200/80 bg-slate-50 p-4 text-[#496db3]">
-                <div className="flex items-center gap-3">
+              <article className="why-us-card flex h-full min-h-0 flex-col rounded-xl border border-slate-200/80 bg-slate-50 p-4 text-[#496db3]">
+                <div className="flex min-h-0 flex-1 items-center gap-3">
                   <AcademicCapIcon className="h-8 w-8 shrink-0 text-[#496db3]" />
                   <p className="font-semibold text-[#496db3]" style={{ fontSize: "112%", lineHeight: 1.35 }}>
                     Сильная команда экспертов с многолетней практикой в каталогизации и анализе.
@@ -347,16 +345,16 @@ export default async function Home() {
                   </p>
                 </div>
               </article>
-              <article className="why-us-card rounded-xl border border-slate-200/80 bg-slate-50 p-4 text-[#496db3]">
-                <div className="flex items-center gap-3">
+              <article className="why-us-card flex h-full min-h-0 flex-col rounded-xl border border-slate-200/80 bg-slate-50 p-4 text-[#496db3]">
+                <div className="flex min-h-0 flex-1 items-center gap-3">
                   <SparklesIcon className="h-8 w-8 shrink-0 text-[#496db3]" />
                   <p className="font-semibold text-[#496db3]" style={{ fontSize: "112%", lineHeight: 1.35 }}>
                     Индивидуальный подход к задаче и решения в сложных нестандартных ситуациях.
                   </p>
                 </div>
               </article>
-              <article className="why-us-card rounded-xl border border-slate-200/80 bg-slate-50 p-4 text-[#496db3]">
-                <div className="flex items-center gap-3">
+              <article className="why-us-card flex h-full min-h-0 flex-col rounded-xl border border-slate-200/80 bg-slate-50 p-4 text-[#496db3]">
+                <div className="flex min-h-0 flex-1 items-center gap-3">
                   <ClipboardDocumentCheckIcon className="h-8 w-8 shrink-0 text-[#496db3]" />
                   <p className="font-semibold text-[#496db3]" style={{ fontSize: "112%", lineHeight: 1.35 }}>
                     Пошаговое сопровождение согласования — от подготовки до финального утверждения.
@@ -367,6 +365,7 @@ export default async function Home() {
             <style>{`
               .why-us-grid {
                 grid-template-columns: 1fr;
+                align-items: stretch;
               }
               @media (min-width: 768px) {
                 .why-us-grid {
@@ -482,23 +481,27 @@ export default async function Home() {
             </div>
             <div className="mb-4" style={{ fontSize: "clamp(13px, 0.7vw, 14px)" }}>
               <p
-                className="text-center font-semibold text-[#496db3]"
+                className="whitespace-pre-wrap text-center font-semibold text-[#496db3]"
                 style={{ fontSize: "112%", lineHeight: 1.35 }}
               >
-                Закрываем задачи «под ключ» в области классификации и анализа данных: от методики и
-                каталогизации до сопровождения согласований — чтобы вы получали понятный результат в
-                срок и без лишних рисков.
+                {servicesRootFolderDescription ?? (
+                  <>
+                    Закрываем задачи «под ключ» в области классификации и анализа данных: от методики и
+                    каталогизации до сопровождения согласований — чтобы вы получали понятный результат в
+                    срок и без лишних рисков.
+                  </>
+                )}
               </p>
             </div>
             <div className="mt-4">
-              <HomeServicesCarousel
+              <HomeServicesFolderCards
+                equalHeight
+                gridClassName="services-home-grid"
                 cards={homeServiceCards.map((n) => ({
                   slugPath: n.slugPath,
                   label: n.label,
                   description: n.description,
                   preview: n.preview,
-                  pages: n.pages.map((p) => ({ id: p.id, title: p.title, slug: p.slug })),
-                  isMetaFolder: n.isMetaFolder,
                 }))}
               />
             </div>

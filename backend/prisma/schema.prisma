@@ -24,15 +24,19 @@ model User {
 }
 
 model Page {
-  id        Int       @id @default(autoincrement())
-  title     String
-  slug      String    @unique
-  status    PageStatus @default(DRAFT)
-  blocks    Block[]
-  author    User      @relation("UserPages", fields: [authorId], references: [id])
-  authorId  Int
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id          Int       @id @default(autoincrement())
+  title       String
+  slug        String    @unique
+  status      PageStatus @default(DRAFT)
+  /// Краткое описание (листинг, карточки); дублирует блок summary при сохранении из админки.
+  description String?   @db.Text
+  /// Превью (URL/data URL); дублирует блок preview.
+  preview     String?   @db.Text
+  blocks      Block[]
+  author      User      @relation("UserPages", fields: [authorId], references: [id])
+  authorId    Int
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
 model Block {

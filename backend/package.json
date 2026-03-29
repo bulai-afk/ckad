@@ -9,6 +9,7 @@
     "start": "node dist/index.js",
     "migrate:add-articles-folder": "node scripts/migrate_add_articles_folder.mjs",
     "migrate:seed-articles-pages": "ts-node-dev --transpile-only src/scripts/migrate_seed_articles_pages.ts",
+    "migrate:service-page-descriptions": "ts-node-dev --transpile-only src/scripts/migrate_service_page_descriptions.ts",
     "migrate:seed-admin-demo": "ts-node-dev --transpile-only src/scripts/migrate_seed_admin_demo.ts",
     "pages:export": "ts-node-dev --transpile-only src/scripts/pages_export.ts",
     "pages:import": "ts-node-dev --transpile-only src/scripts/pages_import.ts",

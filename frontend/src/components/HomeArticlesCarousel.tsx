@@ -1,7 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { HomeServicesFolderCards } from "@/components/HomeServicesFolderCards";
+
+const AUTOPLAY_INTERVAL_MS = 5500;
 
 export type HomeArticleSlide = {
   id: number;
@@ -20,13 +22,14 @@ export function HomeArticlesCarousel({ slides }: Props) {
   const [index, setIndex] = useState(0);
   const [renderIndex, setRenderIndex] = useState(0);
   const [visibleCount, setVisibleCount] = useState(1);
+  const [carouselHovered, setCarouselHovered] = useState(false);
+  const [tabVisible, setTabVisible] = useState(true);
 
   useEffect(() => {
     const updateVisibleCount = () => {
       const width = window.innerWidth;
-      if (width < 768) return setVisibleCount(1);
-      if (width < 1280) return setVisibleCount(2);
-      return setVisibleCount(3);
+      if (width < 640) return setVisibleCount(2);
+      return setVisibleCount(4);
     };
     updateVisibleCount();
     window.addEventListener("resize", updateVisibleCount);
@@ -41,14 +44,29 @@ export function HomeArticlesCarousel({ slides }: Props) {
 
   const maxStart = Math.max(0, normalized.length - visibleCount);
   const safeIndex = Math.max(0, Math.min(index, maxStart));
-  const canPrev = safeIndex > 0;
-  const canNext = safeIndex < maxStart;
   const safeRenderIndex = Math.max(0, Math.min(renderIndex, maxStart));
+  const dotCount = maxStart + 1;
+
+  useEffect(() => {
+    const onVisibility = () => setTabVisible(!document.hidden);
+    onVisibility();
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
+
+  useEffect(() => {
+    if (dotCount <= 1 || !tabVisible || carouselHovered) return;
+    const tick = () => {
+      setIndex((prev) => (prev >= maxStart ? 0 : prev + 1));
+    };
+    const id = window.setInterval(tick, AUTOPLAY_INTERVAL_MS);
+    return () => window.clearInterval(id);
+  }, [dotCount, tabVisible, carouselHovered, maxStart]);
 
   useEffect(() => {
     if (index !== safeIndex) setIndex(safeIndex);
     if (renderIndex !== safeRenderIndex) setRenderIndex(safeRenderIndex);
-  }, [index, safeIndex]);
+  }, [index, safeIndex, renderIndex, safeRenderIndex]);
 
   const isSlideInRenderRange = useMemo(() => {
     const start = Math.min(safeIndex, safeRenderIndex);
@@ -63,6 +81,102 @@ export function HomeArticlesCarousel({ slides }: Props) {
     const end = safeIndex + visibleCount - 1;
     return (slideIndex: number) => slideIndex >= start && slideIndex <= end;
   }, [safeIndex, visibleCount]);
+
+  const trackRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * Один раз после шрифтов и превью: max(offsetHeight) по всем слотам → одна высота всем.
+   * Ранний useLayoutEffect давал малый max — картинки ещё не были в layout.
+   */
+  useEffect(() => {
+    if (normalized.length < 2) return;
+
+    let cancelled = false;
+    let applied = false;
+
+    const applyHeights = () => {
+      if (cancelled || applied) return;
+      const root = trackRef.current;
+      if (!root) return;
+
+      const slots = [...root.querySelectorAll<HTMLElement>("[data-folder-card-slot]")];
+      if (slots.length < 2) return;
+
+      slots.forEach((el) => {
+        el.style.height = "";
+        el.style.minHeight = "";
+      });
+      void root.offsetHeight;
+
+      const heights = slots.map((el) => el.offsetHeight);
+      const positive = heights.filter((h) => h > 0);
+      const maxPx = positive.length > 0 ? Math.max(...positive) : Math.max(0, ...heights);
+      if (maxPx <= 0) return;
+
+      applied = true;
+      slots.forEach((el) => {
+        el.style.boxSizing = "border-box";
+        el.style.height = `${maxPx}px`;
+        el.style.minHeight = `${maxPx}px`;
+      });
+    };
+
+    const waitImagesIn = (root: HTMLElement) => {
+      const imgs = [...root.querySelectorAll("img")];
+      return Promise.all(
+        imgs.map(async (img) => {
+          if (!img.complete) {
+            await new Promise<void>((resolve) => {
+              img.addEventListener("load", () => resolve(), { once: true });
+              img.addEventListener("error", () => resolve(), { once: true });
+            });
+          }
+          try {
+            if (img.decode) await img.decode();
+          } catch {
+            /* ignore */
+          }
+        }),
+      );
+    };
+
+    const run = async () => {
+      try {
+        await document.fonts?.ready;
+      } catch {
+        /* ignore */
+      }
+      if (cancelled) return;
+
+      const root = trackRef.current;
+      if (!root) return;
+
+      await waitImagesIn(root);
+      if (cancelled) return;
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(applyHeights);
+      });
+    };
+
+    void run();
+
+    const fallback = window.setTimeout(() => {
+      if (!cancelled && !applied) applyHeights();
+    }, 2800);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(fallback);
+      const r = trackRef.current;
+      if (r) {
+        [...r.querySelectorAll<HTMLElement>("[data-folder-card-slot]")].forEach((el) => {
+          el.style.height = "";
+          el.style.minHeight = "";
+        });
+      }
+    };
+  }, [normalized]);
 
   if (normalized.length === 0) return null;
 
@@ -86,120 +200,93 @@ export function HomeArticlesCarousel({ slides }: Props) {
         </h2>
       </div>
 
-      <p className="mb-4 text-center font-semibold text-[#496db3]" style={{ fontSize: "clamp(13px, 0.7vw, 14px)" }}>
-        Полезные материалы по каталогизации и анализу данных — советы и разборы кейсов, которые
-        помогут быстрее пройти согласования и избежать ошибок.
-      </p>
+      <div className="mb-4" style={{ fontSize: "clamp(13px, 0.7vw, 14px)" }}>
+        <p
+          className="whitespace-pre-wrap text-center font-semibold text-[#496db3]"
+          style={{ fontSize: "112%", lineHeight: 1.35 }}
+        >
+          Полезные материалы по каталогизации и анализу данных — советы и разборы кейсов, которые помогут
+          быстрее пройти согласования и избежать ошибок.
+        </p>
+      </div>
 
-      <div className="relative rounded-xl bg-slate-100 p-3">
-        <div className="flex items-center justify-center gap-3">
-          <button
-            type="button"
-            onClick={() => {
-              if (!canPrev) return;
-              setIndex(Math.max(0, safeIndex - 1));
+      <div
+        className="relative w-full min-w-0 py-2"
+        onMouseEnter={() => setCarouselHovered(true)}
+        onMouseLeave={() => setCarouselHovered(false)}
+      >
+        <div className="min-w-0 w-full">
+          <div
+            ref={trackRef}
+            className="flex w-full min-w-0 items-stretch transition-transform duration-300 ease-out"
+            style={{
+              transform: `translateX(-${safeIndex * (100 / visibleCount)}%)`,
             }}
-            aria-disabled={!canPrev}
-            className={`relative z-20 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-slate-100 text-xl leading-none text-slate-700 shadow-sm ${
-              canPrev ? "" : "opacity-40 cursor-not-allowed"
-            }`}
-            aria-label="Предыдущие статьи"
+            onTransitionEnd={(e) => {
+              if (e.propertyName !== "transform") return;
+              setRenderIndex(safeIndex);
+            }}
           >
-            ‹
-          </button>
-
-          <div className="min-w-0 flex-1 overflow-visible rounded-xl bg-slate-100 p-2">
-            <div
-              className="flex transition-transform duration-300 ease-out"
-              style={{ transform: `translateX(-${safeIndex * (100 / visibleCount)}%)` }}
-              onTransitionEnd={(e) => {
-                if (e.propertyName !== "transform") return;
-                setRenderIndex(safeIndex);
-              }}
-            >
-              {normalized.map((a, slideIndex) => (
+            {normalized.map((a, slideIndex) => (
+              <div
+                key={a.id}
+                className="flex min-h-0 shrink-0 self-stretch px-1.5"
+                style={{ flexBasis: `${100 / visibleCount}%`, minWidth: 0 }}
+              >
                 <div
-                  key={a.id}
-                  className="shrink-0 px-1.5"
-                  style={{ flexBasis: `${100 / visibleCount}%` }}
+                  className="flex h-full min-h-0 w-full min-w-0 flex-col"
+                  style={
+                    isSlideInRenderRange(slideIndex)
+                      ? isSlideActive(slideIndex)
+                        ? { opacity: 1, visibility: "visible", pointerEvents: "auto" }
+                        : { opacity: 0, visibility: "visible", pointerEvents: "none" }
+                      : { opacity: 0, visibility: "hidden", pointerEvents: "none" }
+                  }
                 >
-                  <Link
-                    href={`/${a.slug}`}
-                    className="why-us-card group relative z-10 block h-full overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200"
-                    style={
-                      isSlideInRenderRange(slideIndex)
-                        ? isSlideActive(slideIndex)
-                          ? { opacity: 1, visibility: "visible", pointerEvents: "auto" }
-                          : { opacity: 0, visibility: "visible", pointerEvents: "none" }
-                        : { opacity: 0, visibility: "hidden", pointerEvents: "none" }
-                    }
-                  >
-                    <div
-                      className="relative aspect-square w-full overflow-hidden bg-slate-50 bg-cover bg-center transition-transform duration-300 ease-out group-hover:scale-[1.01]"
-                      style={
-                        a.preview?.trim()
-                          ? {
-                              backgroundImage: `url(${a.preview})`,
-                              backgroundSize: "cover",
-                              backgroundPosition: "center",
-                              backgroundRepeat: "no-repeat",
-                            }
-                          : undefined
-                      }
-                    >
-                      {!a.preview?.trim() ? (
-                        <div className="absolute inset-0 flex items-center justify-center text-center text-[12px] font-semibold text-slate-400">
-                          Нет изображения
-                        </div>
-                      ) : null}
-
-                      {/* Тёмный полупрозрачный фон поверх бэкграунда */}
-                      <div
-                        aria-hidden="true"
-                        className="pointer-events-none absolute inset-0 z-0"
-                        style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-                      />
-                      <div
-                        aria-hidden="true"
-                        className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-t from-black/55 via-black/20 to-transparent"
-                      />
-
-                      <div className="absolute inset-x-0 bottom-0 z-10 p-5 sm:p-6">
-                        <h3 className="text-balance text-[16px] font-black leading-[1.15] tracking-tight text-white">
-                          {a.title}
-                        </h3>
-                        {a.description?.trim() ? (
-                          <p className="mt-2 text-[12px] font-semibold leading-[1.5] text-white">
-                            {a.description}
-                          </p>
-                        ) : (
-                          <p className="mt-2 text-[12px] font-semibold leading-[1.5] text-white/80">
-                            Откройте статью, чтобы прочитать полностью.
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </Link>
+                  <HomeServicesFolderCards
+                    embedInCarousel
+                    equalHeight
+                    alwaysShowPreview
+                    ctaLabel="Читать"
+                    limit={1}
+                    cards={[
+                      {
+                        slugPath: a.slug,
+                        label: a.title,
+                        description: a.description?.trim() || undefined,
+                        preview: a.preview?.trim() || undefined,
+                      },
+                    ]}
+                  />
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              if (!canNext) return;
-              setIndex(Math.min(maxStart, safeIndex + 1));
-            }}
-            aria-disabled={!canNext}
-            className={`relative z-20 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-slate-100 text-xl leading-none text-slate-700 shadow-sm ${
-              canNext ? "" : "opacity-40 cursor-not-allowed"
-            }`}
-            aria-label="Следующие статьи"
-          >
-            ›
-          </button>
         </div>
+
+        {dotCount > 1 ? (
+          <div
+            className="mt-4 flex flex-wrap items-center justify-center gap-2"
+            role="tablist"
+            aria-label="Переключение слайдов статей"
+          >
+            {Array.from({ length: dotCount }, (_, i) => (
+              <button
+                key={i}
+                type="button"
+                role="tab"
+                aria-selected={i === safeIndex}
+                aria-label={`Слайд ${i + 1} из ${dotCount}`}
+                onClick={() => setIndex(i)}
+                className={`h-2.5 w-2.5 rounded-full border transition ${
+                  i === safeIndex
+                    ? "border-[#496db3] bg-[#496db3] shadow-[0_0_0_2px_rgba(73,109,179,0.25)]"
+                    : "border-[#496db3]/55 bg-white hover:border-[#496db3] hover:bg-[#496db3]/10"
+                }`}
+              />
+            ))}
+          </div>
+        ) : null}
       </div>
     </section>
   );

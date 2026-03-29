@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ChevronRightIcon, HomeIcon } from "@heroicons/react/20/solid";
+import { HomeServicesFolderCards } from "@/components/HomeServicesFolderCards";
 import { apiGet } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -175,9 +176,10 @@ export default async function ArticlesPage({ searchParams }: ArticlesPageProps) 
   const pagedPosts = posts.slice((pageSafe - 1) * POSTS_PER_PAGE, pageSafe * POSTS_PER_PAGE);
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900">
-      <div className="px-4 py-5 sm:px-6 sm:py-6 lg:px-10">
-        <section className="mx-auto w-full max-w-[1200px] px-6 pb-10 pt-2 text-[#496db3] sm:px-8 sm:pb-12 sm:pt-3 lg:px-12">
+    <div className="bg-slate-100 text-slate-900">
+      <div className="px-4 py-10 sm:px-6 lg:px-10">
+        <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-6">
+        <section className="bg-transparent p-0 text-[#496db3]">
           <nav
             aria-label="Хлебные крошки"
             className="mb-5 flex flex-wrap items-center gap-1.5 text-sm text-slate-500"
@@ -215,60 +217,37 @@ export default async function ArticlesPage({ searchParams }: ArticlesPageProps) 
             Выберите материал, чтобы открыть полную статью.
           </p>
 
-          <style>{`
-            /* На всякий случай: без tailwind-line-clamp плагина */
-            .lc3 {
-              display: -webkit-box;
-              -webkit-box-orient: vertical;
-              -webkit-line-clamp: 3;
-              overflow: hidden;
-            }
-          `}</style>
-
           {posts.length > 0 ? (
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-              {pagedPosts.map((p) => (
-                <article
-                  key={p.href}
-                  className="relative flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200"
-                >
-                  <div className="flex h-full flex-col p-6 sm:p-8">
-                    <div className="flex min-w-0 flex-1 flex-col">
-                      <div className="aspect-square w-full overflow-hidden rounded-2xl bg-slate-50 ring-1 ring-slate-200">
-                        <img
-                          src={p.image}
-                          alt={p.title}
-                          className="h-full w-full object-cover"
-                          loading="lazy"
-                        />
-                      </div>
-
-                      <p className="mt-4 text-[12px] font-semibold leading-snug text-[#496db3]/70">
-                        <time dateTime={p.dateIso}>{p.dateLabel}</time>
-                      </p>
-
-                      <h2 className="mt-2 text-balance text-[20px] font-black leading-[1.15] tracking-tight text-[#496db3]">
-                        {p.title}
-                      </h2>
-
-                      <p className="mt-3 max-w-none flex-1 text-[14px] font-semibold leading-[1.65] text-[#496db3] lc3 whitespace-pre-wrap">
-                        {p.excerpt}
-                      </p>
-
-                      <div className="mt-auto pt-4">
-                        <div className="flex justify-end">
-                          <Link
-                            href={p.href}
-                            className="inline-flex max-w-full items-center justify-center rounded-full bg-[#496db3] px-4 py-2 text-[13px] font-semibold text-white shadow-sm transition hover:bg-[#3f5f9d]"
-                          >
-                            Подробнее
-                          </Link>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </article>
-              ))}
+            <div className="mt-4">
+              <HomeServicesFolderCards
+                equalHeight
+                syncHeightsToTallest
+                alwaysShowPreview
+                ctaLabel="Подробнее"
+                limit={POSTS_PER_PAGE}
+                cards={pagedPosts.map((p) => ({
+                  slugPath: p.href.replace(/^\/+/u, ""),
+                  label: p.title,
+                  description: `${p.dateLabel}\n\n${p.excerpt}`,
+                  preview: p.image,
+                }))}
+              />
+              <style>{`
+                .why-us-grid {
+                  grid-template-columns: 1fr;
+                  align-items: stretch;
+                }
+                @media (min-width: 768px) {
+                  .why-us-grid {
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
+                  }
+                }
+                @media (min-width: 1024px) {
+                  .why-us-grid {
+                    grid-template-columns: repeat(4, minmax(0, 1fr));
+                  }
+                }
+              `}</style>
             </div>
           ) : (
             <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
@@ -318,6 +297,7 @@ export default async function ArticlesPage({ searchParams }: ArticlesPageProps) 
             </nav>
           ) : null}
         </section>
+        </div>
       </div>
     </div>
   );
