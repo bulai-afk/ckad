@@ -4,12 +4,49 @@ on:
   push:
     branches: [main]
 
+# Убирает предупреждение про Node 20 у actions (checkout и др.) — см. GitHub changelog 2025-09-19
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 concurrency:
   group: deploy-main
   cancel-in-progress: true
 
 jobs:
+  ci:
+    name: Build backend & frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Backend — install, Prisma, build
+        working-directory: backend
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm run prisma:generate
+          npm run build
+
+      - name: Frontend — install, build
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm run build
+
   deploy:
+    needs: ci
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -89,7 +126,7 @@ jobs:
             systemctl --no-pager -l status ckad-backend ckad-frontend
           "
 
-      - name: Health check
+      - name: Health check (site + API via Next BFF)
         shell: bash
         env:
           SITE_URL: ${{ secrets.DEPLOY_SITE_URL }}
@@ -104,7 +141,7 @@ jobs:
             local url="$1"
             local attempt
             for attempt in $(seq 1 15); do
-              if curl -fsS --max-time 30 "$url" >/dev/null; then
+              if curl -fsS --max-time 30 -o /dev/null -w '' "$url"; then
                 echo "OK $url"
                 return 0
               fi
@@ -115,5 +152,14 @@ jobs:
             return 1
           }
           curl_retry "$BASE/"
-          curl_retry "$BASE/api/pages"
-
+          # Прокси Next → Express (проверка что BFF и backend отвечают)
+          for path in \
+            /api/pages \
+            /api/pages/folders \
+            /api/pages/partners \
+            /api/pages/reviews \
+            /api/pages/banners \
+            /api/pages/site-settings
+          do
+            curl_retry "$BASE$path"
+          done
