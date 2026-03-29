@@ -187,43 +187,7 @@ type CustomFolder = {
   preview?: string;
 };
 
-const CUSTOM_FOLDERS_STORAGE_KEY = "admin_custom_folders_v1";
-const MAX_PERSISTED_PREVIEW_DATA_URL_LENGTH = 18000;
 const FOLDER_PREVIEW_DEBUG = false;
-
-function stripHeavyPreviewDataUrls(folders: CustomFolder[]): CustomFolder[] {
-  return folders.map((f) => {
-    const p = typeof f.preview === "string" ? f.preview.trim() : "";
-    if (!p.startsWith("data:image/")) return f;
-    if (p.length <= MAX_PERSISTED_PREVIEW_DATA_URL_LENGTH) return f;
-    // Слишком длинные data URL могут выбить квоту localStorage.
-    return { ...f, preview: "" };
-  });
-}
-
-function readFoldersFromLocalStorage(): CustomFolder[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(CUSTOM_FOLDERS_STORAGE_KEY);
-    const parsed = raw ? (JSON.parse(raw) as unknown) : [];
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter((f): f is CustomFolder => {
-        if (typeof f !== "object" || f === null) return false;
-        const obj = f as Record<string, unknown>;
-        return typeof obj.name === "string" && typeof obj.slug === "string";
-      })
-      .map((f) => ({
-        name: f.name,
-        slug: normalizeUrlSlugPath(String(f.slug || "")),
-        description: typeof f.description === "string" ? f.description : "",
-        showInNavbar: Boolean(f.showInNavbar),
-        preview: typeof f.preview === "string" ? f.preview : "",
-      }));
-  } catch {
-    return [];
-  }
-}
 
 export default function AdminPage() {
   const router = useRouter();
@@ -324,18 +288,9 @@ export default function AdminPage() {
           if (!seen.has(f.slug)) seen.set(f.slug, f);
         }
         const loaded = Array.from(seen.values());
-
-        if (loaded.length > 0) {
-      setCustomFolders(loaded);
-        } else {
-          const localFallback = readFoldersFromLocalStorage();
-          setCustomFolders(localFallback);
-          if (localFallback.length > 0) {
-            void apiPut("/api/pages/folders", { folders: localFallback });
-          }
-        }
+        setCustomFolders(loaded);
     } catch {
-        setCustomFolders(readFoldersFromLocalStorage());
+        setCustomFolders([]);
     } finally {
       setIsCustomFoldersLoaded(true);
     }
@@ -344,42 +299,15 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (!isCustomFoldersLoaded) return;
-    try {
-      if (FOLDER_PREVIEW_DEBUG) {
-        // eslint-disable-next-line no-console
-        console.log(
-          "[FOLDER_PREVIEW_DEBUG] persisting customFolders",
-          customFolders.map((f) => ({
-            slug: f.slug,
-            previewLen: typeof f.preview === "string" ? f.preview.length : 0,
-          })),
-        );
-      }
-    window.localStorage.setItem(
-      CUSTOM_FOLDERS_STORAGE_KEY,
-      JSON.stringify(customFolders),
-    );
-    } catch {
-      try {
-        const compact = stripHeavyPreviewDataUrls(customFolders);
-        if (FOLDER_PREVIEW_DEBUG) {
-          // eslint-disable-next-line no-console
-          console.warn(
-            "[FOLDER_PREVIEW_DEBUG] localStorage overflow fallback",
-            compact.map((f) => ({
-              slug: f.slug,
-              previewLen: typeof f.preview === "string" ? f.preview.length : 0,
-            })),
-          );
-        }
-        window.localStorage.setItem(
-          CUSTOM_FOLDERS_STORAGE_KEY,
-          JSON.stringify(compact),
-        );
-        setError("Превью слишком большое для localStorage: сохранена облегченная копия.");
-      } catch {
-        setError("Не удалось сохранить папки: переполнено хранилище браузера.");
-      }
+    if (FOLDER_PREVIEW_DEBUG) {
+      // eslint-disable-next-line no-console
+      console.log(
+        "[FOLDER_PREVIEW_DEBUG] persisting customFolders",
+        customFolders.map((f) => ({
+          slug: f.slug,
+          previewLen: typeof f.preview === "string" ? f.preview.length : 0,
+        })),
+      );
     }
     void apiPut("/api/pages/folders", { folders: customFolders }).catch(() => {
       setError("Не удалось сохранить папки на сервере.");

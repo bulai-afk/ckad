@@ -65,7 +65,7 @@ export const dynamic = "force-dynamic";
 export default async function ContactsPage() {
   const base = apiBaseUrl();
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 2000);
+  const timeoutId = setTimeout(() => controller.abort(), 10_000);
   let siteSettings: SiteSettings | null = null;
   try {
     const res = await fetch(`${base}/api/pages/site-settings`, {

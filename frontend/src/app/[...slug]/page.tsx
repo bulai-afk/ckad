@@ -69,7 +69,6 @@ type PageData = {
   blocks: Block[];
 };
 
-const PAGE_CACHE_KEY_PREFIX = "public_page_cache_v1:";
 const CALLBACK_FORM_LINK = "callback://open";
 
 function slugSegmentsFromNormalized(normalizedSlug: string): string[] {
@@ -120,7 +119,6 @@ export default function Page() {
       return;
     }
     let cancelled = false;
-    const cacheKey = `${PAGE_CACHE_KEY_PREFIX}${normalizedSlug}`;
 
     void (async () => {
       setLoading(true);
@@ -129,27 +127,9 @@ export default function Page() {
 
       try {
         try {
-          const raw = window.localStorage.getItem(cacheKey);
-          if (raw) {
-            const parsed = JSON.parse(raw) as PageData;
-            if (!cancelled && parsed?.slug) {
-              setPage(parsed);
-              return;
-            }
-          }
-        } catch {
-          // fetch fresh
-        }
-
-        try {
           const data = await apiGet<PageData>(`/api/pages/slug/${normalizedSlug}`);
           if (!cancelled) {
             setPage(data);
-            try {
-              window.localStorage.setItem(cacheKey, JSON.stringify(data));
-            } catch {
-              // ignore cache write failures
-            }
           }
         } catch {
           if (!cancelled) {

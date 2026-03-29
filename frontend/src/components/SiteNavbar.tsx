@@ -24,8 +24,6 @@ import {
 
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
 
-const CUSTOM_FOLDERS_STORAGE_KEY = "admin_custom_folders_v1";
-
 /** Одинаковая ширина первого уровня и вложенных панелей (inline — не зависит от парсинга Tailwind). */
 const DESKTOP_NAV_MENU_PANEL_STYLE: CSSProperties = {
   boxSizing: "border-box",
@@ -211,7 +209,7 @@ function isPageListedInPublicMenu(p: PublishedPageRow): boolean {
 }
 
 /**
- * Единый вид пути для меню: иначе папка из localStorage (`services/Katalog`) и страницы
+ * Единый вид пути для меню: иначе папка (`services/Katalog`) и страницы
  * (`services/katalog/...`) попадают в разные узлы дерева — подпапка выглядит пустой.
  */
 function normalizeContentSlug(s: string): string {
@@ -1277,36 +1275,11 @@ export function SiteNavbar({ initialFolderNavItems = [], siteSettings = null }: 
             showInNavbar: Boolean(f.showInNavbar),
           }));
         applyStoredFolders(backendFolders);
-        window.localStorage.setItem(CUSTOM_FOLDERS_STORAGE_KEY, JSON.stringify(backendFolders));
         return;
       }
-      const raw = window.localStorage.getItem(CUSTOM_FOLDERS_STORAGE_KEY);
-      if (!raw) {
-        setFolderNavItems([]);
-        setStoredFoldersAll([]);
-        persistCookie([]);
-        return;
-      }
-      const parsed = JSON.parse(raw) as unknown;
-      if (!Array.isArray(parsed)) {
-        setFolderNavItems([]);
-        setStoredFoldersAll([]);
-        persistCookie([]);
-        return;
-      }
-
-      const fallback = parsed
-        .filter((f): f is { name: string; slug: string; showInNavbar?: boolean } => {
-          if (typeof f !== "object" || f === null) return false;
-          const obj = f as Record<string, unknown>;
-          return typeof obj.name === "string" && typeof obj.slug === "string";
-        })
-        .map((f) => ({
-          name: String(f.name),
-          slug: String(f.slug),
-          showInNavbar: Boolean(f.showInNavbar),
-        }));
-      applyStoredFolders(fallback);
+      setFolderNavItems([]);
+      setStoredFoldersAll([]);
+      persistCookie([]);
     } catch {
       setFolderNavItems([]);
       setStoredFoldersAll([]);
@@ -1351,17 +1324,15 @@ export function SiteNavbar({ initialFolderNavItems = [], siteSettings = null }: 
     return () => window.removeEventListener("focus", onFocus);
   }, [hidden, fetchPublishedPages]);
 
-  /* localStorage может опережать cookie — подтягиваем до paint; на /admin навбар скрыт — не трогаем LS */
+  /* Папки меню — только с API; на /admin навбар скрыт */
   useLayoutEffect(() => {
     if (pathname?.startsWith("/admin")) return;
     loadFolderNavItems();
   }, [loadFolderNavItems, pathname]);
 
   useEffect(() => {
-    window.addEventListener("storage", loadFolderNavItems);
     window.addEventListener("focus", loadFolderNavItems);
     return () => {
-      window.removeEventListener("storage", loadFolderNavItems);
       window.removeEventListener("focus", loadFolderNavItems);
     };
   }, [loadFolderNavItems]);

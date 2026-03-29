@@ -57,18 +57,27 @@ export default async function Home() {
       const res = await fetch(`${base}${path}`, { cache: "no-store", signal: controller.signal });
       if (!res.ok) throw new Error(`GET ${path} failed with ${res.status}`);
       return (await res.json()) as T;
+    } catch (e: unknown) {
+      if (
+        typeof e === "object" &&
+        e !== null &&
+        (e as { name?: string }).name === "AbortError"
+      ) {
+        throw new Error(`Request timed out after ${timeoutMs}ms`);
+      }
+      throw e;
     } finally {
       clearTimeout(timeoutId);
     }
   };
   try {
-    const data = await fetchNoStoreJson<{ slides?: ReviewSlide[] }>("/api/pages/reviews", 2500);
+    const data = await fetchNoStoreJson<{ slides?: ReviewSlide[] }>("/api/pages/reviews", 10_000);
     reviews = Array.isArray(data.slides) ? data.slides : [];
   } catch {
     // keep empty; reviews block has fallback fetch too
   }
   try {
-    const data = await fetchNoStoreJson<{ slides?: BannerSlide[] }>("/api/pages/banners", 2500);
+    const data = await fetchNoStoreJson<{ slides?: BannerSlide[] }>("/api/pages/banners", 10_000);
     bannerSlides = Array.isArray(data.slides) ? data.slides : [];
   } catch {
     // пустой массив — карусель покажет запасной блок

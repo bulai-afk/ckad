@@ -1,5 +1,10 @@
 import { apiBaseUrl } from "./apiBaseUrl";
 
+function isAbortError(e: unknown): boolean {
+  if (typeof e !== "object" || e === null) return false;
+  return (e as { name?: string }).name === "AbortError";
+}
+
 function apiUrl(path: string): string {
   const base = apiBaseUrl();
   const p = path.startsWith("/") ? path : `/${path}`;
@@ -15,13 +20,24 @@ async function fetchWithTimeout(
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetch(input, { ...(init || {}), signal: controller.signal });
+  } catch (e: unknown) {
+    // Браузер/Node могут логировать «Fetch is aborted»; заменяем на обычную ошибку.
+    if (isAbortError(e)) {
+      throw new Error(`Request timed out after ${timeoutMs}ms`);
+    }
+    throw e;
   } finally {
     clearTimeout(timeoutId);
   }
 }
 
-export async function apiGet<T>(path: string, timeoutMs = 2500): Promise<T> {
-  const res = await fetchWithTimeout(apiUrl(path), undefined, timeoutMs);
+/** По умолчанию 10s: короткий таймаут в dev (Turbopack/холодный старт) давал AbortError в консоли. */
+export async function apiGet<T>(path: string, timeoutMs = 10_000): Promise<T> {
+  const res = await fetchWithTimeout(
+    apiUrl(path),
+    { cache: "no-store" },
+    timeoutMs,
+  );
   if (!res.ok) {
     throw new Error(`GET ${path} failed with ${res.status}`);
   }

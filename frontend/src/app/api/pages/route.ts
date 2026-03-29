@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 function backendBase(): string {
   return (
@@ -33,5 +33,27 @@ export async function GET() {
       status: 502,
       headers: { "Cache-Control": "no-store" },
     });
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.text();
+    const res = await fetch(`${backendBase()}/api/pages`, {
+      method: "POST",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body,
+    });
+    const text = await res.text();
+    return new NextResponse(text, {
+      status: res.status,
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-store, max-age=0",
+      },
+    });
+  } catch {
+    return NextResponse.json({ error: "proxy failed" }, { status: 502 });
   }
 }

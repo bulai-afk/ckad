@@ -98,6 +98,9 @@
 
 .cardRoot:not([data-preview-always]) {
   cursor: pointer;
+  /* Быстрый тап без ожидания double-tap zoom; лучше доставляем touch до карточки */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 @media (min-width: 640px) {
@@ -128,6 +131,13 @@
 .cardRoot[data-preview-always] .cardBgImageWrap,
 .cardRoot.cardPreviewAlways .cardBgImageWrap {
   opacity: 1;
+}
+
+/* Пока палец на карточке — без ожидания pointerdown (лёгкое касание) */
+@media (hover: none) and (pointer: coarse) {
+  .cardRoot:not([data-preview-always]):active .cardBgImageWrap {
+    opacity: 1;
+  }
 }
 
 .cardBgImg {
@@ -163,6 +173,12 @@
   opacity: 1;
 }
 
+@media (hover: none) and (pointer: coarse) {
+  .cardRoot:not([data-preview-always]):active .cardBgDim {
+    opacity: 1;
+  }
+}
+
 .cardBgGradient {
   position: absolute;
   inset: 0;
@@ -184,6 +200,12 @@
 .cardRoot[data-preview-always] .cardBgGradient,
 .cardRoot.cardPreviewAlways .cardBgGradient {
   opacity: 1;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .cardRoot:not([data-preview-always]):active .cardBgGradient {
+    opacity: 1;
+  }
 }
 
 .content {
@@ -256,11 +278,23 @@
   border-color: rgb(71 85 105 / 0.55);
 }
 
+@media (hover: none) and (pointer: coarse) {
+  .cardRoot:not([data-preview-always]):active {
+    border-color: rgb(71 85 105 / 0.55);
+  }
+}
+
 .cardRoot:hover .content,
 .cardRoot[data-preview-touch] .content,
 .cardRoot[data-preview-always] .content,
 .cardRoot.cardPreviewAlways .content {
   color: #fff;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .cardRoot:not([data-preview-always]):active .content {
+    color: #fff;
+  }
 }
 
 .cardRoot:hover .content .title,
@@ -279,6 +313,15 @@
   -webkit-text-fill-color: #fff !important;
 }
 
+@media (hover: none) and (pointer: coarse) {
+  .cardRoot:not([data-preview-always]):active .content .title,
+  .cardRoot:not([data-preview-always]):active .content .description,
+  .cardRoot:not([data-preview-always]):active .content > p {
+    color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
+  }
+}
+
 .cardRoot:hover .content .title,
 .cardRoot[data-preview-touch] .content .title,
 .cardRoot[data-preview-always] .content .title,
@@ -286,11 +329,23 @@
   text-shadow: 0 1px 3px rgb(0 0 0 / 0.45);
 }
 
+@media (hover: none) and (pointer: coarse) {
+  .cardRoot:not([data-preview-always]):active .content .title {
+    text-shadow: 0 1px 3px rgb(0 0 0 / 0.45);
+  }
+}
+
 .cardRoot:hover .content .description,
 .cardRoot[data-preview-touch] .content .description,
 .cardRoot[data-preview-always] .content .description,
 .cardRoot.cardPreviewAlways .content .description {
   text-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .cardRoot:not([data-preview-always]):active .content .description {
+    text-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+  }
 }
 
 .cardRoot:hover .content,
@@ -302,6 +357,13 @@
 .cardRoot.cardPreviewAlways .content,
 .cardRoot.cardPreviewAlways .footer {
   z-index: 20;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .cardRoot:not([data-preview-always]):active .content,
+  .cardRoot:not([data-preview-always]):active .footer {
+    z-index: 20;
+  }
 }
 
 .link {

@@ -528,7 +528,7 @@ async function readFoldersFromFile(): Promise<StoredFolder[]> {
         slug: String(item.slug ?? "").trim(),
         description:
           typeof item.description === "string" ? item.description.trim() : "",
-        preview: typeof item.preview === "string" ? item.preview : "",
+        preview: (typeof item.preview === "string" ? item.preview : "").trim(),
         showInNavbar: Boolean(item.showInNavbar),
       }))
       .filter((f) => f.name && f.slug);
@@ -723,7 +723,7 @@ pagesRouter.put("/folders", async (req, res) => {
         .toLowerCase(),
       description:
         typeof item.description === "string" ? item.description.trim() : "",
-      preview: typeof item.preview === "string" ? item.preview : "",
+      preview: (typeof item.preview === "string" ? item.preview : "").trim(),
       showInNavbar: Boolean(item.showInNavbar),
     }))
     .filter((f) => f.name && f.slug);

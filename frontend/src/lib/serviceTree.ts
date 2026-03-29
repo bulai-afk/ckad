@@ -180,19 +180,21 @@ export type ServiceFolderCardProps = {
  * Поля для карточки раздела на главной и в /services:
  * приоритет — метаданные папки из `/api/pages/folders` (файл `folders.json` на бэкенде);
  * если описание папки пусто — подставляем описание страницы раздела.
- * Превью папки: только из метаданных папки; если пусто — из первой страницы, но без URL с локалки (localhost).
+ *
+ * Превью фона — **только** если папка явно заведена в настройках (`isMetaFolder`) и в поле превью
+ * непустое значение после санитизации. Иначе лого (см. HomeServicesFolderCards).
+ * Узлы только из страниц без записи в folders — никогда не получают «чужое» превью в поле `node.preview`.
  */
 export function folderCardPropsFromServiceNode(node: ServiceTreeNode): ServiceFolderCardProps {
   const first = node.pages[0];
   const folderDesc = node.description?.trim() ?? "";
   const folderPreview = node.preview?.trim() ?? "";
   const pageDesc = first?.description?.trim() ?? "";
-  const pagePreview = typeof first?.preview === "string" ? first.preview.trim() : "";
 
   const description = (folderDesc || pageDesc) || undefined;
-  const fromFolder = sanitizePublicAssetUrl(folderPreview);
-  const fromPage = sanitizePublicAssetUrl(pagePreview);
-  const preview = (fromFolder || fromPage) || undefined;
+  const fromSettings =
+    node.isMetaFolder === true ? sanitizePublicAssetUrl(folderPreview) : "";
+  const preview = fromSettings || undefined;
 
   let label: string;
   if (node.isMetaFolder) {

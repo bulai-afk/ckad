@@ -60,14 +60,30 @@ function FolderCard({
   const href = `/${c.slugPath}`;
   const touchHeld = !alwaysShowPreview && touchActiveSlug === c.slugPath;
 
-  const onCardPointerDown = useCallback(
-    (e: React.PointerEvent<HTMLElement>) => {
+  const activatePreviewTouch = useCallback(
+    (target: EventTarget | null) => {
       if (alwaysShowPreview) return;
-      if ((e.target as HTMLElement).closest("a")) return;
-      if (e.pointerType === "mouse") return;
+      const el = target instanceof Element ? target : null;
+      if (el?.closest?.("a")) return;
       setTouchActiveSlug(c.slugPath);
     },
     [alwaysShowPreview, c.slugPath, setTouchActiveSlug],
+  );
+
+  /** pointerdown приходит на мобильных не всегда сразу; touchstart даёт лёгкое касание без «сильного» нажатия */
+  const onCardPointerDown = useCallback(
+    (e: React.PointerEvent<HTMLElement>) => {
+      if (e.pointerType === "mouse") return;
+      activatePreviewTouch(e.target);
+    },
+    [activatePreviewTouch],
+  );
+
+  const onCardTouchStart = useCallback(
+    (e: React.TouchEvent<HTMLElement>) => {
+      activatePreviewTouch(e.target);
+    },
+    [activatePreviewTouch],
   );
 
   return (
@@ -77,10 +93,12 @@ function FolderCard({
       {...(alwaysShowPreview ? { "data-preview-always": "" } : {})}
       {...(touchHeld ? { "data-preview-touch": "" } : {})}
       onPointerDown={onCardPointerDown}
+      onTouchStart={onCardTouchStart}
     >
       <div className={styles.cardBgStack} aria-hidden>
         <div className={styles.cardBgImageWrap}>
           <img
+            key={`${c.slugPath}-${displaySrc.length}-${isLogoFallback ? "logo" : "pv"}`}
             src={displaySrc}
             alt=""
             className={`${styles.cardBgImg} ${isLogoFallback ? styles.cardBgImgLogo : ""}`}
@@ -141,9 +159,13 @@ export function HomeServicesFolderCards({
     const clear = () => setTouchActiveSlug(null);
     window.addEventListener("pointerup", clear);
     window.addEventListener("pointercancel", clear);
+    window.addEventListener("touchend", clear, { passive: true });
+    window.addEventListener("touchcancel", clear, { passive: true });
     return () => {
       window.removeEventListener("pointerup", clear);
       window.removeEventListener("pointercancel", clear);
+      window.removeEventListener("touchend", clear);
+      window.removeEventListener("touchcancel", clear);
     };
   }, [touchActiveSlug]);
 

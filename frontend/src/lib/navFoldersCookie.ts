@@ -1,4 +1,4 @@
-/** Cookie + localStorage для папок в навбаре: cookie даёт SSR тот же состав меню, что видит клиент после загрузки LS */
+/** Cookie для папок в навбаре: SSR и клиент получают один состав после загрузки из API */
 
 export const NAV_FOLDERS_COOKIE_NAME = "ckad_nav_folders_v1";
 

@@ -9,6 +9,9 @@ import { NAV_FOLDERS_COOKIE_NAME, parseNavFoldersCookie } from "@/lib/navFolders
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
 import "./globals.css";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -56,7 +59,7 @@ export default async function RootLayout({
   const base = apiBaseUrl();
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 1500);
+    const timeoutId = setTimeout(() => controller.abort(), 10_000);
     const res = await fetch(`${base}/api/pages/site-settings`, {
       cache: "no-store",
       signal: controller.signal,

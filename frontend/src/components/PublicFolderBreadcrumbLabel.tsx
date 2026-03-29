@@ -1,29 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { apiGet } from "@/lib/api";
 
-type CustomFolder = {
-  name: string;
-  slug: string;
-};
-
-const CUSTOM_FOLDERS_STORAGE_KEY = "admin_custom_folders_v1";
-
-function parseCustomFolders(raw: string | null): CustomFolder[] {
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter((f): f is { name: string; slug: string } => {
-        if (typeof f !== "object" || f === null) return false;
-        const obj = f as Record<string, unknown>;
-        return typeof obj.name === "string" && typeof obj.slug === "string";
-      })
-      .map((f) => ({ name: f.name, slug: f.slug }));
-  } catch {
-    return [];
-  }
+function normSeg(s: string): string {
+  return s.trim().toLowerCase().replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
 }
 
 export function PublicFolderBreadcrumbLabel({
@@ -33,18 +14,34 @@ export function PublicFolderBreadcrumbLabel({
   folderSlug: string;
   fallbackTitle: string;
 }) {
-  const [customTitle, setCustomTitle] = useState<string | null>(null);
+  const [nameFromApi, setNameFromApi] = useState<string | null>(null);
 
   useEffect(() => {
-    const raw = window.localStorage.getItem(CUSTOM_FOLDERS_STORAGE_KEY);
-    const folders = parseCustomFolders(raw);
-    const found = folders.find((f) => f.slug === folderSlug);
-    setCustomTitle(found?.name?.trim() || null);
+    let cancelled = false;
+    const want = normSeg(folderSlug);
+    void (async () => {
+      try {
+        const data = await apiGet<{ folders?: { name: string; slug: string }[] }>(
+          "/api/pages/folders",
+        );
+        const folders = Array.isArray(data?.folders) ? data.folders : [];
+        const hit = folders.find((f) => {
+          const slug = normSeg(String(f.slug || ""));
+          return slug === want || slug.split("/")[0] === want;
+        });
+        if (!cancelled && hit?.name?.trim()) setNameFromApi(hit.name.trim());
+      } catch {
+        if (!cancelled) setNameFromApi(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [folderSlug]);
 
   const label = useMemo(
-    () => (customTitle && customTitle.length > 0 ? customTitle : fallbackTitle),
-    [customTitle, fallbackTitle],
+    () => (nameFromApi && nameFromApi.length > 0 ? nameFromApi : fallbackTitle),
+    [nameFromApi, fallbackTitle],
   );
 
   return <>{label}</>;
