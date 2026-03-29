@@ -145,7 +145,12 @@ function normalizeFontSizeToPercent(value: unknown): number {
 const BANNERS_DATA_PATH = path.resolve(process.cwd(), "data", "banners.json");
 const REVIEWS_DATA_PATH = path.resolve(process.cwd(), "data", "reviews.json");
 const PARTNERS_DATA_PATH = path.resolve(process.cwd(), "data", "partners.json");
-const FOLDERS_DATA_PATH = path.resolve(process.cwd(), "data", "folders.json");
+/** На проде задайте FOLDERS_JSON_PATH на каталог с правом записи (volume). */
+const FOLDERS_DATA_PATH = (() => {
+  const p = process.env.FOLDERS_JSON_PATH?.trim();
+  if (p) return path.isAbsolute(p) ? p : path.resolve(process.cwd(), p);
+  return path.resolve(process.cwd(), "data", "folders.json");
+})();
 const SITE_SETTINGS_DATA_PATH = path.resolve(process.cwd(), "data", "siteSettings.json");
 
 type SiteSettings = {
@@ -698,38 +703,49 @@ pagesRouter.get("/folders", async (_req, res) => {
 });
 
 pagesRouter.put("/folders", async (req, res) => {
-  const body = req.body ?? {};
-  const input = (body as { folders?: unknown }).folders;
-  if (!Array.isArray(input)) {
-    return res.status(400).json({ error: "folders array is required" });
+  try {
+    const body = req.body ?? {};
+    const input = (body as { folders?: unknown }).folders;
+    if (!Array.isArray(input)) {
+      return res.status(400).json({ error: "folders array is required" });
+    }
+
+    const normalized = input
+      .filter((item): item is Record<string, unknown> => {
+        return (
+          typeof item === "object" &&
+          item !== null &&
+          typeof item.name === "string" &&
+          typeof item.slug === "string"
+        );
+      })
+      .map((item) => ({
+        name: String(item.name ?? "").trim(),
+        slug: String(item.slug ?? "")
+          .trim()
+          .replace(/^\/+|\/+$/g, "")
+          .replace(/\\/g, "/")
+          .replace(/\/+/g, "/")
+          .toLowerCase(),
+        description:
+          typeof item.description === "string" ? item.description.trim() : "",
+        preview: (typeof item.preview === "string" ? item.preview : "").trim(),
+        showInNavbar: Boolean(item.showInNavbar),
+      }))
+      .filter((f) => f.name && f.slug);
+
+    await writeFoldersToFile(normalized);
+    return res.json({ ok: true, folders: normalized });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    // eslint-disable-next-line no-console
+    console.error("[folders PUT]", FOLDERS_DATA_PATH, msg);
+    return res.status(500).json({
+      error: "Failed to save folders",
+      detail: msg,
+      path: FOLDERS_DATA_PATH,
+    });
   }
-
-  const normalized = input
-    .filter((item): item is Record<string, unknown> => {
-      return (
-        typeof item === "object" &&
-        item !== null &&
-        typeof item.name === "string" &&
-        typeof item.slug === "string"
-      );
-    })
-    .map((item) => ({
-      name: String(item.name ?? "").trim(),
-      slug: String(item.slug ?? "")
-        .trim()
-        .replace(/^\/+|\/+$/g, "")
-        .replace(/\\/g, "/")
-        .replace(/\/+/g, "/")
-        .toLowerCase(),
-      description:
-        typeof item.description === "string" ? item.description.trim() : "",
-      preview: (typeof item.preview === "string" ? item.preview : "").trim(),
-      showInNavbar: Boolean(item.showInNavbar),
-    }))
-    .filter((f) => f.name && f.slug);
-
-  await writeFoldersToFile(normalized);
-  return res.json({ ok: true, folders: normalized });
 });
 
 pagesRouter.get("/site-settings", async (_req, res) => {
@@ -825,9 +841,22 @@ pagesRouter.get("/", async (_req, res, next) => {
   }
 });
 
+/** Express 5: /slug/{*path} — вложенные slug без %2F в одном сегменте (nginx/CDN не режут путь). */
+function slugFromPathParam(path: unknown): string {
+  if (Array.isArray(path)) {
+    return path.map((p) => String(p)).join("/");
+  }
+  if (typeof path === "string") return path;
+  return "";
+}
+
 // Get page by slug (for public client)
-pagesRouter.get("/slug/:slug", async (req, res) => {
-  const { slug } = req.params;
+pagesRouter.get("/slug/{*path}", async (req, res) => {
+  const slug = slugFromPathParam(req.params.path);
+
+  if (!slug) {
+    return res.status(400).json({ error: "slug is required" });
+  }
 
   const page = await prisma.page.findFirst({
     where: { slug },

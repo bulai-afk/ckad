@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ChevronRightIcon, HomeIcon } from "@heroicons/react/20/solid";
 import { HomeServicesFolderCards } from "@/components/HomeServicesFolderCards";
 import { apiGet } from "@/lib/api";
+import { apiPagesSlugRequestPath } from "@/lib/apiPagesSlugUrl";
 import { sanitizePublicAssetUrl } from "@/lib/publicAssetUrl";
 
 export const dynamic = "force-dynamic";
@@ -111,7 +112,7 @@ async function getArticles(): Promise<
       sourceArticles.map(async (p) => {
         const slug = normalizeSlug(p.slug);
         try {
-          const full = await apiGet<PageBySlug>(`/api/pages/slug/${encodeURIComponent(slug)}`);
+          const full = await apiGet<PageBySlug>(apiPagesSlugRequestPath(slug));
           return [slug, full] as const;
         } catch {
           return [slug, null] as const;

@@ -6,6 +6,7 @@ import { PublicCarouselViewportSync } from "@/components/PublicCarouselViewportS
 import { PublicFolderBreadcrumbLabel } from "@/components/PublicFolderBreadcrumbLabel";
 import { HomeServicesFolderCards } from "@/components/HomeServicesFolderCards";
 import { apiGet } from "@/lib/api";
+import { apiPagesSlugRequestPath } from "@/lib/apiPagesSlugUrl";
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
 import {
   buildServicesTree,
@@ -71,15 +72,6 @@ type PageData = {
 
 const CALLBACK_FORM_LINK = "callback://open";
 
-function slugSegmentsFromNormalized(normalizedSlug: string): string[] {
-  if (!normalizedSlug) return [];
-  try {
-    return decodeURIComponent(normalizedSlug).split("/").filter(Boolean);
-  } catch {
-    return normalizedSlug.split("/").filter(Boolean);
-  }
-}
-
 export default function Page() {
   const params = useParams<{ slug?: string[] | string }>();
   const slugParts = useMemo(() => {
@@ -89,10 +81,6 @@ export default function Page() {
     return [];
   }, [params]);
 
-  const normalizedSlug = useMemo(
-    () => encodeURIComponent(slugParts.join("/")),
-    [slugParts],
-  );
   const [page, setPage] = useState<PageData | null>(null);
   /** Нет CMS-страницы по slug, но есть папка в /api/pages/folders — показываем тот же хаб, что на /services */
   const [serviceFolderHub, setServiceFolderHub] = useState<ServiceTreeNode | null>(null);
@@ -112,7 +100,7 @@ export default function Page() {
     : null;
 
   useEffect(() => {
-    if (!normalizedSlug) {
+    if (slugParts.length === 0) {
       setPage(null);
       setServiceFolderHub(null);
       setLoading(false);
@@ -127,14 +115,14 @@ export default function Page() {
 
       try {
         try {
-          const data = await apiGet<PageData>(`/api/pages/slug/${normalizedSlug}`);
+          const data = await apiGet<PageData>(apiPagesSlugRequestPath(slugParts));
           if (!cancelled) {
             setPage(data);
           }
         } catch {
           if (!cancelled) {
             setPage(null);
-            const pathSegments = slugSegmentsFromNormalized(normalizedSlug);
+            const pathSegments = slugParts;
             const path = pathSegments.join("/");
             if (pathSegments[0] === "services" && pathSegments.length >= 2) {
               try {
@@ -181,7 +169,7 @@ export default function Page() {
     return () => {
       cancelled = true;
     };
-  }, [normalizedSlug]);
+  }, [slugParts]);
 
   if (loading) {
     return (
