@@ -77,6 +77,7 @@
   box-sizing: border-box;
   background-color: rgb(248 250 252);
   transition: border-color 0.25s ease;
+  color: inherit;
   box-shadow:
     0 6px 24px rgba(73, 109, 179, 0.18),
     0 0 32px rgba(73, 109, 179, 0.14),
@@ -95,13 +96,17 @@
   outline: 0 solid transparent;
 }
 
+.cardRoot:not([data-preview-always]) {
+  cursor: pointer;
+}
+
 @media (min-width: 640px) {
   .cardRoot {
     padding: 1rem;
   }
 }
 
-/* Превью — фон всей карточки при наведении */
+/* Превью: :hover (мышь на десктопе), [data-preview-touch] (удержание пальца), data-preview-always */
 .cardBgStack {
   position: absolute;
   inset: 0;
@@ -119,6 +124,7 @@
 }
 
 .cardRoot:hover .cardBgImageWrap,
+.cardRoot[data-preview-touch] .cardBgImageWrap,
 .cardRoot[data-preview-always] .cardBgImageWrap,
 .cardRoot.cardPreviewAlways .cardBgImageWrap {
   opacity: 1;
@@ -151,6 +157,7 @@
 }
 
 .cardRoot:hover .cardBgDim,
+.cardRoot[data-preview-touch] .cardBgDim,
 .cardRoot[data-preview-always] .cardBgDim,
 .cardRoot.cardPreviewAlways .cardBgDim {
   opacity: 1;
@@ -173,6 +180,7 @@
 }
 
 .cardRoot:hover .cardBgGradient,
+.cardRoot[data-preview-touch] .cardBgGradient,
 .cardRoot[data-preview-always] .cardBgGradient,
 .cardRoot.cardPreviewAlways .cardBgGradient {
   opacity: 1;
@@ -242,12 +250,14 @@
 }
 
 .cardRoot:hover,
+.cardRoot[data-preview-touch],
 .cardRoot[data-preview-always],
 .cardRoot.cardPreviewAlways {
   border-color: rgb(71 85 105 / 0.55);
 }
 
 .cardRoot:hover .content,
+.cardRoot[data-preview-touch] .content,
 .cardRoot[data-preview-always] .content,
 .cardRoot.cardPreviewAlways .content {
   color: #fff;
@@ -256,6 +266,9 @@
 .cardRoot:hover .content .title,
 .cardRoot:hover .content .description,
 .cardRoot:hover .content > p,
+.cardRoot[data-preview-touch] .content .title,
+.cardRoot[data-preview-touch] .content .description,
+.cardRoot[data-preview-touch] .content > p,
 .cardRoot[data-preview-always] .content .title,
 .cardRoot[data-preview-always] .content .description,
 .cardRoot[data-preview-always] .content > p,
@@ -267,12 +280,14 @@
 }
 
 .cardRoot:hover .content .title,
+.cardRoot[data-preview-touch] .content .title,
 .cardRoot[data-preview-always] .content .title,
 .cardRoot.cardPreviewAlways .content .title {
   text-shadow: 0 1px 3px rgb(0 0 0 / 0.45);
 }
 
 .cardRoot:hover .content .description,
+.cardRoot[data-preview-touch] .content .description,
 .cardRoot[data-preview-always] .content .description,
 .cardRoot.cardPreviewAlways .content .description {
   text-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
@@ -280,6 +295,8 @@
 
 .cardRoot:hover .content,
 .cardRoot:hover .footer,
+.cardRoot[data-preview-touch] .content,
+.cardRoot[data-preview-touch] .footer,
 .cardRoot[data-preview-always] .content,
 .cardRoot[data-preview-always] .footer,
 .cardRoot.cardPreviewAlways .content,

@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useCarouselSwipe } from "@/hooks/useCarouselSwipe";
+import { useCarouselVisibleCount } from "@/hooks/useCarouselVisibleCount";
 
 const AUTOPLAY_INTERVAL_MS = 5500;
 
@@ -20,7 +21,7 @@ export function HomePartnersCarousel({ slides }: HomePartnersCarouselProps) {
   );
   const [index, setIndex] = useState(0);
   const [renderIndex, setRenderIndex] = useState(0);
-  const [visibleCount, setVisibleCount] = useState(1);
+  const visibleCount = useCarouselVisibleCount("partners");
   const [carouselHovered, setCarouselHovered] = useState(false);
   const [tabVisible, setTabVisible] = useState(true);
 
@@ -46,18 +47,6 @@ export function HomePartnersCarousel({ slides }: HomePartnersCarouselProps) {
       }
     })();
   }, [slides]);
-
-  useLayoutEffect(() => {
-    const updateVisibleCount = () => {
-      const width = window.innerWidth;
-      if (width < 640) return setVisibleCount(2);
-      if (width < 1024) return setVisibleCount(4);
-      return setVisibleCount(6);
-    };
-    updateVisibleCount();
-    window.addEventListener("resize", updateVisibleCount);
-    return () => window.removeEventListener("resize", updateVisibleCount);
-  }, []);
 
   const normalized = useMemo(
     () =>
@@ -173,8 +162,11 @@ export function HomePartnersCarousel({ slides }: HomePartnersCarouselProps) {
             {normalized.map((slide, slideIndex) => (
               <div
                 key={slide.id}
-                className="flex min-h-0 shrink-0 self-stretch px-1.5"
-                style={{ flexBasis: `${100 / visibleCount}%`, minWidth: 0 }}
+                className="box-border flex min-h-0 shrink-0 self-stretch px-1.5"
+                style={{
+                  flex: `0 0 calc(100% / ${visibleCount})`,
+                  minWidth: 0,
+                }}
               >
                 <div
                   className="flex h-full min-h-0 w-full min-w-0 flex-col"

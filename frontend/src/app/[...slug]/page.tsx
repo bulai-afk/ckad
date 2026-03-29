@@ -72,6 +72,15 @@ const PAGE_CACHE_KEY_PREFIX = "public_page_cache_v1:";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 const CALLBACK_FORM_LINK = "callback://open";
 
+function slugSegmentsFromNormalized(normalizedSlug: string): string[] {
+  if (!normalizedSlug) return [];
+  try {
+    return decodeURIComponent(normalizedSlug).split("/").filter(Boolean);
+  } catch {
+    return normalizedSlug.split("/").filter(Boolean);
+  }
+}
+
 export default function Page() {
   const params = useParams<{ slug?: string[] | string }>();
   const slugParts = useMemo(() => {
@@ -119,66 +128,68 @@ export default function Page() {
       setPage(null);
 
       try {
-        const raw = window.localStorage.getItem(cacheKey);
-        if (raw) {
-          const parsed = JSON.parse(raw) as PageData;
-          if (!cancelled && parsed?.slug) {
-            setPage(parsed);
-            setLoading(false);
-            return;
+        try {
+          const raw = window.localStorage.getItem(cacheKey);
+          if (raw) {
+            const parsed = JSON.parse(raw) as PageData;
+            if (!cancelled && parsed?.slug) {
+              setPage(parsed);
+              return;
+            }
           }
+        } catch {
+          // fetch fresh
         }
-      } catch {
-        // fetch fresh
-      }
 
-      try {
-        const data = await apiGet<PageData>(`/api/pages/slug/${normalizedSlug}`);
-        if (!cancelled) {
-          setPage(data);
-          try {
-            window.localStorage.setItem(cacheKey, JSON.stringify(data));
-          } catch {
-            // ignore cache write failures
-          }
-        }
-      } catch {
-        if (!cancelled) {
-          setPage(null);
-          const path = slugParts.join("/");
-          if (slugParts[0] === "services" && slugParts.length >= 2) {
+        try {
+          const data = await apiGet<PageData>(`/api/pages/slug/${normalizedSlug}`);
+          if (!cancelled) {
+            setPage(data);
             try {
-              const [pages, foldersPayload] = await Promise.all([
-                apiGet<ServiceListItem[]>("/api/pages"),
-                apiGet<{ folders?: ServiceFolderMeta[] }>("/api/pages/folders"),
-              ]);
-              if (cancelled) return;
-              const folders = Array.isArray(foldersPayload?.folders) ? foldersPayload.folders : [];
-              const folderMetaBySlug = new Map(
-                folders
-                  .filter((f) => typeof f?.name === "string" && typeof f?.slug === "string")
-                  .map((f) => ({
-                    name: String(f.name || "").trim(),
-                    slug: normalizeSlug(String(f.slug || "")),
-                    description: typeof f.description === "string" ? f.description : "",
-                    preview: typeof f.preview === "string" ? f.preview : "",
-                  }))
-                  .filter((f) => f.slug === "services" || f.slug.startsWith("services/"))
-                  .map((f) => [f.slug, f] as const),
-              );
-              const servicePages = pages
-                .filter((p) => isVisibleServicePage(p) && normalizeSlug(p.slug).startsWith("services/"))
-                .map((p) => ({ ...p, slug: normalizeSlug(p.slug) }));
-              const tree = buildServicesTree(servicePages, folderMetaBySlug);
-              const node = findServiceTreeNode(tree, path);
-              if (
-                node &&
-                (node.isMetaFolder || node.pages.length > 0 || node.children.length > 0)
-              ) {
-                setServiceFolderHub(node);
-              }
+              window.localStorage.setItem(cacheKey, JSON.stringify(data));
             } catch {
-              // остаётся «не найдено»
+              // ignore cache write failures
+            }
+          }
+        } catch {
+          if (!cancelled) {
+            setPage(null);
+            const pathSegments = slugSegmentsFromNormalized(normalizedSlug);
+            const path = pathSegments.join("/");
+            if (pathSegments[0] === "services" && pathSegments.length >= 2) {
+              try {
+                const [pages, foldersPayload] = await Promise.all([
+                  apiGet<ServiceListItem[]>("/api/pages", 20000),
+                  apiGet<{ folders?: ServiceFolderMeta[] }>("/api/pages/folders", 20000),
+                ]);
+                if (cancelled) return;
+                const folders = Array.isArray(foldersPayload?.folders) ? foldersPayload.folders : [];
+                const folderMetaBySlug = new Map(
+                  folders
+                    .filter((f) => typeof f?.name === "string" && typeof f?.slug === "string")
+                    .map((f) => ({
+                      name: String(f.name || "").trim(),
+                      slug: normalizeSlug(String(f.slug || "")),
+                      description: typeof f.description === "string" ? f.description : "",
+                      preview: typeof f.preview === "string" ? f.preview : "",
+                    }))
+                    .filter((f) => f.slug === "services" || f.slug.startsWith("services/"))
+                    .map((f) => [f.slug, f] as const),
+                );
+                const servicePages = pages
+                  .filter((p) => isVisibleServicePage(p) && normalizeSlug(p.slug).startsWith("services/"))
+                  .map((p) => ({ ...p, slug: normalizeSlug(p.slug) }));
+                const tree = buildServicesTree(servicePages, folderMetaBySlug);
+                const node = findServiceTreeNode(tree, path);
+                if (
+                  node &&
+                  (node.isMetaFolder || node.pages.length > 0 || node.children.length > 0)
+                ) {
+                  setServiceFolderHub(node);
+                }
+              } catch {
+                // остаётся «не найдено»
+              }
             }
           }
         }
@@ -190,7 +201,7 @@ export default function Page() {
     return () => {
       cancelled = true;
     };
-  }, [normalizedSlug, slugParts]);
+  }, [normalizedSlug]);
 
   if (loading) {
     return (

@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useCarouselSwipe } from "@/hooks/useCarouselSwipe";
+import { useCarouselVisibleCount } from "@/hooks/useCarouselVisibleCount";
 import { HomeServicesFolderCards } from "@/components/HomeServicesFolderCards";
 
 const AUTOPLAY_INTERVAL_MS = 5500;
@@ -22,20 +23,9 @@ type Props = {
 export function HomeArticlesCarousel({ slides }: Props) {
   const [index, setIndex] = useState(0);
   const [renderIndex, setRenderIndex] = useState(0);
-  const [visibleCount, setVisibleCount] = useState(1);
+  const visibleCount = useCarouselVisibleCount("articles");
   const [carouselHovered, setCarouselHovered] = useState(false);
   const [tabVisible, setTabVisible] = useState(true);
-
-  useLayoutEffect(() => {
-    const updateVisibleCount = () => {
-      const width = window.innerWidth;
-      if (width < 640) return setVisibleCount(2);
-      return setVisibleCount(4);
-    };
-    updateVisibleCount();
-    window.addEventListener("resize", updateVisibleCount);
-    return () => window.removeEventListener("resize", updateVisibleCount);
-  }, []);
 
   const normalized = useMemo(() => {
     return (Array.isArray(slides) ? slides : [])
@@ -240,8 +230,11 @@ export function HomeArticlesCarousel({ slides }: Props) {
             {normalized.map((a, slideIndex) => (
               <div
                 key={a.id}
-                className="flex min-h-0 shrink-0 self-stretch px-1.5"
-                style={{ flexBasis: `${100 / visibleCount}%`, minWidth: 0 }}
+                className="box-border flex min-h-0 shrink-0 self-stretch px-1.5"
+                style={{
+                  flex: `0 0 calc(100% / ${visibleCount})`,
+                  minWidth: 0,
+                }}
               >
                 <div
                   className="flex h-full min-h-0 w-full min-w-0 flex-col"

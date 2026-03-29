@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import { useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useEqualizeFolderCardSlots } from "@/hooks/useEqualizeFolderCardSlots";
 import styles from "./HomeServicesFolderCards.module.css";
 
@@ -10,7 +10,7 @@ export type HomeServicesFolderCard = {
   slugPath: string;
   label: string;
   description?: string;
-  /** URL превью папки (фон карточки при наведении) */
+  /** URL превью папки (фон карточки при активном превью) */
   preview?: string;
 };
 
@@ -30,11 +30,13 @@ type Props = {
   gridClassName?: string;
   /** Выровнять все слоты по высоте самой высокой карточки (DOM, см. useEqualizeFolderCardSlots) */
   syncHeightsToTallest?: boolean;
-  /** Превью на фоне карточки всегда (как при hover), без наведения — для статей */
+  /** Превью на фоне всегда (без наведения / удержания) — редкий режим */
   alwaysShowPreview?: boolean;
 };
 
 const DEFAULT_FALLBACK_PREVIEW = "/logo_1.svg";
+
+const CARD_SELECTOR = "[data-service-folder-card]";
 
 function FolderCard({
   c,
@@ -43,6 +45,8 @@ function FolderCard({
   ctaLabel,
   equalHeight,
   alwaysShowPreview,
+  touchActiveSlug,
+  setTouchActiveSlug,
 }: {
   c: HomeServicesFolderCard;
   displaySrc: string;
@@ -50,11 +54,29 @@ function FolderCard({
   ctaLabel: string;
   equalHeight: boolean;
   alwaysShowPreview: boolean;
+  touchActiveSlug: string | null;
+  setTouchActiveSlug: (slug: string | null) => void;
 }) {
+  const href = `/${c.slugPath}`;
+  const touchHeld = !alwaysShowPreview && touchActiveSlug === c.slugPath;
+
+  const onCardPointerDown = useCallback(
+    (e: React.PointerEvent<HTMLElement>) => {
+      if (alwaysShowPreview) return;
+      if ((e.target as HTMLElement).closest("a")) return;
+      if (e.pointerType === "mouse") return;
+      setTouchActiveSlug(c.slugPath);
+    },
+    [alwaysShowPreview, c.slugPath, setTouchActiveSlug],
+  );
+
   return (
     <div
+      data-service-folder-card=""
       className={`${equalHeight ? "h-full min-h-0" : "h-auto"} ${styles.cardRoot} ${equalHeight ? styles.cardRootStretch : ""} ${alwaysShowPreview ? styles.cardPreviewAlways : ""}`}
       {...(alwaysShowPreview ? { "data-preview-always": "" } : {})}
+      {...(touchHeld ? { "data-preview-touch": "" } : {})}
+      onPointerDown={onCardPointerDown}
     >
       <div className={styles.cardBgStack} aria-hidden>
         <div className={styles.cardBgImageWrap}>
@@ -75,7 +97,12 @@ function FolderCard({
         ) : null}
       </div>
       <div className={`${styles.footer} ${equalHeight ? styles.footerStick : ""}`}>
-        <Link href={`/${c.slugPath}`} className={styles.link}>
+        <Link
+          href={href}
+          className={styles.link}
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
           {ctaLabel}
         </Link>
       </div>
@@ -97,6 +124,28 @@ export function HomeServicesFolderCards({
   const items = (cards || [])
     .filter((c) => c?.slugPath && c?.label?.trim())
     .slice(0, limit);
+
+  const [touchActiveSlug, setTouchActiveSlug] = useState<string | null>(null);
+
+  useEffect(() => {
+    const onDocPointerDown = (e: PointerEvent) => {
+      const el = (e.target as Element | null)?.closest?.(CARD_SELECTOR);
+      if (!el) setTouchActiveSlug(null);
+    };
+    document.addEventListener("pointerdown", onDocPointerDown, true);
+    return () => document.removeEventListener("pointerdown", onDocPointerDown, true);
+  }, []);
+
+  useEffect(() => {
+    if (touchActiveSlug === null) return;
+    const clear = () => setTouchActiveSlug(null);
+    window.addEventListener("pointerup", clear);
+    window.addEventListener("pointercancel", clear);
+    return () => {
+      window.removeEventListener("pointerup", clear);
+      window.removeEventListener("pointercancel", clear);
+    };
+  }, [touchActiveSlug]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const itemsKey = useMemo(
@@ -146,6 +195,8 @@ export function HomeServicesFolderCards({
               ctaLabel={ctaLabel}
               equalHeight={equalHeight}
               alwaysShowPreview={alwaysShowPreview}
+              touchActiveSlug={touchActiveSlug}
+              setTouchActiveSlug={setTouchActiveSlug}
             />
           </div>
         );

@@ -162,7 +162,7 @@ type ArticlesPageProps = {
 
 export default async function ArticlesPage({ searchParams }: ArticlesPageProps) {
   const posts = await getArticles();
-  const POSTS_PER_PAGE = 9;
+  const POSTS_PER_PAGE = 12;
 
   const resolvedSearchParams = (await searchParams) ?? {};
   const pageRaw = Array.isArray(resolvedSearchParams.page)
@@ -213,16 +213,21 @@ export default async function ArticlesPage({ searchParams }: ArticlesPageProps) 
             </h1>
           </div>
 
-          <p className="mb-6 text-center font-semibold text-[#496db3]" style={{ fontSize: "clamp(13px, 0.7vw, 14px)" }}>
-            Выберите материал, чтобы открыть полную статью.
-          </p>
+          <div className="mb-4" style={{ fontSize: "clamp(13px, 0.7vw, 14px)" }}>
+            <p
+              className="whitespace-pre-wrap text-center font-semibold text-[#496db3]"
+              style={{ fontSize: "112%", lineHeight: 1.35 }}
+            >
+              Мы постоянно готовим для вас полезные материалы — практические заметки, разборы и советы, которые помогут в
+              работе и сделают повседневные задачи понятнее.
+            </p>
+          </div>
 
           {posts.length > 0 ? (
             <div className="mt-4">
               <HomeServicesFolderCards
                 equalHeight
                 syncHeightsToTallest
-                alwaysShowPreview
                 ctaLabel="Подробнее"
                 limit={POSTS_PER_PAGE}
                 cards={pagedPosts.map((p) => ({

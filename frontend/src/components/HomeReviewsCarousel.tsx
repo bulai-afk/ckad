@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useCarouselSwipe } from "@/hooks/useCarouselSwipe";
+import { useCarouselVisibleCount } from "@/hooks/useCarouselVisibleCount";
 import { createPortal } from "react-dom";
 import {
   CarouselFullPreviewOverlay,
@@ -25,7 +26,7 @@ export function HomeReviewsCarousel({ slides }: HomeReviewsCarouselProps) {
   );
   const [index, setIndex] = useState(0);
   const [renderIndex, setRenderIndex] = useState(0);
-  const [visibleCount, setVisibleCount] = useState(1);
+  const visibleCount = useCarouselVisibleCount("reviews");
   const [carouselHovered, setCarouselHovered] = useState(false);
   const [tabVisible, setTabVisible] = useState(true);
   const [previewSession, setPreviewSession] = useState<CarouselPreviewSessionState | null>(null);
@@ -52,18 +53,6 @@ export function HomeReviewsCarousel({ slides }: HomeReviewsCarouselProps) {
       }
     })();
   }, [slides]);
-
-  useLayoutEffect(() => {
-    const updateVisibleCount = () => {
-      const width = window.innerWidth;
-      if (width < 640) return setVisibleCount(2);
-      if (width < 1024) return setVisibleCount(4);
-      return setVisibleCount(6);
-    };
-    updateVisibleCount();
-    window.addEventListener("resize", updateVisibleCount);
-    return () => window.removeEventListener("resize", updateVisibleCount);
-  }, []);
 
   const normalized = useMemo(
     () =>
@@ -193,8 +182,11 @@ export function HomeReviewsCarousel({ slides }: HomeReviewsCarouselProps) {
             {normalized.map((slide, slideIndex) => (
               <div
                 key={slide.id}
-                className="flex min-h-0 shrink-0 self-stretch px-1.5"
-                style={{ flexBasis: `${100 / visibleCount}%`, minWidth: 0 }}
+                className="box-border flex min-h-0 shrink-0 self-stretch px-1.5"
+                style={{
+                  flex: `0 0 calc(100% / ${visibleCount})`,
+                  minWidth: 0,
+                }}
               >
                 <div
                   className="flex h-full min-h-0 w-full min-w-0 flex-col"

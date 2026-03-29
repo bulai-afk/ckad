@@ -14,18 +14,12 @@ async function fetchWithTimeout(
   }
 }
 
-export async function apiGet<T>(path: string): Promise<T> {
-  const res = await fetchWithTimeout(
-    `${API_URL}${path}`,
-    {
-    next: { revalidate: 0 },
-    },
-    2500,
-  );
+export async function apiGet<T>(path: string, timeoutMs = 2500): Promise<T> {
+  const res = await fetchWithTimeout(`${API_URL}${path}`, undefined, timeoutMs);
   if (!res.ok) {
     throw new Error(`GET ${path} failed with ${res.status}`);
   }
-  return res.json();
+  return (await res.json()) as T;
 }
 
 export async function apiPost<T>(

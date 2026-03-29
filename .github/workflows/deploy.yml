@@ -91,8 +91,29 @@ jobs:
 
       - name: Health check
         shell: bash
+        env:
+          SITE_URL: ${{ secrets.DEPLOY_SITE_URL }}
         run: |
           set -euo pipefail
-          curl -fsS "https://old.angel-dress.ru/" >/dev/null
-          curl -fsS "https://old.angel-dress.ru/api/pages" >/dev/null
+          if [ -z "${SITE_URL:-}" ]; then
+            echo "::warning::DEPLOY_SITE_URL is not set — skipping health check. Add repo secret DEPLOY_SITE_URL (public HTTPS origin, e.g. https://example.com, no trailing slash)."
+            exit 0
+          fi
+          BASE="${SITE_URL%/}"
+          curl_retry() {
+            local url="$1"
+            local attempt
+            for attempt in $(seq 1 15); do
+              if curl -fsS --max-time 30 "$url" >/dev/null; then
+                echo "OK $url"
+                return 0
+              fi
+              echo "Health check attempt $attempt/15 failed for $url, retrying in 5s..."
+              sleep 5
+            done
+            echo "::error::Health check failed after 15 attempts: $url"
+            return 1
+          }
+          curl_retry "$BASE/"
+          curl_retry "$BASE/api/pages"
 
