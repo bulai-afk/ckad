@@ -249,6 +249,8 @@ export default function AdminPage() {
   const dragStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const dragOffsetRef = useRef<{ x: number; y: number }>({ x: 16, y: 16 });
   const suppressClickRef = useRef(false);
+  /** После GET папок не делаем немедленный PUT — иначе каждое открытие /admin бьёт в запись и при EACCES на сервере даёт 500. */
+  const omitNextFoldersPersistRef = useRef(false);
 
   async function loadPages() {
     try {
@@ -288,8 +290,10 @@ export default function AdminPage() {
           if (!seen.has(f.slug)) seen.set(f.slug, f);
         }
         const loaded = Array.from(seen.values());
+        omitNextFoldersPersistRef.current = true;
         setCustomFolders(loaded);
     } catch {
+        omitNextFoldersPersistRef.current = true;
         setCustomFolders([]);
     } finally {
       setIsCustomFoldersLoaded(true);
@@ -309,10 +313,14 @@ export default function AdminPage() {
         })),
       );
     }
+    document.cookie = `${NAV_FOLDERS_COOKIE_NAME}=${serializeNavFoldersCookie(customFolders)}; Path=/; Max-Age=31536000; SameSite=Lax`;
+    if (omitNextFoldersPersistRef.current) {
+      omitNextFoldersPersistRef.current = false;
+      return;
+    }
     void apiPut("/api/pages/folders", { folders: customFolders }).catch(() => {
       setError("Не удалось сохранить папки на сервере.");
     });
-    document.cookie = `${NAV_FOLDERS_COOKIE_NAME}=${serializeNavFoldersCookie(customFolders)}; Path=/; Max-Age=31536000; SameSite=Lax`;
   }, [customFolders, isCustomFoldersLoaded]);
 
   useEffect(() => {
