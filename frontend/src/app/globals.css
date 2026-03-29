@@ -9,12 +9,9 @@
 html {
   margin: 0;
   padding: 0;
-  /* Prevent sideways page shifting on mobile (rubber-band / over-pan). */
   max-width: 100%;
-  overflow-x: hidden !important;
-  overflow-x: clip;
+  /* Не ставить overflow-x на html/body — ломает position:sticky у навбара (scroll containment). */
   overscroll-behavior-x: none;
-  touch-action: pan-y;
 }
 
 body {
@@ -24,8 +21,6 @@ body {
   padding-bottom: 0;
   width: 100%;
   max-width: 100%;
-  overflow-x: hidden !important;
-  overflow-x: clip;
   overscroll-behavior-x: none;
   touch-action: pan-y;
 }

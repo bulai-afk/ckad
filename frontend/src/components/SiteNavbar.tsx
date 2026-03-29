@@ -1187,6 +1187,7 @@ export function SiteNavbar({ initialFolderNavItems = [], siteSettings = null }: 
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const mobileShellRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLElement | null>(null);
   /** Чтобы при открытии моб. меню один раз раскрыть раздел и папки до текущего URL */
   const prevOpenForMobileNavExpandRef = useRef(false);
   const [mobileSheetAnim, setMobileSheetAnim] =
@@ -1197,6 +1198,8 @@ export function SiteNavbar({ initialFolderNavItems = [], siteSettings = null }: 
   const [callbackHovered, setCallbackHovered] = useState(false);
   const [callbackModalOpen, setCallbackModalOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  /** Резерв высоты под fixed-шапку (обновляется ResizeObserver). */
+  const [navbarSpacerPx, setNavbarSpacerPx] = useState(56);
   const phoneLabel = (siteSettings?.phone || "").trim() || "+7 (495) 123-45-67";
   const emailLabel = (siteSettings?.email || "").trim() || "info@центр-каталогизации.рф";
   const phoneHref = (() => {
@@ -1213,6 +1216,20 @@ export function SiteNavbar({ initialFolderNavItems = [], siteSettings = null }: 
   const [mobileNavExpanded, setMobileNavExpanded] = useState<Set<string>>(() => new Set());
 
   const hidden = useMemo(() => pathname?.startsWith("/admin"), [pathname]);
+
+  useLayoutEffect(() => {
+    if (hidden) return;
+    const el = headerRef.current;
+    if (!el) return;
+    const apply = () => {
+      const h = el.offsetHeight;
+      setNavbarSpacerPx(h > 8 ? h : 56);
+    };
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [hidden]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -1683,7 +1700,8 @@ export function SiteNavbar({ initialFolderNavItems = [], siteSettings = null }: 
   if (hidden) return null;
 
   return (
-    <header className="sticky top-0 z-50">
+    <>
+    <header ref={headerRef} className="fixed top-0 left-0 right-0 z-50 w-full">
       <div className="relative z-50 px-4 sm:px-6 lg:px-10">
         <div
           ref={mobileShellRef}
@@ -2049,6 +2067,12 @@ export function SiteNavbar({ initialFolderNavItems = [], siteSettings = null }: 
       ) : null}
       <CallbackRequestModal open={callbackModalOpen} onClose={() => setCallbackModalOpen(false)} />
     </header>
+    <div
+      aria-hidden
+      className="shrink-0"
+      style={{ height: navbarSpacerPx, width: "100%" }}
+    />
+    </>
   );
 }
 

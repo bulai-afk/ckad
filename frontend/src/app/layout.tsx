@@ -80,9 +80,12 @@ export default async function RootLayout({
       >
         <PreventHorizontalPageScroll />
         <SiteNavbar initialFolderNavItems={initialFolderNavItems} siteSettings={siteSettings} />
-        <div className="flex w-full min-h-0 flex-col">{children}</div>
-        <GlobalFeedbackForm />
-        <SiteFooter siteSettings={siteSettings} />
+        {/* overflow-x-clip здесь, не на body — иначе sticky-шапка не прилипает к viewport */}
+        <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-x-clip">
+          <div className="flex w-full min-h-0 flex-col">{children}</div>
+          <GlobalFeedbackForm />
+          <SiteFooter siteSettings={siteSettings} />
+        </div>
       </body>
     </html>
   );
