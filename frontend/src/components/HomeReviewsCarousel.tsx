@@ -241,6 +241,10 @@ export function HomeReviewsCarousel({ slides }: HomeReviewsCarouselProps) {
                 role="tab"
                 aria-selected={i === safeIndex}
                 aria-label={`Слайд ${i + 1} из ${dotCount}`}
+                onPointerDown={(e) => {
+                  /* иначе useCarouselSwipe на родителе: setPointerCapture ломает click */
+                  e.stopPropagation();
+                }}
                 onClick={() => setIndex(i)}
                 className={`h-2.5 w-2.5 rounded-full border transition ${
                   i === safeIndex
