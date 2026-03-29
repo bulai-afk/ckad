@@ -1,11 +1,10 @@
 /**
  * Базовый URL для запросов к backend API.
- * - В браузере без NEXT_PUBLIC_API_URL: пустая строка → тот же origin (Next проксирует в Express).
- * - На сервере (SSR, route handlers): BACKEND_API_URL / API_URL / 127.0.0.1:4000.
- *
- * Если NEXT_PUBLIC_API_URL указывает на localhost / 127.0.0.1 / частную сеть / *.local,
- * в браузере он игнорируется (пустая строка). Иначе Chrome на публичном HTTPS блокирует
- * такие запросы (Local Network Access / Private Network Access).
+ * - В браузере: всегда пустая строка → same-origin `/api/*` (Next Route Handlers → Express через
+ *   BACKEND_API_URL на сервере Next). Прямой NEXT_PUBLIC_API_URL в клиенте не используем —
+ *   иначе запросы минуют прокси и ломаются на проде (500, CORS, другой хост).
+ * - На сервере (SSR, Route Handlers): NEXT_PUBLIC_API_URL, если задан и не «локальная сеть»,
+ *   иначе BACKEND_API_URL / API_URL / 127.0.0.1:4000.
  */
 function isLocalNetworkHttpOrigin(url: string): boolean {
   const trimmed = url.trim();
@@ -40,12 +39,10 @@ export function apiBaseUrl(): string {
   const env = envRaw ? envRaw.replace(/\/$/, "") : "";
 
   if (typeof window !== "undefined") {
-    if (!env) return "";
-    if (isLocalNetworkHttpOrigin(env)) return "";
-    return env;
+    return "";
   }
 
-  if (env) return env;
+  if (env && !isLocalNetworkHttpOrigin(env)) return env;
   return (
     process.env.BACKEND_API_URL?.trim() ||
     process.env.API_URL?.trim() ||

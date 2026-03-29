@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useEqualizeFolderCardSlots } from "@/hooks/useEqualizeFolderCardSlots";
+import { sanitizePublicAssetUrl } from "@/lib/publicAssetUrl";
 import styles from "./HomeServicesFolderCards.module.css";
 
 export type HomeServicesFolderCard = {
@@ -200,7 +201,7 @@ export function HomeServicesFolderCards({
       style={listStyle}
     >
       {items.map((c) => {
-        const previewUrl = c.preview?.trim() || "";
+        const previewUrl = sanitizePublicAssetUrl(c.preview?.trim() || "");
         const isLogoFallback = !previewUrl;
         const displaySrc = previewUrl || fallbackPreviewSrc;
         return (

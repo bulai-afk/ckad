@@ -641,8 +641,14 @@ pagesRouter.put("/banners", async (req, res) => {
 });
 
 pagesRouter.get("/reviews", async (_req, res) => {
-  const slides = await readReviewsFromFile();
-  return res.json({ slides });
+  try {
+    const slides = await readReviewsFromFile();
+    return res.json({ slides });
+  } catch (e: unknown) {
+    // eslint-disable-next-line no-console
+    console.error("[GET /reviews]", e);
+    return res.json({ slides: [] });
+  }
 });
 
 pagesRouter.put("/reviews", async (req, res) => {
@@ -669,8 +675,14 @@ pagesRouter.put("/reviews", async (req, res) => {
 });
 
 pagesRouter.get("/partners", async (_req, res) => {
-  const slides = await readPartnersFromFile();
-  return res.json({ slides });
+  try {
+    const slides = await readPartnersFromFile();
+    return res.json({ slides });
+  } catch (e: unknown) {
+    // eslint-disable-next-line no-console
+    console.error("[GET /partners]", e);
+    return res.json({ slides: [] });
+  }
 });
 
 pagesRouter.put("/partners", async (req, res) => {
