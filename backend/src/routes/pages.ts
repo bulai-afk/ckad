@@ -251,20 +251,30 @@ async function normalizeBannerImageDataUrlToWebp(
 function isBannerSlideLike(item: unknown): item is Record<string, unknown> {
   if (typeof item !== "object" || item === null) return false;
   const obj = item as Record<string, unknown>;
-  return (
-    typeof obj.id === "string" &&
-    typeof obj.title === "string" &&
-    (typeof obj.image === "string" || obj.image === null)
-  );
+  const id = obj.id;
+  if (
+    id !== undefined &&
+    typeof id !== "string" &&
+    typeof id !== "number"
+  ) {
+    return false;
+  }
+  /** title не проверяем — в sanitizeBannerSlide всё приводится к строке (иначе JSON/клиент могут дать number). */
+  return typeof obj.image === "string" || obj.image === null;
 }
 
 function isReviewSlideLike(item: unknown): item is Record<string, unknown> {
   if (typeof item !== "object" || item === null) return false;
   const obj = item as Record<string, unknown>;
-  return (
-    typeof obj.id === "string" &&
-    (typeof obj.image === "string" || obj.image === null)
-  );
+  const id = obj.id;
+  if (
+    id !== undefined &&
+    typeof id !== "string" &&
+    typeof id !== "number"
+  ) {
+    return false;
+  }
+  return typeof obj.image === "string" || obj.image === null;
 }
 
 function parseBannerH(
@@ -409,6 +419,47 @@ function sanitizeReviewSlide(item: Record<string, unknown>): ReviewSlide {
     id: String(item.id ?? ""),
     image: typeof item.image === "string" || item.image === null ? item.image : null,
   };
+}
+
+/** PUT /reviews и /partners: нормализация картинок и устойчивость к сбоям sharp/IO. */
+async function buildReviewSlidesFromInput(input: unknown[]): Promise<ReviewSlide[]> {
+  const rawSlides = input
+    .filter((item): item is Record<string, unknown> => isReviewSlideLike(item))
+    .map((item) => sanitizeReviewSlide(item))
+    .filter((s) => s.id.trim() !== "");
+
+  const slides: ReviewSlide[] = [];
+  for (const slide of rawSlides) {
+    try {
+      const image = await normalizeBannerImageDataUrlToWebp(slide.image);
+      slides.push({ ...slide, image });
+    } catch (e: unknown) {
+      // eslint-disable-next-line no-console
+      console.error("[review/partner slide image]", slide.id, e);
+      slides.push(slide);
+    }
+  }
+  return slides;
+}
+
+async function buildBannerSlidesFromInput(input: unknown[]): Promise<BannerSlide[]> {
+  const rawSlides = input
+    .filter((item): item is Record<string, unknown> => isBannerSlideLike(item))
+    .map((item) => sanitizeBannerSlide(item))
+    .filter((s) => s.id.trim() !== "");
+
+  const slides: BannerSlide[] = [];
+  for (const slide of rawSlides) {
+    try {
+      const image = await normalizeBannerImageDataUrlToWebp(slide.image);
+      slides.push({ ...slide, image });
+    } catch (e: unknown) {
+      // eslint-disable-next-line no-console
+      console.error("[banner slide image]", slide.id, e);
+      slides.push(slide);
+    }
+  }
+  return slides;
 }
 
 async function readBannersFromFile(): Promise<BannerSlide[]> {
@@ -613,31 +664,31 @@ pagesRouter.get("/banners", async (_req, res) => {
 });
 
 pagesRouter.put("/banners", async (req, res) => {
-  const body = req.body ?? {};
-  const input = (body as { slides?: unknown }).slides;
-  if (!Array.isArray(input)) {
-    return res.status(400).json({ error: "slides array is required" });
-  }
+  try {
+    const body = req.body ?? {};
+    const input = (body as { slides?: unknown }).slides;
+    if (!Array.isArray(input)) {
+      return res.status(400).json({ error: "slides array is required" });
+    }
 
-  const rawSlides = input
-    .filter((item): item is Record<string, unknown> => isBannerSlideLike(item))
-    .map((item) => sanitizeBannerSlide(item));
-
-  const slides: BannerSlide[] = [];
-  for (const slide of rawSlides) {
-    slides.push({
-      ...slide,
-      image: await normalizeBannerImageDataUrlToWebp(slide.image),
+    const slides = await buildBannerSlidesFromInput(input);
+    await writeBannersToFile(slides);
+    // eslint-disable-next-line no-console
+    console.log(
+      "[BANNERS_API] PUT",
+      slides.map((s) => ({ id: s.id, showOverlay: s.showOverlay })),
+    );
+    return res.json({ ok: true, slides });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    // eslint-disable-next-line no-console
+    console.error("[PUT /banners]", BANNERS_DATA_PATH, msg);
+    return res.status(500).json({
+      error: "Failed to save banners",
+      detail: msg,
+      path: BANNERS_DATA_PATH,
     });
   }
-
-  await writeBannersToFile(slides);
-  // eslint-disable-next-line no-console
-  console.log(
-    "[BANNERS_API] PUT",
-    slides.map((s) => ({ id: s.id, showOverlay: s.showOverlay })),
-  );
-  return res.json({ ok: true, slides });
 });
 
 pagesRouter.get("/reviews", async (_req, res) => {
@@ -652,26 +703,26 @@ pagesRouter.get("/reviews", async (_req, res) => {
 });
 
 pagesRouter.put("/reviews", async (req, res) => {
-  const body = req.body ?? {};
-  const input = (body as { slides?: unknown }).slides;
-  if (!Array.isArray(input)) {
-    return res.status(400).json({ error: "slides array is required" });
-  }
+  try {
+    const body = req.body ?? {};
+    const input = (body as { slides?: unknown }).slides;
+    if (!Array.isArray(input)) {
+      return res.status(400).json({ error: "slides array is required" });
+    }
 
-  const rawSlides = input
-    .filter((item): item is Record<string, unknown> => isReviewSlideLike(item))
-    .map((item) => sanitizeReviewSlide(item));
-
-  const slides: ReviewSlide[] = [];
-  for (const slide of rawSlides) {
-    slides.push({
-      ...slide,
-      image: await normalizeBannerImageDataUrlToWebp(slide.image),
+    const slides = await buildReviewSlidesFromInput(input);
+    await writeReviewsToFile(slides);
+    return res.json({ ok: true, slides });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    // eslint-disable-next-line no-console
+    console.error("[PUT /reviews]", REVIEWS_DATA_PATH, msg);
+    return res.status(500).json({
+      error: "Failed to save reviews",
+      detail: msg,
+      path: REVIEWS_DATA_PATH,
     });
   }
-
-  await writeReviewsToFile(slides);
-  return res.json({ ok: true, slides });
 });
 
 pagesRouter.get("/partners", async (_req, res) => {
@@ -686,26 +737,26 @@ pagesRouter.get("/partners", async (_req, res) => {
 });
 
 pagesRouter.put("/partners", async (req, res) => {
-  const body = req.body ?? {};
-  const input = (body as { slides?: unknown }).slides;
-  if (!Array.isArray(input)) {
-    return res.status(400).json({ error: "slides array is required" });
-  }
+  try {
+    const body = req.body ?? {};
+    const input = (body as { slides?: unknown }).slides;
+    if (!Array.isArray(input)) {
+      return res.status(400).json({ error: "slides array is required" });
+    }
 
-  const rawSlides = input
-    .filter((item): item is Record<string, unknown> => isReviewSlideLike(item))
-    .map((item) => sanitizeReviewSlide(item));
-
-  const slides: ReviewSlide[] = [];
-  for (const slide of rawSlides) {
-    slides.push({
-      ...slide,
-      image: await normalizeBannerImageDataUrlToWebp(slide.image),
+    const slides = await buildReviewSlidesFromInput(input);
+    await writePartnersToFile(slides);
+    return res.json({ ok: true, slides });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    // eslint-disable-next-line no-console
+    console.error("[PUT /partners]", PARTNERS_DATA_PATH, msg);
+    return res.status(500).json({
+      error: "Failed to save partners",
+      detail: msg,
+      path: PARTNERS_DATA_PATH,
     });
   }
-
-  await writePartnersToFile(slides);
-  return res.json({ ok: true, slides });
 });
 
 pagesRouter.get("/folders", async (_req, res) => {

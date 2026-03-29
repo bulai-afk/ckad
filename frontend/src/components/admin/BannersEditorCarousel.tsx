@@ -421,20 +421,43 @@ async function fetchBannersFromNextProxy(): Promise<{ slides?: Slide[] }> {
   return res.json() as Promise<{ slides?: Slide[] }>;
 }
 
+const BANNERS_PUT_TIMEOUT_MS = 120_000;
+
 async function putBannersViaNextProxy(body: {
   slides: Slide[];
 }): Promise<{ ok: boolean; slides: Slide[] }> {
-  const res = await fetch("/api/pages/banners", {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify(body),
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error(`banners PUT ${res.status}`);
-  return res.json() as Promise<{ ok: boolean; slides: Slide[] }>;
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(
+    () => controller.abort(),
+    BANNERS_PUT_TIMEOUT_MS,
+  );
+  try {
+    const res = await fetch("/api/pages/banners", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(body),
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    const text = await res.text();
+    if (!res.ok) {
+      let hint = text.trim().slice(0, 400);
+      try {
+        const j = JSON.parse(text) as { detail?: string; error?: string };
+        if (typeof j.detail === "string" && j.detail) hint = j.detail;
+        else if (typeof j.error === "string" && j.error) hint = j.error;
+      } catch {
+        /* raw text */
+      }
+      throw new Error(`HTTP ${res.status}${hint ? `: ${hint}` : ""}`);
+    }
+    return JSON.parse(text) as { ok: boolean; slides: Slide[] };
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
 }
 
 export function BannersEditorCarousel() {
@@ -805,10 +828,14 @@ export function BannersEditorCarousel() {
         setSaveTone("success");
         setSaveMessage("Баннер главной странице сохранен!");
         window.setTimeout(() => setSaveMessage(null), 1800);
-      } catch {
+      } catch (e: unknown) {
         setSaveTone("error");
-        setSaveMessage("Не удалось сохранить на сервере");
-        window.setTimeout(() => setSaveMessage(null), 3200);
+        const msg =
+          e instanceof Error && e.message
+            ? e.message
+            : "Не удалось сохранить на сервере";
+        setSaveMessage(msg.length > 220 ? `${msg.slice(0, 220)}…` : msg);
+        window.setTimeout(() => setSaveMessage(null), 8000);
       }
     })();
   }

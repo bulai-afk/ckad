@@ -242,9 +242,17 @@ export function ReviewsVerticalCarousel({
     try {
       const normalized = await normalizeSlidesToWebp(slides);
       setSlides(normalized);
-      await apiPut<{ ok: boolean; slides?: ReviewSlide[] }>(apiPath, {
-        slides: normalized,
-      });
+      const payload = {
+        slides: normalized.map((s) => ({
+          id: String(s.id),
+          image: s.image,
+        })),
+      };
+      await apiPut<{ ok: boolean; slides?: ReviewSlide[] }>(
+        apiPath,
+        payload,
+        120_000,
+      );
       setSaveTone("success");
       setSaveMessage("Сохранено");
       window.setTimeout(() => setSaveMessage(null), 1800);
@@ -382,6 +390,10 @@ export function ReviewsVerticalCarousel({
                   <button
                     type="button"
                     className="w-full text-left"
+                    onPointerDown={(e) => {
+                      /* Иначе useCarouselSwipe на родителе делает setPointerCapture и ломает click по слайду */
+                      e.stopPropagation();
+                    }}
                     onClick={() => setActiveIndex(idx)}
                     aria-label={`Выбрать слайд ${idx + 1}`}
                   >

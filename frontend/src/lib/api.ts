@@ -68,6 +68,8 @@ export async function apiPost<T>(
 export async function apiPut<T>(
   path: string,
   body: unknown,
+  /** Большие JSON (data URL картинок) — увеличьте при сохранении каруселей. */
+  timeoutMs = 8000,
 ): Promise<T> {
   const res = await fetchWithTimeout(
     apiUrl(path),
@@ -78,7 +80,7 @@ export async function apiPut<T>(
       },
       body: JSON.stringify(body),
     },
-    8000,
+    timeoutMs,
   );
 
   if (!res.ok) {

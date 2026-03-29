@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+export const runtime = "nodejs";
+
 /** URL Express-бэкенда (только на сервере Next, не в браузере). */
 function backendBase(): string {
   return (
@@ -10,18 +12,27 @@ function backendBase(): string {
   );
 }
 
+const PROXY_TIMEOUT_MS = 120_000;
+
 async function proxyToBackend(
   init: RequestInit & { method: string },
 ): Promise<Response> {
   const url = `${backendBase()}/api/pages/banners`;
-  return fetch(url, {
-    ...init,
-    cache: "no-store",
-    headers: {
-      Accept: "application/json",
-      ...(init.headers as Record<string, string>),
-    },
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), PROXY_TIMEOUT_MS);
+  try {
+    return await fetch(url, {
+      ...init,
+      cache: "no-store",
+      signal: controller.signal,
+      headers: {
+        Accept: "application/json",
+        ...(init.headers as Record<string, string>),
+      },
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 export async function GET() {

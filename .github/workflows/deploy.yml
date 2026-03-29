@@ -48,6 +48,10 @@ jobs:
   deploy:
     needs: ci
     runs-on: ubuntu-latest
+    # Корень приложения на сервере (каталог, куда rsync кладёт репозиторий).
+    # По умолчанию /opt/ckad/current — можно переопределить: Settings → Secrets and variables → Actions → Variables → DEPLOY_APP_ROOT
+    env:
+      DEPLOY_APP_ROOT: ${{ vars.DEPLOY_APP_ROOT }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -82,8 +86,12 @@ jobs:
 
       - name: Rsync code to server
         shell: bash
+        env:
+          DEPLOY_APP_ROOT: ${{ vars.DEPLOY_APP_ROOT }}
         run: |
           set -euo pipefail
+          APP="${DEPLOY_APP_ROOT:-/opt/ckad/current}"
+          echo "::notice::Deploy path (APP)=$APP"
           rsync -az --delete \
             --exclude ".git" \
             --exclude "**/node_modules" \
@@ -91,13 +99,19 @@ jobs:
             --exclude "**/dist" \
             --exclude "**/.env" \
             --exclude "**/.env.*" \
-            ./ "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/ckad/current/"
+            ./ "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${APP}/"
 
       - name: Build and restart services
         shell: bash
+        env:
+          DEPLOY_APP_ROOT: ${{ vars.DEPLOY_APP_ROOT }}
         run: |
           set -euo pipefail
+          APP="${DEPLOY_APP_ROOT:-/opt/ckad/current}"
           ssh "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" "set -euo pipefail
+            ROOT=\"$APP\"
+            echo \"[deploy] ROOT=\$ROOT\"
+
             if ! swapon --show | grep -q '/swapfile'; then
               echo '[deploy] no swapfile, creating 4G swap...'
               fallocate -l 4G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=4096
@@ -107,10 +121,9 @@ jobs:
               grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
             fi
 
-            cd /opt/ckad/current/backend
+            cd \"\$ROOT/backend\"
             npm ci --no-audit --no-fund
             npm run prisma:generate
-                   # Apply DB migrations (idempotent)
                    set -a
                    . /opt/ckad/shared/env/backend.env
                    set +a
@@ -118,12 +131,18 @@ jobs:
                    npm run migrate:seed-admin-demo || true
             npm run build
 
-            cd /opt/ckad/current/frontend
+            cd \"\$ROOT/frontend\"
             npm ci --no-audit --no-fund
             npm run build
 
             systemctl restart ckad-backend ckad-frontend
             systemctl --no-pager -l status ckad-backend ckad-frontend
+
+            # JSON-файлы (banners, partners, partners.json и т.д.) должны быть доступны процессу backend (www-data)
+            mkdir -p \"\$ROOT/backend/data\"
+            chown -R www-data:www-data \"\$ROOT/backend/data\"
+            chmod -R u+rwX \"\$ROOT/backend/data\"
+            echo '[deploy] backend/data permissions OK'
           "
 
       - name: Health check (site + API via Next BFF)
@@ -152,7 +171,6 @@ jobs:
             return 1
           }
           curl_retry "$BASE/"
-          # Прокси Next → Express (проверка что BFF и backend отвечают)
           for path in \
             /api/pages \
             /api/pages/folders \

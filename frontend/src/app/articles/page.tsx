@@ -41,12 +41,6 @@ function isVisibleArticlePage(p: ArticleListItem): boolean {
   return process.env.NODE_ENV === "development";
 }
 
-const ARTICLE_IMAGES = [
-  "https://images.unsplash.com/photo-1496128858413-b36217c2ce36?auto=format&fit=crop&w=1800&q=80",
-  "https://images.unsplash.com/photo-1547586696-ea22b4d4235d?auto=format&fit=crop&w=1800&q=80",
-  "https://images.unsplash.com/photo-1492724441997-5dc865305da7?auto=format&fit=crop&w=1800&q=80",
-] as const;
-
 function extractFirstImageSrcFromHtml(html: string): string | null {
   const m = html.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/i);
   if (!m) return null;
@@ -122,7 +116,7 @@ async function getArticles(): Promise<
 
     const pageMap = new Map(pageBySlug);
 
-    const articles = sourceArticles.map((p, idx) => {
+    const articles = sourceArticles.map((p) => {
         const slug = normalizeSlug(p.slug);
         const full = pageMap.get(slug);
         const textBlocks = Array.isArray(full?.blocks) ? full!.blocks.filter((b) => b.type === "text") : [];
@@ -143,7 +137,8 @@ async function getArticles(): Promise<
         const safeThumb = sanitizePublicAssetUrl(rawThumb);
         return {
           href: `/${slug}`,
-          image: safeThumb || ARTICLE_IMAGES[idx % ARTICLE_IMAGES.length],
+          /** Пусто → HomeServicesFolderCards подставит лого, как у услуг (не stock-фото). */
+          image: safeThumb,
           dateIso,
           dateLabel,
           title: p.title,
