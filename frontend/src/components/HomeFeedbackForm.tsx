@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+import { apiBaseUrl } from "@/lib/apiBaseUrl";
 
 const errorMessages: Record<string, string> = {
   invalid_name: "Укажите имя (до 200 символов).",
@@ -29,7 +28,7 @@ export function HomeFeedbackForm() {
     try {
       const name = `${firstName} ${lastName}`.trim();
       const message = "Заявка с сайта. Просьба связаться.";
-      const res = await fetch(`${API_URL}/api/feedback`, {
+      const res = await fetch(`${apiBaseUrl()}/api/feedback`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, phone, email, message }),

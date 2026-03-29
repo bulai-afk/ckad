@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useCarouselSwipe } from "@/hooks/useCarouselSwipe";
 import { useCarouselVisibleCount } from "@/hooks/useCarouselVisibleCount";
+import { apiBaseUrl } from "@/lib/apiBaseUrl";
 
 const AUTOPLAY_INTERVAL_MS = 5500;
 
@@ -32,8 +33,7 @@ export function HomePartnersCarousel({ slides }: HomePartnersCarouselProps) {
     }
     void (async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-        const res = await fetch(`${apiUrl}/api/pages/partners`, {
+        const res = await fetch(`${apiBaseUrl()}/api/pages/partners`, {
           method: "GET",
           headers: { Accept: "application/json" },
         });

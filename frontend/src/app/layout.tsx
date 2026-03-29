@@ -6,6 +6,7 @@ import { PreventHorizontalPageScroll } from "@/components/PreventHorizontalPageS
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteNavbar } from "@/components/SiteNavbar";
 import { NAV_FOLDERS_COOKIE_NAME, parseNavFoldersCookie } from "@/lib/navFoldersCookie";
+import { apiBaseUrl } from "@/lib/apiBaseUrl";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -52,11 +53,11 @@ export default async function RootLayout({
   );
 
   let siteSettings: SiteSettings | null = null;
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+  const base = apiBaseUrl();
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 1500);
-    const res = await fetch(`${apiUrl}/api/pages/site-settings`, {
+    const res = await fetch(`${base}/api/pages/site-settings`, {
       cache: "no-store",
       signal: controller.signal,
     }).finally(() => clearTimeout(timeoutId));

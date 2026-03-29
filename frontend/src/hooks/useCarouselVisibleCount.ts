@@ -2,20 +2,31 @@ import { useLayoutEffect, useState } from "react";
 
 /**
  * Сколько карточек в ряд в горизонтальной карусели.
- * Дефолт 2 — мобильный first (до первого layout не остаётся «1 карточка»).
  * Брейкпоинты как у Tailwind: sm 640px, lg 1024px.
+ *
+ * На SSR нет window — подставляем значение ближе к типичному десктопу (6 / 4),
+ * чтобы при обновлении страницы не мигала сетка «2 карточки → норма».
+ * После гидрации useLayoutEffect сразу выставляет фактическую ширину (в т.ч. мобильный «2»).
  */
+function computeFromWidth(kind: "reviews" | "articles" | "partners", w: number): number {
+  if (kind === "articles") return w < 640 ? 2 : 4;
+  return w < 640 ? 2 : w < 1024 ? 4 : 6;
+}
+
+function initialCount(kind: "reviews" | "articles" | "partners"): number {
+  if (typeof window !== "undefined") {
+    return computeFromWidth(kind, window.innerWidth);
+  }
+  if (kind === "articles") return 4;
+  return 6;
+}
+
 export function useCarouselVisibleCount(kind: "reviews" | "articles" | "partners"): number {
-  const [n, setN] = useState(2);
+  const [n, setN] = useState(() => initialCount(kind));
 
   useLayoutEffect(() => {
     const apply = () => {
-      const w = window.innerWidth;
-      if (kind === "articles") {
-        setN(w < 640 ? 2 : 4);
-        return;
-      }
-      setN(w < 640 ? 2 : w < 1024 ? 4 : 6);
+      setN(computeFromWidth(kind, window.innerWidth));
     };
 
     apply();

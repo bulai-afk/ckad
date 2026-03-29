@@ -745,7 +745,7 @@ export default function AdminPage() {
                 ...f,
                 name,
                 description: newFolderDescription.trim(),
-                preview: newFolderPreview.trim() || f.preview,
+                preview: newFolderPreview.trim(),
               }
             : f,
         );
@@ -908,7 +908,7 @@ export default function AdminPage() {
               name: newName,
               description: editFolderDescription.trim(),
               showInNavbar: editFolderShowInNavbar,
-              preview: nextPreview || f.preview,
+              preview: nextPreview,
             };
           }
           if (fs.startsWith(`${oldSlug}/`)) {

@@ -6,6 +6,7 @@ import { PublicCarouselViewportSync } from "@/components/PublicCarouselViewportS
 import { PublicFolderBreadcrumbLabel } from "@/components/PublicFolderBreadcrumbLabel";
 import { HomeServicesFolderCards } from "@/components/HomeServicesFolderCards";
 import { apiGet } from "@/lib/api";
+import { apiBaseUrl } from "@/lib/apiBaseUrl";
 import {
   buildServicesTree,
   findServiceTreeNode,
@@ -69,7 +70,6 @@ type PageData = {
 };
 
 const PAGE_CACHE_KEY_PREFIX = "public_page_cache_v1:";
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 const CALLBACK_FORM_LINK = "callback://open";
 
 function slugSegmentsFromNormalized(normalizedSlug: string): string[] {
@@ -332,7 +332,7 @@ export default function Page() {
     try {
       const name = `${firstName} ${lastName}`.trim();
       const message = "Заявка из кнопки обложки страницы.";
-      const res = await fetch(`${API_URL}/api/feedback`, {
+      const res = await fetch(`${apiBaseUrl()}/api/feedback`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, phone, email, message }),

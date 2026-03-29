@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { apiBaseUrl } from "@/lib/apiBaseUrl";
 import { ChevronRightIcon, HomeIcon } from "@heroicons/react/20/solid";
 import { HomeReviewsCarousel } from "@/components/HomeReviewsCarousel";
 import { HomePartnersCarousel } from "@/components/HomePartnersCarousel";
@@ -62,12 +63,12 @@ const SOCIAL_DEFS = [
 export const dynamic = "force-dynamic";
 
 export default async function ContactsPage() {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+  const base = apiBaseUrl();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 2000);
   let siteSettings: SiteSettings | null = null;
   try {
-    const res = await fetch(`${apiUrl}/api/pages/site-settings`, {
+    const res = await fetch(`${base}/api/pages/site-settings`, {
       cache: "no-store",
       signal: controller.signal,
     });

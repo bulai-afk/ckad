@@ -5,6 +5,7 @@ import { TrashIcon } from "@heroicons/react/24/outline";
 import { AdminSidebar } from "@/components/admin/Sidebar";
 import { AdminTopBar } from "@/components/admin/AdminTopBar";
 import { apiGet } from "@/lib/api";
+import { apiBaseUrl } from "@/lib/apiBaseUrl";
 
 type FeedbackRequestRow = {
   id: string;
@@ -17,7 +18,6 @@ type FeedbackRequestRow = {
 };
 
 export default function AdminRequestsPage() {
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
   const [rows, setRows] = useState<FeedbackRequestRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -74,7 +74,7 @@ export default function AdminRequestsPage() {
     if (selectedIds.length === 0 || deleting) return;
     setDeleting(true);
     try {
-      const res = await fetch(`${API_URL}/api/feedback/requests`, {
+      const res = await fetch(`${apiBaseUrl()}/api/feedback/requests`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids: selectedIds }),

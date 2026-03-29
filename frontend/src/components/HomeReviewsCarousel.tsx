@@ -8,6 +8,7 @@ import {
   CarouselFullPreviewOverlay,
   type CarouselPreviewSessionState,
 } from "@/components/CarouselFullPreviewOverlay";
+import { apiBaseUrl } from "@/lib/apiBaseUrl";
 
 const AUTOPLAY_INTERVAL_MS = 5500;
 
@@ -38,8 +39,7 @@ export function HomeReviewsCarousel({ slides }: HomeReviewsCarouselProps) {
     }
     void (async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-        const res = await fetch(`${apiUrl}/api/pages/reviews`, {
+        const res = await fetch(`${apiBaseUrl()}/api/pages/reviews`, {
           method: "GET",
           headers: { Accept: "application/json" },
         });

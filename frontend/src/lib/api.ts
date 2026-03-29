@@ -1,4 +1,10 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+import { apiBaseUrl } from "./apiBaseUrl";
+
+function apiUrl(path: string): string {
+  const base = apiBaseUrl();
+  const p = path.startsWith("/") ? path : `/${path}`;
+  return `${base}${p}`;
+}
 
 async function fetchWithTimeout(
   input: RequestInfo | URL,
@@ -15,7 +21,7 @@ async function fetchWithTimeout(
 }
 
 export async function apiGet<T>(path: string, timeoutMs = 2500): Promise<T> {
-  const res = await fetchWithTimeout(`${API_URL}${path}`, undefined, timeoutMs);
+  const res = await fetchWithTimeout(apiUrl(path), undefined, timeoutMs);
   if (!res.ok) {
     throw new Error(`GET ${path} failed with ${res.status}`);
   }
@@ -27,7 +33,7 @@ export async function apiPost<T>(
   body: unknown,
 ): Promise<T> {
   const res = await fetchWithTimeout(
-    `${API_URL}${path}`,
+    apiUrl(path),
     {
       method: "POST",
       headers: {
@@ -48,7 +54,7 @@ export async function apiPut<T>(
   body: unknown,
 ): Promise<T> {
   const res = await fetchWithTimeout(
-    `${API_URL}${path}`,
+    apiUrl(path),
     {
       method: "PUT",
       headers: {
@@ -68,7 +74,7 @@ export async function apiPut<T>(
 
 export async function apiDelete(path: string): Promise<void> {
   const res = await fetchWithTimeout(
-    `${API_URL}${path}`,
+    apiUrl(path),
     {
       method: "DELETE",
     },
@@ -79,4 +85,3 @@ export async function apiDelete(path: string): Promise<void> {
     throw new Error(`DELETE ${path} failed with ${res.status}`);
   }
 }
-

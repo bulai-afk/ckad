@@ -14,8 +14,8 @@ import {
 } from "@/lib/bannerElementPosition";
 import { BannerTextOverlayBand } from "@/components/BannerTextOverlayBand";
 import { normalizeFontSizeToPercent } from "@/lib/bannerFontSize";
+import { apiBaseUrl } from "@/lib/apiBaseUrl";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 const CALLBACK_FORM_LINK = "callback://open";
 
 /** Нормализация переводов строк и явные <br /> — надёжнее, чем только whitespace-pre-line (в т.ч. при line-height: 1). */
@@ -202,7 +202,7 @@ export function HomeBannersCarousel({
     try {
       const name = `${firstName} ${lastName}`.trim();
       const message = "Заявка из кнопки баннера.";
-      const res = await fetch(`${API_URL}/api/feedback`, {
+      const res = await fetch(`${apiBaseUrl()}/api/feedback`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, phone, email, message }),

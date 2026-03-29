@@ -16,6 +16,7 @@ import {
   type ServiceListItem,
   type ServiceTreeNode,
 } from "@/lib/serviceTree";
+import { apiBaseUrl } from "@/lib/apiBaseUrl";
 
 export const dynamic = "force-dynamic";
 import {
@@ -48,12 +49,12 @@ function isVisibleArticlePage(p: ArticleListItem): boolean {
 export default async function Home() {
   let reviews: ReviewSlide[] = [];
   let bannerSlides: BannerSlide[] = [];
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+  const base = apiBaseUrl();
   const fetchNoStoreJson = async <T,>(path: string, timeoutMs: number): Promise<T> => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const res = await fetch(`${apiUrl}${path}`, { cache: "no-store", signal: controller.signal });
+      const res = await fetch(`${base}${path}`, { cache: "no-store", signal: controller.signal });
       if (!res.ok) throw new Error(`GET ${path} failed with ${res.status}`);
       return (await res.json()) as T;
     } finally {

@@ -22,8 +22,9 @@ import {
   type FolderNavItem,
 } from "@/lib/navFoldersCookie";
 
+import { apiBaseUrl } from "@/lib/apiBaseUrl";
+
 const CUSTOM_FOLDERS_STORAGE_KEY = "admin_custom_folders_v1";
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 /** Одинаковая ширина первого уровня и вложенных панелей (inline — не зависит от парсинга Tailwind). */
 const DESKTOP_NAV_MENU_PANEL_STYLE: CSSProperties = {
@@ -93,7 +94,7 @@ function CallbackRequestModal({
     try {
       const name = `${firstName} ${lastName}`.trim();
       const message = "Заявка с модального окна обратного звонка.";
-      const res = await fetch(`${API_URL}/api/feedback`, {
+      const res = await fetch(`${apiBaseUrl()}/api/feedback`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, phone, email, message }),

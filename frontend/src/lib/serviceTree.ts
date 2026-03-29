@@ -1,3 +1,5 @@
+import { sanitizePublicAssetUrl } from "@/lib/publicAssetUrl";
+
 export type ServiceListItem = {
   id: number;
   title: string;
@@ -177,7 +179,8 @@ export type ServiceFolderCardProps = {
 /**
  * Поля для карточки раздела на главной и в /services:
  * приоритет — метаданные папки из `/api/pages/folders` (файл `folders.json` на бэкенде);
- * если там пусто — подставляем описание/превью из страниц раздела (`/api/pages`, БД).
+ * если описание папки пусто — подставляем описание страницы раздела.
+ * Превью папки: только из метаданных папки; если пусто — из первой страницы, но без URL с локалки (localhost).
  */
 export function folderCardPropsFromServiceNode(node: ServiceTreeNode): ServiceFolderCardProps {
   const first = node.pages[0];
@@ -187,7 +190,9 @@ export function folderCardPropsFromServiceNode(node: ServiceTreeNode): ServiceFo
   const pagePreview = typeof first?.preview === "string" ? first.preview.trim() : "";
 
   const description = (folderDesc || pageDesc) || undefined;
-  const preview = (folderPreview || pagePreview) || undefined;
+  const fromFolder = sanitizePublicAssetUrl(folderPreview);
+  const fromPage = sanitizePublicAssetUrl(pagePreview);
+  const preview = (fromFolder || fromPage) || undefined;
 
   let label: string;
   if (node.isMetaFolder) {

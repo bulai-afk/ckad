@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ChevronRightIcon, HomeIcon } from "@heroicons/react/20/solid";
 import { HomeServicesFolderCards } from "@/components/HomeServicesFolderCards";
 import { apiGet } from "@/lib/api";
+import { sanitizePublicAssetUrl } from "@/lib/publicAssetUrl";
 
 export const dynamic = "force-dynamic";
 
@@ -136,9 +137,12 @@ async function getArticles(): Promise<
         }
 
         const { dateIso, dateLabel } = formatDateLabel(p.createdAt);
+        const rawThumb =
+          (typeof p.preview === "string" && p.preview.trim()) || previewFromPage || "";
+        const safeThumb = sanitizePublicAssetUrl(rawThumb);
         return {
           href: `/${slug}`,
-          image: (typeof p.preview === "string" && p.preview.trim()) || previewFromPage || ARTICLE_IMAGES[idx % ARTICLE_IMAGES.length],
+          image: safeThumb || ARTICLE_IMAGES[idx % ARTICLE_IMAGES.length],
           dateIso,
           dateLabel,
           title: p.title,
@@ -227,7 +231,6 @@ export default async function ArticlesPage({ searchParams }: ArticlesPageProps) 
             <div className="mt-4">
               <HomeServicesFolderCards
                 equalHeight
-                syncHeightsToTallest
                 ctaLabel="Подробнее"
                 limit={POSTS_PER_PAGE}
                 cards={pagedPosts.map((p) => ({
