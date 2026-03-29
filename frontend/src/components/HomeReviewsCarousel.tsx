@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCarouselSwipe } from "@/hooks/useCarouselSwipe";
 import { createPortal } from "react-dom";
 import {
   CarouselFullPreviewOverlay,
@@ -116,6 +117,14 @@ export function HomeReviewsCarousel({ slides }: HomeReviewsCarouselProps) {
     return (slideIndex: number) => slideIndex >= start && slideIndex <= end;
   }, [safeIndex, visibleCount]);
 
+  const goPrev = useCallback(() => {
+    setIndex((prev) => Math.max(0, prev - 1));
+  }, []);
+  const goNext = useCallback(() => {
+    setIndex((prev) => Math.min(maxStart, prev + 1));
+  }, [maxStart]);
+  const carouselSwipe = useCarouselSwipe(goPrev, goNext, { enabled: dotCount > 1 });
+
   if (normalized.length === 0) {
     return null;
   }
@@ -165,9 +174,10 @@ export function HomeReviewsCarousel({ slides }: HomeReviewsCarouselProps) {
       </div>
 
       <div
-        className="relative w-full min-w-0 py-2"
+        className="relative w-full min-w-0 touch-pan-y py-2"
         onMouseEnter={() => setCarouselHovered(true)}
         onMouseLeave={() => setCarouselHovered(false)}
+        {...carouselSwipe}
       >
         <div className="min-w-0 w-full overflow-hidden rounded-xl bg-slate-100 p-2 sm:p-3">
           <div

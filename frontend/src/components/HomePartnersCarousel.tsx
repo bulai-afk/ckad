@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCarouselSwipe } from "@/hooks/useCarouselSwipe";
 
 const AUTOPLAY_INTERVAL_MS = 5500;
 
@@ -96,6 +97,14 @@ export function HomePartnersCarousel({ slides }: HomePartnersCarouselProps) {
     if (renderIndex !== safeRenderIndex) setRenderIndex(safeRenderIndex);
   }, [index, safeIndex, renderIndex, safeRenderIndex]);
 
+  const goPrev = useCallback(() => {
+    setIndex((prev) => Math.max(0, prev - 1));
+  }, []);
+  const goNext = useCallback(() => {
+    setIndex((prev) => Math.min(maxStart, prev + 1));
+  }, [maxStart]);
+  const carouselSwipe = useCarouselSwipe(goPrev, goNext, { enabled: dotCount > 1 });
+
   const isSlideInRenderRange = useMemo(() => {
     const start = Math.min(safeIndex, safeRenderIndex);
     const end = Math.max(safeIndex, safeRenderIndex) + visibleCount - 1;
@@ -145,9 +154,10 @@ export function HomePartnersCarousel({ slides }: HomePartnersCarouselProps) {
       </div>
 
       <div
-        className="relative w-full min-w-0 py-2"
+        className="relative w-full min-w-0 touch-pan-y py-2"
         onMouseEnter={() => setCarouselHovered(true)}
         onMouseLeave={() => setCarouselHovered(false)}
+        {...carouselSwipe}
       >
         <div className="min-w-0 w-full overflow-hidden rounded-xl bg-slate-100 p-2 sm:p-3">
           <div

@@ -3,6 +3,7 @@
 import { EllipsisVerticalIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { apiGet, apiPut } from "@/lib/api";
+import { useCarouselSwipe } from "@/hooks/useCarouselSwipe";
 
 type ReviewSlide = {
   id: string;
@@ -178,6 +179,10 @@ export function ReviewsVerticalCarousel({
   function goNext() {
     setViewportStart((prev) => (prev < maxViewportStart ? prev + 1 : prev));
   }
+
+  const reviewsCarouselSwipe = useCarouselSwipe(goPrev, goNext, {
+    enabled: maxViewportStart > 0,
+  });
 
   function addSlide() {
     setSlides((prev) => [...prev, { id: String(Date.now()), image: null }]);
@@ -358,8 +363,9 @@ export function ReviewsVerticalCarousel({
         </button>
 
         <div
-          className="w-full max-w-[980px] overflow-hidden rounded-xl bg-slate-100 p-2"
+          className="w-full max-w-[980px] touch-pan-y overflow-hidden rounded-xl bg-slate-100 p-2"
           style={{ clipPath: "inset(0 5px 0 5px)" }}
+          {...reviewsCarouselSwipe}
         >
           <div
             className="flex transition-transform duration-300 ease-out"

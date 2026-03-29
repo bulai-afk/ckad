@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCarouselSwipe } from "@/hooks/useCarouselSwipe";
 import { HomeServicesFolderCards } from "@/components/HomeServicesFolderCards";
 
 const AUTOPLAY_INTERVAL_MS = 5500;
@@ -178,6 +179,14 @@ export function HomeArticlesCarousel({ slides }: Props) {
     };
   }, [normalized]);
 
+  const goPrev = useCallback(() => {
+    setIndex((prev) => Math.max(0, prev - 1));
+  }, []);
+  const goNext = useCallback(() => {
+    setIndex((prev) => Math.min(maxStart, prev + 1));
+  }, [maxStart]);
+  const carouselSwipe = useCarouselSwipe(goPrev, goNext, { enabled: dotCount > 1 });
+
   if (normalized.length === 0) return null;
 
   return (
@@ -211,9 +220,10 @@ export function HomeArticlesCarousel({ slides }: Props) {
       </div>
 
       <div
-        className="relative w-full min-w-0 py-2"
+        className="relative w-full min-w-0 touch-pan-y py-2"
         onMouseEnter={() => setCarouselHovered(true)}
         onMouseLeave={() => setCarouselHovered(false)}
+        {...carouselSwipe}
       >
         <div className="min-w-0 w-full">
           <div

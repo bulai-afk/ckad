@@ -9,6 +9,7 @@ import {
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useCarouselSwipe } from "@/hooks/useCarouselSwipe";
 import { BannerTextOverlayBand } from "@/components/BannerTextOverlayBand";
 import {
   bannerHToAlignSelf,
@@ -468,6 +469,12 @@ export function BannersEditorCarousel() {
 
   const canPrev = activeIndex > 0;
   const canNext = activeIndex < slides.length - 1;
+
+  const bannerEditorSwipe = useCarouselSwipe(
+    () => setActiveIndex((p) => (p > 0 ? p - 1 : p)),
+    () => setActiveIndex((p) => (p < slides.length - 1 ? p + 1 : p)),
+    { enabled: slides.length > 1 && !imageAlignMode },
+  );
 
   const activeSlide = useMemo(() => slides[activeIndex] ?? null, [slides, activeIndex]);
   const activeFontSizeValue =
@@ -1424,7 +1431,10 @@ export function BannersEditorCarousel() {
           Кнопки навигации под баннером (не сбоку), чтобы ширина превью совпадала с главной:
           иначе flex с ‹ › уменьшает область баннера → другой cqw и другой визуальный размер шрифта.
         */}
-        <div className="mx-auto w-full max-w-[1200px] overflow-hidden rounded-xl bg-white">
+        <div
+          className="mx-auto w-full max-w-[1200px] touch-pan-y overflow-hidden rounded-xl bg-white"
+          {...bannerEditorSwipe}
+        >
             <div
               className="flex transition-transform duration-300 ease-out"
               style={{ transform: `translateX(-${activeIndex * 100}%)` }}

@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { useCarouselSwipe } from "@/hooks/useCarouselSwipe";
 import type { ReactNode } from "react";
 import {
   bannerHToAlignSelf,
@@ -253,6 +254,13 @@ export function HomeBannersCarousel({
     setIndex(0);
   }, [normalized.length, index]);
 
+  const bannerSwipe = useCarouselSwipe(
+    () =>
+      setIndex((i) => (normalized.length ? (i - 1 + normalized.length) % normalized.length : 0)),
+    () => setIndex((i) => (normalized.length ? (i + 1) % normalized.length : 0)),
+    { enabled: normalized.length > 1 },
+  );
+
   if (!canUse) {
     return (
       <div className="w-full min-w-0 shrink-0">
@@ -271,7 +279,11 @@ export function HomeBannersCarousel({
   return (
     <div className="w-full min-w-0 shrink-0">
     <section className="relative overflow-hidden rounded-2xl shadow-md">
-      <div className="relative w-full overflow-hidden" style={{ paddingTop: "43.75%" }}>
+      <div
+        className="relative w-full touch-pan-y overflow-hidden"
+        style={{ paddingTop: "43.75%" }}
+        {...bannerSwipe}
+      >
         <div className="absolute inset-0">
           <div
             className="flex h-full transition-transform duration-500 ease-out"
