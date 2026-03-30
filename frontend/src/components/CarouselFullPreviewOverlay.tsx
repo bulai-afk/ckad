@@ -119,7 +119,13 @@ export function CarouselFullPreviewOverlay({
   // Основную карусель страницы не трогаем (она использует useCarouselVisibleCount("reviews")).
   const reviewsVisibleCount = useCarouselVisibleCount("reviews");
   const thumbsVisibleCount =
-    typeof window !== "undefined" && window.innerWidth < 640 ? 4 : reviewsVisibleCount;
+    typeof window === "undefined"
+      ? reviewsVisibleCount
+      : window.innerWidth < 640
+        ? 4
+        : window.innerWidth >= 1024
+          ? 12
+          : reviewsVisibleCount;
   const thumbsMaxStart = Math.max(0, session.slides.length - thumbsVisibleCount);
   const thumbsSafeIndex = Math.max(0, Math.min(session.index, thumbsMaxStart));
   const thumbsDotCount = thumbsMaxStart + 1;
