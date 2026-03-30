@@ -280,7 +280,11 @@ export function CarouselFullPreviewOverlay({
       >
         ×
       </button>
-      <div className={`flex w-full min-w-0 max-w-full shrink flex-col ${mainAlignClass}`}>
+      <div
+        className={`flex w-full min-w-0 max-w-full shrink flex-col ${mainAlignClass} ${
+          mode === "reviews" ? "pt-10 pb-2" : ""
+        }`}
+      >
         {showArrows ? (
           <div className="relative inline-flex max-w-full flex items-center justify-center gap-3">
             <button
@@ -356,7 +360,7 @@ export function CarouselFullPreviewOverlay({
         )}
 
         {showThumbs ? (
-          <div className="mt-4 w-full">
+          <div className={`${mode === "reviews" ? "mt-2 pb-1" : "mt-4"} w-full`}>
             <div className="relative overflow-hidden rounded-xl border border-white/10 bg-white/5 p-2">
               <div
                 onPointerDownCapture={onThumbPointerDownCapture}
@@ -432,7 +436,7 @@ export function CarouselFullPreviewOverlay({
             </div>
             {thumbsDotCount > 1 ? (
               <div
-                className="mt-3 flex items-center justify-center gap-2"
+                className={`${mode === "reviews" ? "mt-2" : "mt-3"} flex items-center justify-center gap-2`}
                 role="tablist"
                 aria-label="Переключение мини-превью"
               >
