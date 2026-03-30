@@ -121,6 +121,7 @@ export function CarouselFullPreviewOverlay({
     typeof window !== "undefined" && window.innerWidth < 640 ? 4 : reviewsVisibleCount;
   const thumbsMaxStart = Math.max(0, session.slides.length - thumbsVisibleCount);
   const thumbsSafeIndex = Math.max(0, Math.min(session.index, thumbsMaxStart));
+  const thumbsDotCount = thumbsMaxStart + 1;
 
   // Для отзывов хотим максимально широкую картинку.
   // Резервируем немного высоты под счётчик и мини-превью, но не «съедаем» всю область.
@@ -138,6 +139,40 @@ export function CarouselFullPreviewOverlay({
   const clearSwipe = () => {
     startXRef.current = null;
     pointerIdRef.current = null;
+  };
+
+  // Свайп по мини-превью: листаем отзывы прямо в нижней карусели.
+  const thumbSwipeThresholdPx = 45;
+  const thumbStartXRef = useRef<number | null>(null);
+  const thumbPointerIdRef = useRef<number | null>(null);
+
+  const clearThumbSwipe = () => {
+    thumbStartXRef.current = null;
+    thumbPointerIdRef.current = null;
+  };
+
+  const onThumbPointerDownCapture = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!enableSwipe) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    // Отрезаем верхний swipe по основному изображению.
+    e.stopPropagation();
+    thumbPointerIdRef.current = e.pointerId;
+    thumbStartXRef.current = e.clientX;
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const onThumbPointerUpCapture = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!enableSwipe) return;
+    if (thumbPointerIdRef.current !== e.pointerId || thumbStartXRef.current === null) return;
+    e.stopPropagation();
+    const dx = e.clientX - thumbStartXRef.current;
+    clearThumbSwipe();
+    if (dx < -thumbSwipeThresholdPx) onNext();
+    else if (dx > thumbSwipeThresholdPx) onPrev();
   };
 
   const onOverlayPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -306,6 +341,16 @@ export function CarouselFullPreviewOverlay({
           <div className="mt-4 w-full">
             <div className="relative overflow-hidden rounded-xl border border-white/10 bg-white/5 p-2">
               <div
+                onPointerDownCapture={onThumbPointerDownCapture}
+                onPointerUpCapture={onThumbPointerUpCapture}
+                onPointerCancel={() => {
+                  if (!enableSwipe) return;
+                  clearThumbSwipe();
+                }}
+                onLostPointerCapture={() => {
+                  if (!enableSwipe) return;
+                  clearThumbSwipe();
+                }}
                 className="flex w-full min-w-0 items-stretch transition-transform duration-300 ease-out"
                 style={{
                   transform: `translateX(-${thumbsSafeIndex * (100 / thumbsVisibleCount)}%)`,
@@ -367,6 +412,30 @@ export function CarouselFullPreviewOverlay({
                 })}
               </div>
             </div>
+            {thumbsDotCount > 1 ? (
+              <div
+                className="mt-3 flex items-center justify-center gap-2"
+                role="tablist"
+                aria-label="Переключение мини-превью"
+              >
+                {Array.from({ length: thumbsDotCount }, (_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    role="tab"
+                    aria-selected={i === thumbsSafeIndex}
+                    aria-label={`Слайд ${i + 1} из ${thumbsDotCount}`}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={() => onSelectIndex?.(i)}
+                    className={`h-2.5 w-2.5 rounded-full border transition ${
+                      i === thumbsSafeIndex
+                        ? "border-[#496db3] bg-[#496db3] shadow-[0_0_0_2px_rgba(73,109,179,0.25)]"
+                        : "border-[#496db3]/55 bg-white/5 hover:border-[#496db3] hover:bg-[#496db3]/10"
+                    }`}
+                  />
+                ))}
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>
