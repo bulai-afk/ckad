@@ -262,6 +262,12 @@ export function HomeReviewsCarousel({ slides }: HomeReviewsCarouselProps) {
             <CarouselFullPreviewOverlay
               session={previewSession}
               onClose={() => setPreviewSession(null)}
+              mode="reviews"
+              onSelectIndex={(i) =>
+                setPreviewSession((s) =>
+                  s ? { ...s, index: Math.max(0, Math.min(s.slides.length - 1, i)) } : s,
+                )
+              }
               onPrev={() =>
                 setPreviewSession((s) =>
                   s ? { ...s, index: Math.max(0, s.index - 1) } : s,

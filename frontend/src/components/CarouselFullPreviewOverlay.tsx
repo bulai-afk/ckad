@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type CSSProperties } from "react";
+import { useEffect, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 
 export type CarouselPreviewSlide = {
   src: string | null;
@@ -23,15 +23,25 @@ function resolveAspectRatioCss(session: CarouselPreviewSessionState): string {
   return "16 / 9";
 }
 
-/** Размер кадра от высоты viewport: max-height + ширина из aspect-ratio (не от max-width контейнера). */
-function previewFrameStyle(aspectCss: string): CSSProperties {
-  const maxH = "min(78vh, calc(100dvh - 7rem))";
+type PreviewFrameWidthMode = "computed" | "full";
+
+/**
+ * Размер кадра.
+ * - computed: пытаемся вычислить ширину из maxHeight и aspect-ratio (старое поведение).
+ * - full: для отзывов на мобилке хотим ширину почти 100% — поэтому ставим width: 100%.
+ */
+function previewFrameStyle(
+  aspectCss: string,
+  maxH: string,
+  widthMode: PreviewFrameWidthMode,
+): CSSProperties {
   const trimmed = aspectCss.replace(/\s+/g, " ").trim();
   const m = trimmed.match(/^([\d.]+)\s*\/\s*([\d.]+)$/);
   if (!m) {
     return {
       aspectRatio: trimmed,
       maxHeight: maxH,
+      width: widthMode === "full" ? "100%" : undefined,
       maxWidth: "100%",
       marginLeft: "auto",
       marginRight: "auto",
@@ -43,11 +53,25 @@ function previewFrameStyle(aspectCss: string): CSSProperties {
     return {
       aspectRatio: trimmed,
       maxHeight: maxH,
+      width: widthMode === "full" ? "100%" : undefined,
       maxWidth: "100%",
       marginLeft: "auto",
       marginRight: "auto",
     };
   }
+  if (widthMode === "full") {
+    return {
+      // В режиме reviews хотим максимально широкую картинку.
+      // Поэтому не полагаемся на aspect-ratio (он может принудительно уменьшать ширину при max-height),
+      // а задаём фиксированную высоту, а ширина остаётся 100% (object-fit: cover подрежет).
+      height: maxH,
+      width: "100%",
+      maxWidth: "100%",
+      marginLeft: "auto",
+      marginRight: "auto",
+    };
+  }
+
   return {
     aspectRatio: `${aw} / ${ah}`,
     maxHeight: maxH,
@@ -66,16 +90,63 @@ export function CarouselFullPreviewOverlay({
   onClose,
   onPrev,
   onNext,
+  onSelectIndex,
+  mode = "default",
 }: {
   session: CarouselPreviewSessionState;
   onClose: () => void;
   onPrev: () => void;
   onNext: () => void;
+  /** Точный переход по индексу (нужно для мини-превью). */
+  onSelectIndex?: (index: number) => void;
+  /** Набор UI-поведения. */
+  mode?: "default" | "reviews";
 }) {
   const current = session.slides[session.index] ?? null;
   const canPrev = session.index > 0;
   const canNext = session.index < session.slides.length - 1;
   const aspect = resolveAspectRatioCss(session);
+  const enableSwipe = mode === "reviews";
+  const showArrows = mode !== "reviews";
+  const showThumbs = mode === "reviews";
+  const overlayPaddingClass = mode === "reviews" ? "p-2 sm:p-4" : "p-4";
+  // Для отзывов хотим максимально широкую картинку.
+  // Резервируем немного высоты под счётчик и мини-превью, но не «съедаем» всю область.
+  const frameMaxH =
+    mode === "reviews"
+      ? "min(96vh, calc(100dvh - 2.5rem))"
+      : "min(78vh, calc(100dvh - 7rem))";
+
+  const frameWidthMode: PreviewFrameWidthMode = mode === "reviews" ? "full" : "computed";
+
+  const swipeThresholdPx = 45;
+  const startXRef = useRef<number | null>(null);
+  const pointerIdRef = useRef<number | null>(null);
+  const clearSwipe = () => {
+    startXRef.current = null;
+    pointerIdRef.current = null;
+  };
+
+  const onOverlayPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!enableSwipe) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    pointerIdRef.current = e.pointerId;
+    startXRef.current = e.clientX;
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const onOverlayPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!enableSwipe) return;
+    if (pointerIdRef.current !== e.pointerId || startXRef.current === null) return;
+    const dx = e.clientX - startXRef.current;
+    clearSwipe();
+    if (dx < -swipeThresholdPx) onNext();
+    else if (dx > swipeThresholdPx) onPrev();
+  };
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -119,7 +190,17 @@ export function CarouselFullPreviewOverlay({
 
   return (
     <div
-      className="fixed inset-0 flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-sm"
+      onPointerDown={onOverlayPointerDown}
+      onPointerUp={onOverlayPointerUp}
+      onPointerCancel={() => {
+        if (!enableSwipe) return;
+        clearSwipe();
+      }}
+      onLostPointerCapture={() => {
+        if (!enableSwipe) return;
+        clearSwipe();
+      }}
+      className={`fixed inset-0 flex items-center justify-center bg-slate-900/45 ${overlayPaddingClass} backdrop-blur-sm`}
       style={{
         zIndex: 2147483647,
         backdropFilter: "blur(6px)",
@@ -137,19 +218,55 @@ export function CarouselFullPreviewOverlay({
       >
         ×
       </button>
-      <button
-        type="button"
-        onClick={onPrev}
-        disabled={!canPrev}
-        className="mr-3 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/40 bg-white/15 text-white disabled:opacity-30"
-        aria-label="Предыдущий слайд"
-      >
-        ‹
-      </button>
       <div className="flex w-full min-w-0 max-w-full shrink flex-col items-center">
+        {showArrows ? (
+          <div className="relative w-full flex items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={onPrev}
+              disabled={!canPrev}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/40 bg-white/15 text-white disabled:opacity-30"
+              aria-label="Предыдущий слайд"
+            >
+              ‹
+            </button>
+              <div className="flex min-w-0 flex-col items-center">
+              <div
+                className="relative overflow-hidden rounded-xl bg-slate-900/80 shadow-2xl"
+                style={previewFrameStyle(aspect, frameMaxH, frameWidthMode)}
+              >
+                {current?.src ? (
+                  <img
+                    src={current.src}
+                    alt=""
+                    className="absolute inset-0 h-full w-full object-cover"
+                    draggable={false}
+                  />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center text-sm text-slate-300">
+                    {current?.label || "Слайд"}
+                  </div>
+                )}
+              </div>
+              <div className="mt-2 text-center text-xs text-white/80">
+                {Math.min(session.index + 1, session.slides.length)} / {session.slides.length}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onNext}
+              disabled={!canNext}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/40 bg-white/15 text-white disabled:opacity-30"
+              aria-label="Следующий слайд"
+            >
+              ›
+            </button>
+          </div>
+        ) : (
+        <div className="flex min-w-0 flex-col items-center">
         <div
           className="relative overflow-hidden rounded-xl bg-slate-900/80 shadow-2xl"
-          style={previewFrameStyle(aspect)}
+          style={previewFrameStyle(aspect, frameMaxH, frameWidthMode)}
         >
           {current?.src ? (
             <img
@@ -167,16 +284,65 @@ export function CarouselFullPreviewOverlay({
         <div className="mt-2 text-center text-xs text-white/80">
           {Math.min(session.index + 1, session.slides.length)} / {session.slides.length}
         </div>
+          </div>
+        )}
+
+        {showThumbs ? (
+          <div className="mt-4 w-full">
+            <div
+              className="flex w-full gap-2 overflow-x-auto px-1 pb-1"
+              aria-label="Мини-превью карусели"
+              role="list"
+              style={{ scrollSnapType: "x proximity" }}
+            >
+              {session.slides.map((s, i) => {
+                const isActive = i === session.index;
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    role="listitem"
+                    onPointerDown={(e) => {
+                      // Иначе свайп-обработчик сверху может сработать.
+                      e.stopPropagation();
+                    }}
+                    onClick={() => {
+                      if (onSelectIndex) {
+                        onSelectIndex(i);
+                      } else if (i < session.index) {
+                        onPrev();
+                      } else if (i > session.index) {
+                        onNext();
+                      }
+                    }}
+                    className={`shrink-0 rounded-lg border transition ${
+                      isActive ? "border-white/70" : "border-white/20 hover:border-white/50"
+                    }`}
+                    aria-label={`Перейти к отзыву ${i + 1}`}
+                    style={{
+                      width: 56,
+                      height: 40,
+                      scrollSnapAlign: "center",
+                      padding: 0,
+                      overflow: "hidden",
+                      background: "rgba(255,255,255,0.03)",
+                    }}
+                  >
+                    {s.src ? (
+                      // Миниатюра: показываем покрытием, без сохранения aspect — чтобы не было «высоких» миниатюр.
+                      <img src={s.src} alt="" className="h-full w-full object-cover" draggable={false} />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-[10px] text-white/50">
+                        {s.label}
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
       </div>
-      <button
-        type="button"
-        onClick={onNext}
-        disabled={!canNext}
-        className="ml-3 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/40 bg-white/15 text-white disabled:opacity-30"
-        aria-label="Следующий слайд"
-      >
-        ›
-      </button>
     </div>
   );
 }
