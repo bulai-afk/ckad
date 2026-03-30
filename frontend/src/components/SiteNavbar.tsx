@@ -1361,7 +1361,8 @@ export function SiteNavbar({ initialFolderNavItems = [], siteSettings = null }: 
   }, [pathname]);
 
   useEffect(() => {
-    const mq = window.matchMedia("(max-width: 767px)");
+    // На ширине до 1200px считаем верстку «мобильной/узкой».
+    const mq = window.matchMedia("(max-width: 1200px)");
     const sync = () => setIsNarrowViewport(mq.matches);
     sync();
     const onChange = () => {
@@ -1457,7 +1458,7 @@ export function SiteNavbar({ initialFolderNavItems = [], siteSettings = null }: 
       closeMobileMenu();
       return;
     }
-    if (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches) {
+    if (typeof window !== "undefined" && window.matchMedia("(max-width: 1200px)").matches) {
       openMobileMenu();
     } else {
       setOpen(true);
@@ -1764,7 +1765,7 @@ export function SiteNavbar({ initialFolderNavItems = [], siteSettings = null }: 
               </Link>
             </div>
 
-            <div className="relative z-[120] hidden min-h-0 min-w-0 flex-1 justify-center md:flex md:items-center">
+            <div className="relative z-[120] hidden min-h-0 min-w-0 flex-1 justify-center min-[1201px]:flex min-[1201px]:items-center">
               {/*
                 Нельзя overflow-x-auto на этом блоке: в CSS это ломает overflow-y:visible
                 и обрезает absolute-дропдауны + плывёт активная «капсула».
@@ -1847,7 +1848,7 @@ export function SiteNavbar({ initialFolderNavItems = [], siteSettings = null }: 
               </DesktopNavPillDropdownProvider>
             </div>
 
-            <div className="hidden min-w-0 flex-1 items-center justify-end gap-3 md:flex">
+            <div className="hidden min-w-0 flex-1 items-center justify-end gap-3 min-[1201px]:flex">
               <a
                 href={phoneHref}
                 className="whitespace-nowrap tracking-tight transition-colors"
@@ -1878,7 +1879,7 @@ export function SiteNavbar({ initialFolderNavItems = [], siteSettings = null }: 
 
             <button
               type="button"
-              className={`ml-auto inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#496db3]/35 bg-white text-[#496db3] shadow-sm transition outline-none hover:border-[#496db3]/55 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-[#496db3]/30 focus-visible:shadow-[0_0_14px_rgba(73,109,179,0.22)] md:hidden ${
+              className={`ml-auto inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#496db3]/35 bg-white text-[#496db3] shadow-sm transition outline-none hover:border-[#496db3]/55 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-[#496db3]/30 focus-visible:shadow-[0_0_14px_rgba(73,109,179,0.22)] min-[1201px]:hidden ${
                 open && isNarrowViewport ? "relative z-[90]" : ""
               }`}
               onClick={toggleMobileMenu}
@@ -2060,7 +2061,7 @@ export function SiteNavbar({ initialFolderNavItems = [], siteSettings = null }: 
       {open && isNarrowViewport ? (
         <button
           type="button"
-          className="fixed inset-0 z-40 border-0 bg-slate-900/30 p-0 backdrop-blur-[2px] md:hidden"
+          className="fixed inset-0 z-40 border-0 bg-slate-900/30 p-0 backdrop-blur-[2px] min-[1201px]:hidden"
           aria-label="Закрыть меню"
           onClick={closeMobileMenu}
         />
