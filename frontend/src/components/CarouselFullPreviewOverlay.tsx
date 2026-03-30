@@ -280,7 +280,7 @@ export function CarouselFullPreviewOverlay({
             className={`flex min-w-0 flex-col ${mode === "reviews" ? "items-stretch" : "items-center"}`}
           >
         <div
-          className="relative overflow-hidden rounded-xl bg-slate-900/80 shadow-2xl"
+          className="relative overflow-hidden rounded-xl bg-slate-900/80 shadow-2xl shadow-[0_0_0_2px_rgba(73,109,179,0.25)]"
           style={previewFrameStyle(aspect, frameMaxH, frameWidthMode)}
         >
           {current?.src ? (
@@ -343,8 +343,8 @@ export function CarouselFullPreviewOverlay({
                         <div
                           className={`relative overflow-hidden rounded-lg border transition ${
                             isActive
-                              ? "border-[#496db3] ring-2 ring-[#496db3]/35"
-                              : "border-slate-200 hover:border-slate-300"
+                              ? "border-[#496db3] bg-[#496db3]/10 ring-2 ring-[#496db3]/45 shadow-[0_0_14px_rgba(73,109,179,0.25)]"
+                              : "border-slate-200/70 hover:border-slate-200"
                           }`}
                           style={{ paddingTop: "141.4214%" }}
                         >
