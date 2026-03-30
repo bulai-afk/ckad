@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import { useCarouselVisibleCount } from "@/hooks/useCarouselVisibleCount";
 
 export type CarouselPreviewSlide = {
   src: string | null;
@@ -111,6 +112,12 @@ export function CarouselFullPreviewOverlay({
   const showThumbs = mode === "reviews";
   const mainAlignClass = mode === "reviews" ? "items-stretch" : "items-center";
   const overlayPaddingClass = mode === "reviews" ? "p-2 sm:p-4" : "p-4";
+
+  // Мини-превью снизу — делаем «как основная карусель»: несколько карточек в ряд.
+  const thumbsVisibleCount = useCarouselVisibleCount("reviews");
+  const thumbsMaxStart = Math.max(0, session.slides.length - thumbsVisibleCount);
+  const thumbsSafeIndex = Math.max(0, Math.min(session.index, thumbsMaxStart));
+
   // Для отзывов хотим максимально широкую картинку.
   // Резервируем немного высоты под счётчик и мини-превью, но не «съедаем» всю область.
   const frameMaxH =
@@ -293,56 +300,68 @@ export function CarouselFullPreviewOverlay({
 
         {showThumbs ? (
           <div className="mt-4 w-full">
-            <div
-              className="flex w-full gap-2 overflow-x-auto px-1 pb-1"
-              aria-label="Мини-превью карусели"
-              role="list"
-              style={{ scrollSnapType: "x proximity" }}
-            >
-              {session.slides.map((s, i) => {
-                const isActive = i === session.index;
-                return (
-                  <button
-                    key={i}
-                    type="button"
-                    role="listitem"
-                    onPointerDown={(e) => {
-                      // Иначе свайп-обработчик сверху может сработать.
-                      e.stopPropagation();
-                    }}
-                    onClick={() => {
-                      if (onSelectIndex) {
-                        onSelectIndex(i);
-                      } else if (i < session.index) {
-                        onPrev();
-                      } else if (i > session.index) {
-                        onNext();
-                      }
-                    }}
-                    className={`shrink-0 rounded-lg border transition ${
-                      isActive ? "border-white/70" : "border-white/20 hover:border-white/50"
-                    }`}
-                    aria-label={`Перейти к отзыву ${i + 1}`}
-                    style={{
-                      width: 56,
-                      height: 40,
-                      scrollSnapAlign: "center",
-                      padding: 0,
-                      overflow: "hidden",
-                      background: "rgba(255,255,255,0.03)",
-                    }}
-                  >
-                    {s.src ? (
-                      // Миниатюра: показываем покрытием, без сохранения aspect — чтобы не было «высоких» миниатюр.
-                      <img src={s.src} alt="" className="h-full w-full object-cover" draggable={false} />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-[10px] text-white/50">
-                        {s.label}
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
+            <div className="relative overflow-hidden rounded-xl border border-white/10 bg-white/5 p-2">
+              <div
+                className="flex w-full min-w-0 items-stretch transition-transform duration-300 ease-out"
+                style={{
+                  transform: `translateX(-${thumbsSafeIndex * (100 / thumbsVisibleCount)}%)`,
+                }}
+              >
+                {session.slides.map((s, i) => {
+                  const isActive = i === session.index;
+                  return (
+                    <div
+                      key={i}
+                      className="box-border flex min-h-0 shrink-0 self-stretch px-1.5"
+                      style={{
+                        flex: `0 0 calc(100% / ${thumbsVisibleCount})`,
+                        minWidth: 0,
+                      }}
+                    >
+                      <button
+                        type="button"
+                        className="w-full text-left"
+                        onPointerDown={(e) => {
+                          // Иначе свайп-обработчик сверху может сработать.
+                          e.stopPropagation();
+                        }}
+                        onClick={() => {
+                          if (onSelectIndex) {
+                            onSelectIndex(i);
+                          } else if (i < session.index) {
+                            onPrev();
+                          } else if (i > session.index) {
+                            onNext();
+                          }
+                        }}
+                        aria-label={`Перейти к отзыву ${i + 1}`}
+                      >
+                        <div
+                          className={`relative overflow-hidden rounded-lg border transition ${
+                            isActive
+                              ? "border-[#496db3] ring-2 ring-[#496db3]/35"
+                              : "border-slate-200 hover:border-slate-300"
+                          }`}
+                          style={{ paddingTop: "141.4214%" }}
+                        >
+                          {s.src ? (
+                            <img
+                              src={s.src}
+                              alt=""
+                              className="absolute inset-0 h-full w-full object-cover"
+                              draggable={false}
+                            />
+                          ) : (
+                            <div className="absolute inset-0 flex items-center justify-center text-[10px] text-slate-500">
+                              {s.label}
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         ) : null}
