@@ -280,7 +280,7 @@ export function CarouselFullPreviewOverlay({
       </button>
       <div className={`flex w-full min-w-0 max-w-full shrink flex-col ${mainAlignClass}`}>
         {showArrows ? (
-          <div className="relative w-full flex items-center justify-center gap-3">
+          <div className="relative inline-flex max-w-full flex items-center justify-center gap-3">
             <button
               type="button"
               onClick={onPrev}
