@@ -118,7 +118,8 @@ export function CarouselFullPreviewOverlay({
       ? "min(96vh, calc(100dvh - 2.5rem))"
       : "min(78vh, calc(100dvh - 7rem))";
 
-  const frameWidthMode: PreviewFrameWidthMode = mode === "reviews" ? "full" : "computed";
+  // Возвращаем расчёт по aspect-ratio: иначе фиксированная высота + width:100% сильнее обрезает по краям.
+  const frameWidthMode: PreviewFrameWidthMode = "computed";
 
   const swipeThresholdPx = 45;
   const startXRef = useRef<number | null>(null);
