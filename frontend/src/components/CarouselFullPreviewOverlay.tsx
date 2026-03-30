@@ -273,7 +273,7 @@ export function CarouselFullPreviewOverlay({
       <button
         type="button"
         onClick={onClose}
-        className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/40 bg-white/15 text-white hover:bg-white/25"
+        className="absolute right-4 top-4 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/40 bg-white/15 text-white hover:bg-white/25"
         aria-label="Закрыть полный просмотр"
       >
         ×
@@ -329,7 +329,7 @@ export function CarouselFullPreviewOverlay({
             className={`flex min-w-0 flex-col ${mode === "reviews" ? "items-stretch" : "items-center"}`}
           >
         <div
-          className={`relative overflow-hidden rounded-xl shadow-2xl shadow-[0_0_0_2px_rgba(73,109,179,0.25)] ${
+          className={`relative overflow-hidden rounded-xl shadow-2xl ${
             mode === "reviews" ? "bg-transparent" : "bg-slate-900/80"
           }`}
           style={previewFrameStyle(aspect, frameMaxH, frameWidthMode)}
