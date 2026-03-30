@@ -132,7 +132,9 @@ export function CarouselFullPreviewOverlay({
       : "min(78vh, calc(100dvh - 7rem))";
 
   // Возвращаем расчёт по aspect-ratio: иначе фиксированная высота + width:100% сильнее обрезает по краям.
-  const frameWidthMode: PreviewFrameWidthMode = "computed";
+  // Для отзывов хотим более «полноэкранный» кадр по ширине.
+  // Используем `object-contain` ниже, чтобы не ломать пропорции и не было сильной обрезки.
+  const frameWidthMode: PreviewFrameWidthMode = mode === "reviews" ? "full" : "computed";
 
   const swipeThresholdPx = 45;
   const startXRef = useRef<number | null>(null);
@@ -178,6 +180,10 @@ export function CarouselFullPreviewOverlay({
 
   const onOverlayPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (!enableSwipe) return;
+    const target = e.target as HTMLElement | null;
+    // Не начинаем свайп при клике по управлению (крестик/кнопки/ссылки).
+    if (target?.closest?.("button")) return;
+    if (target?.closest?.('a[href]')) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
     pointerIdRef.current = e.pointerId;
     startXRef.current = e.clientX;
@@ -190,6 +196,9 @@ export function CarouselFullPreviewOverlay({
 
   const onOverlayPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (!enableSwipe) return;
+    const target = e.target as HTMLElement | null;
+    if (target?.closest?.("button")) return;
+    if (target?.closest?.('a[href]')) return;
     if (pointerIdRef.current !== e.pointerId || startXRef.current === null) return;
     const dx = e.clientX - startXRef.current;
     clearSwipe();
@@ -290,7 +299,7 @@ export function CarouselFullPreviewOverlay({
                   <img
                     src={current.src}
                     alt=""
-                    className="absolute inset-0 h-full w-full object-cover"
+                    className={`absolute inset-0 h-full w-full ${mode === "reviews" ? "object-contain" : "object-cover"}`}
                     draggable={false}
                   />
                 ) : (
@@ -327,7 +336,7 @@ export function CarouselFullPreviewOverlay({
             <img
               src={current.src}
               alt=""
-              className="absolute inset-0 h-full w-full object-cover"
+              className={`absolute inset-0 h-full w-full ${mode === "reviews" ? "object-contain" : "object-cover"}`}
               draggable={false}
             />
           ) : (
@@ -396,7 +405,7 @@ export function CarouselFullPreviewOverlay({
                               ? "border-[#496db3] bg-[#496db3]/10 ring-2 ring-[#496db3]/45 shadow-[0_0_14px_rgba(73,109,179,0.25)]"
                               : "border-slate-200/70 hover:border-slate-200"
                           }`}
-                          style={{ paddingTop: "141.4214%" }}
+                          style={{ paddingTop: "85%" }}
                         >
                           {s.src ? (
                             <img
