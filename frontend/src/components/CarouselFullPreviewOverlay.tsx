@@ -128,7 +128,7 @@ export function CarouselFullPreviewOverlay({
   // Резервируем немного высоты под счётчик и мини-превью, но не «съедаем» всю область.
   const frameMaxH =
     mode === "reviews"
-      ? "min(82dvh, calc(100dvh - 10rem))"
+      ? "min(70dvh, calc(100dvh - 14rem))"
       : "min(78vh, calc(100dvh - 7rem))";
 
   // Возвращаем расчёт по aspect-ratio: иначе фиксированная высота + width:100% сильнее обрезает по краям.
@@ -296,9 +296,9 @@ export function CarouselFullPreviewOverlay({
                 className={`flex min-w-0 flex-col ${mode === "reviews" ? "items-stretch w-full" : "items-center"}`}
               >
               <div
-                className={`relative overflow-hidden rounded-xl bg-slate-900/80 shadow-2xl ${
-                  mode === "reviews" ? "w-full" : ""
-                }`}
+                className={`relative overflow-hidden rounded-xl shadow-2xl ${
+                  mode === "reviews" ? "bg-transparent" : "bg-slate-900/80"
+                } ${mode === "reviews" ? "w-full" : ""}`}
                 style={previewFrameStyle(aspect, frameMaxH, frameWidthMode)}
               >
                 {current?.src ? (
@@ -335,7 +335,9 @@ export function CarouselFullPreviewOverlay({
             className={`flex min-w-0 flex-col ${mode === "reviews" ? "items-stretch" : "items-center"}`}
           >
         <div
-          className="relative overflow-hidden rounded-xl bg-slate-900/80 shadow-2xl shadow-[0_0_0_2px_rgba(73,109,179,0.25)]"
+          className={`relative overflow-hidden rounded-xl shadow-2xl shadow-[0_0_0_2px_rgba(73,109,179,0.25)] ${
+            mode === "reviews" ? "bg-transparent" : "bg-slate-900/80"
+          }`}
           style={previewFrameStyle(aspect, frameMaxH, frameWidthMode)}
         >
           {current?.src ? (
@@ -411,7 +413,7 @@ export function CarouselFullPreviewOverlay({
                               ? "border-[#496db3] bg-[#496db3]/10 ring-2 ring-[#496db3]/45 shadow-[0_0_14px_rgba(73,109,179,0.25)]"
                               : "border-slate-200/70 hover:border-slate-200"
                           }`}
-                          style={{ paddingTop: "85%" }}
+                          style={{ paddingTop: "141.4214%" }}
                         >
                           {s.src ? (
                             <img
