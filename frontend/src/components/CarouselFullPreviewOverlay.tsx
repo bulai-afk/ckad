@@ -128,7 +128,7 @@ export function CarouselFullPreviewOverlay({
   // Резервируем немного высоты под счётчик и мини-превью, но не «съедаем» всю область.
   const frameMaxH =
     mode === "reviews"
-      ? "min(70dvh, calc(100dvh - 14rem))"
+      ? "min(64dvh, calc(100dvh - 18rem))"
       : "min(78vh, calc(100dvh - 7rem))";
 
   // Возвращаем расчёт по aspect-ratio: иначе фиксированная высота + width:100% сильнее обрезает по краям.
