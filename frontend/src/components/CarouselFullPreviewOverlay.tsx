@@ -134,7 +134,9 @@ export function CarouselFullPreviewOverlay({
   // Возвращаем расчёт по aspect-ratio: иначе фиксированная высота + width:100% сильнее обрезает по краям.
   // Для отзывов хотим более «полноэкранный» кадр по ширине.
   // Используем `object-contain` ниже, чтобы не ломать пропорции и не было сильной обрезки.
-  const frameWidthMode: PreviewFrameWidthMode = mode === "reviews" ? "full" : "computed";
+  // Делаем большой кадр с теми же пропорциями, что и мини-превью (A4: 210/297),
+  // поэтому всегда используем computed (aspect-ratio), а не widthMode="full".
+  const frameWidthMode: PreviewFrameWidthMode = "computed";
 
   const swipeThresholdPx = 45;
   const startXRef = useRef<number | null>(null);
