@@ -282,7 +282,7 @@ export function CarouselFullPreviewOverlay({
       </button>
       <div
         className={`flex w-full min-w-0 max-w-full shrink flex-col ${mainAlignClass} ${
-          mode === "reviews" ? "pt-12 pb-2" : ""
+          mode === "reviews" ? "pt-[4.5rem] pb-2" : ""
         }`}
       >
         {showArrows ? (
