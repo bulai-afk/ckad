@@ -113,8 +113,12 @@ export function CarouselFullPreviewOverlay({
   const mainAlignClass = mode === "reviews" ? "items-stretch" : "items-center";
   const overlayPaddingClass = mode === "reviews" ? "p-2 sm:p-4" : "p-4";
 
-  // Мини-превью снизу — делаем «как основная карусель»: несколько карточек в ряд.
-  const thumbsVisibleCount = useCarouselVisibleCount("reviews");
+  // Мини-превью снизу:
+  // На mobile хотим показывать больше карточек (4), а не 2.
+  // Основную карусель страницы не трогаем (она использует useCarouselVisibleCount("reviews")).
+  const reviewsVisibleCount = useCarouselVisibleCount("reviews");
+  const thumbsVisibleCount =
+    typeof window !== "undefined" && window.innerWidth < 640 ? 4 : reviewsVisibleCount;
   const thumbsMaxStart = Math.max(0, session.slides.length - thumbsVisibleCount);
   const thumbsSafeIndex = Math.max(0, Math.min(session.index, thumbsMaxStart));
 
