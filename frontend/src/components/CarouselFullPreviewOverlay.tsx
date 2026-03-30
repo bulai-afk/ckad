@@ -164,7 +164,9 @@ export function CarouselFullPreviewOverlay({
 
   const onThumbPointerDownCapture = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (!enableSwipe) return;
-    if (e.pointerType === "mouse" && e.button !== 0) return;
+    // На десктопе клики по мини-превью должны выбирать слайд,
+    // поэтому свайп по мини-превью отключаем для mouse.
+    if (e.pointerType === "mouse") return;
     // Отрезаем верхний swipe по основному изображению.
     e.stopPropagation();
     thumbPointerIdRef.current = e.pointerId;
@@ -178,6 +180,7 @@ export function CarouselFullPreviewOverlay({
 
   const onThumbPointerUpCapture = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (!enableSwipe) return;
+    if (e.pointerType === "mouse") return;
     if (thumbPointerIdRef.current !== e.pointerId || thumbStartXRef.current === null) return;
     e.stopPropagation();
     const dx = e.clientX - thumbStartXRef.current;
@@ -288,7 +291,7 @@ export function CarouselFullPreviewOverlay({
       </button>
       <div
         className={`flex w-full min-w-0 max-w-full shrink flex-col ${mainAlignClass} ${
-          mode === "reviews" ? "pt-[4.5rem] pb-2" : ""
+          mode === "reviews" ? "pt-[4.5rem] md:pt-[2.5rem] pb-2" : ""
         }`}
       >
         {showArrows ? (
