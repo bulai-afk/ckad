@@ -108,7 +108,8 @@ export function CarouselFullPreviewOverlay({
   const canNext = session.index < session.slides.length - 1;
   const aspect = resolveAspectRatioCss(session);
   const enableSwipe = mode === "reviews";
-  const showArrows = mode !== "reviews";
+  // На desktop стрелки помогают навигации; для `reviews` скрываем их только на mobile.
+  const showArrows = true;
   const showThumbs = mode === "reviews";
   const mainAlignClass = mode === "reviews" ? "items-stretch" : "items-center";
   const overlayPaddingClass = mode === "reviews" ? "p-2 sm:p-4" : "p-4";
@@ -273,7 +274,9 @@ export function CarouselFullPreviewOverlay({
               type="button"
               onClick={onPrev}
               disabled={!canPrev}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/40 bg-white/15 text-white disabled:opacity-30"
+              className={`inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/40 bg-white/15 text-white disabled:opacity-30 ${
+                mode === "reviews" ? "hidden sm:inline-flex" : ""
+              }`}
               aria-label="Предыдущий слайд"
             >
               ‹
@@ -304,7 +307,9 @@ export function CarouselFullPreviewOverlay({
               type="button"
               onClick={onNext}
               disabled={!canNext}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/40 bg-white/15 text-white disabled:opacity-30"
+              className={`inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/40 bg-white/15 text-white disabled:opacity-30 ${
+                mode === "reviews" ? "hidden sm:inline-flex" : ""
+              }`}
               aria-label="Следующий слайд"
             >
               ›
