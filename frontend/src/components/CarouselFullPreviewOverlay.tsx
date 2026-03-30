@@ -109,6 +109,7 @@ export function CarouselFullPreviewOverlay({
   const enableSwipe = mode === "reviews";
   const showArrows = mode !== "reviews";
   const showThumbs = mode === "reviews";
+  const mainAlignClass = mode === "reviews" ? "items-stretch" : "items-center";
   const overlayPaddingClass = mode === "reviews" ? "p-2 sm:p-4" : "p-4";
   // Для отзывов хотим максимально широкую картинку.
   // Резервируем немного высоты под счётчик и мини-превью, но не «съедаем» всю область.
@@ -218,7 +219,7 @@ export function CarouselFullPreviewOverlay({
       >
         ×
       </button>
-      <div className="flex w-full min-w-0 max-w-full shrink flex-col items-center">
+      <div className={`flex w-full min-w-0 max-w-full shrink flex-col ${mainAlignClass}`}>
         {showArrows ? (
           <div className="relative w-full flex items-center justify-center gap-3">
             <button
@@ -263,7 +264,9 @@ export function CarouselFullPreviewOverlay({
             </button>
           </div>
         ) : (
-        <div className="flex min-w-0 flex-col items-center">
+          <div
+            className={`flex min-w-0 flex-col ${mode === "reviews" ? "items-stretch" : "items-center"}`}
+          >
         <div
           className="relative overflow-hidden rounded-xl bg-slate-900/80 shadow-2xl"
           style={previewFrameStyle(aspect, frameMaxH, frameWidthMode)}
