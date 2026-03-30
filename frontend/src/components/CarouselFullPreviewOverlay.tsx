@@ -286,7 +286,7 @@ export function CarouselFullPreviewOverlay({
               onClick={onPrev}
               disabled={!canPrev}
               className={`inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/40 bg-white/15 text-white disabled:opacity-30 ${
-                mode === "reviews" ? "hidden md:inline-flex" : ""
+                mode === "reviews" ? "hidden lg:inline-flex" : ""
               }`}
               aria-label="Предыдущий слайд"
             >
@@ -323,7 +323,7 @@ export function CarouselFullPreviewOverlay({
               onClick={onNext}
               disabled={!canNext}
               className={`inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/40 bg-white/15 text-white disabled:opacity-30 ${
-                mode === "reviews" ? "hidden md:inline-flex" : ""
+                mode === "reviews" ? "hidden lg:inline-flex" : ""
               }`}
               aria-label="Следующий слайд"
             >
