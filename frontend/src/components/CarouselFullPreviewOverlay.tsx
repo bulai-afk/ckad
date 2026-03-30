@@ -108,8 +108,8 @@ export function CarouselFullPreviewOverlay({
   const canNext = session.index < session.slides.length - 1;
   const aspect = resolveAspectRatioCss(session);
   const enableSwipe = mode === "reviews";
-  // На desktop стрелки помогают навигации; для `reviews` скрываем их только на mobile.
-  const showArrows = true;
+  // Для отзывов стрелки не нужны: листаем свайпом и переключаемся мини-превью.
+  const showArrows = mode !== "reviews";
   const showThumbs = mode === "reviews";
   const mainAlignClass = mode === "reviews" ? "items-stretch" : "items-center";
   const overlayPaddingClass = mode === "reviews" ? "p-2 sm:p-4" : "p-4";
@@ -285,27 +285,23 @@ export function CarouselFullPreviewOverlay({
               type="button"
               onClick={onPrev}
               disabled={!canPrev}
-              className={`inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/40 bg-white/15 text-white disabled:opacity-30 ${
-                mode === "reviews" ? "hidden lg:inline-flex" : ""
-              }`}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/40 bg-white/15 text-white disabled:opacity-30"
               aria-label="Предыдущий слайд"
             >
               ‹
             </button>
               <div
-                className={`flex min-w-0 flex-col ${mode === "reviews" ? "items-stretch w-full" : "items-center"}`}
+                className="flex min-w-0 flex-col items-center"
               >
               <div
-                className={`relative overflow-hidden rounded-xl shadow-2xl ${
-                  mode === "reviews" ? "bg-transparent" : "bg-slate-900/80"
-                } ${mode === "reviews" ? "w-full" : ""}`}
+                className="relative overflow-hidden rounded-xl bg-slate-900/80 shadow-2xl"
                 style={previewFrameStyle(aspect, frameMaxH, frameWidthMode)}
               >
                 {current?.src ? (
                   <img
                     src={current.src}
                     alt=""
-                    className={`absolute inset-0 h-full w-full ${mode === "reviews" ? "object-contain" : "object-cover"}`}
+                    className="absolute inset-0 h-full w-full object-cover"
                     draggable={false}
                   />
                 ) : (
@@ -322,9 +318,7 @@ export function CarouselFullPreviewOverlay({
               type="button"
               onClick={onNext}
               disabled={!canNext}
-              className={`inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/40 bg-white/15 text-white disabled:opacity-30 ${
-                mode === "reviews" ? "hidden lg:inline-flex" : ""
-              }`}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/40 bg-white/15 text-white disabled:opacity-30"
               aria-label="Следующий слайд"
             >
               ›
