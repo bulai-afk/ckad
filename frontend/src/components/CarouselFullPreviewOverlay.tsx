@@ -128,7 +128,7 @@ export function CarouselFullPreviewOverlay({
   // Резервируем немного высоты под счётчик и мини-превью, но не «съедаем» всю область.
   const frameMaxH =
     mode === "reviews"
-      ? "min(96vh, calc(100dvh - 2.5rem))"
+      ? "min(82dvh, calc(100dvh - 10rem))"
       : "min(78vh, calc(100dvh - 7rem))";
 
   // Возвращаем расчёт по aspect-ratio: иначе фиксированная высота + width:100% сильнее обрезает по краям.
@@ -258,7 +258,9 @@ export function CarouselFullPreviewOverlay({
         if (!enableSwipe) return;
         clearSwipe();
       }}
-      className={`fixed inset-0 flex items-center justify-center bg-slate-900/45 ${overlayPaddingClass} backdrop-blur-sm`}
+      className={`fixed inset-0 flex ${
+        mode === "reviews" ? "items-start justify-center overflow-y-auto" : "items-center justify-center"
+      } bg-slate-900/45 ${overlayPaddingClass} backdrop-blur-sm`}
       style={{
         zIndex: 2147483647,
         backdropFilter: "blur(6px)",
@@ -284,15 +286,19 @@ export function CarouselFullPreviewOverlay({
               onClick={onPrev}
               disabled={!canPrev}
               className={`inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/40 bg-white/15 text-white disabled:opacity-30 ${
-                mode === "reviews" ? "hidden sm:inline-flex" : ""
+                mode === "reviews" ? "hidden md:inline-flex" : ""
               }`}
               aria-label="Предыдущий слайд"
             >
               ‹
             </button>
-              <div className="flex min-w-0 flex-col items-center">
               <div
-                className="relative overflow-hidden rounded-xl bg-slate-900/80 shadow-2xl"
+                className={`flex min-w-0 flex-col ${mode === "reviews" ? "items-stretch w-full" : "items-center"}`}
+              >
+              <div
+                className={`relative overflow-hidden rounded-xl bg-slate-900/80 shadow-2xl ${
+                  mode === "reviews" ? "w-full" : ""
+                }`}
                 style={previewFrameStyle(aspect, frameMaxH, frameWidthMode)}
               >
                 {current?.src ? (
@@ -317,7 +323,7 @@ export function CarouselFullPreviewOverlay({
               onClick={onNext}
               disabled={!canNext}
               className={`inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/40 bg-white/15 text-white disabled:opacity-30 ${
-                mode === "reviews" ? "hidden sm:inline-flex" : ""
+                mode === "reviews" ? "hidden md:inline-flex" : ""
               }`}
               aria-label="Следующий слайд"
             >
