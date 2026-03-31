@@ -205,6 +205,12 @@ export function HomeReviewsCarousel({ slides }: HomeReviewsCarouselProps) {
                     <button
                       type="button"
                       className="absolute inset-0 block h-full w-full cursor-zoom-in border-0 bg-transparent p-0 text-left outline-none ring-[#496db3] focus-visible:ring-2"
+                      onPointerDown={(e) => {
+                        // На десктопе родительский swipe-хэндлер делает setPointerCapture,
+                        // из-за чего клик по карточке может не доходить до onClick.
+                        // Отсекаем событие для mouse, чтобы fullscreen стабильно открывался.
+                        if (e.pointerType === "mouse") e.stopPropagation();
+                      }}
                       onClick={() => openFullPreview(slideIndex)}
                       aria-label={`Открыть отзыв ${slideIndex + 1} из ${normalized.length} на весь экран`}
                     >
