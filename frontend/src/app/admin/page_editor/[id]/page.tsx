@@ -174,6 +174,20 @@ const LIST_COLORS = [
   { value: "rose", label: "Rose", hex: "#f43f5e" },
 ] as const;
 
+// Палитра цветов как на `admin/banners` (выпадающее меню "Цвет шрифта").
+const BANNERS_FONT_COLOR_PRESETS = [
+  "#ffffff",
+  "#f8fafc",
+  "#000000",
+  "#1e293b",
+  "#496db3",
+  "#2563eb",
+  "#16a34a",
+  "#dc2626",
+  "#f59e0b",
+  "#7c3aed",
+] as const;
+
 const LIST_STYLE_OL = [
   { value: "decimal", label: "1." },
   { value: "lower-alpha", label: "a." },
@@ -6221,7 +6235,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
                         role="listbox"
                       >
                         <div className="grid grid-cols-4 gap-1.5">
-                          {LIST_COLORS.map(({ value, label, hex }) => {
+                          {BANNERS_FONT_COLOR_PRESETS.map((hex) => {
                             const isSelected = fontColor.toLowerCase() === hex.toLowerCase();
                             const luminance = (() => {
                               const r = parseInt(hex.slice(1, 3), 16);
@@ -6232,11 +6246,11 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
                             const iconLight = luminance < 0.6;
                             return (
                               <button
-                                key={`font-color-${value}`}
+                                key={`font-color-${hex}`}
                                 type="button"
                                 role="option"
                                 aria-selected={isSelected}
-                                title={label}
+                                title={hex}
                                 className={`flex aspect-square w-full items-center justify-center rounded border border-slate-200 transition-colors hover:ring-2 hover:ring-[#496db3] hover:ring-offset-1 ${
                                   isSelected ? "ring-2 ring-[#496db3] ring-offset-1" : ""
                                 }`}
@@ -6634,29 +6648,35 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
                                 </button>
                               </div>
                               {tableBorderWidthOpen && (
-                                <div className="grid grid-cols-3 gap-1.5" style={{ width: 84 }}>
+                                <div className="mt-1 flex flex-col gap-1.5" style={{ width: 104 }}>
                                   {TABLE_BORDER_WIDTHS.map((w) => {
                                     const isSelected = tableBorderWidth === w.value;
                                     return (
                                       <button
                                         key={w.value}
                                         type="button"
-                                        role="option"
+                                        role="menuitem"
                                         aria-selected={isSelected}
                                         title={w.label}
-                                        className={`flex aspect-square w-full items-center justify-center rounded border border-slate-200 transition-colors hover:ring-2 hover:ring-[#496db3] hover:ring-offset-1 ${
-                                          isSelected ? "ring-2 ring-[#496db3] ring-offset-1" : ""
+                                        className={`flex w-full items-center gap-2 rounded px-3 py-1.5 text-left text-xs ${
+                                          isSelected
+                                            ? "bg-slate-100 text-[#496db3]"
+                                            : "text-slate-700 hover:bg-slate-100"
                                         }`}
                                         onMouseDown={(e) => {
                                           saveSelectionFromEditor();
                                           e.preventDefault();
                                         }}
-                                        onClick={() => applyTableBorderWidth(w.value)}
+                                        onClick={() => {
+                                          applyTableBorderWidth(w.value);
+                                          setTableBorderWidthOpen(false);
+                                        }}
                                       >
                                         <div
                                           className="rounded-sm bg-slate-600"
                                           style={{ height: Math.max(1, parseInt(w.value, 10) * 2), width: 10 }}
                                         />
+                                        {w.label}
                                       </button>
                                     );
                                   })}
