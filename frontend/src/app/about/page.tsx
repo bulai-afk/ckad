@@ -229,29 +229,6 @@ export default async function AboutPage() {
       </section>
 
       <section className="mx-auto mt-16 max-w-7xl px-6 lg:px-8">
-        <div className="mx-auto max-w-2xl lg:max-w-none">
-          <div className="grid grid-cols-1 gap-4 text-base leading-7 text-slate-700 sm:grid-cols-2">
-            <p className="p-5">
-              Мы запускаем проекты в сфере каталогизации, структуры данных и внедрения регламентов.
-              Наша команда объединяет экспертизу в аналитике, методологии и продуктовой разработке.
-            </p>
-            <p className="p-5">
-              На каждом этапе мы держим фокус на практическом результате: понятные процессы,
-              проверяемая логика и устойчивые решения, которые можно масштабировать.
-            </p>
-            <p className="p-5">
-              Работаем с государственными и коммерческими организациями, где важны качество, сроки
-              и соответствие формальным требованиям.
-            </p>
-            <p className="p-5">
-              Для нас важно не просто выполнить задачу, а передать заказчику систему, которую
-              удобно поддерживать и развивать дальше.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section className="mx-auto mt-16 max-w-7xl px-6 lg:px-8">
         <div className="flex justify-center">
           <img src="/logo.svg" alt="Логотип ЦКиАД" className="h-16 w-auto max-w-full object-contain sm:h-20" />
         </div>
