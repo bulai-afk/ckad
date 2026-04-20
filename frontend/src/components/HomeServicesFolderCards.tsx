@@ -13,12 +13,18 @@ export type HomeServicesFolderCard = {
   description?: string;
   /** URL превью папки (фон карточки при активном превью) */
   preview?: string;
+  /** Бейдж на превью (раздел новостей на сайте) */
+  articleKind?: "news" | "article";
 };
+
+type CardLayout = "default" | "featured";
 
 type Props = {
   cards: HomeServicesFolderCard[];
   /** По умолчанию 12 (главная); для хаба папки можно передать больше */
   limit?: number;
+  /** Горизонтальный баннер: фон на всю карточку, тёмная колонка слева (~⅓), на узких экранах — блок снизу */
+  layout?: CardLayout;
   /** Текст ссылки внизу карточки */
   ctaLabel?: string;
   /** Если у карточки нет превью, показывать это изображение (по умолчанию лого сайта) */
@@ -46,6 +52,7 @@ function FolderCard({
   ctaLabel,
   equalHeight,
   alwaysShowPreview,
+  layout,
   touchActiveSlug,
   setTouchActiveSlug,
 }: {
@@ -55,11 +62,46 @@ function FolderCard({
   ctaLabel: string;
   equalHeight: boolean;
   alwaysShowPreview: boolean;
+  layout: CardLayout;
   touchActiveSlug: string | null;
   setTouchActiveSlug: (slug: string | null) => void;
 }) {
   const href = `/${c.slugPath}`;
   const touchHeld = !alwaysShowPreview && touchActiveSlug === c.slugPath;
+
+  if (layout === "featured") {
+    return (
+      <Link
+        href={href}
+        data-service-folder-card=""
+        className={`${styles.cardRootFeatured} ${equalHeight ? styles.cardRootFeaturedStretch : ""}`}
+        aria-label={`${c.label}. ${ctaLabel}`}
+      >
+        <div className={styles.cardFeaturedBannerMedia} aria-hidden>
+          <img
+            src={displaySrc}
+            alt=""
+            className={`${styles.cardFeaturedBannerImg} ${isLogoFallback ? styles.cardFeaturedBannerImgLogo : ""}`}
+            decoding="async"
+          />
+          {c.articleKind ? (
+            <span className="pointer-events-none absolute left-3 top-3 z-[5] rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#496db3] shadow-sm ring-1 ring-slate-200/90">
+              {c.articleKind === "article" ? "Статья" : "Новость"}
+            </span>
+          ) : null}
+        </div>
+        <div className={styles.cardFeaturedBannerPanel}>
+          <div className={styles.cardFeaturedBannerPanelTop}>
+            <h3 className={styles.cardFeaturedTitle}>{c.label}</h3>
+            {c.description?.trim() ? (
+              <p className={styles.cardFeaturedDesc}>{c.description.trim()}</p>
+            ) : null}
+          </div>
+          <span className={styles.cardFeaturedCtaGhost}>{ctaLabel}</span>
+        </div>
+      </Link>
+    );
+  }
 
   const activatePreviewTouch = useCallback(
     (target: EventTarget | null) => {
@@ -91,6 +133,7 @@ function FolderCard({
     <div
       data-service-folder-card=""
       className={`${equalHeight ? "h-full min-h-0" : "h-auto"} ${styles.cardRoot} ${equalHeight ? styles.cardRootStretch : ""} ${alwaysShowPreview ? styles.cardPreviewAlways : ""}`}
+      {...(isLogoFallback ? { "data-logo-fallback": "" } : {})}
       {...(alwaysShowPreview ? { "data-preview-always": "" } : {})}
       {...(touchHeld ? { "data-preview-touch": "" } : {})}
       onPointerDown={onCardPointerDown}
@@ -108,6 +151,11 @@ function FolderCard({
         </div>
         <div className={styles.cardBgDim} />
         <div className={styles.cardBgGradient} />
+        {c.articleKind ? (
+          <span className="pointer-events-none absolute left-2 top-2 z-[6] rounded-full bg-white/95 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#496db3] shadow-sm ring-1 ring-slate-200/90">
+            {c.articleKind === "article" ? "Статья" : "Новость"}
+          </span>
+        ) : null}
       </div>
       <div className={`${styles.content} ${equalHeight ? styles.contentGrow : ""}`}>
         <p className={styles.title}>{c.label}</p>
@@ -132,6 +180,7 @@ function FolderCard({
 export function HomeServicesFolderCards({
   cards,
   limit = 12,
+  layout = "default",
   ctaLabel = "Перейти в раздел",
   fallbackPreviewSrc = DEFAULT_FALLBACK_PREVIEW,
   equalHeight = false,
@@ -177,7 +226,11 @@ export function HomeServicesFolderCards({
   );
 
   const runEqualizeSlots =
-    syncHeightsToTallest && equalHeight && !embedInCarousel && items.length > 1;
+    syncHeightsToTallest &&
+    equalHeight &&
+    !embedInCarousel &&
+    items.length > 1 &&
+    layout === "default";
 
   useEqualizeFolderCardSlots(containerRef, runEqualizeSlots, itemsKey);
 
@@ -218,6 +271,7 @@ export function HomeServicesFolderCards({
               ctaLabel={ctaLabel}
               equalHeight={equalHeight}
               alwaysShowPreview={alwaysShowPreview}
+              layout={layout}
               touchActiveSlug={touchActiveSlug}
               setTouchActiveSlug={setTouchActiveSlug}
             />

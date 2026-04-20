@@ -60,7 +60,7 @@ export default async function ServicesPage() {
 
   return (
     <div className="bg-slate-100 text-slate-900">
-      <div className="px-4 py-10 sm:px-6 lg:px-10">
+      <div className="px-4 py-6 sm:px-6 lg:px-10">
         <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-6">
           <section className="bg-transparent p-0">
             <nav
@@ -103,9 +103,9 @@ export default async function ServicesPage() {
               >
                 {servicesRootFolderDescription ?? (
                   <>
-                    Закрываем задачи «под ключ» в области классификации и анализа данных: от методики и
-                    каталогизации до сопровождения согласований — чтобы вы получали понятный результат в
-                    срок и без лишних рисков.
+                    Закрываем задачи «под ключ» в области каталогизации и анализа данных: от методики до
+                    сопровождения согласований — чтобы вы получали понятный результат в срок и без лишних
+                    рисков.
                   </>
                 )}
               </p>

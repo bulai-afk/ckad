@@ -7,6 +7,9 @@ export type ServiceListItem = {
   status: "DRAFT" | "PUBLISHED" | string;
   description?: string | null;
   preview?: string | null;
+  /** Из списка страниц `/api/pages` — блоки SEO в настройках страницы */
+  seoTitle?: string | null;
+  seoDescription?: string | null;
 };
 
 export type ServiceTreeNode = {
@@ -47,19 +50,30 @@ export function isVisibleServicePage(p: ServiceListItem): boolean {
   return process.env.NODE_ENV === "development";
 }
 
+export type BuildServicesTreeOptions = {
+  /** Корневой сегмент URL (например `services` или `catalogization`). */
+  rootSlug?: string;
+  /** Подпись корневого узла в дереве. */
+  rootLabel?: string;
+};
+
 export function buildServicesTree(
   items: ServiceListItem[],
   folderMetaBySlug: Map<string, ServiceFolderMeta>,
+  options?: BuildServicesTreeOptions,
 ): ServiceTreeNode {
+  const rootSlug = (options?.rootSlug ?? "services").trim().toLowerCase();
+  const rootLabel = options?.rootLabel?.trim() || "Услуги";
+
   const root: ServiceTreeNode = {
-    slugPath: "services",
-    label: "Услуги",
+    slugPath: rootSlug,
+    label: rootLabel,
     pages: [],
     children: [],
     isMetaFolder: false,
   };
 
-  const nodeBySlugPath = new Map<string, ServiceTreeNode>([["services", root]]);
+  const nodeBySlugPath = new Map<string, ServiceTreeNode>([[rootSlug, root]]);
 
   const ensureNode = (slugPath: string, segment: string): ServiceTreeNode => {
     const existing = nodeBySlugPath.get(slugPath);
@@ -87,7 +101,7 @@ export function buildServicesTree(
 
   for (const [metaSlug, meta] of folderMetaBySlug.entries()) {
     const slug = normalizeSlug(metaSlug);
-    if (!slug.startsWith("services/")) continue;
+    if (!slug.startsWith(`${rootSlug}/`)) continue;
     const parts = slug.split("/").filter(Boolean);
     if (parts.length < 2) continue;
 
@@ -107,14 +121,14 @@ export function buildServicesTree(
 
   for (const item of items) {
     const slug = normalizeSlug(item.slug);
-    if (!slug.startsWith("services/")) continue;
+    if (!slug.startsWith(`${rootSlug}/`)) continue;
     const parts = slug.split("/").filter(Boolean);
     if (parts.length < 2) continue;
 
     const folderPath = parts.slice(0, -1).join("/");
     const leafSegment = parts[parts.length - 2] ?? "";
 
-    if (folderPath === "services") {
+    if (folderPath === rootSlug) {
       root.pages.push({ ...item, slug });
       continue;
     }
@@ -169,6 +183,47 @@ export function collectServiceCards(node: ServiceTreeNode, out: ServiceTreeNode[
   }
 }
 
+/**
+ * Карточки для главной: вложенные папки (как collectServiceCards) плюс страницы, лежащие прямо на корне
+ * (`catalogization/foo` в root.pages), чтобы совпадало с вкладкой «Каталогизация» в админке.
+ */
+export function collectServiceCardsForHome(root: ServiceTreeNode): ServiceTreeNode[] {
+  const out: ServiceTreeNode[] = [];
+  const seen = new Set<string>();
+
+  for (const p of root.pages) {
+    const slug = normalizeSlug(p.slug);
+    const node: ServiceTreeNode = {
+      slugPath: slug,
+      label: p.title?.trim() || slug,
+      description: (p.description ?? "").trim(),
+      preview: "",
+      pages: [{ ...p, slug }],
+      children: [],
+      isMetaFolder: false,
+    };
+    out.push(node);
+    seen.add(slug);
+  }
+
+  const nested: ServiceTreeNode[] = [];
+  collectServiceCards(root, nested);
+  for (const n of nested) {
+    if (seen.has(n.slugPath)) continue;
+    seen.add(n.slugPath);
+    out.push(n);
+  }
+
+  out.sort((a, b) => {
+    const ta =
+      a.pages[0]?.title?.trim() || a.pages[0]?.seoTitle?.trim() || a.label;
+    const tb =
+      b.pages[0]?.title?.trim() || b.pages[0]?.seoTitle?.trim() || b.label;
+    return ta.localeCompare(tb, "ru");
+  });
+  return out;
+}
+
 export type ServiceFolderCardProps = {
   slugPath: string;
   label: string;
@@ -178,32 +233,25 @@ export type ServiceFolderCardProps = {
 
 /**
  * Поля для карточки раздела на главной и в /services:
- * приоритет — метаданные папки из `/api/pages/folders` (файл `folders.json` на бэкенде);
- * если описание папки пусто — подставляем описание страницы раздела.
- *
- * Превью фона — **только** если папка явно заведена в настройках (`isMetaFolder`) и в поле превью
- * непустое значение после санитизации. Иначе лого (см. HomeServicesFolderCards).
- * Узлы только из страниц без записи в folders — никогда не получают «чужое» превью в поле `node.preview`.
+ * **Название и описание** — из данных страницы в `/api/pages` (заголовок, краткое описание / summary,
+ * при пустом описании — `seoDescription` из настроек страницы).
+ * Превью фона — только из настроек папки в `/api/pages/folders`, если папка заведена (`isMetaFolder`)
+ * и задано превью; иначе лого (см. HomeServicesFolderCards).
  */
 export function folderCardPropsFromServiceNode(node: ServiceTreeNode): ServiceFolderCardProps {
   const first = node.pages[0];
-  const folderDesc = node.description?.trim() ?? "";
   const folderPreview = node.preview?.trim() ?? "";
+  const pageTitle =
+    first?.title?.trim() || first?.seoTitle?.trim() || "";
   const pageDesc = first?.description?.trim() ?? "";
+  const pageSeoDesc = first?.seoDescription?.trim() ?? "";
 
-  const description = (folderDesc || pageDesc) || undefined;
+  const description = (pageDesc || pageSeoDesc) || undefined;
   const fromSettings =
     node.isMetaFolder === true ? sanitizePublicAssetUrl(folderPreview) : "";
   const preview = fromSettings || undefined;
 
-  let label: string;
-  if (node.isMetaFolder) {
-    label = node.label?.trim() || node.slugPath;
-  } else if (node.pages.length === 1 && first?.title?.trim()) {
-    label = first.title.trim();
-  } else {
-    label = node.label?.trim() || node.slugPath;
-  }
+  const label = pageTitle || node.label?.trim() || node.slugPath;
 
   return {
     slugPath: node.slugPath,

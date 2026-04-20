@@ -10,23 +10,27 @@ import {
 } from "@heroicons/react/24/outline";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useCarouselSwipe } from "@/hooks/useCarouselSwipe";
-import { BannerTextOverlayBand } from "@/components/BannerTextOverlayBand";
+import { BannerCarouselFrame } from "@/components/BannerCarouselFrame";
 import {
-  bannerHToAlignSelf,
   normalizeBannerLineHeight,
   parseBannerTextBand,
-  resolveBannerTitleLineHeight,
-  resolveButtonHAlign,
-  resolveSubtitleHAlign,
-  resolveTitleHAlign,
 } from "@/lib/bannerElementPosition";
 import { normalizeFontSizeToPercent } from "@/lib/bannerFontSize";
 
 type Slide = {
   id: string;
   title: string;
+  announcementText: string;
+  bannerType: "hero" | "image" | "split";
+  showAnnouncement: boolean;
+  showLearnMore: boolean;
+  showAnnouncementLearnMore: boolean;
+  showBottomLearnMore: boolean;
   subtitle: string;
   buttonText: string;
+  learnMoreText: string;
+  announcementLearnMoreText: string;
+  announcementLearnMoreHref: string;
   buttonHref: string;
   showTitle: boolean;
   showSubtitle: boolean;
@@ -65,16 +69,29 @@ type Slide = {
   textBand: "full" | "left" | "right";
 };
 
-const INITIAL_SLIDES: Slide[] = [
-  {
-    id: "1",
-    title: "Банер 1",
-    subtitle: "",
-    buttonText: "",
-    buttonHref: "",
+const DEFAULT_ANNOUNCEMENT_TEXT = "Announcing our next round of funding.";
+const DEFAULT_LEARN_MORE_TEXT = "Learn more";
+
+function createDefaultHeroSlide(id: string): Slide {
+  return {
+    id,
+    title: "Data to enrich your online business",
+    announcementText: DEFAULT_ANNOUNCEMENT_TEXT,
+    bannerType: "hero",
+    showAnnouncement: true,
+    showLearnMore: true,
+    showAnnouncementLearnMore: true,
+    showBottomLearnMore: true,
+    subtitle:
+      "Anim aute id magna aliqua ad ad non deserunt sunt. Qui irure qui lorem cupidatat commodo. Elit sunt amet fugiat veniam occaecat.",
+    buttonText: "Get started",
+    learnMoreText: DEFAULT_LEARN_MORE_TEXT,
+    announcementLearnMoreText: DEFAULT_LEARN_MORE_TEXT,
+    announcementLearnMoreHref: "#",
+    buttonHref: "#",
     showTitle: true,
-    showSubtitle: false,
-    showButton: false,
+    showSubtitle: true,
+    showButton: true,
     image: null,
     imagePosY: 50,
     align: "center",
@@ -86,100 +103,34 @@ const INITIAL_SLIDES: Slide[] = [
     italic: false,
     underline: false,
     showOverlay: true,
-    titleFontSize: 200,
-    subtitleFontSize: 100,
+    titleFontSize: 230,
+    subtitleFontSize: 120,
     buttonFontSize: 100,
     titleColor: "#ffffff",
-    subtitleColor: "#ffffff",
+    subtitleColor: "#9ca3af",
     buttonTextColor: "#ffffff",
     titleBold: true,
     titleItalic: false,
-    subtitleBold: false,
+    subtitleBold: true,
     subtitleItalic: false,
     buttonBold: true,
     buttonItalic: false,
-    titleWeight: 700,
-    subtitleWeight: 400,
+    titleWeight: 600,
+    subtitleWeight: 500,
     buttonWeight: 600,
     textBand: "full",
-  },
-  {
-    id: "2",
-    title: "Банер 2",
-    subtitle: "",
-    buttonText: "",
-    buttonHref: "",
-    showTitle: true,
-    showSubtitle: false,
-    showButton: false,
-    image: null,
-    imagePosY: 50,
-    align: "center",
-    verticalAlign: "middle",
-    fontSize: 200,
-    lineHeight: 1.2,
-    textColor: "#ffffff",
-    bold: true,
-    italic: false,
-    underline: false,
-    showOverlay: true,
-    titleFontSize: 200,
-    subtitleFontSize: 100,
-    buttonFontSize: 100,
-    titleColor: "#ffffff",
-    subtitleColor: "#ffffff",
-    buttonTextColor: "#ffffff",
-    titleBold: true,
-    titleItalic: false,
-    subtitleBold: false,
-    subtitleItalic: false,
-    buttonBold: true,
-    buttonItalic: false,
-    titleWeight: 700,
-    subtitleWeight: 400,
-    buttonWeight: 600,
-    textBand: "full",
-  },
-  {
-    id: "3",
-    title: "Банер 3",
-    subtitle: "",
-    buttonText: "",
-    buttonHref: "",
-    showTitle: true,
-    showSubtitle: false,
-    showButton: false,
-    image: null,
-    imagePosY: 50,
-    align: "center",
-    verticalAlign: "middle",
-    fontSize: 200,
-    lineHeight: 1.2,
-    textColor: "#ffffff",
-    bold: true,
-    italic: false,
-    underline: false,
-    showOverlay: true,
-    titleFontSize: 200,
-    subtitleFontSize: 100,
-    buttonFontSize: 100,
-    titleColor: "#ffffff",
-    subtitleColor: "#ffffff",
-    buttonTextColor: "#ffffff",
-    titleBold: true,
-    titleItalic: false,
-    subtitleBold: false,
-    subtitleItalic: false,
-    buttonBold: true,
-    buttonItalic: false,
-    titleWeight: 700,
-    subtitleWeight: 400,
-    buttonWeight: 600,
-    textBand: "full",
-  },
-];
+  };
+}
+
+const INITIAL_SLIDES: Slide[] = [createDefaultHeroSlide("1")];
 
 const CALLBACK_FORM_LINK = "callback://open";
+
+function normalizeLearnMoreText(value: unknown): string {
+  if (typeof value !== "string") return DEFAULT_LEARN_MORE_TEXT;
+  const cleaned = value.replace(/\s*[→➝➡➜]+\s*$/u, "").trim();
+  return cleaned.length > 0 ? cleaned : DEFAULT_LEARN_MORE_TEXT;
+}
 
 function pickBannerH(
   v: unknown,
@@ -205,8 +156,48 @@ function normalizeSlide(raw: Partial<Slide> & { id: string; title: string }): Sl
   return {
     id: raw.id,
     title: raw.title,
+    announcementText:
+      typeof raw.announcementText === "string" && raw.announcementText.trim().length > 0
+        ? raw.announcementText
+        : DEFAULT_ANNOUNCEMENT_TEXT,
+    bannerType:
+      raw.bannerType === "hero" || raw.bannerType === "image" || raw.bannerType === "split"
+        ? raw.bannerType
+        : typeof raw.image === "string" && raw.image.trim().length > 0
+          ? "image"
+          : "hero",
+    showAnnouncement:
+      typeof raw.showAnnouncement === "boolean" ? raw.showAnnouncement : true,
+    showLearnMore:
+      typeof raw.showLearnMore === "boolean" ? raw.showLearnMore : true,
+    showAnnouncementLearnMore:
+      typeof (raw as { showAnnouncementLearnMore?: unknown }).showAnnouncementLearnMore ===
+      "boolean"
+        ? Boolean((raw as { showAnnouncementLearnMore?: boolean }).showAnnouncementLearnMore)
+        : typeof raw.showLearnMore === "boolean"
+          ? raw.showLearnMore
+          : true,
+    showBottomLearnMore:
+      typeof (raw as { showBottomLearnMore?: unknown }).showBottomLearnMore === "boolean"
+        ? Boolean((raw as { showBottomLearnMore?: boolean }).showBottomLearnMore)
+        : typeof raw.showLearnMore === "boolean"
+          ? raw.showLearnMore
+          : true,
     subtitle: typeof raw.subtitle === "string" ? raw.subtitle : "",
     buttonText: typeof raw.buttonText === "string" ? raw.buttonText : "",
+    learnMoreText:
+      normalizeLearnMoreText(raw.learnMoreText),
+    announcementLearnMoreText:
+      normalizeLearnMoreText(
+        (raw as { announcementLearnMoreText?: unknown }).announcementLearnMoreText ??
+          raw.learnMoreText,
+      ),
+    announcementLearnMoreHref:
+      typeof (raw as { announcementLearnMoreHref?: unknown }).announcementLearnMoreHref === "string"
+        ? ((raw as { announcementLearnMoreHref?: string }).announcementLearnMoreHref as string)
+        : typeof raw.buttonHref === "string"
+          ? raw.buttonHref
+          : "",
     buttonHref: typeof raw.buttonHref === "string" ? raw.buttonHref : "",
     showTitle:
       typeof raw.showTitle === "boolean"
@@ -471,6 +462,10 @@ export function BannersEditorCarousel() {
   const [fontSizeTarget, setFontSizeTarget] = useState<"title" | "subtitle" | "button">("title");
   const [linkModalOpen, setLinkModalOpen] = useState(false);
   const [linkModalValue, setLinkModalValue] = useState("");
+  const [linkModalButtonText, setLinkModalButtonText] = useState("");
+  const [linkModalTarget, setLinkModalTarget] = useState<
+    "primary" | "secondary" | "announcementSecondary"
+  >("primary");
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const actionsMenuRef = useRef<HTMLDivElement | null>(null);
   const colorDropdownRef = useRef<HTMLDivElement | null>(null);
@@ -489,9 +484,6 @@ export function BannersEditorCarousel() {
   ];
   const fontSizes = [75, 100, 125, 150, 175, 200, 225, 250, 300, 350, 400];
 
-
-  const canPrev = activeIndex > 0;
-  const canNext = activeIndex < slides.length - 1;
 
   const bannerEditorSwipe = useCarouselSwipe(
     () => setActiveIndex((p) => (p > 0 ? p - 1 : p)),
@@ -553,8 +545,49 @@ export function BannersEditorCarousel() {
             normalizeSlide({
               id: s.id,
               title: s.title,
+              announcementText:
+                typeof (s as { announcementText?: unknown }).announcementText === "string"
+                  ? (s as { announcementText: string }).announcementText
+                  : undefined,
+              bannerType:
+                (s as { bannerType?: unknown }).bannerType === "hero" ||
+                  (s as { bannerType?: unknown }).bannerType === "image" ||
+                  (s as { bannerType?: unknown }).bannerType === "split"
+                  ? ((s as { bannerType: "hero" | "image" | "split" }).bannerType)
+                  : undefined,
+              showAnnouncement:
+                typeof (s as { showAnnouncement?: unknown }).showAnnouncement === "boolean"
+                  ? ((s as { showAnnouncement: boolean }).showAnnouncement)
+                  : undefined,
+              showLearnMore:
+                typeof (s as { showLearnMore?: unknown }).showLearnMore === "boolean"
+                  ? ((s as { showLearnMore: boolean }).showLearnMore)
+                  : undefined,
+              showAnnouncementLearnMore:
+                typeof (s as { showAnnouncementLearnMore?: unknown }).showAnnouncementLearnMore ===
+                "boolean"
+                  ? ((s as { showAnnouncementLearnMore: boolean }).showAnnouncementLearnMore)
+                  : undefined,
+              showBottomLearnMore:
+                typeof (s as { showBottomLearnMore?: unknown }).showBottomLearnMore === "boolean"
+                  ? ((s as { showBottomLearnMore: boolean }).showBottomLearnMore)
+                  : undefined,
               subtitle: s.subtitle,
               buttonText: s.buttonText,
+              learnMoreText:
+                typeof (s as { learnMoreText?: unknown }).learnMoreText === "string"
+                  ? (s as { learnMoreText: string }).learnMoreText
+                  : undefined,
+              announcementLearnMoreText:
+                typeof (s as { announcementLearnMoreText?: unknown }).announcementLearnMoreText ===
+                "string"
+                  ? (s as { announcementLearnMoreText: string }).announcementLearnMoreText
+                  : undefined,
+              announcementLearnMoreHref:
+                typeof (s as { announcementLearnMoreHref?: unknown }).announcementLearnMoreHref ===
+                "string"
+                  ? (s as { announcementLearnMoreHref: string }).announcementLearnMoreHref
+                  : undefined,
               buttonHref: s.buttonHref,
               showTitle: s.showTitle,
               showSubtitle: s.showSubtitle,
@@ -649,55 +682,10 @@ export function BannersEditorCarousel() {
     return () => window.clearTimeout(t);
   }, [linkModalOpen]);
 
-  function goPrev() {
-    setActiveIndex((prev) => (prev > 0 ? prev - 1 : prev));
-  }
-
-  function goNext() {
-    setActiveIndex((prev) => (prev < slides.length - 1 ? prev + 1 : prev));
-  }
-
   function addSlide() {
-    const nextNumber = slides.length + 1;
     setSlides((prev) => [
       ...prev,
-      {
-        id: String(Date.now()),
-        title: `Банер ${nextNumber}`,
-        subtitle: "",
-        buttonText: "",
-        buttonHref: "",
-        showTitle: true,
-        showSubtitle: false,
-        showButton: false,
-        image: null,
-        imagePosY: 50,
-        align: "center",
-        verticalAlign: "middle",
-        fontSize: 200,
-        lineHeight: 1.2,
-        textColor: "#ffffff",
-        bold: true,
-        italic: false,
-        underline: false,
-        showOverlay: true,
-        titleFontSize: 200,
-        subtitleFontSize: 100,
-        buttonFontSize: 100,
-        titleColor: "#ffffff",
-        subtitleColor: "#ffffff",
-        buttonTextColor: "#ffffff",
-        titleBold: true,
-        titleItalic: false,
-        subtitleBold: false,
-        subtitleItalic: false,
-        buttonBold: true,
-        buttonItalic: false,
-        titleWeight: 700,
-        subtitleWeight: 400,
-        buttonWeight: 600,
-        textBand: "full",
-      },
+      createDefaultHeroSlide(String(Date.now())),
     ]);
   }
 
@@ -710,11 +698,23 @@ export function BannersEditorCarousel() {
   function onUploadToActive(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file || !activeSlide) return;
+    const activeSlideType = activeSlide.bannerType;
     void (async () => {
       try {
         const url = await compressImageFileToWebpDataUrl(file);
         setSlides((prev) =>
-          prev.map((s, idx) => (idx === activeIndex ? { ...s, image: url } : s)),
+          prev.map((s, idx) =>
+            idx === activeIndex
+              ? {
+                  ...s,
+                  image: url,
+                  bannerType:
+                    activeSlideType === "split"
+                      ? "split"
+                      : s.bannerType,
+                }
+              : s,
+          ),
         );
       } catch {
         setSaveMessage("Не удалось обработать изображение");
@@ -769,13 +769,62 @@ export function BannersEditorCarousel() {
             : saved,
         );
         if (Array.isArray(saved.slides) && saved.slides.length > 0) {
+          const payloadById = new Map(payloadSlides.map((slide) => [slide.id, slide]));
           setSlides(
             saved.slides.map((s) =>
               normalizeSlide({
                 id: s.id,
                 title: s.title,
+                announcementText:
+                  typeof (s as { announcementText?: unknown }).announcementText === "string"
+                    ? (s as { announcementText: string }).announcementText
+                    : undefined,
+                bannerType:
+                  (() => {
+                    const serverType =
+                      (s as { bannerType?: unknown }).bannerType === "hero" ||
+                      (s as { bannerType?: unknown }).bannerType === "image" ||
+                      (s as { bannerType?: unknown }).bannerType === "split"
+                        ? ((s as { bannerType: "hero" | "image" | "split" }).bannerType)
+                        : undefined;
+                    const localType = payloadById.get(s.id)?.bannerType;
+                    if (localType === "split" && serverType !== "split") return "split";
+                    return serverType ?? localType;
+                  })(),
+                showAnnouncement:
+                  typeof (s as { showAnnouncement?: unknown }).showAnnouncement === "boolean"
+                    ? ((s as { showAnnouncement: boolean }).showAnnouncement)
+                    : undefined,
+                showLearnMore:
+                  typeof (s as { showLearnMore?: unknown }).showLearnMore === "boolean"
+                    ? ((s as { showLearnMore: boolean }).showLearnMore)
+                    : undefined,
+                showAnnouncementLearnMore:
+                  typeof (s as { showAnnouncementLearnMore?: unknown }).showAnnouncementLearnMore ===
+                  "boolean"
+                    ? ((s as { showAnnouncementLearnMore: boolean }).showAnnouncementLearnMore)
+                    : undefined,
+                showBottomLearnMore:
+                  typeof (s as { showBottomLearnMore?: unknown }).showBottomLearnMore ===
+                  "boolean"
+                    ? ((s as { showBottomLearnMore: boolean }).showBottomLearnMore)
+                    : undefined,
                 subtitle: s.subtitle,
                 buttonText: s.buttonText,
+                learnMoreText:
+                  typeof (s as { learnMoreText?: unknown }).learnMoreText === "string"
+                    ? (s as { learnMoreText: string }).learnMoreText
+                    : undefined,
+                announcementLearnMoreText:
+                  typeof (s as { announcementLearnMoreText?: unknown }).announcementLearnMoreText ===
+                  "string"
+                    ? (s as { announcementLearnMoreText: string }).announcementLearnMoreText
+                    : undefined,
+                announcementLearnMoreHref:
+                  typeof (s as { announcementLearnMoreHref?: unknown }).announcementLearnMoreHref ===
+                  "string"
+                    ? (s as { announcementLearnMoreHref: string }).announcementLearnMoreHref
+                    : undefined,
                 buttonHref: s.buttonHref,
                 showTitle: s.showTitle,
                 showSubtitle: s.showSubtitle,
@@ -1247,54 +1296,50 @@ export function BannersEditorCarousel() {
                     >
                       {activeSlide?.showButton ? "Убрать кнопку" : "Добавить кнопку"}
                     </button>
-                    <div className="my-1 h-px bg-slate-100" />
-                    <p className="px-3 pb-0.5 pt-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                      Зона текста
-                    </p>
                     <button
                       type="button"
-                      className={`w-full px-3 py-1.5 text-left text-xs ${
-                        (activeSlide?.textBand ?? "full") === "full"
-                          ? "bg-slate-100 text-[#496db3]"
-                          : "text-slate-700 hover:bg-slate-100"
-                      }`}
+                      className="w-full px-3 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-100"
                       onClick={() => {
                         if (!activeSlide) return;
-                        updateActiveSlide({ textBand: "full" });
+                        updateActiveSlide({ showAnnouncement: !activeSlide.showAnnouncement });
                         setActionsMenuOpen(false);
                       }}
                     >
-                      На всю ширину банера
+                      {activeSlide?.showAnnouncement ? "Убрать плашку анонса" : "Добавить плашку анонса"}
                     </button>
                     <button
                       type="button"
-                      className={`w-full px-3 py-1.5 text-left text-xs ${
-                        activeSlide?.textBand === "left"
-                          ? "bg-slate-100 text-[#496db3]"
-                          : "text-slate-700 hover:bg-slate-100"
-                      }`}
+                      className="w-full px-3 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-100"
                       onClick={() => {
                         if (!activeSlide) return;
-                        updateActiveSlide({ textBand: "left" });
+                        updateActiveSlide({
+                          showAnnouncementLearnMore: !activeSlide.showAnnouncementLearnMore,
+                          announcementLearnMoreText:
+                            activeSlide.announcementLearnMoreText ||
+                            DEFAULT_LEARN_MORE_TEXT,
+                        });
                         setActionsMenuOpen(false);
                       }}
                     >
-                      Текст в левой половине
+                      {activeSlide?.showAnnouncementLearnMore
+                        ? "Убрать Learn more (в плашке)"
+                        : "Добавить Learn more (в плашке)"}
                     </button>
                     <button
                       type="button"
-                      className={`w-full px-3 py-1.5 text-left text-xs ${
-                        activeSlide?.textBand === "right"
-                          ? "bg-slate-100 text-[#496db3]"
-                          : "text-slate-700 hover:bg-slate-100"
-                      }`}
+                      className="w-full px-3 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-100"
                       onClick={() => {
                         if (!activeSlide) return;
-                        updateActiveSlide({ textBand: "right" });
+                        updateActiveSlide({
+                          showBottomLearnMore: !activeSlide.showBottomLearnMore,
+                          learnMoreText: activeSlide.learnMoreText || DEFAULT_LEARN_MORE_TEXT,
+                        });
                         setActionsMenuOpen(false);
                       }}
                     >
-                      Текст в правой половине
+                      {activeSlide?.showBottomLearnMore
+                        ? "Убрать Learn more (внизу)"
+                        : "Добавить Learn more (внизу)"}
                     </button>
                     <button
                       type="button"
@@ -1342,6 +1387,39 @@ export function BannersEditorCarousel() {
                   onChange={onUploadToActive}
                 />
               </div>
+              <span className="relative ml-1 inline-flex items-center">
+                <select
+                  value={activeSlide.bannerType}
+                  onChange={(e) =>
+                    updateActiveSlide(
+                      e.target.value === "image"
+                        ? { bannerType: "image" }
+                        : e.target.value === "split"
+                          ? { bannerType: "split", textBand: "left", align: "left" }
+                          : { bannerType: "hero", textBand: "full", align: "center" },
+                    )
+                  }
+                  className="min-w-[11.5rem] appearance-none rounded-md border border-slate-200 bg-white px-3 py-1.5 pr-7 text-xs font-semibold text-slate-700 outline-none transition focus:border-[#496db3] focus:ring-2 focus:ring-[#496db3]/20"
+                >
+                  <option value="hero">Банер с градиентом</option>
+                  <option value="image">Банер с изображением (2:1)</option>
+                  <option value="split">
+                    Градиент + текст слева + фото справа (1:1)
+                  </option>
+                </select>
+                <svg
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  aria-hidden="true"
+                  className="pointer-events-none absolute right-2 h-3.5 w-3.5 text-slate-500"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.17l3.71-3.94a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </span>
             </div>
           </div>
         </div>
@@ -1373,7 +1451,7 @@ export function BannersEditorCarousel() {
       ) : null}
       {linkModalOpen ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-3 backdrop-blur-sm"
+          className="fixed inset-0 z-[20000] flex items-center justify-center bg-slate-900/40 p-3 backdrop-blur-sm"
           onClick={() => setLinkModalOpen(false)}
           role="dialog"
           aria-modal="true"
@@ -1403,7 +1481,34 @@ export function BannersEditorCarousel() {
                       e.preventDefault();
                       setSlides((prev) =>
                         prev.map((s, sIdx) =>
-                          sIdx === activeIndex ? { ...s, buttonHref: linkModalValue.trim() } : s,
+                          sIdx === activeIndex
+                            ? {
+                                ...s,
+                                buttonHref:
+                                  linkModalTarget === "announcementSecondary"
+                                    ? s.buttonHref
+                                    : linkModalValue.trim(),
+                                announcementLearnMoreHref:
+                                  linkModalTarget === "announcementSecondary"
+                                    ? linkModalValue.trim()
+                                    : s.announcementLearnMoreHref,
+                                  buttonText:
+                                    linkModalTarget === "primary" &&
+                                    linkModalButtonText.trim().length > 0
+                                      ? linkModalButtonText.trim()
+                                      : s.buttonText,
+                                  learnMoreText:
+                                    linkModalTarget === "secondary" &&
+                                    linkModalButtonText.trim().length > 0
+                                      ? normalizeLearnMoreText(linkModalButtonText)
+                                      : s.learnMoreText,
+                                  announcementLearnMoreText:
+                                    linkModalTarget === "announcementSecondary" &&
+                                    linkModalButtonText.trim().length > 0
+                                      ? normalizeLearnMoreText(linkModalButtonText)
+                                      : s.announcementLearnMoreText,
+                              }
+                            : s,
                         ),
                       );
                       setLinkModalOpen(false);
@@ -1411,6 +1516,25 @@ export function BannersEditorCarousel() {
                   }}
                   className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#496db3] focus:ring-1 focus:ring-[#496db3]"
                   placeholder="https://example.com или callback://open"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="font-semibold text-slate-700">
+                  {linkModalTarget === "primary"
+                    ? "Название кнопки"
+                    : linkModalTarget === "secondary"
+                      ? "Название Learn more (внизу)"
+                      : "Название Learn more (в плашке)"}
+                </span>
+                <input
+                  value={linkModalButtonText}
+                  onChange={(e) => setLinkModalButtonText(e.target.value)}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#496db3] focus:ring-1 focus:ring-[#496db3]"
+                  placeholder={
+                    linkModalTarget === "primary"
+                      ? "Например: Get started"
+                      : "Например: Learn more"
+                  }
                 />
               </label>
               <button
@@ -1435,7 +1559,34 @@ export function BannersEditorCarousel() {
                 onClick={() => {
                   setSlides((prev) =>
                     prev.map((s, sIdx) =>
-                      sIdx === activeIndex ? { ...s, buttonHref: linkModalValue.trim() } : s,
+                      sIdx === activeIndex
+                        ? {
+                            ...s,
+                            buttonHref:
+                              linkModalTarget === "announcementSecondary"
+                                ? s.buttonHref
+                                : linkModalValue.trim(),
+                            announcementLearnMoreHref:
+                              linkModalTarget === "announcementSecondary"
+                                ? linkModalValue.trim()
+                                : s.announcementLearnMoreHref,
+                            buttonText:
+                              linkModalTarget === "primary" &&
+                              linkModalButtonText.trim().length > 0
+                                ? linkModalButtonText.trim()
+                                : s.buttonText,
+                            learnMoreText:
+                              linkModalTarget === "secondary" &&
+                              linkModalButtonText.trim().length > 0
+                                ? normalizeLearnMoreText(linkModalButtonText)
+                                : s.learnMoreText,
+                            announcementLearnMoreText:
+                              linkModalTarget === "announcementSecondary" &&
+                              linkModalButtonText.trim().length > 0
+                                ? normalizeLearnMoreText(linkModalButtonText)
+                                : s.announcementLearnMoreText,
+                          }
+                        : s,
                     ),
                   );
                   setLinkModalOpen(false);
@@ -1448,125 +1599,367 @@ export function BannersEditorCarousel() {
         </div>
       ) : null}
 
-      <div className="relative overflow-hidden rounded-xl bg-slate-100 p-4">
+      <div className="relative overflow-hidden rounded-xl bg-transparent p-0">
         {imageAlignMode ? (
           <div className="mb-2 text-xs text-[#496db3]">
             Режим выравнивания картинки по вертикали: потяните изображение мышкой вверх/вниз.
           </div>
         ) : null}
-        {/*
-          Кнопки навигации под баннером (не сбоку), чтобы ширина превью совпадала с главной:
-          иначе flex с ‹ › уменьшает область баннера → другой cqw и другой визуальный размер шрифта.
-        */}
-        <div
-          className="mx-auto w-full max-w-[1200px] touch-pan-y overflow-hidden rounded-xl bg-white"
-          {...bannerEditorSwipe}
-        >
-            <div
-              className="flex transition-transform duration-300 ease-out"
-              style={{ transform: `translateX(-${activeIndex * 100}%)` }}
-            >
-              {slides.map((slide, idx) => (
-                <div key={slide.id} className="w-full shrink-0">
-                  <div className="aspect-[16/7] overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-                    {slide.image ? (
+        <BannerCarouselFrame
+          slides={slides}
+          activeIndex={activeIndex}
+          onSelectSlide={setActiveIndex}
+          swipeProps={bannerEditorSwipe}
+          roundedClassName="rounded-xl"
+          aspectClassName="aspect-[2/1]"
+          renderSlide={(slide, idx) => {
+            return (() => {
+                    const useSplitBanner =
+                      slide.bannerType === "split" ||
+                      (slide.bannerType !== "image" &&
+                        (slide.textBand === "left" ||
+                          (slide.align === "left" && Boolean(slide.image))));
+                    const singleLineImageTitle =
+                      slide.title.replace(/\s*\n+\s*/g, " ").trim() || slide.title;
+                    return (
+                  <div className="@container h-full overflow-hidden bg-transparent">
+                    {slide.bannerType === "image" ? (
                       <div className="relative h-full w-full">
-                        <img
-                          src={slide.image}
-                          alt={slide.title}
-                          className={`absolute inset-0 z-0 h-full w-full object-cover ${imageAlignMode && activeIndex === idx ? "cursor-ns-resize" : ""}`}
-                          style={{ objectPosition: `50% ${slide.imagePosY}%` }}
-                          onMouseDown={(e) => {
-                            if (!imageAlignMode || activeIndex !== idx) return;
-                            e.preventDefault();
-                            const target = e.currentTarget;
-                            const rect = target.getBoundingClientRect();
-                            const startY = e.clientY;
-                            const startPos = slide.imagePosY;
-                            const onMove = (moveEvent: MouseEvent) => {
-                              const deltaY = moveEvent.clientY - startY;
-                              const deltaPercent = (deltaY / rect.height) * 100;
-                              const pos = Math.max(
-                                0,
-                                Math.min(100, startPos - deltaPercent),
-                              );
-                              setSlides((prev) =>
-                                prev.map((s, sIdx) => (sIdx === idx ? { ...s, imagePosY: pos } : s)),
-                              );
-                            };
-                            const onUp = () => {
-                              window.removeEventListener("mousemove", onMove);
-                              window.removeEventListener("mouseup", onUp);
-                            };
-                            window.addEventListener("mousemove", onMove);
-                            window.addEventListener("mouseup", onUp);
-                          }}
-                        />
-                        {slide.showOverlay ? (
+                        {slide.image ? (
+                          <img
+                            src={slide.image}
+                            alt={slide.title}
+                            className={`absolute inset-0 z-0 h-full w-full object-cover ${imageAlignMode && activeIndex === idx ? "cursor-ns-resize" : ""}`}
+                            style={{ objectPosition: `50% ${slide.imagePosY}%` }}
+                            onMouseDown={(e) => {
+                              if (!imageAlignMode || activeIndex !== idx) return;
+                              e.preventDefault();
+                              const target = e.currentTarget;
+                              const rect = target.getBoundingClientRect();
+                              const startY = e.clientY;
+                              const startPos = slide.imagePosY;
+                              const onMove = (moveEvent: MouseEvent) => {
+                                const deltaY = moveEvent.clientY - startY;
+                                const deltaPercent = (deltaY / rect.height) * 100;
+                                const pos = Math.max(
+                                  0,
+                                  Math.min(100, startPos - deltaPercent),
+                                );
+                                setSlides((prev) =>
+                                  prev.map((s, sIdx) => (sIdx === idx ? { ...s, imagePosY: pos } : s)),
+                                );
+                              };
+                              const onUp = () => {
+                                window.removeEventListener("mousemove", onMove);
+                                window.removeEventListener("mouseup", onUp);
+                              };
+                              window.addEventListener("mousemove", onMove);
+                              window.addEventListener("mouseup", onUp);
+                            }}
+                          />
+                        ) : (
+                          <div className="absolute inset-0 z-0 bg-slate-300" />
+                        )}
+                        {slide.showOverlay && Boolean(slide.image) ? (
                           <div
                             className={`absolute inset-0 z-10 ${
                               imageAlignMode && activeIndex === idx ? "pointer-events-none" : ""
                             }`}
-                            style={{ backgroundColor: "rgba(0, 0, 0, 0.35)" }}
+                            style={{
+                              backgroundColor: "rgba(248, 250, 252, 0.58)",
+                              backdropFilter: "blur(2px)",
+                              WebkitBackdropFilter: "blur(2px)",
+                            }}
                           />
                         ) : null}
-                        <BannerTextOverlayBand
-                          textBand={slide.textBand}
-                          verticalAlign={slide.verticalAlign}
-                          className={
-                            imageAlignMode && activeIndex === idx
-                              ? "pointer-events-none"
-                              : ""
-                          }
+                        {!slide.image ? (
+                          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+                            <div className="rounded-md border border-slate-500/40 bg-slate-900/35 px-3 py-1.5 text-xs font-medium text-white/90">
+                              Выберите изображение для фона
+                            </div>
+                          </div>
+                        ) : null}
+                        <div
+                          className={`relative z-20 flex h-full w-full items-center justify-center px-6 py-10 ${
+                            imageAlignMode && activeIndex === idx ? "pointer-events-none" : ""
+                          }`}
                         >
-                          {slide.showTitle ? (
+                          <div className="mx-auto w-full min-w-0 max-w-3xl text-center">
+                            {slide.showAnnouncement !== false ? (
+                              <div className="hidden sm:mb-6 sm:flex sm:justify-center">
+                                <div className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs text-slate-600 ring-1 ring-slate-900/10 sm:text-sm">
+                                  <span
+                                    contentEditable
+                                    suppressContentEditableWarning
+                                    onBlur={(e) => {
+                                      const text = e.currentTarget.textContent ?? "";
+                                      setSlides((prev) =>
+                                        prev.map((s, sIdx) =>
+                                          sIdx === activeIndex
+                                            ? {
+                                                ...s,
+                                                announcementText:
+                                                  text.trim().length > 0
+                                                    ? text
+                                                    : DEFAULT_ANNOUNCEMENT_TEXT,
+                                              }
+                                            : s,
+                                        ),
+                                      );
+                                    }}
+                                    className="outline-none"
+                                  >
+                                    {slide.announcementText || DEFAULT_ANNOUNCEMENT_TEXT}
+                                  </span>
+                                  {slide.showAnnouncementLearnMore !== false ? (
+                                    <span
+                                      contentEditable
+                                      suppressContentEditableWarning
+                                      onBlur={(e) => {
+                                        const text = e.currentTarget.textContent ?? "";
+                                        setSlides((prev) =>
+                                          prev.map((s, sIdx) =>
+                                            sIdx === activeIndex
+                                              ? {
+                                                  ...s,
+                                                  announcementLearnMoreText:
+                                                    normalizeLearnMoreText(text),
+                                                }
+                                              : s,
+                                          ),
+                                        );
+                                      }}
+                                      onDoubleClick={() => {
+                                        setLinkModalValue(slide.announcementLearnMoreHref || "");
+                                        setLinkModalButtonText(
+                                          normalizeLearnMoreText(slide.announcementLearnMoreText),
+                                        );
+                                        setLinkModalTarget("announcementSecondary");
+                                        setLinkModalOpen(true);
+                                      }}
+                                      className="font-semibold text-[#496db3] outline-none"
+                                    >
+                                      {normalizeLearnMoreText(slide.announcementLearnMoreText)}
+                                    </span>
+                                  ) : null}
+                                </div>
+                              </div>
+                            ) : null}
+                            {slide.showTitle !== false ? (
+                              <h1
+                                contentEditable
+                                suppressContentEditableWarning
+                                onFocus={() => setFontSizeTarget("title")}
+                                onBlur={(e) => {
+                                  const text = (e.currentTarget.textContent ?? "")
+                                    .replace(/\s*\n+\s*/g, " ")
+                                    .trim();
+                                  setSlides((prev) =>
+                                    prev.map((s, sIdx) =>
+                                      sIdx === activeIndex
+                                        ? { ...s, title: text.length > 0 ? text : s.title }
+                                        : s,
+                                    ),
+                                  );
+                                }}
+                                className="text-balance text-3xl font-semibold tracking-tight text-[#496db3] sm:text-5xl outline-none"
+                              >
+                                {singleLineImageTitle}
+                              </h1>
+                            ) : null}
+                            {slide.showSubtitle ? (
+                              <p
+                                contentEditable
+                                suppressContentEditableWarning
+                                onFocus={() => setFontSizeTarget("subtitle")}
+                                onBlur={(e) => {
+                                  const text = e.currentTarget.textContent ?? "";
+                                  setSlides((prev) =>
+                                    prev.map((s, sIdx) =>
+                                      sIdx === activeIndex ? { ...s, subtitle: text } : s,
+                                    ),
+                                  );
+                                }}
+                                className="mt-6 text-pretty text-sm font-medium text-slate-600 sm:text-base outline-none"
+                              >
+                                {slide.subtitle || "Подзаголовок"}
+                              </p>
+                            ) : null}
+                            <div className="mt-8 flex items-center justify-center gap-x-6">
+                              {slide.showButton ? (
+                                <button
+                                  type="button"
+                                  className="rounded-md bg-[#496db3] px-3.5 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-[#3f5f9d] sm:text-sm"
+                                  onDoubleClick={() => {
+                                    setLinkModalValue(slide.buttonHref || "");
+                                    setLinkModalButtonText(slide.buttonText || "Get started");
+                                    setLinkModalTarget("primary");
+                                    setLinkModalOpen(true);
+                                  }}
+                                >
+                                  <span
+                                    contentEditable
+                                    suppressContentEditableWarning
+                                    onFocus={() => setFontSizeTarget("button")}
+                                    onBlur={(e) => {
+                                      const text = e.currentTarget.textContent ?? "";
+                                      setSlides((prev) =>
+                                        prev.map((s, sIdx) =>
+                                          sIdx === activeIndex ? { ...s, buttonText: text } : s,
+                                        ),
+                                      );
+                                    }}
+                                    className="outline-none"
+                                  >
+                                    {slide.buttonText || "Get started"}
+                                  </span>
+                                </button>
+                              ) : null}
+                              {slide.showBottomLearnMore !== false ? (
+                                <span
+                                  contentEditable
+                                  suppressContentEditableWarning
+                                  onBlur={(e) => {
+                                    const text = e.currentTarget.textContent ?? "";
+                                    setSlides((prev) =>
+                                      prev.map((s, sIdx) =>
+                                        sIdx === activeIndex
+                                          ? {
+                                              ...s,
+                                              learnMoreText: normalizeLearnMoreText(text),
+                                            }
+                                          : s,
+                                      ),
+                                    );
+                                  }}
+                                  onDoubleClick={() => {
+                                    setLinkModalValue(slide.buttonHref || "");
+                                    setLinkModalButtonText(
+                                      normalizeLearnMoreText(slide.learnMoreText),
+                                    );
+                                    setLinkModalTarget("secondary");
+                                    setLinkModalOpen(true);
+                                  }}
+                                  className="text-xs font-semibold text-[#496db3] outline-none sm:text-sm"
+                                >
+                                  {normalizeLearnMoreText(slide.learnMoreText)}
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        className={`relative isolate flex h-full w-full overflow-hidden bg-slate-100 ${
+                          useSplitBanner ? "items-stretch" : "items-center justify-center px-6 py-10"
+                        }`}
+                      >
+                        <div
+                          className="absolute inset-x-0 -top-24 -z-10 transform-gpu blur-3xl"
+                          aria-hidden="true"
+                        >
+                          <div
+                            className="hero-police-blob relative left-1/2 aspect-[1155/678] w-[36rem] -translate-x-1/2 rotate-[20deg] bg-gradient-to-tr from-[#496db3] via-[#5f7ebe] to-[#8aa9db] sm:w-[72rem]"
+                            style={{
+                              clipPath:
+                                "polygon(74.1% 44.1%,100% 61.6%,97.5% 26.9%,85.5% 0.1%,80.7% 2%,72.5% 32.5%,60.2% 62.4%,52.4% 68.1%,47.5% 58.3%,45.2% 34.5%,27.5% 76.7%,0.1% 64.9%,17.9% 100%,27.6% 76.8%,76.1% 97.7%,74.1% 44.1%)",
+                            }}
+                          />
+                        </div>
+                        <div
+                          className="absolute inset-x-0 -top-24 -z-10 transform-gpu blur-3xl"
+                          aria-hidden="true"
+                        >
+                          <div
+                            className="hero-police-blob hero-police-blob--alt relative left-[calc(50%+3rem)] aspect-[1155/678] w-[36rem] -translate-x-1/2 bg-gradient-to-tr from-[#b91c1c] via-[#dc2626] to-[#f87171] sm:left-[calc(50%+24rem)] sm:w-[72rem]"
+                            style={{
+                              clipPath:
+                                "polygon(74.1% 44.1%,100% 61.6%,97.5% 26.9%,85.5% 0.1%,80.7% 2%,72.5% 32.5%,60.2% 62.4%,52.4% 68.1%,47.5% 58.3%,45.2% 34.5%,27.5% 76.7%,0.1% 64.9%,17.9% 100%,27.6% 76.8%,76.1% 97.7%,74.1% 44.1%)",
+                            }}
+                          />
+                        </div>
+                        <div
+                          className={`relative z-20 min-w-0 ${
+                            useSplitBanner
+                              ? "flex h-full w-1/2 shrink-0 flex-col justify-center px-6 py-10 text-left md:px-10"
+                              : "mx-auto w-full max-w-3xl text-center"
+                          }`}
+                        >
+                          {slide.showAnnouncement !== false ? (
+                            <div className={`hidden sm:mb-6 sm:flex ${useSplitBanner ? "sm:justify-start" : "sm:justify-center"}`}>
+                            <div className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs text-slate-600 ring-1 ring-slate-900/10 sm:text-sm">
+                              <span
+                                contentEditable
+                                suppressContentEditableWarning
+                                onBlur={(e) => {
+                                  const text = e.currentTarget.textContent ?? "";
+                                  setSlides((prev) =>
+                                    prev.map((s, sIdx) =>
+                                      sIdx === activeIndex
+                                        ? {
+                                            ...s,
+                                            announcementText:
+                                              text.trim().length > 0
+                                                ? text
+                                                : DEFAULT_ANNOUNCEMENT_TEXT,
+                                          }
+                                        : s,
+                                    ),
+                                  );
+                                }}
+                                className="outline-none"
+                              >
+                                {slide.announcementText || DEFAULT_ANNOUNCEMENT_TEXT}
+                              </span>
+                              {slide.showAnnouncementLearnMore !== false ? (
+                                <span
+                                  contentEditable
+                                  suppressContentEditableWarning
+                                  onBlur={(e) => {
+                                    const text = e.currentTarget.textContent ?? "";
+                                    setSlides((prev) =>
+                                      prev.map((s, sIdx) =>
+                                        sIdx === activeIndex
+                                          ? {
+                                              ...s,
+                                              announcementLearnMoreText:
+                                                normalizeLearnMoreText(text),
+                                            }
+                                          : s,
+                                      ),
+                                    );
+                                  }}
+                                  onDoubleClick={() => {
+                                    setLinkModalValue(slide.announcementLearnMoreHref || "");
+                                    setLinkModalButtonText(
+                                      normalizeLearnMoreText(slide.announcementLearnMoreText),
+                                    );
+                                    setLinkModalTarget("announcementSecondary");
+                                    setLinkModalOpen(true);
+                                  }}
+                                  className="font-semibold text-[#496db3] outline-none"
+                                >
+                                  {normalizeLearnMoreText(slide.announcementLearnMoreText)}
+                                </span>
+                              ) : null}
+                            </div>
+                            </div>
+                          ) : null}
+                          {slide.showTitle !== false ? (
                             <h1
                               contentEditable
                               suppressContentEditableWarning
                               onFocus={() => setFontSizeTarget("title")}
                               onBlur={(e) => {
-                                /* innerText сохраняет переносы строк из contentEditable (Enter) */
-                                const text = e.currentTarget.innerText ?? "";
+                                const text = e.currentTarget.textContent ?? "";
                                 setSlides((prev) =>
                                   prev.map((s, sIdx) =>
                                     sIdx === activeIndex ? { ...s, title: text } : s,
                                   ),
                                 );
                               }}
-                              onKeyDown={(e) => {
-                                if (e.key === "Escape") {
-                                  e.preventDefault();
-                                  (e.currentTarget as HTMLElement).blur();
-                                }
-                              }}
-                              style={{
-                                alignSelf: bannerHToAlignSelf(
-                                  resolveTitleHAlign({
-                                    align: slide.align,
-                                    titleAlign: slide.titleAlign,
-                                  }),
-                                ),
-                                marginTop:
-                                  slide.verticalAlign === "top" ? "1.25rem" : undefined,
-                                marginBottom:
-                                  slide.verticalAlign === "bottom" ? "1.25rem" : undefined,
-                                zIndex: 21,
-                                color: slide.titleColor,
-                                fontSize: `${slide.titleFontSize}%`,
-                                lineHeight: resolveBannerTitleLineHeight(
-                                  slide.title,
-                                  slide.lineHeight,
-                                  true,
-                                ),
-                                fontWeight: slide.titleWeight ?? (slide.titleBold ? 700 : 400),
-                                fontStyle: slide.titleItalic ? "italic" : "normal",
-                                textDecoration: slide.underline ? "underline" : "none",
-                                textAlign: resolveTitleHAlign({
-                                  align: slide.align,
-                                  titleAlign: slide.titleAlign,
-                                }),
-                              }}
-                              className="m-0 max-w-[90%] whitespace-pre-line outline-none"
+                              className="text-balance text-3xl font-semibold tracking-tight text-[#496db3] sm:text-5xl outline-none"
                             >
                               {slide.title}
                             </h1>
@@ -1584,135 +1977,122 @@ export function BannersEditorCarousel() {
                                   ),
                                 );
                               }}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  e.preventDefault();
-                                  (e.currentTarget as HTMLElement).blur();
-                                }
-                              }}
-                              style={{
-                                alignSelf: bannerHToAlignSelf(
-                                  resolveSubtitleHAlign({
-                                    align: slide.align,
-                                    subtitleAlign: slide.subtitleAlign,
-                                  }),
-                                ),
-                                zIndex: 22,
-                                color: slide.subtitleColor,
-                                lineHeight: normalizeBannerLineHeight(slide.lineHeight),
-                                fontSize: `${slide.subtitleFontSize}%`,
-                                fontWeight: slide.subtitleWeight ?? (slide.subtitleBold ? 700 : 400),
-                                fontStyle: slide.subtitleItalic ? "italic" : "normal",
-                                textAlign: resolveSubtitleHAlign({
-                                  align: slide.align,
-                                  subtitleAlign: slide.subtitleAlign,
-                                }),
-                              }}
-                              className="m-0 mt-2 max-w-[90%] opacity-90 outline-none"
+                              className="mt-6 text-pretty text-sm font-medium text-slate-600 sm:text-base outline-none"
                             >
                               {slide.subtitle || "Подзаголовок"}
                             </p>
                           ) : null}
-                          {slide.showButton ? (
-                            <button
-                              type="button"
-                              className="mt-4 inline-flex items-center rounded-full border-0 bg-[#496db3] px-4 py-2 font-semibold text-white shadow-sm"
-                              title={slide.buttonHref || "Двойной клик для редактирования ссылки"}
-                              onDoubleClick={() => {
-                                setLinkModalValue(slide.buttonHref || "");
-                                setLinkModalOpen(true);
-                              }}
-                              style={{
-                                alignSelf: bannerHToAlignSelf(
-                                  resolveButtonHAlign({
-                                    align: slide.align,
-                                    buttonAlign: slide.buttonAlign,
-                                  }),
-                                ),
-                                zIndex: 23,
-                                fontFamily: "inherit",
-                                fontSize: `${slide.buttonFontSize}%`,
-                                color: slide.buttonTextColor,
-                                fontWeight: slide.buttonWeight ?? (slide.buttonBold ? 700 : 600),
-                                fontStyle: slide.buttonItalic ? "italic" : "normal",
-                              }}
-                            >
+                          <div className={`mt-8 flex items-center gap-x-6 ${useSplitBanner ? "justify-start" : "justify-center"}`}>
+                            {slide.showButton ? (
+                              <button
+                                type="button"
+                                className="rounded-md bg-[#496db3] px-3.5 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-[#3f5f9d] sm:text-sm"
+                                onDoubleClick={() => {
+                                  setLinkModalValue(slide.buttonHref || "");
+                                  setLinkModalButtonText(slide.buttonText || "Get started");
+                                  setLinkModalTarget("primary");
+                                  setLinkModalOpen(true);
+                                }}
+                              >
+                                <span
+                                  contentEditable
+                                  suppressContentEditableWarning
+                                  onFocus={() => setFontSizeTarget("button")}
+                                  onBlur={(e) => {
+                                    const text = e.currentTarget.textContent ?? "";
+                                    setSlides((prev) =>
+                                      prev.map((s, sIdx) =>
+                                        sIdx === activeIndex ? { ...s, buttonText: text } : s,
+                                      ),
+                                    );
+                                  }}
+                                  className="outline-none"
+                                >
+                                  {slide.buttonText || "Get started"}
+                                </span>
+                              </button>
+                            ) : null}
+                            {slide.showBottomLearnMore !== false ? (
                               <span
                                 contentEditable
                                 suppressContentEditableWarning
-                                onFocus={() => setFontSizeTarget("button")}
                                 onBlur={(e) => {
                                   const text = e.currentTarget.textContent ?? "";
                                   setSlides((prev) =>
                                     prev.map((s, sIdx) =>
-                                      sIdx === activeIndex ? { ...s, buttonText: text } : s,
+                                      sIdx === activeIndex
+                                        ? {
+                                            ...s,
+                                            learnMoreText: normalizeLearnMoreText(text),
+                                          }
+                                        : s,
                                     ),
                                   );
                                 }}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    e.preventDefault();
-                                    (e.currentTarget as HTMLElement).blur();
-                                  }
+                                onDoubleClick={() => {
+                                  setLinkModalValue(slide.buttonHref || "");
+                                  setLinkModalButtonText(
+                                    normalizeLearnMoreText(slide.learnMoreText),
+                                  );
+                                  setLinkModalTarget("secondary");
+                                  setLinkModalOpen(true);
                                 }}
-                                className="outline-none"
-                                style={{ font: "inherit" }}
+                                className="text-xs font-semibold text-[#496db3] outline-none sm:text-sm"
                               >
-                                {slide.buttonText || "Подробнее"}
+                                {normalizeLearnMoreText(slide.learnMoreText)}
                               </span>
-                            </button>
-                          ) : null}
-                        </BannerTextOverlayBand>
-                      </div>
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-sm text-slate-500">
-                        {slide.title}
+                            ) : null}
+                          </div>
+                        </div>
+                        {useSplitBanner ? (
+                          <div className="relative z-10 h-full w-1/2 shrink-0 overflow-hidden border-l border-slate-300/70 bg-slate-200/60">
+                            {slide.image ? (
+                              <img
+                                src={slide.image}
+                                alt={slide.title}
+                                className={`absolute inset-0 h-full w-full object-cover ${imageAlignMode && activeIndex === idx ? "cursor-ns-resize" : ""}`}
+                                style={{ objectPosition: `50% ${slide.imagePosY}%` }}
+                                onMouseDown={(e) => {
+                                  if (!imageAlignMode || activeIndex !== idx) return;
+                                  e.preventDefault();
+                                  const target = e.currentTarget;
+                                  const rect = target.getBoundingClientRect();
+                                  const startY = e.clientY;
+                                  const startPos = slide.imagePosY;
+                                  const onMove = (moveEvent: MouseEvent) => {
+                                    const deltaY = moveEvent.clientY - startY;
+                                    const deltaPercent = (deltaY / rect.height) * 100;
+                                    const pos = Math.max(0, Math.min(100, startPos - deltaPercent));
+                                    setSlides((prev) =>
+                                      prev.map((s, sIdx) =>
+                                        sIdx === idx ? { ...s, imagePosY: pos } : s,
+                                      ),
+                                    );
+                                  };
+                                  const onUp = () => {
+                                    window.removeEventListener("mousemove", onMove);
+                                    window.removeEventListener("mouseup", onUp);
+                                  };
+                                  window.addEventListener("mousemove", onMove);
+                                  window.addEventListener("mouseup", onUp);
+                                }}
+                              />
+                            ) : (
+                              <div className="absolute inset-0 flex items-center justify-center bg-slate-300">
+                                <span className="rounded-md border border-slate-500/40 bg-slate-900/35 px-3 py-1.5 text-xs font-medium text-white/90">
+                                  Выберите изображение для правого блока
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        ) : null}
                       </div>
                     )}
                   </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        {slides.length > 1 ? (
-          <div className="mx-auto mt-3 flex w-full max-w-[1200px] flex-col items-center gap-3">
-            <div className="flex items-center justify-center gap-4">
-              <button
-                type="button"
-                onClick={goPrev}
-                disabled={!canPrev}
-                className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-slate-100 text-2xl leading-none text-slate-700 shadow-sm disabled:opacity-40"
-                aria-label="Предыдущий слайд"
-              >
-                ‹
-              </button>
-              <button
-                type="button"
-                onClick={goNext}
-                disabled={!canNext}
-                className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-slate-100 text-2xl leading-none text-slate-700 shadow-sm disabled:opacity-40"
-                aria-label="Следующий слайд"
-              >
-                ›
-              </button>
-            </div>
-            <div className="flex items-center justify-center gap-1.5">
-              {slides.map((slide, idx) => (
-                <button
-                  key={slide.id}
-                  type="button"
-                  onClick={() => setActiveIndex(idx)}
-                  className={`h-2.5 rounded-full transition-all ${
-                    idx === activeIndex
-                      ? "w-6 bg-[#496db3]"
-                      : "w-2.5 bg-slate-300 hover:bg-slate-400"
-                  }`}
-                  aria-label={`Перейти к банеру ${idx + 1}`}
-                />
-              ))}
-            </div>
-          </div>
-        ) : null}
+                    );
+                  })();
+          }}
+        />
       </div>
     </section>
   );

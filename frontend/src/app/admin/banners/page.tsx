@@ -2,6 +2,7 @@ import { AdminSidebar } from "@/components/admin/Sidebar";
 import { AdminTopBar } from "@/components/admin/AdminTopBar";
 import { BannersEditorCarousel } from "@/components/admin/BannersEditorCarousel";
 import { ReviewsVerticalCarousel } from "@/components/admin/ReviewsVerticalCarousel";
+import { TopRibbonMessagesEditor } from "@/components/admin/TopRibbonMessagesEditor";
 
 export default function AdminBannersPage() {
   return (
@@ -25,6 +26,7 @@ export default function AdminBannersPage() {
               <BannersEditorCarousel />
               <ReviewsVerticalCarousel />
               <ReviewsVerticalCarousel title="Партнеры" apiPath="/api/pages/partners" aspect="square" />
+              <TopRibbonMessagesEditor />
             </div>
           </main>
         </div>

@@ -32,13 +32,19 @@ export function PreventHorizontalPageScroll() {
       startY = t.clientY;
     };
 
+    const HORIZONTAL_LOCK_PX = 14;
+    const VERTICAL_ALLOW_PX = 8;
     const onTouchMove = (e: TouchEvent) => {
       const t = e.touches[0];
       if (!t) return;
       const dx = t.clientX - startX;
       const dy = t.clientY - startY;
-      // If the gesture is more horizontal than vertical — block it.
-      if (Math.abs(dx) > Math.abs(dy) + 3) {
+      const absDx = Math.abs(dx);
+      const absDy = Math.abs(dy);
+      // Do not interfere with normal vertical scrolling.
+      if (absDy >= VERTICAL_ALLOW_PX && absDy >= absDx) return;
+      // Block only clearly horizontal gestures.
+      if (absDx >= HORIZONTAL_LOCK_PX && absDx > absDy * 1.5) {
         e.preventDefault();
         reset();
       }

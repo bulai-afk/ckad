@@ -1,6 +1,9 @@
 import Link from "next/link";
-import { ChevronRightIcon, HomeIcon } from "@heroicons/react/20/solid";
-import { HomeServicesFolderCards } from "@/components/HomeServicesFolderCards";
+import {
+  ArticleTeaserCard,
+  excerptFromArticleDescription,
+  formatArticleDate,
+} from "@/components/ArticleTeaserCard";
 import { apiGet } from "@/lib/api";
 import { apiPagesSlugRequestPath } from "@/lib/apiPagesSlugUrl";
 import { sanitizePublicAssetUrl } from "@/lib/publicAssetUrl";
@@ -15,6 +18,8 @@ type ArticleListItem = {
   description?: string | null;
   preview?: string | null;
   createdAt?: string;
+  updatedAt?: string | null;
+  articleKind?: "news" | "article";
 };
 
 type PageBlock = {
@@ -68,28 +73,15 @@ function extractCoverBackgroundDataUrlFromHtml(html: string): string | null {
   return unescaped;
 }
 
-function formatDateLabel(iso?: string): { dateIso: string; dateLabel: string } {
-  if (!iso) {
-    return { dateIso: "2026-01-01", dateLabel: "Без даты" };
-  }
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) {
-    return { dateIso: "2026-01-01", dateLabel: "Без даты" };
-  }
-  return {
-    dateIso: d.toISOString().slice(0, 10),
-    dateLabel: d.toLocaleDateString("ru-RU", { day: "2-digit", month: "short", year: "numeric" }),
-  };
-}
-
 async function getArticles(): Promise<
   {
     href: string;
-    image: string;
-    dateIso: string;
+    previewUrl: string;
+    dateTime: string;
     dateLabel: string;
     title: string;
     excerpt: string;
+    articleKind?: "news" | "article";
   }[]
 > {
   try {
@@ -97,8 +89,8 @@ async function getArticles(): Promise<
     const sourceArticles = pages
       .filter((p) => isVisibleArticlePage(p) && normalizeSlug(p.slug).startsWith("articles/"))
       .sort((a, b) => {
-        const ad = new Date(a.createdAt || 0).getTime();
-        const bd = new Date(b.createdAt || 0).getTime();
+        const ad = new Date(a.updatedAt || a.createdAt || 0).getTime();
+        const bd = new Date(b.updatedAt || b.createdAt || 0).getTime();
         return bd - ad;
       });
 
@@ -131,21 +123,18 @@ async function getArticles(): Promise<
           }
         }
 
-        const { dateIso, dateLabel } = formatDateLabel(p.createdAt);
+        const { dateTime, label: dateLabel } = formatArticleDate(p.updatedAt ?? p.createdAt);
         const rawThumb =
           (typeof p.preview === "string" && p.preview.trim()) || previewFromPage || "";
         const safeThumb = sanitizePublicAssetUrl(rawThumb);
         return {
           href: `/${slug}`,
-          /** Пусто → HomeServicesFolderCards подставит лого, как у услуг (не stock-фото). */
-          image: safeThumb,
-          dateIso,
+          previewUrl: safeThumb,
+          dateTime,
           dateLabel,
           title: p.title,
-          excerpt:
-            typeof p.description === "string" && p.description.trim()
-              ? p.description.trim()
-              : "Откройте материал, чтобы прочитать полную статью по теме каталогизации.",
+          excerpt: excerptFromArticleDescription(p.description),
+          articleKind: p.articleKind,
         };
       });
     return articles;
@@ -176,132 +165,95 @@ export default async function ArticlesPage({ searchParams }: ArticlesPageProps) 
   const pagedPosts = posts.slice((pageSafe - 1) * POSTS_PER_PAGE, pageSafe * POSTS_PER_PAGE);
 
   return (
-    <div className="bg-slate-100 text-slate-900">
-      <div className="px-4 py-10 sm:px-6 lg:px-10">
-        <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-6">
-        <section className="bg-transparent p-0 text-[#496db3]">
-          <nav
-            aria-label="Хлебные крошки"
-            className="mb-5 flex flex-wrap items-center gap-1.5 text-sm text-slate-500"
-          >
-            <Link
-              href="/"
-              className="inline-flex items-center rounded p-1 hover:bg-slate-200 hover:text-slate-700"
-              aria-label="Главная"
-            >
-              <HomeIcon className="h-4 w-4" />
-            </Link>
-            <ChevronRightIcon className="h-4 w-4 text-slate-400" />
-            <span className="rounded px-1 py-0.5 text-slate-700">Статьи</span>
-          </nav>
-
-          <div
-            className="mb-4 flex items-center justify-center text-[13px] font-semibold tracking-tight"
-            style={{ fontSize: "clamp(10px, 1.2vw, 16px)" }}
-          >
-            <h1
-              className="text-center uppercase text-[#496db3]"
-              style={{
-                fontSize: "230%",
-                lineHeight: 1.1,
-                fontWeight: 950,
-                textShadow:
-                  "0.35px 0 currentColor, -0.35px 0 currentColor, 0 0.35px currentColor, 0 -0.35px currentColor",
-              }}
-            >
-              Статьи
+    <div className="min-h-screen bg-slate-100 text-slate-900">
+      <div className="mx-auto max-w-7xl px-6 py-8 sm:py-10 lg:px-8">
+        <section className="bg-transparent py-0 about-template-fallback">
+          <div className="mx-auto mt-0 max-w-3xl text-center">
+            <h1 className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-base font-semibold text-[#b91c1c]">
+              Новости
             </h1>
-          </div>
-
-          <div className="mb-4" style={{ fontSize: "clamp(13px, 0.7vw, 14px)" }}>
-            <p
-              className="whitespace-pre-wrap text-center font-semibold text-[#496db3]"
-              style={{ fontSize: "112%", lineHeight: 1.35 }}
-            >
-              Мы постоянно готовим для вас полезные материалы — практические заметки, разборы и советы, которые помогут в
-              работе и сделают повседневные задачи понятнее.
+            <p className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-pretty sm:-mt-2">
+              Актуальная информация
+            </p>
+            <p className="mt-6 text-pretty text-sm font-medium text-slate-600 sm:text-base">
+              Полезные материалы по каталогизации и анализу данных — советы и разборы кейсов, которые помогут быстрее
+              пройти согласования и избежать ошибок.
             </p>
           </div>
 
           {posts.length > 0 ? (
-            <div className="mt-4">
-              <HomeServicesFolderCards
-                equalHeight
-                ctaLabel="Подробнее"
-                limit={POSTS_PER_PAGE}
-                cards={pagedPosts.map((p) => ({
-                  slugPath: p.href.replace(/^\/+/u, ""),
-                  label: p.title,
-                  description: `${p.dateLabel}\n\n${p.excerpt}`,
-                  preview: p.image,
-                }))}
-              />
-              <style>{`
-                .why-us-grid {
-                  grid-template-columns: 1fr;
-                  align-items: stretch;
-                }
-                @media (min-width: 768px) {
-                  .why-us-grid {
-                    grid-template-columns: repeat(2, minmax(0, 1fr));
-                  }
-                }
-                @media (min-width: 1024px) {
-                  .why-us-grid {
-                    grid-template-columns: repeat(4, minmax(0, 1fr));
-                  }
-                }
-              `}</style>
-            </div>
+            <>
+              <div className="mt-10 max-w-none">
+                <ul className="grid list-none grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-3 lg:gap-x-8 lg:gap-y-10">
+                  {pagedPosts.map((p) => (
+                    <li key={p.href} className="min-w-0">
+                      <ArticleTeaserCard
+                        href={p.href}
+                        previewUrl={p.previewUrl}
+                        dateTime={p.dateTime}
+                        dateLabel={p.dateLabel}
+                        title={p.title}
+                        excerpt={p.excerpt}
+                        articleKind={p.articleKind}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {totalPages > 1 ? (
+                <nav
+                  className="mt-12 flex flex-wrap items-center justify-center gap-2"
+                  aria-label="Пагинация новостей"
+                >
+                  <Link
+                    href={pageSafe > 1 ? `/articles?page=${pageSafe - 1}` : "/articles?page=1"}
+                    aria-disabled={pageSafe <= 1}
+                    className={`inline-flex items-center rounded-full px-4 py-2 text-[13px] font-semibold transition ${
+                      pageSafe <= 1
+                        ? "cursor-not-allowed bg-slate-200 text-slate-400"
+                        : "bg-[#496db3] text-white hover:bg-[#3f5f9d]"
+                    }`}
+                  >
+                    Назад
+                  </Link>
+
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+                    <Link
+                      key={n}
+                      href={n === 1 ? "/articles" : `/articles?page=${n}`}
+                      className={`inline-flex h-9 w-9 items-center justify-center rounded-full text-[13px] font-semibold transition ${
+                        n === pageSafe
+                          ? "bg-[#496db3] text-white"
+                          : "bg-white text-[#496db3] ring-1 ring-slate-200 hover:bg-slate-50"
+                      }`}
+                    >
+                      {n}
+                    </Link>
+                  ))}
+
+                  <Link
+                    href={
+                      pageSafe < totalPages ? `/articles?page=${pageSafe + 1}` : `/articles?page=${totalPages}`
+                    }
+                    aria-disabled={pageSafe >= totalPages}
+                    className={`inline-flex items-center rounded-full px-4 py-2 text-[13px] font-semibold transition ${
+                      pageSafe >= totalPages
+                        ? "cursor-not-allowed bg-slate-200 text-slate-400"
+                        : "bg-[#496db3] text-white hover:bg-[#3f5f9d]"
+                    }`}
+                  >
+                    Вперёд
+                  </Link>
+                </nav>
+              ) : null}
+            </>
           ) : (
-            <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
-              Пока нет опубликованных статей в разделе `articles`.
+            <div className="mx-auto mt-10 max-w-xl rounded-xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-sm text-slate-600">
+              Пока нет опубликованных материалов в разделе новостей.
             </div>
           )}
-
-          {posts.length > 0 && totalPages > 1 ? (
-            <nav className="mt-6 flex flex-wrap items-center justify-center gap-2" aria-label="Пагинация статей">
-              <Link
-                href={pageSafe > 1 ? `/articles?page=${pageSafe - 1}` : "/articles?page=1"}
-                aria-disabled={pageSafe <= 1}
-                className={`inline-flex items-center rounded-full px-4 py-2 text-[13px] font-semibold transition ${
-                  pageSafe <= 1
-                    ? "cursor-not-allowed bg-slate-200 text-slate-400"
-                    : "bg-[#496db3] text-white hover:bg-[#3f5f9d]"
-                }`}
-              >
-                Назад
-              </Link>
-
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
-                <Link
-                  key={n}
-                  href={n === 1 ? "/articles" : `/articles?page=${n}`}
-                  className={`inline-flex h-9 w-9 items-center justify-center rounded-full text-[13px] font-semibold transition ${
-                    n === pageSafe
-                      ? "bg-[#496db3] text-white"
-                      : "bg-white text-[#496db3] ring-1 ring-slate-200 hover:bg-slate-50"
-                  }`}
-                >
-                  {n}
-                </Link>
-              ))}
-
-              <Link
-                href={pageSafe < totalPages ? `/articles?page=${pageSafe + 1}` : `/articles?page=${totalPages}`}
-                aria-disabled={pageSafe >= totalPages}
-                className={`inline-flex items-center rounded-full px-4 py-2 text-[13px] font-semibold transition ${
-                  pageSafe >= totalPages
-                    ? "cursor-not-allowed bg-slate-200 text-slate-400"
-                    : "bg-[#496db3] text-white hover:bg-[#3f5f9d]"
-                }`}
-              >
-                Вперёд
-              </Link>
-            </nav>
-          ) : null}
         </section>
-        </div>
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import compression from "compression";
 import { feedbackRouter } from "./routes/feedback";
 import { pagesRouter } from "./routes/pages";
 import { authRouter } from "./routes/auth";
+import { waitForDatabaseReady } from "./prisma";
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -59,9 +60,23 @@ app.use("/api/feedback", feedbackRouter);
 app.use("/api/pages", pagesRouter);
 app.use("/api/auth", authRouter);
 
-app.listen(port, () => {
-  // eslint-disable-next-line no-console
-  console.log(`API server listening on http://localhost:${port}`);
-});
+async function startServer() {
+  try {
+    await waitForDatabaseReady();
+    app.listen(port, () => {
+      // eslint-disable-next-line no-console
+      console.log(`API server listening on http://localhost:${port}`);
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(
+      "[DB] Database is not reachable, server startup aborted:",
+      err instanceof Error ? err.message : String(err),
+    );
+    process.exit(1);
+  }
+}
+
+void startServer();
 
 

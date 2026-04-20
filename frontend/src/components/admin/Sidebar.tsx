@@ -128,7 +128,7 @@ export function AdminSidebar() {
       </aside>
 
       <nav className="fixed inset-x-0 bottom-0 z-[9999] border-t border-slate-200 bg-white/95 px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 shadow-[0_-6px_18px_rgba(15,23,42,0.08)] backdrop-blur md:hidden">
-        <ul className="grid grid-cols-6 gap-1">
+        <ul className="grid grid-cols-7 gap-1">
           <li>
             <Link
               href="/admin/dashboard"

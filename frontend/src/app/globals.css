@@ -1,5 +1,27 @@
 @import "tailwindcss";
 
+/* Fallback до первого кадра с ViewportHeightSync; дальше перезаписывается из JS. */
+:root {
+  --vh: 1vh;
+  --vh-visual: 1vh;
+  /*
+   * Фиксированный зарезервированный под шапку (fixed): верхняя полоса h-7 + nav.
+   * Подстройте при смене вёрстки шапки; для md+ чуть выше из-за lg:py-3.5.
+   */
+  --site-header-offset: 80px;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --site-header-offset: 88px;
+  }
+}
+
+/* padding-top вместо отдельного спейсера — одно значение с max-h баннера */
+.site-main-with-fixed-header {
+  padding-top: var(--site-header-offset);
+}
+
 *,
 *::before,
 *::after {
@@ -22,7 +44,7 @@ body {
   width: 100%;
   max-width: 100%;
   overscroll-behavior-x: none;
-  touch-action: pan-y;
+  /* Не ставить touch-action: pan-y — в WebKit блокирует горизонтальные жесты (карусели) и может давать странные эффекты с интерактивом. */
 }
 
 /* Hide horizontal scrollbar indicator (keep vertical). */
@@ -91,3 +113,243 @@ body::-webkit-scrollbar:horizontal {
 .article-page-content a:hover {
   color: #e53935;
 }
+
+/* Хиро: синий блоб / красный блоб — разные градиенты в разметке.
+   Второй блок имеет классы .hero-police-blob и .hero-police-blob--alt: нужна разная специфичность,
+   иначе одно правило animation перетирает второе и красная фаза пропадает. */
+@keyframes heroPoliceBlobA {
+  0%,
+  24% {
+    opacity: 0.46;
+    filter: brightness(1.08) saturate(1.14);
+  }
+  30% {
+    opacity: 0.4;
+    filter: brightness(1.06) saturate(1.11);
+  }
+  36% {
+    opacity: 0.3;
+    filter: brightness(1.04) saturate(1.08);
+  }
+  42% {
+    opacity: 0.2;
+    filter: brightness(1.02) saturate(1.04);
+  }
+  48% {
+    opacity: 0.12;
+    filter: brightness(1.01) saturate(1.02);
+  }
+  54%,
+  74% {
+    opacity: 0.07;
+    filter: brightness(1) saturate(1);
+  }
+  80% {
+    opacity: 0.14;
+    filter: brightness(1.02) saturate(1.03);
+  }
+  86% {
+    opacity: 0.28;
+    filter: brightness(1.05) saturate(1.08);
+  }
+  92% {
+    opacity: 0.4;
+    filter: brightness(1.07) saturate(1.12);
+  }
+  100% {
+    opacity: 0.46;
+    filter: brightness(1.08) saturate(1.14);
+  }
+}
+
+@keyframes heroPoliceBlobB {
+  0%,
+  24% {
+    opacity: 0.07;
+    filter: brightness(1) saturate(1);
+  }
+  30% {
+    opacity: 0.13;
+    filter: brightness(1.02) saturate(1.03);
+  }
+  36% {
+    opacity: 0.22;
+    filter: brightness(1.04) saturate(1.07);
+  }
+  42% {
+    opacity: 0.32;
+    filter: brightness(1.06) saturate(1.1);
+  }
+  48% {
+    opacity: 0.4;
+    filter: brightness(1.07) saturate(1.12);
+  }
+  54%,
+  74% {
+    opacity: 0.46;
+    filter: brightness(1.08) saturate(1.14);
+  }
+  80% {
+    opacity: 0.36;
+    filter: brightness(1.06) saturate(1.1);
+  }
+  86% {
+    opacity: 0.22;
+    filter: brightness(1.03) saturate(1.05);
+  }
+  92% {
+    opacity: 0.12;
+    filter: brightness(1.01) saturate(1.02);
+  }
+  100% {
+    opacity: 0.07;
+    filter: brightness(1) saturate(1);
+  }
+}
+
+.hero-police-blob {
+  will-change: opacity, filter;
+}
+
+.hero-police-blob:not(.hero-police-blob--alt) {
+  animation: heroPoliceBlobA 4.25s linear infinite;
+}
+
+.hero-police-blob.hero-police-blob--alt {
+  animation: heroPoliceBlobB 4.25s linear infinite;
+}
+
+@keyframes topInfoCubeFlip {
+  0% {
+    opacity: 0;
+    transform: rotateX(-90deg) translateY(-0.2rem);
+  }
+  38% {
+    opacity: 1;
+    transform: rotateX(0deg) translateY(0);
+  }
+  100% {
+    opacity: 1;
+    transform: rotateX(0deg) translateY(0);
+  }
+}
+
+.top-info-cube {
+  perspective: 700px;
+}
+
+.top-info-cube__text {
+  display: inline-block;
+  transform-origin: 50% 50%;
+  backface-visibility: hidden;
+  transition:
+    transform 0.22s cubic-bezier(0.2, 0.6, 0.35, 1),
+    opacity 0.22s cubic-bezier(0.2, 0.6, 0.35, 1);
+  transform: rotateX(0deg) translateY(0);
+  opacity: 1;
+}
+
+.top-info-cube__text--flipping {
+  transform: rotateX(-90deg) translateY(-0.2rem);
+  opacity: 0;
+}
+
+/* Главная: было в page.tsx как <style> — инлайн-стиль в дереве React давал hydration mismatch (SSR vs клиент). */
+.about-template-fallback {
+  background: transparent;
+}
+
+/* Красный подписи секций — приглушённее яркого #e62b30 в логотипе */
+.about-template-fallback__eyebrow {
+  color: #b91c1c;
+  font-size: 1rem;
+  line-height: 1.75;
+  font-weight: 600;
+}
+
+.about-template-fallback__eyebrow--tight {
+  line-height: 1;
+}
+
+/* Заголовок секции — как h1 в баннере (text-[#496db3]) */
+.about-template-fallback__title {
+  color: #496db3;
+  font-size: 1.875rem; /* text-3xl */
+  line-height: 2.25rem;
+  letter-spacing: -0.025em; /* tracking-tight */
+  font-weight: 600; /* font-semibold */
+}
+
+.about-template-fallback__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2.5rem 2rem;
+}
+
+.about-template-fallback__item {
+  box-sizing: border-box;
+}
+
+.about-template-fallback__icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+  border-radius: 0.5rem;
+  background: rgba(73, 109, 179, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.about-template-fallback__icon-glyph {
+  width: 1.5rem;
+  height: 1.5rem;
+  min-width: 1.5rem;
+  min-height: 1.5rem;
+  flex-shrink: 0;
+  color: #496db3;
+  stroke: #496db3;
+}
+
+.about-template-fallback__dt {
+  color: #111827;
+  font-size: 1rem;
+  line-height: 1.75;
+  font-weight: 600;
+}
+
+.about-template-fallback__dd {
+  color: #4b5563;
+  font-size: 1rem;
+  line-height: 1.75;
+}
+
+@media (min-width: 640px) {
+  .about-template-fallback__title {
+    font-size: 3rem; /* sm:text-5xl */
+    line-height: 1;
+  }
+}
+
+@media (min-width: 1024px) {
+  .about-template-fallback__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4rem 2rem;
+  }
+}
+
+.services-home-grid {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: 1fr;
+}
+
+/* Две колонки с md: на узких экранах карточка-баннер слишком узкая для левой панели */
+@media (min-width: 768px) {
+  .services-home-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+

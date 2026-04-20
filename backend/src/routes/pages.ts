@@ -27,15 +27,41 @@ type PageListForApi = {
   updatedAt: Date;
   description?: string | null;
   preview?: string | null;
+  keywords?: string | null;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
   blocks: { type: string; data: unknown }[];
 };
+
+const PAGE_TITLE_MAX = 60;
+const PAGE_DESCRIPTION_MAX = 160;
+const PAGE_KEYWORDS_MAX = 400;
+const SEO_TITLE_MAX = 60;
+const SEO_DESCRIPTION_MAX = 160;
+
+function sanitizeTextField(value: unknown, max: number): string {
+  if (typeof value !== "string") return "";
+  return value.trim().slice(0, max);
+}
+
+/** Тип материала в разделе «Новости»: новость или статья (блок article_kind). */
+function normalizeArticleKind(value: unknown): "news" | "article" {
+  return value === "article" ? "article" : "news";
+}
 
 function mapPagesToListJson(pages: PageListForApi[], preferDbColumns: boolean) {
   return pages.map((p) => {
     const summary = p.blocks?.find((b) => b.type === "summary");
     const previewBlock = p.blocks?.find((b) => b.type === "preview");
+    const keywordsBlock = p.blocks?.find((b) => b.type === "keywords");
+    const seoTitleBlock = p.blocks?.find((b) => b.type === "seo_title");
+    const seoDescriptionBlock = p.blocks?.find((b) => b.type === "seo_description");
     const fromSummary = (summary?.data as { text?: string } | undefined)?.text;
     const fromPreview = (previewBlock?.data as { src?: string } | undefined)?.src;
+    const fromKeywords = (keywordsBlock?.data as { text?: string } | undefined)?.text;
+    const fromSeoTitle = (seoTitleBlock?.data as { text?: string } | undefined)?.text;
+    const fromSeoDescription =
+      (seoDescriptionBlock?.data as { text?: string } | undefined)?.text;
     const description =
       preferDbColumns &&
       typeof p.description === "string" &&
@@ -52,6 +78,24 @@ function mapPagesToListJson(pages: PageListForApi[], preferDbColumns: boolean) {
         : typeof fromPreview === "string"
           ? fromPreview
           : null;
+    const keywords = typeof fromKeywords === "string" ? fromKeywords : null;
+    const seoTitle = typeof fromSeoTitle === "string" ? fromSeoTitle : null;
+    const seoDescription = typeof fromSeoDescription === "string" ? fromSeoDescription : null;
+    const articleKindBlock = p.blocks?.find((b) => b.type === "article_kind");
+    const rawKind = (articleKindBlock?.data as { kind?: string } | undefined)?.kind;
+    const slugLower = String(p.slug ?? "")
+      .trim()
+      .replace(/\\/g, "/")
+      .replace(/\/+/g, "/")
+      .toLowerCase();
+    const underArticles =
+      slugLower === "articles" || slugLower.startsWith("articles/");
+    let articleKind: "news" | "article" | undefined;
+    if (articleKindBlock) {
+      articleKind = rawKind === "article" ? "article" : "news";
+    } else if (underArticles) {
+      articleKind = "news";
+    }
     return {
       id: p.id,
       title: p.title,
@@ -61,6 +105,10 @@ function mapPagesToListJson(pages: PageListForApi[], preferDbColumns: boolean) {
       updatedAt: p.updatedAt,
       description,
       preview,
+      keywords,
+      seoTitle,
+      seoDescription,
+      ...(articleKind ? { articleKind } : {}),
     };
   });
 }
@@ -68,8 +116,17 @@ function mapPagesToListJson(pages: PageListForApi[], preferDbColumns: boolean) {
 type BannerSlide = {
   id: string;
   title: string;
+  announcementText?: string;
+  bannerType?: "hero" | "image" | "split";
+  showAnnouncement?: boolean;
+  showLearnMore?: boolean;
+  showAnnouncementLearnMore?: boolean;
+  showBottomLearnMore?: boolean;
   subtitle?: string;
   buttonText?: string;
+  learnMoreText?: string;
+  announcementLearnMoreText?: string;
+  announcementLearnMoreHref?: string;
   buttonHref?: string;
   showTitle?: boolean;
   showSubtitle?: boolean;
@@ -169,7 +226,34 @@ type SiteSettings = {
     kpp: string;
     ogrn: string;
   };
+  documents: {
+    name: string;
+    size: number;
+    dataUrl: string;
+  }[];
+  topRibbonMessages: string[];
+  director: {
+    name: string;
+    role: string;
+    message: string;
+    photo: string | null;
+  };
+  teamMembers: {
+    name: string;
+    role: string;
+    photo: string | null;
+  }[];
 };
+
+const SITE_DOCUMENTS_MAX = 3;
+const SITE_DOCUMENT_MAX_BYTES = 20 * 1024 * 1024;
+const TOP_RIBBON_MESSAGES_MAX = 8;
+const TOP_RIBBON_MESSAGE_MAX_LEN = 58;
+const TOP_RIBBON_ALLOWED_RE = /[^0-9A-Za-zА-Яа-яЁё\s.,:;!?()[\]{}"'`«»\-_/+&@#%№]/g;
+const DIRECTOR_TEXT_MAX = 1000;
+const TEAM_MEMBERS_MAX = 12;
+const TEAM_MEMBER_TEXT_MAX = 120;
+const TEAM_MEMBER_PHOTO_MAX_BYTES = 8 * 1024 * 1024;
 
 const DEFAULT_SITE_SETTINGS: SiteSettings = {
   email: "info@центр-каталогизации.рф",
@@ -187,7 +271,120 @@ const DEFAULT_SITE_SETTINGS: SiteSettings = {
     kpp: "000000000",
     ogrn: "0000000000000",
   },
+  documents: [],
+  topRibbonMessages: [
+    "Получите консультацию по каталогизации и обучению.",
+    "Сопровождаем проекты от заявки до финального согласования.",
+    "Поможем подобрать формат обучения для вашей команды.",
+  ],
+  director: {
+    name: "",
+    role: "Директор",
+    message: "",
+    photo: null,
+  },
+  teamMembers: [],
 };
+
+function sanitizeSiteDocuments(value: unknown): SiteSettings["documents"] {
+  if (!Array.isArray(value)) return [];
+  const out: SiteSettings["documents"] = [];
+  const seen = new Set<string>();
+  for (const raw of value) {
+    if (out.length >= SITE_DOCUMENTS_MAX) break;
+    if (typeof raw !== "object" || raw === null) continue;
+    const item = raw as { name?: unknown; size?: unknown; dataUrl?: unknown };
+    const name = typeof item.name === "string" ? item.name.trim() : "";
+    const sizeNum = typeof item.size === "number" ? item.size : Number(item.size);
+    const dataUrl = typeof item.dataUrl === "string" ? item.dataUrl.trim() : "";
+    if (!name || !Number.isFinite(sizeNum) || sizeNum <= 0 || sizeNum > SITE_DOCUMENT_MAX_BYTES) continue;
+    if (!/^data:application\/pdf;base64,/i.test(dataUrl)) continue;
+    const key = `${name}:${Math.round(sizeNum)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      name,
+      size: Math.round(sizeNum),
+      dataUrl,
+    });
+  }
+  return out;
+}
+
+function sanitizeTopRibbonMessages(value: unknown): string[] {
+  if (!Array.isArray(value)) return DEFAULT_SITE_SETTINGS.topRibbonMessages;
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of value) {
+    if (out.length >= TOP_RIBBON_MESSAGES_MAX) break;
+    if (typeof raw !== "string") continue;
+    const text = raw
+      .replace(/\s+/g, " ")
+      .replace(TOP_RIBBON_ALLOWED_RE, "")
+      .trim()
+      .slice(0, TOP_RIBBON_MESSAGE_MAX_LEN);
+    if (!text) continue;
+    if (seen.has(text)) continue;
+    seen.add(text);
+    out.push(text);
+  }
+  return out.length > 0 ? out : DEFAULT_SITE_SETTINGS.topRibbonMessages;
+}
+
+function sanitizeTeamMembers(value: unknown): SiteSettings["teamMembers"] {
+  if (!Array.isArray(value)) return [];
+  const out: SiteSettings["teamMembers"] = [];
+  const seen = new Set<string>();
+  const imageDataUrlRe = /^data:image\/(?:webp|png|jpe?g|gif);base64,([a-z0-9+/=]+)$/i;
+  for (const raw of value) {
+    if (out.length >= TEAM_MEMBERS_MAX) break;
+    if (typeof raw !== "object" || raw === null) continue;
+    const item = raw as { name?: unknown; role?: unknown; photo?: unknown };
+    const name = typeof item.name === "string" ? item.name.trim().slice(0, TEAM_MEMBER_TEXT_MAX) : "";
+    const role = typeof item.role === "string" ? item.role.trim().slice(0, TEAM_MEMBER_TEXT_MAX) : "";
+    const photoRaw = typeof item.photo === "string" ? item.photo.trim() : "";
+    const match = photoRaw.match(imageDataUrlRe);
+    let photo: string | null = null;
+    if (match) {
+      const base64Payload = match[1] ?? "";
+      const approxBytes = Math.floor((base64Payload.length * 3) / 4);
+      if (approxBytes > 0 && approxBytes <= TEAM_MEMBER_PHOTO_MAX_BYTES) {
+        photo = photoRaw;
+      }
+    }
+    if (!name && !role && !photo) continue;
+    const key = `${name}|${role}|${photo ? "1" : "0"}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ name, role, photo });
+  }
+  return out;
+}
+
+function sanitizeDirector(value: unknown): SiteSettings["director"] {
+  if (typeof value !== "object" || value === null) return DEFAULT_SITE_SETTINGS.director;
+  const item = value as { name?: unknown; role?: unknown; message?: unknown; photo?: unknown };
+  const name = typeof item.name === "string" ? item.name.trim().slice(0, TEAM_MEMBER_TEXT_MAX) : "";
+  const role =
+    typeof item.role === "string"
+      ? item.role.trim().slice(0, TEAM_MEMBER_TEXT_MAX)
+      : DEFAULT_SITE_SETTINGS.director.role;
+  const message =
+    typeof item.message === "string"
+      ? item.message.trim().slice(0, DIRECTOR_TEXT_MAX)
+      : DEFAULT_SITE_SETTINGS.director.message;
+  const photoRaw = typeof item.photo === "string" ? item.photo.trim() : "";
+  const match = photoRaw.match(/^data:image\/(?:webp|png|jpe?g|gif);base64,([a-z0-9+/=]+)$/i);
+  let photo: string | null = null;
+  if (match) {
+    const base64Payload = match[1] ?? "";
+    const approxBytes = Math.floor((base64Payload.length * 3) / 4);
+    if (approxBytes > 0 && approxBytes <= TEAM_MEMBER_PHOTO_MAX_BYTES) {
+      photo = photoRaw;
+    }
+  }
+  return { name, role, message, photo };
+}
 
 const sortBlocksByOrder = <T extends { order: number }>(blocks: T[]) =>
   [...blocks].sort((a, b) => a.order - b.order);
@@ -294,6 +491,21 @@ function normalizeBannerLineHeight(v: unknown): number {
   return 1.2;
 }
 
+function normalizeLearnMoreText(value: unknown): string {
+  if (typeof value !== "string") return "Learn more";
+  const cleaned = value.replace(/\s*[→➝➡➜]+\s*$/u, "").trim();
+  return cleaned.length > 0 ? cleaned : "Learn more";
+}
+
+function parseBannerType(value: unknown, hasImage: boolean): "hero" | "image" | "split" {
+  if (value === "hero" || value === "image" || value === "split") return value;
+  if (typeof value === "string") {
+    const t = value.trim().toLowerCase();
+    if (t === "hero" || t === "image" || t === "split") return t;
+  }
+  return hasImage ? "image" : "hero";
+}
+
 function normalizeFontWeight(value: unknown, fallback: number): number {
   const n = coerceToFiniteNumber(value);
   if (n === undefined) return fallback;
@@ -312,8 +524,65 @@ function sanitizeBannerSlide(item: Record<string, unknown>): BannerSlide {
   return {
     id: String(item.id ?? ""),
     title: String(item.title ?? ""),
+    announcementText:
+      typeof item.announcementText === "string"
+        ? item.announcementText
+        : typeof (item as { announcement_text?: unknown }).announcement_text === "string"
+          ? String((item as { announcement_text?: string }).announcement_text)
+          : "Announcing our next round of funding.",
+    bannerType: parseBannerType(
+      (item as { bannerType?: unknown }).bannerType ??
+        (item as { banner_type?: unknown }).banner_type,
+      typeof item.image === "string" && item.image.trim().length > 0,
+    ),
     subtitle: typeof item.subtitle === "string" ? item.subtitle : "",
     buttonText: typeof item.buttonText === "string" ? item.buttonText : "",
+    learnMoreText:
+      typeof (item as { learnMoreText?: unknown }).learnMoreText === "string"
+        ? normalizeLearnMoreText((item as { learnMoreText?: string }).learnMoreText)
+        : typeof (item as { learn_more_text?: unknown }).learn_more_text === "string"
+          ? normalizeLearnMoreText((item as { learn_more_text?: string }).learn_more_text)
+          : "Learn more",
+    announcementLearnMoreText:
+      typeof (item as { announcementLearnMoreText?: unknown }).announcementLearnMoreText === "string"
+        ? normalizeLearnMoreText(
+            (item as { announcementLearnMoreText?: string }).announcementLearnMoreText,
+          )
+        : typeof (item as { announcement_learn_more_text?: unknown }).announcement_learn_more_text === "string"
+          ? normalizeLearnMoreText(
+              (item as { announcement_learn_more_text?: string }).announcement_learn_more_text,
+            )
+          : typeof (item as { learnMoreText?: unknown }).learnMoreText === "string"
+            ? normalizeLearnMoreText((item as { learnMoreText?: string }).learnMoreText)
+            : "Learn more",
+    showAnnouncement:
+      typeof (item as { showAnnouncement?: unknown }).showAnnouncement === "boolean"
+        ? ((item as { showAnnouncement?: boolean }).showAnnouncement as boolean)
+        : true,
+    showLearnMore:
+      typeof (item as { showLearnMore?: unknown }).showLearnMore === "boolean"
+        ? ((item as { showLearnMore?: boolean }).showLearnMore as boolean)
+        : true,
+    showAnnouncementLearnMore:
+      typeof (item as { showAnnouncementLearnMore?: unknown }).showAnnouncementLearnMore === "boolean"
+        ? ((item as { showAnnouncementLearnMore?: boolean }).showAnnouncementLearnMore as boolean)
+        : typeof (item as { showLearnMore?: unknown }).showLearnMore === "boolean"
+          ? ((item as { showLearnMore?: boolean }).showLearnMore as boolean)
+          : true,
+    showBottomLearnMore:
+      typeof (item as { showBottomLearnMore?: unknown }).showBottomLearnMore === "boolean"
+        ? ((item as { showBottomLearnMore?: boolean }).showBottomLearnMore as boolean)
+        : typeof (item as { showLearnMore?: unknown }).showLearnMore === "boolean"
+          ? ((item as { showLearnMore?: boolean }).showLearnMore as boolean)
+          : true,
+    announcementLearnMoreHref:
+      typeof (item as { announcementLearnMoreHref?: unknown }).announcementLearnMoreHref === "string"
+        ? (item as { announcementLearnMoreHref?: string }).announcementLearnMoreHref ?? ""
+        : typeof (item as { announcement_learn_more_href?: unknown }).announcement_learn_more_href === "string"
+          ? (item as { announcement_learn_more_href?: string }).announcement_learn_more_href ?? ""
+          : typeof item.buttonHref === "string"
+            ? item.buttonHref
+            : "",
     buttonHref: typeof item.buttonHref === "string" ? item.buttonHref : "",
     showTitle: typeof item.showTitle === "boolean" ? item.showTitle : true,
     showSubtitle:
@@ -608,6 +877,12 @@ async function readSiteSettingsFromFile(): Promise<SiteSettings> {
     const parsed = JSON.parse(raw) as Partial<SiteSettings>;
     const social = (parsed?.social ?? {}) as Partial<SiteSettings["social"]>;
     const requisites = (parsed?.requisites ?? {}) as Partial<SiteSettings["requisites"]>;
+    const documents = sanitizeSiteDocuments((parsed as { documents?: unknown })?.documents);
+    const topRibbonMessages = sanitizeTopRibbonMessages(
+      (parsed as { topRibbonMessages?: unknown })?.topRibbonMessages,
+    );
+    const director = sanitizeDirector((parsed as { director?: unknown })?.director);
+    const teamMembers = sanitizeTeamMembers((parsed as { teamMembers?: unknown })?.teamMembers);
     return {
       email: typeof parsed?.email === "string" ? parsed.email.trim() : DEFAULT_SITE_SETTINGS.email,
       phone: typeof parsed?.phone === "string" ? parsed.phone.trim() : DEFAULT_SITE_SETTINGS.phone,
@@ -637,6 +912,10 @@ async function readSiteSettingsFromFile(): Promise<SiteSettings> {
         kpp: typeof requisites.kpp === "string" ? requisites.kpp.trim() : DEFAULT_SITE_SETTINGS.requisites.kpp,
         ogrn: typeof requisites.ogrn === "string" ? requisites.ogrn.trim() : DEFAULT_SITE_SETTINGS.requisites.ogrn,
       },
+      documents,
+      topRibbonMessages,
+      director,
+      teamMembers,
     };
   } catch {
     return DEFAULT_SITE_SETTINGS;
@@ -826,6 +1105,12 @@ pagesRouter.put("/site-settings", async (req, res) => {
   const s = input as Partial<SiteSettings>;
   const social = (s.social ?? {}) as Partial<SiteSettings["social"]>;
   const requisites = (s.requisites ?? {}) as Partial<SiteSettings["requisites"]>;
+  const documents = sanitizeSiteDocuments((s as { documents?: unknown })?.documents);
+  const topRibbonMessages = sanitizeTopRibbonMessages(
+    (s as { topRibbonMessages?: unknown })?.topRibbonMessages,
+  );
+  const director = sanitizeDirector((s as { director?: unknown })?.director);
+  const teamMembers = sanitizeTeamMembers((s as { teamMembers?: unknown })?.teamMembers);
   const next: SiteSettings = {
     email: typeof s.email === "string" ? s.email.trim() : DEFAULT_SITE_SETTINGS.email,
     phone: typeof s.phone === "string" ? s.phone.trim() : DEFAULT_SITE_SETTINGS.phone,
@@ -850,6 +1135,10 @@ pagesRouter.put("/site-settings", async (req, res) => {
       kpp: typeof requisites.kpp === "string" ? requisites.kpp.trim() : DEFAULT_SITE_SETTINGS.requisites.kpp,
       ogrn: typeof requisites.ogrn === "string" ? requisites.ogrn.trim() : DEFAULT_SITE_SETTINGS.requisites.ogrn,
     },
+    documents,
+    topRibbonMessages,
+    director,
+    teamMembers,
   };
 
   await writeSiteSettingsToFile(next);
@@ -859,9 +1148,20 @@ pagesRouter.put("/site-settings", async (req, res) => {
 // Get list of pages
 pagesRouter.get("/", async (_req, res, next) => {
   const blockSubset = {
-    where: { type: { in: ["summary", "preview"] } },
+    where: {
+      type: {
+        in: [
+          "summary",
+          "preview",
+          "keywords",
+          "seo_title",
+          "seo_description",
+          "article_kind",
+        ],
+      },
+    },
     select: { type: true, data: true },
-    take: 2,
+    take: 8,
   };
 
   const selectWithColumns = {
@@ -960,9 +1260,21 @@ pagesRouter.get("/:id", async (req, res) => {
 
 // Create page with blocks
 pagesRouter.post("/", async (req, res) => {
-  const { title, slug, status = "DRAFT", blocks = [], description, preview } = req.body ?? {};
+  const {
+    title,
+    slug,
+    status = "DRAFT",
+    blocks = [],
+    description,
+    preview,
+    keywords,
+    seoTitle,
+    seoDescription,
+  } = req.body ?? {};
 
-  if (!title || !slug) {
+  const titleValue = sanitizeTextField(title, PAGE_TITLE_MAX);
+  const slugValue = typeof slug === "string" ? slug.trim() : "";
+  if (!titleValue || !slugValue) {
     return res.status(400).json({ error: "title and slug are required" });
   }
 
@@ -1004,8 +1316,11 @@ pagesRouter.post("/", async (req, res) => {
         data,
       });
     }
-    const descriptionValue = typeof description === "string" ? description.trim() : "";
+    const descriptionValue = sanitizeTextField(description, PAGE_DESCRIPTION_MAX);
     const previewValue = typeof preview === "string" ? preview.trim() : "";
+    const keywordsValue = sanitizeTextField(keywords, PAGE_KEYWORDS_MAX);
+    const seoTitleValue = sanitizeTextField(seoTitle, SEO_TITLE_MAX);
+    const seoDescriptionValue = sanitizeTextField(seoDescription, SEO_DESCRIPTION_MAX);
     if (descriptionValue) {
       initialBlocks.push({
         type: "summary",
@@ -1020,10 +1335,42 @@ pagesRouter.post("/", async (req, res) => {
         data: { src: previewValue },
       });
     }
+    if (keywordsValue) {
+      initialBlocks.push({
+        type: "keywords",
+        order: initialBlocks.length,
+        data: { text: keywordsValue },
+      });
+    }
+    if (seoTitleValue) {
+      initialBlocks.push({
+        type: "seo_title",
+        order: initialBlocks.length,
+        data: { text: seoTitleValue },
+      });
+    }
+    if (seoDescriptionValue) {
+      initialBlocks.push({
+        type: "seo_description",
+        order: initialBlocks.length,
+        data: { text: seoDescriptionValue },
+      });
+    }
+
+    const slugLower = slugValue.toLowerCase().replace(/\\/g, "/").replace(/\/+/g, "/");
+    const underArticles = slugLower === "articles" || slugLower.startsWith("articles/");
+    if (underArticles) {
+      const articleKindInput = normalizeArticleKind((req.body as { articleKind?: unknown })?.articleKind);
+      initialBlocks.push({
+        type: "article_kind",
+        order: initialBlocks.length,
+        data: { kind: articleKindInput },
+      });
+    }
 
     const createPayload = {
-      title,
-      slug,
+      title: titleValue,
+      slug: slugValue,
       status,
       authorId,
       blocks: {
@@ -1111,9 +1458,19 @@ pagesRouter.put("/:id", async (req, res) => {
     return res.status(400).json({ error: "Invalid id" });
   }
 
-  const { title, slug, text, description, preview } = req.body ?? {};
-  if (!title || !slug) {
+  const { title, slug, text, description, preview, keywords, seoTitle, seoDescription, status, articleKind } =
+    req.body ?? {};
+  const titleValue = sanitizeTextField(title, PAGE_TITLE_MAX);
+  const slugValue = typeof slug === "string" ? slug.trim() : "";
+  if (!titleValue || !slugValue) {
     return res.status(400).json({ error: "title and slug are required" });
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(req.body ?? {}, "status") &&
+    status !== "DRAFT" &&
+    status !== "PUBLISHED"
+  ) {
+    return res.status(400).json({ error: "invalid_status" });
   }
 
   try {
@@ -1121,12 +1478,29 @@ pagesRouter.put("/:id", async (req, res) => {
     const hasText = Object.prototype.hasOwnProperty.call(body, "text");
     const hasDescription = Object.prototype.hasOwnProperty.call(body, "description");
     const hasPreview = Object.prototype.hasOwnProperty.call(body, "preview");
+    const hasKeywords = Object.prototype.hasOwnProperty.call(body, "keywords");
+    const hasSeoTitle = Object.prototype.hasOwnProperty.call(body, "seoTitle");
+    const hasSeoDescription = Object.prototype.hasOwnProperty.call(body, "seoDescription");
+    const hasStatus = Object.prototype.hasOwnProperty.call(body, "status");
+    const hasArticleKind = Object.prototype.hasOwnProperty.call(body, "articleKind");
 
     const existing = await prisma.page.findUnique({
       where: { id },
       include: {
         blocks: {
-          where: { type: { in: ["text", "summary", "preview"] } },
+          where: {
+            type: {
+              in: [
+                "text",
+                "summary",
+                "preview",
+                "keywords",
+                "seo_title",
+                "seo_description",
+                "article_kind",
+              ],
+            },
+          },
           select: { id: true, type: true },
         },
       },
@@ -1136,15 +1510,20 @@ pagesRouter.put("/:id", async (req, res) => {
       return res.status(404).json({ error: "Page not found" });
     }
 
-    const descriptionValue = typeof description === "string" ? description.trim() : "";
+    const descriptionValue = sanitizeTextField(description, PAGE_DESCRIPTION_MAX);
     const previewValue = typeof preview === "string" ? preview.trim() : "";
+    const keywordsValue = sanitizeTextField(keywords, PAGE_KEYWORDS_MAX);
+    const seoTitleValue = sanitizeTextField(seoTitle, SEO_TITLE_MAX);
+    const seoDescriptionValue = sanitizeTextField(seoDescription, SEO_DESCRIPTION_MAX);
+    const articleKindValue = normalizeArticleKind(articleKind);
 
     await prisma.page
       .update({
         where: { id },
         data: {
-          title,
-          slug,
+          title: titleValue,
+          slug: slugValue,
+          ...(hasStatus ? { status } : {}),
           ...(hasDescription ? { description: descriptionValue || null } : {}),
           ...(hasPreview ? { preview: previewValue || null } : {}),
         },
@@ -1153,7 +1532,11 @@ pagesRouter.put("/:id", async (req, res) => {
         if (!isMissingDbColumnError(err)) throw err;
         await prisma.page.update({
           where: { id },
-          data: { title, slug },
+          data: {
+            title: titleValue,
+            slug: slugValue,
+            ...(hasStatus ? { status } : {}),
+          },
         });
       });
 
@@ -1232,6 +1615,101 @@ pagesRouter.put("/:id", async (req, res) => {
       } else if (firstPreviewBlock) {
         await prisma.block.deleteMany({
           where: { pageId: id, type: "preview" },
+        });
+      }
+    }
+
+    const firstKeywordsBlock = existing.blocks.find((b) => b.type === "keywords");
+    if (hasKeywords) {
+      if (keywordsValue) {
+        if (firstKeywordsBlock) {
+          await prisma.block.update({
+            where: { id: firstKeywordsBlock.id },
+            data: { data: { text: keywordsValue } },
+          });
+        } else {
+          await prisma.block.create({
+            data: {
+              pageId: id,
+              type: "keywords",
+              order: 0,
+              data: { text: keywordsValue },
+            },
+          });
+        }
+      } else if (firstKeywordsBlock) {
+        await prisma.block.deleteMany({
+          where: { pageId: id, type: "keywords" },
+        });
+      }
+    }
+
+    const firstSeoTitleBlock = existing.blocks.find((b) => b.type === "seo_title");
+    if (hasSeoTitle) {
+      if (seoTitleValue) {
+        if (firstSeoTitleBlock) {
+          await prisma.block.update({
+            where: { id: firstSeoTitleBlock.id },
+            data: { data: { text: seoTitleValue } },
+          });
+        } else {
+          await prisma.block.create({
+            data: {
+              pageId: id,
+              type: "seo_title",
+              order: 0,
+              data: { text: seoTitleValue },
+            },
+          });
+        }
+      } else if (firstSeoTitleBlock) {
+        await prisma.block.deleteMany({
+          where: { pageId: id, type: "seo_title" },
+        });
+      }
+    }
+
+    const firstSeoDescriptionBlock = existing.blocks.find((b) => b.type === "seo_description");
+    if (hasSeoDescription) {
+      if (seoDescriptionValue) {
+        if (firstSeoDescriptionBlock) {
+          await prisma.block.update({
+            where: { id: firstSeoDescriptionBlock.id },
+            data: { data: { text: seoDescriptionValue } },
+          });
+        } else {
+          await prisma.block.create({
+            data: {
+              pageId: id,
+              type: "seo_description",
+              order: 0,
+              data: { text: seoDescriptionValue },
+            },
+          });
+        }
+      } else if (firstSeoDescriptionBlock) {
+        await prisma.block.deleteMany({
+          where: { pageId: id, type: "seo_description" },
+        });
+      }
+    }
+
+    const firstArticleKindBlock = existing.blocks.find((b) => b.type === "article_kind");
+    if (hasArticleKind) {
+      const kindData = { kind: articleKindValue };
+      if (firstArticleKindBlock) {
+        await prisma.block.update({
+          where: { id: firstArticleKindBlock.id },
+          data: { data: kindData },
+        });
+      } else {
+        await prisma.block.create({
+          data: {
+            pageId: id,
+            type: "article_kind",
+            order: 0,
+            data: kindData,
+          },
         });
       }
     }

@@ -7,7 +7,7 @@ import { PublicFolderBreadcrumbLabel } from "@/components/PublicFolderBreadcrumb
 import { HomeServicesFolderCards } from "@/components/HomeServicesFolderCards";
 import { apiGet } from "@/lib/api";
 import { apiPagesSlugRequestPath } from "@/lib/apiPagesSlugUrl";
-import { apiBaseUrl } from "@/lib/apiBaseUrl";
+import { CallbackRequestModal } from "@/components/CallbackRequestModal";
 import {
   buildServicesTree,
   findServiceTreeNode,
@@ -70,6 +70,13 @@ type PageData = {
   blocks: Block[];
 };
 
+function getBlockText(page: PageData | null, type: string): string {
+  if (!page) return "";
+  const block = page.blocks.find((b) => b.type === type);
+  if (!block) return "";
+  return typeof block.data?.text === "string" ? block.data.text.trim() : "";
+}
+
 const CALLBACK_FORM_LINK = "callback://open";
 
 export default function Page() {
@@ -86,12 +93,6 @@ export default function Page() {
   const [serviceFolderHub, setServiceFolderHub] = useState<ServiceTreeNode | null>(null);
   const [loading, setLoading] = useState(true);
   const [callbackModalOpen, setCallbackModalOpen] = useState(false);
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
-  const [errorText, setErrorText] = useState("");
   const folderSlug = slugParts.length > 1 ? slugParts[0] : null;
   const folderTitle = folderSlug
     ? decodeURIComponent(folderSlug)
@@ -171,6 +172,62 @@ export default function Page() {
     };
   }, [slugParts]);
 
+  useEffect(() => {
+    if (!page) return;
+
+    const seoTitle = getBlockText(page, "seo_title") || page.title;
+    const seoDescription =
+      getBlockText(page, "seo_description") || getBlockText(page, "summary");
+    const seoKeywords = getBlockText(page, "keywords");
+    const previousTitle = document.title;
+    const ensureMeta = (name: string): HTMLMetaElement => {
+      const existing = document.querySelector(`meta[name="${name}"]`) as HTMLMetaElement | null;
+      if (existing) return existing;
+      const created = document.createElement("meta");
+      created.setAttribute("name", name);
+      document.head.appendChild(created);
+      return created;
+    };
+    const ensureCanonical = (): HTMLLinkElement => {
+      const existing = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+      if (existing) return existing;
+      const created = document.createElement("link");
+      created.setAttribute("rel", "canonical");
+      document.head.appendChild(created);
+      return created;
+    };
+    const canonicalHref = `${window.location.origin}/${page.slug.replace(/^\/+/, "")}`;
+    const descriptionMeta = ensureMeta("description");
+    const keywordsMeta = ensureMeta("keywords");
+    const canonicalLink = ensureCanonical();
+    const previousDescription = descriptionMeta.getAttribute("content");
+    const previousKeywords = keywordsMeta.getAttribute("content");
+    const previousCanonical = canonicalLink.getAttribute("href");
+
+    document.title = seoTitle || page.title || previousTitle;
+    canonicalLink.setAttribute("href", canonicalHref);
+    if (descriptionMeta && seoDescription) {
+      descriptionMeta.setAttribute("content", seoDescription);
+    }
+    if (keywordsMeta && seoKeywords) {
+      keywordsMeta.setAttribute("content", seoKeywords);
+    }
+
+    return () => {
+      document.title = previousTitle;
+      if (descriptionMeta) {
+        descriptionMeta.setAttribute("content", previousDescription ?? "");
+      }
+      if (keywordsMeta) {
+        keywordsMeta.setAttribute("content", previousKeywords ?? "");
+      }
+      if (canonicalLink) {
+        if (previousCanonical) canonicalLink.setAttribute("href", previousCanonical);
+        else canonicalLink.removeAttribute("href");
+      }
+    };
+  }, [page]);
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100 text-slate-900">
@@ -182,11 +239,11 @@ export default function Page() {
   if (!page && serviceFolderHub) {
     const sectionDescription =
       serviceFolderHub.description?.trim() ||
-      "Закрываем задачи «под ключ» в области классификации и анализа данных: от методики и каталогизации до сопровождения согласований — чтобы вы получали понятный результат в срок и без лишних рисков.";
+      "Закрываем задачи «под ключ» в области каталогизации и анализа данных: от методики до сопровождения согласований — чтобы вы получали понятный результат в срок и без лишних рисков.";
 
     return (
       <div className="bg-slate-100 text-slate-900">
-        <div className="px-4 py-10 sm:px-6 lg:px-10">
+        <div className="px-4 py-6 sm:px-6 lg:px-10">
           <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-6">
             <section className="bg-transparent p-0">
               <nav
@@ -293,39 +350,6 @@ export default function Page() {
     );
   }
 
-  async function submitCallbackForm(e: React.FormEvent) {
-    e.preventDefault();
-    setErrorText("");
-    setStatus("sending");
-    try {
-      const name = `${firstName} ${lastName}`.trim();
-      const message = "Заявка из кнопки обложки страницы.";
-      const res = await fetch(`${apiBaseUrl()}/api/feedback`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, phone, email, message }),
-      });
-      const data = (await res.json().catch(() => ({}))) as { ok?: boolean };
-      if (!res.ok || !data.ok) {
-        setStatus("error");
-        setErrorText("Не удалось отправить заявку. Проверьте данные и попробуйте снова.");
-        return;
-      }
-      setStatus("success");
-      setFirstName("");
-      setLastName("");
-      setPhone("");
-      setEmail("");
-      window.setTimeout(() => {
-        setCallbackModalOpen(false);
-        setStatus("idle");
-      }, 900);
-    } catch {
-      setStatus("error");
-      setErrorText("Нет связи с сервером. Попробуйте позже.");
-    }
-  }
-
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
       <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
@@ -374,7 +398,13 @@ export default function Page() {
             }}
           >
           {page.blocks.map((block) => {
-            if (block.type === "summary") {
+            if (
+              block.type === "summary" ||
+              block.type === "preview" ||
+              block.type === "keywords" ||
+              block.type === "seo_title" ||
+              block.type === "seo_description"
+            ) {
               return null;
             }
             if (block.type === "text") {
@@ -408,81 +438,11 @@ export default function Page() {
             </p>
           )}
           </main>
-          {callbackModalOpen ? (
-            <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4">
-              <button
-                type="button"
-                className="absolute inset-0 z-0 bg-transparent"
-                style={{ backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}
-                aria-label="Закрыть окно обратной связи"
-                onClick={() => setCallbackModalOpen(false)}
-              />
-              <div className="relative z-10 w-[min(88vw,460px)] max-h-[92dvh] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl sm:p-6">
-                <div className="mb-4 flex items-center justify-between gap-3">
-                  <div className="flex-1 text-center">
-                    <h3 className="text-lg font-black uppercase tracking-tight text-[#496db3]">
-                      Обратный звонок
-                    </h3>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setCallbackModalOpen(false)}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
-                    aria-label="Закрыть"
-                  >
-                    ×
-                  </button>
-                </div>
-                <p className="mb-4 text-[14px] font-semibold leading-[1.55] text-[#496db3]">
-                  Оставьте вашу заявку и наши специалисты свяжутся с вами.
-                </p>
-                <form className="flex flex-col gap-3" onSubmit={submitCallbackForm}>
-                  <input
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    placeholder="Имя *"
-                    className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-[14px] font-semibold text-[#496db3] outline-none transition placeholder:text-[#496db3]/55 focus:border-[#496db3] focus:ring-2 focus:ring-[#496db3]/25"
-                    required
-                  />
-                  <input
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    placeholder="Фамилия"
-                    className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-[14px] font-semibold text-[#496db3] outline-none transition placeholder:text-[#496db3]/55 focus:border-[#496db3] focus:ring-2 focus:ring-[#496db3]/25"
-                  />
-                  <input
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="Телефон"
-                    className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-[14px] font-semibold text-[#496db3] outline-none transition placeholder:text-[#496db3]/55 focus:border-[#496db3] focus:ring-2 focus:ring-[#496db3]/25"
-                  />
-                  <input
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="E-mail"
-                    className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-[14px] font-semibold text-[#496db3] outline-none transition placeholder:text-[#496db3]/55 focus:border-[#496db3] focus:ring-2 focus:ring-[#496db3]/25"
-                  />
-                  {status === "success" ? (
-                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-[14px] font-semibold text-emerald-800">
-                      Спасибо! Заявка отправлена.
-                    </div>
-                  ) : null}
-                  {status === "error" && errorText ? (
-                    <div className="rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-[14px] font-semibold text-red-800">
-                      {errorText}
-                    </div>
-                  ) : null}
-                  <button
-                    type="submit"
-                    disabled={status === "sending"}
-                    className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#496db3] px-5 py-3 text-[14px] font-semibold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {status === "sending" ? "Отправляем..." : "Отправить заявку"}
-                  </button>
-                </form>
-              </div>
-            </div>
-          ) : null}
+          <CallbackRequestModal
+            open={callbackModalOpen}
+            onClose={() => setCallbackModalOpen(false)}
+            sourceMessage="Заявка из кнопки обложки страницы."
+          />
           <style>{`
           .page-content img { max-width: 100%; height: auto; }
           .page-content table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; }

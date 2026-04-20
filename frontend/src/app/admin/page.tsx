@@ -90,10 +90,15 @@ function capitalizeFirst(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+function isArticlesSectionPageSlug(slug: string): boolean {
+  const s = normalizeUrlSlugPath(slug);
+  return s === "articles" || s.startsWith("articles/");
+}
+
 function humanizeFolderSlugSegment(seg: string): string {
   const normalized = seg.trim().toLowerCase();
   if (normalized === "services") return "Услуги";
-  if (normalized === "articles") return "Статьи";
+  if (normalized === "articles") return "Новости";
   return capitalizeFirst(seg.replace(/-/g, " "));
 }
 
@@ -170,8 +175,14 @@ type PageSummary = {
   title: string;
   slug: string;
   status: "DRAFT" | "PUBLISHED";
+  createdAt?: string | Date;
   description?: string | null;
   preview?: string | null;
+  keywords?: string | null;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
+  /** Раздел «Новости»: новость или статья (блок article_kind на бэкенде). */
+  articleKind?: "news" | "article";
 };
 
 type Block = {
@@ -188,9 +199,23 @@ type CustomFolder = {
 };
 
 const FOLDER_PREVIEW_DEBUG = false;
+type AdminSectionTab = "catalog" | "study" | "other" | "articles";
+type AdminSectionConfig = { id: AdminSectionTab; label: string; rootSlug: string };
+
+const ADMIN_SECTION_TABS: AdminSectionConfig[] = [
+  { id: "catalog", label: "Каталогизация", rootSlug: "catalogization" },
+  { id: "study", label: "Учебный центр", rootSlug: "training-center" },
+  { id: "other", label: "Прочие услуги", rootSlug: "other-services" },
+  { id: "articles", label: "Новости", rootSlug: "articles" },
+];
+
+const PAGE_TITLE_MAX = 60;
+const PAGE_DESCRIPTION_MAX = 160;
+const PAGE_KEYWORDS_MAX = 400;
 
 export default function AdminPage() {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<AdminSectionTab>("catalog");
   const [pages, setPages] = useState<PageSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -198,6 +223,7 @@ export default function AdminPage() {
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [text, setText] = useState("");
+  const [keywords, setKeywords] = useState("");
   const [pagePreview, setPagePreview] = useState("");
   const [currentFolder, setCurrentFolder] = useState<string | null>(null);
   const [customFolders, setCustomFolders] = useState<CustomFolder[]>([]);
@@ -217,6 +243,8 @@ export default function AdminPage() {
   const [editingPageId, setEditingPageId] = useState<number | null>(null);
   const [pageToDelete, setPageToDelete] = useState<PageSummary | null>(null);
   const [isDeletingPage, setIsDeletingPage] = useState(false);
+  const [publishingPageId, setPublishingPageId] = useState<number | null>(null);
+  const [articleKindSavingId, setArticleKindSavingId] = useState<number | null>(null);
   const [isPageSlugEdited, setIsPageSlugEdited] =
     useState<boolean>(false);
   const [isEditFolderModalOpen, setIsEditFolderModalOpen] =
@@ -449,25 +477,44 @@ export default function AdminPage() {
 
     try {
       setError(null);
+      const articlesKindPayload =
+        activeTab === "articles"
+          ? {
+              articleKind:
+                (editingPageId
+                  ? pages.find((x) => x.id === editingPageId)?.articleKind
+                  : undefined) ?? "news",
+            }
+          : {};
+
       if (editingPageId) {
         await apiPut(`/api/pages/${editingPageId}`, {
-          title,
+          title: title.trim().slice(0, PAGE_TITLE_MAX),
           slug: fullSlug,
-          description: text,
+          description: text.trim().slice(0, PAGE_DESCRIPTION_MAX),
+          keywords: keywords.trim().slice(0, PAGE_KEYWORDS_MAX),
+          seoTitle: title.trim().slice(0, PAGE_TITLE_MAX),
+          seoDescription: text.trim().slice(0, PAGE_DESCRIPTION_MAX),
           preview: pagePreview.trim(),
+          ...articlesKindPayload,
         });
       } else {
       await apiPost("/api/pages", {
-        title,
+        title: title.trim().slice(0, PAGE_TITLE_MAX),
           slug: fullSlug,
         status: "DRAFT",
-        description: text,
+        description: text.trim().slice(0, PAGE_DESCRIPTION_MAX),
+        keywords: keywords.trim().slice(0, PAGE_KEYWORDS_MAX),
+        seoTitle: title.trim().slice(0, PAGE_TITLE_MAX),
+        seoDescription: text.trim().slice(0, PAGE_DESCRIPTION_MAX),
         preview: pagePreview.trim(),
+        ...articlesKindPayload,
       });
       }
       setTitle("");
       setSlug("");
       setText("");
+      setKeywords("");
       setPagePreview("");
       setEditingPageId(null);
       setIsAddPageModalOpen(false);
@@ -490,18 +537,67 @@ export default function AdminPage() {
 
   async function confirmDeletePage() {
     if (!pageToDelete) return;
+    const target = pageToDelete;
 
     try {
       setIsDeletingPage(true);
       setError(null);
-      await apiDelete(`/api/pages/${pageToDelete.id}`);
       setOpenPageMenuId(null);
       setPageToDelete(null);
+      await apiDelete(`/api/pages/${target.id}`);
       await loadPages();
     } catch {
       setError("Ошибка при удалении страницы");
+      await loadPages().catch(() => {
+        // Игнорируем вторичную ошибку — сообщение уже показано.
+      });
     } finally {
       setIsDeletingPage(false);
+      setPageToDelete(null);
+    }
+  }
+
+  async function handleArticleKindChange(page: PageSummary, next: "news" | "article") {
+    const current = page.articleKind ?? "news";
+    if (current === next) return;
+    try {
+      setArticleKindSavingId(page.id);
+      setError(null);
+      await apiPut(`/api/pages/${page.id}`, {
+        title: page.title,
+        slug: page.slug,
+        description: page.description ?? "",
+        preview: page.preview ?? "",
+        articleKind: next,
+      });
+      await loadPages();
+    } catch {
+      setError("Не удалось сохранить тип материала");
+    } finally {
+      setArticleKindSavingId(null);
+    }
+  }
+
+  async function handleTogglePagePublished(page: PageSummary) {
+    const nextStatus = page.status === "PUBLISHED" ? "DRAFT" : "PUBLISHED";
+    try {
+      setPublishingPageId(page.id);
+      setError(null);
+      await apiPut(`/api/pages/${page.id}`, {
+        title: page.title,
+        slug: page.slug,
+        status: nextStatus,
+        description: page.description ?? "",
+        preview: page.preview ?? "",
+        ...(isArticlesSectionPageSlug(page.slug)
+          ? { articleKind: page.articleKind ?? "news" }
+          : {}),
+      });
+      await loadPages();
+    } catch {
+      setError("Не удалось изменить статус публикации");
+    } finally {
+      setPublishingPageId(null);
     }
   }
 
@@ -527,6 +623,9 @@ export default function AdminPage() {
         title: page.title,
         slug: targetSlug,
         description: page.description ?? "",
+        ...(isArticlesSectionPageSlug(targetSlug) || isArticlesSectionPageSlug(page.slug)
+          ? { articleKind: page.articleKind ?? "news" }
+          : {}),
       });
       setCurrentFolder(targetFolder);
       await loadPages();
@@ -612,27 +711,23 @@ export default function AdminPage() {
     }
   }
 
-  const folderSet = new Set<string>();
-  pages.forEach((p) => {
-    const folder = getFolderPathFromPageSlug(p.slug);
-    if (folder === "__root") return;
-    getFolderAncestors(folder).forEach((f) => folderSet.add(f));
-  });
-  customFolders.forEach((f) => {
-    getFolderAncestors(f.slug).forEach((s) => folderSet.add(s));
-  });
-  const folders = Array.from(folderSet).sort((a, b) => a.localeCompare(b, "ru"));
+  const activeTabConfig =
+    ADMIN_SECTION_TABS.find((t) => t.id === activeTab) ?? ADMIN_SECTION_TABS[0];
+  const currentSectionRoot = activeTabConfig.rootSlug;
 
-  const currentFolderKey =
-    currentFolder && currentFolder !== "__root"
-      ? normalizeUrlSlugPath(currentFolder)
-      : "__root";
-  const parentFolderForQuickDrop =
-    currentFolderKey !== "__root" ? getFolderParentPath(currentFolderKey) : null;
-  const childFolders = folders.filter((f) => getFolderParentPath(f) === currentFolderKey);
-  const visiblePages = pages.filter(
-    (p) => getFolderPathFromPageSlug(p.slug) === currentFolderKey,
-  );
+  const sectionPages = pages.filter((p) => {
+    const s = normalizeUrlSlugPath(p.slug);
+    return s === currentSectionRoot || s.startsWith(`${currentSectionRoot}/`);
+  });
+
+  const currentFolderKey = currentSectionRoot;
+  const parentFolderForQuickDrop: string | null = null;
+  const childFolders: string[] = [];
+  const visiblePages = sectionPages;
+
+  useEffect(() => {
+    setCurrentFolder(currentSectionRoot);
+  }, [currentSectionRoot]);
 
   function openAddFolderModal(parentSlug?: string) {
     setFolderModalError(null);
@@ -926,6 +1021,7 @@ export default function AdminPage() {
     setTitle("");
     setSlug("");
     setText("");
+    setKeywords("");
     setPagePreview("");
     setIsPageSlugEdited(false);
     setIsAddPageModalOpen(true);
@@ -942,6 +1038,7 @@ export default function AdminPage() {
     setTitle("");
     setSlug("");
     setText("");
+    setKeywords("");
     setPagePreview("");
     setIsPageSlugEdited(false);
     setIsAddPageModalOpen(true);
@@ -964,6 +1061,7 @@ export default function AdminPage() {
     setTitle(page.title || "");
     setSlug(shortSlug);
     setText(page.description ?? "");
+    setKeywords(page.keywords ?? "");
     setPagePreview(page.preview ?? "");
     setIsPageSlugEdited(true);
     setOpenPageMenuId(null);
@@ -981,6 +1079,28 @@ export default function AdminPage() {
     return entry?.name ?? humanizeFolderSlugSegment(fallback);
   }
 
+  function formatPageDate(value: string | Date | undefined): string {
+    if (!value) return "Без даты";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "Без даты";
+    return new Intl.DateTimeFormat("ru-RU", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }).format(d);
+  }
+
+  function parseKeywords(rawKeywords: string | null | undefined): string[] {
+    if (!rawKeywords) return [];
+    const words = rawKeywords
+      .split(",")
+      .map((w) => w.trim().toLowerCase())
+      .filter((w) => w.length > 0);
+    return Array.from(new Set(words)).slice(0, 12);
+  }
+
+  const draftKeywords = parseKeywords(keywords);
+
   return (
     <div className="min-h-screen bg-white">
       <div className="flex min-h-screen">
@@ -990,53 +1110,38 @@ export default function AdminPage() {
           <AdminTopBar />
 
           <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-6 py-6 lg:px-10">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+                {ADMIN_SECTION_TABS.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                    }}
+                    className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                      activeTab === tab.id
+                        ? "border-[#496db3] bg-[#496db3] text-white"
+                        : "border-slate-200 bg-white text-slate-700 hover:border-[#496db3]/40 hover:text-[#496db3]"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+            </div>
+
             <div className="flex h-full min-h-0 flex-col rounded-2xl border border-slate-200 bg-white p-6">
+
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  {currentFolderKey !== "__root" ? (
                     <h2 className="truncate text-sm font-semibold text-slate-900">
-                      {getFolderDisplayName(currentFolderKey)}
+                    {activeTabConfig.label}
                     </h2>
-                  ) : null}
-                  <div className={`${currentFolderKey !== "__root" ? "mt-1" : ""} flex flex-wrap items-center gap-1 text-xs text-slate-500`}>
-                    <button
-                      type="button"
-                      className="inline-flex items-center rounded p-1 hover:bg-slate-100"
-                      onClick={() => setCurrentFolder("__root")}
-                      aria-label="Рабочая область"
-                    >
-                      <FolderIcon className="h-3.5 w-3.5" />
-                    </button>
-                    {currentFolderKey !== "__root" &&
-                      currentFolderKey.split("/").map((part, idx, arr) => {
-                        const slugPath = arr.slice(0, idx + 1).join("/");
-                        return (
-                          <span key={slugPath} className="inline-flex items-center gap-1">
-                            <span className="text-slate-400">/</span>
-                            <button
-                              type="button"
-                              className="rounded px-1.5 py-0.5 hover:bg-slate-100"
-                              onClick={() => setCurrentFolder(slugPath)}
-                            >
-                              {getFolderDisplayName(slugPath)}
-                            </button>
-                  </span>
-                        );
-                      })}
-                </div>
+                  <div className="mt-1 text-xs text-slate-500">{currentSectionRoot}</div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                     <button
                       type="button"
-                    onClick={() => openAddFolderModal(currentFolderKey)}
-                    className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
-                  >
-                    <PlusSmallIcon className="h-4 w-4 [stroke-width:2.2]" />
-                    Папка
-                    </button>
-                  <button
-                    type="button"
-                    onClick={() => openAddPageModalInFolder(currentFolderKey)}
+                    onClick={() => openAddPageModalInFolder(currentSectionRoot)}
                     className="inline-flex items-center gap-1 rounded-full border border-[#496db3]/30 bg-white px-3 py-1 text-xs font-medium text-[#496db3] hover:bg-[#496db3]/10"
                   >
                     <DocumentPlusIcon className="h-4 w-4 [stroke-width:2.2]" />
@@ -1045,7 +1150,7 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-slate-200 bg-slate-50/40">
+              <div className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden rounded-xl border border-slate-200 bg-slate-50/40">
                 {childFolders.length > 0 || (draggedPageId !== null && parentFolderForQuickDrop !== null) ? (
                   <div
                     className="grid gap-2 p-3"
@@ -1199,14 +1304,11 @@ export default function AdminPage() {
                 ) : null}
 
                 {visiblePages.length > 0 ? (
-                  <div
-                    className="grid gap-2 p-3"
-                    style={{ gridTemplateColumns: "repeat(auto-fit, minmax(120px, max-content))" }}
-                  >
+                  <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 xl:grid-cols-3">
                     {visiblePages.map((p) => (
                         <div
                           key={p.id}
-                        className="group relative w-full min-w-[120px] max-w-[220px] rounded-lg border border-slate-200 bg-white p-2 hover:border-[#496db3]/40"
+                        className="group relative flex min-h-[210px] w-full flex-col rounded-xl border border-slate-200 bg-white p-4 transition hover:border-[#496db3]/40 hover:shadow-sm"
                           onPointerDown={(e) => {
                             const target = e.target as Element | null;
                           if (target?.closest("[data-page-menu-root='true']")) return;
@@ -1225,7 +1327,106 @@ export default function AdminPage() {
                           router.push(`/admin/page_editor/${p.id}`);
                         }}
                       >
-                        <div className="absolute right-1 top-1 z-10">
+                        <div className="flex w-full min-w-0 flex-1 flex-col">
+                          <div className="relative mb-3 aspect-[2/1] w-full overflow-hidden rounded-lg bg-slate-100 ring-1 ring-slate-200">
+                            {p.preview ? (
+                              <img
+                                src={p.preview}
+                                alt={p.title || "Превью страницы"}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center text-xs font-medium text-slate-400">
+                                Без превью
+                              </div>
+                            )}
+                            {activeTab === "articles" ? (
+                              <div
+                                className="absolute left-2 top-2 z-20 flex max-w-[calc(100%-1rem)] rounded-full bg-white/95 p-0.5 shadow-sm ring-1 ring-slate-200/90"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                }}
+                                onPointerDown={(e) => e.stopPropagation()}
+                                role="group"
+                                aria-label="Тип материала"
+                              >
+                                <button
+                                  type="button"
+                                  disabled={articleKindSavingId === p.id}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    void handleArticleKindChange(p, "news");
+                                  }}
+                                  className={`rounded-full px-2 py-0.5 text-[10px] font-semibold transition ${
+                                    (p.articleKind ?? "news") === "news"
+                                      ? "bg-[#496db3] text-white"
+                                      : "text-slate-600 hover:bg-slate-100"
+                                  } ${articleKindSavingId === p.id ? "opacity-60" : ""}`}
+                                >
+                                  Новость
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={articleKindSavingId === p.id}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    void handleArticleKindChange(p, "article");
+                                  }}
+                                  className={`rounded-full px-2 py-0.5 text-[10px] font-semibold transition ${
+                                    p.articleKind === "article"
+                                      ? "bg-[#496db3] text-white"
+                                      : "text-slate-600 hover:bg-slate-100"
+                                  } ${articleKindSavingId === p.id ? "opacity-60" : ""}`}
+                                >
+                                  Статья
+                                </button>
+                              </div>
+                            ) : null}
+                          </div>
+                          <div className="flex items-start justify-between gap-x-2 text-xs">
+                            <span className="text-slate-400">{formatPageDate(p.createdAt)}</span>
+                            <div className="flex items-center gap-x-1.5">
+                              <button
+                                type="button"
+                                aria-label={
+                                  p.status === "PUBLISHED"
+                                    ? "Снять с публикации"
+                                    : "Опубликовать страницу"
+                                }
+                                disabled={publishingPageId === p.id}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  void handleTogglePagePublished(p);
+                                }}
+                                className={`relative z-10 inline-flex items-center gap-2 rounded-full px-2.5 py-1 font-medium transition ${
+                                  p.status === "PUBLISHED"
+                                    ? "bg-emerald-50 text-emerald-700"
+                                    : "bg-slate-100 text-slate-600"
+                                } ${
+                                  publishingPageId === p.id
+                                    ? "opacity-60 cursor-not-allowed"
+                                    : "hover:brightness-95"
+                                }`}
+                              >
+                                <span>{p.status === "PUBLISHED" ? "Опубликовано" : "Черновик"}</span>
+                                <span
+                                  className={`inline-flex h-5 w-9 items-center rounded-full border transition ${
+                                    p.status === "PUBLISHED"
+                                      ? "border-emerald-300 bg-emerald-100"
+                                      : "border-slate-300 bg-slate-100"
+                                  }`}
+                                >
+                                  <span
+                                    className={`ml-0.5 inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${
+                                      p.status === "PUBLISHED" ? "translate-x-4" : "translate-x-0"
+                                    }`}
+                                  />
+                                </span>
+                              </button>
                             <div className="relative shrink-0" data-page-menu-root="true">
                               <button
                                 type="button"
@@ -1284,22 +1485,37 @@ export default function AdminPage() {
                               )}
                             </div>
                           </div>
-                        <div className="block w-full min-w-0">
-                          <div className="mb-1 flex items-center justify-center">
-                            <DocumentTextIcon className="h-7 w-7 shrink-0 text-slate-400 [stroke-width:2.2]" />
                         </div>
-                          <p className="text-center text-xs font-medium leading-snug text-slate-800 break-words group-hover:text-[#496db3]">
+                          <div className="group relative grow">
+                            <h3 className="mt-3 text-base/6 font-semibold text-slate-900 group-hover:text-[#496db3]">
+                              <span className="absolute inset-0" />
                             {p.title || "(без названия)"}
-                          </p>
+                            </h3>
+                            <p className="mt-3 line-clamp-3 text-sm/6 text-slate-500">
+                              {(p.description || "").trim() || "Описание страницы пока не заполнено."}
+                            </p>
+                            {parseKeywords(p.keywords).length > 0 && (
+                              <div className="mt-3 flex flex-wrap gap-1.5">
+                                {parseKeywords(p.keywords).map((keyword) => (
+                                  <span
+                                    key={`${p.id}-${keyword}`}
+                                    className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600"
+                                  >
+                                    {keyword}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : null}
 
-                {!loading && childFolders.length === 0 && visiblePages.length === 0 && (
+                {!loading && visiblePages.length === 0 && (
                   <div className="px-4 py-8 text-center text-xs text-slate-400">
-                    Папка пустая. Создайте первую папку или страницу.
+                    Пока нет страниц в разделе. Создайте первую страницу.
                       </div>
                     )}
                   </div>
@@ -1721,7 +1937,58 @@ export default function AdminPage() {
 
             <div className="h-0" />
 
-            <div className="mt-4 grid grid-cols-1 gap-3">
+            <div className="mt-4 space-y-3">
+              <div className="rounded-xl border border-slate-200 bg-white p-2">
+                <label className="block cursor-pointer">
+                  <div className="relative aspect-[2/1] w-full overflow-hidden rounded-lg bg-slate-50 ring-1 ring-slate-200">
+                    {pagePreview.trim() ? (
+                      <img
+                        src={pagePreview}
+                        alt="Превью страницы"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full flex-col items-center justify-center gap-1 px-2 text-center">
+                        <span className="text-xs font-medium text-slate-500">Выбрать изображение</span>
+                        <span className="text-[11px] text-slate-400">Рекомендация: превью страницы 2:1</span>
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    ref={pagePreviewInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const input = e.currentTarget;
+                      const f = e.target.files?.[0];
+                      if (!f) return;
+                      try {
+                        const webpDataUrl = await fileToWebpDataUrl(f);
+                        setPagePreview(webpDataUrl);
+                        setError(null);
+                      } catch {
+                        setError("Не удалось обработать файл превью. Попробуйте другое изображение.");
+                      } finally {
+                        input.value = "";
+                      }
+                    }}
+                  />
+                </label>
+                {pagePreview.trim() ? (
+                  <div className="mt-2 flex justify-end">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-medium text-red-700 transition-colors hover:bg-red-100"
+                      onClick={() => setPagePreview("")}
+                    >
+                      <TrashIcon className="h-3.5 w-3.5 shrink-0 [stroke-width:2]" />
+                      Удалить превью
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+
               <label className="flex flex-col gap-1 text-sm">
                 <span className="font-semibold text-slate-700">
                   Введите название страницы
@@ -1729,7 +1996,7 @@ export default function AdminPage() {
                 <input
                   value={title}
                       onChange={(e) => {
-                        const v = e.target.value;
+                        const v = e.target.value.slice(0, PAGE_TITLE_MAX);
                         setTitle(v);
                         if (!isPageSlugEdited) {
                           setSlug(slugifyLatin(v));
@@ -1745,6 +2012,47 @@ export default function AdminPage() {
                   className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#496db3] focus:ring-1 focus:ring-[#496db3]"
                   placeholder="Например: О центре"
                 />
+                <span className="text-[11px] text-slate-400">{title.length}/{PAGE_TITLE_MAX}</span>
+              </label>
+
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="font-semibold text-slate-700">
+                  Введите короткое описание страницы
+                </span>
+                <textarea
+                  value={text}
+                  onChange={(e) => setText(e.target.value.slice(0, PAGE_DESCRIPTION_MAX))}
+                  rows={3}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#496db3] focus:ring-1 focus:ring-[#496db3]"
+                  placeholder="Описание страницы для быстрого просмотра…"
+                />
+                <span className="text-[11px] text-slate-400">{text.length}/{PAGE_DESCRIPTION_MAX}</span>
+              </label>
+
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="font-semibold text-slate-700">
+                  Введите ключевые слова через запятую
+                </span>
+                <textarea
+                  value={keywords}
+                  onChange={(e) => setKeywords(e.target.value.slice(0, PAGE_KEYWORDS_MAX))}
+                  rows={2}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#496db3] focus:ring-1 focus:ring-[#496db3]"
+                  placeholder="каталогизация, обучение, гоз, сертификация"
+                />
+                <span className="text-[11px] text-slate-400">{keywords.length}/{PAGE_KEYWORDS_MAX}</span>
+                {draftKeywords.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {draftKeywords.map((keyword) => (
+                      <span
+                        key={`draft-${keyword}`}
+                        className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600"
+                      >
+                        {keyword}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </label>
 
               <label className="flex flex-col gap-1 text-sm">
@@ -1768,71 +2076,6 @@ export default function AdminPage() {
                   />
                 </div>
               </label>
-
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="font-semibold text-slate-700">
-                  Введите короткое описание страницы
-                </span>
-                <textarea
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  rows={3}
-                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#496db3] focus:ring-1 focus:ring-[#496db3]"
-                  placeholder="Описание страницы для быстрого просмотра…"
-                />
-              </label>
-
-              <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
-                <span className="font-semibold text-slate-700">Фото страницы</span>
-                <div className="flex flex-col items-end gap-2">
-                  <label className="inline-flex w-fit cursor-pointer flex-col items-start gap-1">
-                    <span className="text-[11px] font-medium text-slate-500">Мини-превью (нажмите для загрузки)</span>
-                    <div className="h-48 w-48 overflow-hidden rounded-lg border border-slate-200 bg-slate-50 shadow-sm">
-                      {pagePreview.trim() ? (
-                        <img
-                          src={pagePreview}
-                          alt="Превью страницы"
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center px-2 text-center text-[10px] font-medium leading-tight text-slate-400">
-                          Выбрать изображение
-                        </div>
-                      )}
-                    </div>
-                    <input
-                      ref={pagePreviewInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={async (e) => {
-                        const input = e.currentTarget;
-                        const f = e.target.files?.[0];
-                        if (!f) return;
-                        try {
-                          const webpDataUrl = await fileToWebpDataUrl(f);
-                          setPagePreview(webpDataUrl);
-                          setError(null);
-                        } catch {
-                          setError("Не удалось обработать файл превью. Попробуйте другое изображение.");
-                        } finally {
-                          input.value = "";
-                        }
-                      }}
-                    />
-                  </label>
-                  {pagePreview.trim() ? (
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-medium text-red-700 transition-colors hover:bg-red-100"
-                      onClick={() => setPagePreview("")}
-                    >
-                      <TrashIcon className="h-3.5 w-3.5 shrink-0 [stroke-width:2]" />
-                      Удалить превью
-                    </button>
-                  ) : null}
-                </div>
-              </div>
               </div>
 
             {error && <div className="mt-2 text-xs text-red-600">{error}</div>}

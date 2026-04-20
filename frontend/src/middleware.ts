@@ -9,12 +9,24 @@ function isLikelyStaticPublicFile(pathname: string): boolean {
 export function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
 
+  /*
+   * Статика Next (CSS/JS чанки), API и типичные файлы из public не трогаем.
+   * Иначе при сбое matcher middleware может отработать на `/_next/static/...css` и Safari
+   * получит не CSS, а HTML с чужим MIME — «Did not parse stylesheet... non CSS MIME types».
+   */
+  if (
+    pathname.startsWith("/_next/") ||
+    pathname.startsWith("/api/") ||
+    pathname === "/favicon.ico" ||
+    isLikelyStaticPublicFile(pathname)
+  ) {
+    return NextResponse.next();
+  }
+
   const res = NextResponse.next();
 
   /* HTML и маршруты приложения: не отдавать из кэша браузера (актуальные папки/услуги и т.д.) */
-  if (!pathname.startsWith("/_next/") && !isLikelyStaticPublicFile(pathname)) {
-    res.headers.set("Cache-Control", "no-store, must-revalidate");
-  }
+  res.headers.set("Cache-Control", "no-store, must-revalidate");
 
   if (!pathname.startsWith("/admin")) {
     return res;
@@ -41,5 +53,8 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image).*)"],
+  matcher: [
+    /* Всё, кроме статики Next, API и корня favicon (см. также ранний return в middleware). */
+    "/((?!_next/|api/|favicon.ico).*)",
+  ],
 };

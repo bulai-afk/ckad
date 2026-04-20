@@ -2,25 +2,64 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { XMarkIcon } from "@heroicons/react/24/outline";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactElement } from "react";
 
-const FALLBACK_FOOTER_SERVICES = [
-  { href: "/services", label: "Каталогизация предметов снабжения" },
-  { href: "/services", label: "Центр каталогизации государственного заказчика" },
-  { href: "/services", label: "Научно-исследовательская деятельность" },
-  { href: "/services", label: "Систематизация и автоматизация процессов" },
+const CATALOG_ROOT = "catalogization";
+const TRAINING_ROOT = "training-center";
+
+const FALLBACK_CATALOG_LINKS = [
+  { href: "#", label: "Систематизация данных" },
+  { href: "#", label: "Паспортизация объектов" },
+  { href: "#", label: "Архив и реестры" },
 ] as const;
 
-const FALLBACK_FOOTER_ARTICLES = [
-  { href: "/articles#osnovy", label: "Основы каталогизации продукции" },
-  { href: "/articles#reestry", label: "Реестры и согласование номенклатуры" },
-  { href: "/articles#eis", label: "Работа с ЕИС и электронными площадками" },
-  { href: "/articles#oshibki", label: "Типичные ошибки при заполнении карточек" },
+const FALLBACK_TRAINING_LINKS = [
+  { href: "#", label: "Курсы и программы" },
+  { href: "#", label: "Расписание" },
+  { href: "#", label: "Сертификация" },
 ] as const;
 
-/** Ссылки на документы в подвале (мобильная строка с разделителями |) */
-const FOOTER_DOCS = [{ href: "/privacy", label: "Политика конфиденциальности" }] as const;
+function normalizeSlugPath(slug: string): string {
+  return slug
+    .trim()
+    .replace(/\\/g, "/")
+    .replace(/\/+/g, "/")
+    .replace(/^\/+|\/+$/g, "")
+    .toLowerCase();
+}
+
+function buildFooterSectionLinks(
+  pages: { title: string; slug: string; status?: string }[],
+  rootSlug: string,
+): { href: string; label: string }[] {
+  const root = normalizeSlugPath(rootSlug);
+  const seen = new Set<string>();
+  const links: { href: string; label: string }[] = [];
+
+  for (const p of pages) {
+    const normalizedSlug = normalizeSlugPath(String(p.slug || ""));
+    if (!normalizedSlug.startsWith(`${root}/`)) continue;
+    if (String(p.status).toUpperCase() !== "PUBLISHED") continue;
+    const key = normalizedSlug.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    links.push({
+      href: `/${normalizedSlug}`,
+      label: String(p.title || "").trim() || normalizedSlug.split("/").pop() || "Страница",
+    });
+  }
+
+  return links.sort((a, b) => a.label.localeCompare(b.label, "ru"));
+}
+
+const footerLinkClass =
+  "text-sm leading-snug text-gray-600 transition hover:text-gray-900 min-h-10 inline-flex items-center rounded-md py-0.5 sm:min-h-0 sm:py-0";
+const PDF_WORKER_SRC = new URL(
+  "pdfjs-dist/build/pdf.worker.min.mjs",
+  import.meta.url,
+).toString();
 
 type SiteSettings = {
   email: string;
@@ -38,21 +77,21 @@ type SiteSettings = {
     kpp: string;
     ogrn: string;
   };
+  documents?: {
+    name: string;
+    size: number;
+    dataUrl: string;
+  }[];
 };
 
 type FooterPageRow = {
-  id: number;
+  id?: number;
   title: string;
   slug: string;
   status?: string;
-  createdAt?: string;
-  updatedAt?: string;
 };
 
-const linkClass =
-  "site-footer-link flex w-full max-w-full min-h-[44px] items-center text-left text-[13px] font-medium leading-tight text-[#496db3]/95 transition hover:text-[#e53935] hover:underline active:bg-slate-100/80 sm:min-h-0 sm:inline-flex sm:w-auto sm:max-w-none sm:bg-transparent";
-
-const headingClass = "site-footer-col-heading";
+const colHeadingClass = "text-sm font-semibold leading-tight text-gray-900";
 
 type SocialDef = {
   key: keyof SiteSettings["social"];
@@ -79,9 +118,7 @@ const SOCIAL_DEFS: SocialDef[] = [
     key: "max",
     label: "Max",
     externalSvgSrc: "/max-logo-indigo.svg",
-    svg: (
-      <path d="M6 18V6h3l3 5 3-5h3v12h-2V9l-4 7-4-7v9H6z" />
-    ),
+    svg: <path d="M6 18V6h3l3 5 3-5h3v12h-2V9l-4 7-4-7v9H6z" />,
   },
   {
     key: "whatsapp",
@@ -96,40 +133,14 @@ function FooterBrandLink() {
   return (
     <Link
       href="/"
-      className="site-footer-brand-inner inline-flex max-w-full shrink-0 items-center text-[13px] font-semibold tracking-tight text-[#496db3]"
+      className="-m-1 inline-block max-w-full p-1 text-gray-900 transition hover:opacity-90"
     >
-      <span
-        className="inline-flex h-9 w-9 shrink-0 items-center justify-center"
-        style={{ marginRight: 3 }}
-      >
-        <img
-          src="/logo_1.svg"
-          alt="Логотип Центра каталогизации и анализа данных"
-          className="h-9 w-9 object-contain [filter:drop-shadow(0_1px_2px_rgba(0,0,0,0.08))_drop-shadow(0_2px_4px_rgba(0,0,0,0.06))]"
-        />
-      </span>
-      <span
-        aria-hidden="true"
-        className="inline-flex h-9 w-[2px] shrink-0 items-center justify-center"
-        style={{ marginLeft: 3, marginRight: 3 }}
-      >
-        <svg width="2" height="28" viewBox="0 0 2 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect width="2" height="32" rx="1" fill="#496db3" />
-        </svg>
-      </span>
-      <span
-        className="flex min-w-0 flex-col items-start justify-center text-left uppercase leading-[0.78]"
-        style={{
-          marginLeft: 3,
-          fontWeight: 950,
-          fontSize: "clamp(9px, 2.1vw, 11px)",
-          textShadow:
-            "0.35px 0 currentColor, -0.35px 0 currentColor, 0 0.35px currentColor, 0 -0.35px currentColor",
-        }}
-      >
-        <span className="block w-max max-w-full leading-none">ЦЕНТР КАТАЛОГИЗАЦИИ</span>
-        <span className="block w-max max-w-full leading-none">И АНАЛИЗА ДАННЫХ</span>
-      </span>
+      <span className="sr-only">Центр каталогизации и анализа данных — на главную</span>
+      <img
+        src="/logo.svg"
+        alt=""
+        className="h-7 w-auto max-w-full object-contain"
+      />
     </Link>
   );
 }
@@ -139,19 +150,22 @@ function FooterSocialList({
 }: {
   items: { href: string; label: string; svg: ReactElement; externalSvgSrc?: string }[];
 }) {
+  if (items.length === 0) return null;
   return (
-    <ul className="site-footer-social" aria-label="Социальные сети">
+    <ul className="flex flex-wrap gap-x-2 gap-y-1" aria-label="Социальные сети">
       {items.map((item) => (
         <li key={item.label}>
-          <a href={item.href} target="_blank" rel="noopener noreferrer" aria-label={item.label}>
+          <a
+            href={item.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={item.label}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-gray-500 transition hover:bg-gray-100 hover:text-gray-700"
+          >
             {item.externalSvgSrc ? (
-              <img
-                src={item.externalSvgSrc}
-                alt=""
-                aria-hidden
-              />
+              <img src={item.externalSvgSrc} alt="" aria-hidden className="h-5 w-5 object-contain" />
             ) : (
-              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+              <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="currentColor" aria-hidden>
                 {item.svg}
               </svg>
             )}
@@ -162,14 +176,36 @@ function FooterSocialList({
   );
 }
 
+function toNavItems<const T extends readonly { href: string; label: string }[]>(arr: T): { href: string; label: string }[] {
+  return arr.map((x) => ({ href: x.href, label: x.label }));
+}
+
+function filenameWithoutExtension(name: string): string {
+  return name.replace(/\.[^/.]+$/, "");
+}
+
+function dataUrlToUint8Array(dataUrl: string): Uint8Array {
+  const comma = dataUrl.indexOf(",");
+  const base64 = comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl;
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
 export function SiteFooter({ siteSettings }: { siteSettings?: SiteSettings | null }) {
   const pathname = usePathname();
-  const [latestServiceItems, setLatestServiceItems] = useState<
-    { href: string; label: string }[]
-  >([...FALLBACK_FOOTER_SERVICES]);
-  const [latestArticleItems, setLatestArticleItems] = useState<
-    { href: string; label: string }[]
-  >([...FALLBACK_FOOTER_ARTICLES]);
+  const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([]);
+  const previewViewportRef = useRef<HTMLDivElement>(null);
+  const [catalogItems, setCatalogItems] = useState<{ href: string; label: string }[]>(() =>
+    toNavItems(FALLBACK_CATALOG_LINKS),
+  );
+  const [trainingItems, setTrainingItems] = useState<{ href: string; label: string }[]>(() =>
+    toNavItems(FALLBACK_TRAINING_LINKS),
+  );
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const [pdfLoadState, setPdfLoadState] = useState<"idle" | "loading" | "error" | "ready">("idle");
+  const [pageCount, setPageCount] = useState(0);
 
   const hidden = useMemo(() => pathname?.startsWith("/admin"), [pathname]);
 
@@ -183,75 +219,28 @@ export function SiteFooter({ siteSettings }: { siteSettings?: SiteSettings | nul
         const rows = (await res.json()) as FooterPageRow[];
         if (!Array.isArray(rows)) throw new Error("pages_invalid_payload");
 
-        const serviceRows = rows
-          .filter((row) => typeof row?.slug === "string" && row.slug.trim() !== "")
-          .filter((row) => {
-            const slug = row.slug.trim().replace(/^\/+|\/+$/g, "").toLowerCase();
-            return slug.startsWith("services/") && slug !== "services";
-          })
-          .map((row) => {
-            const createdTs = Date.parse(String(row.createdAt ?? ""));
-            const updatedTs = Date.parse(String(row.updatedAt ?? ""));
-            const sortTs = Number.isFinite(updatedTs)
-              ? updatedTs
-              : Number.isFinite(createdTs)
-                ? createdTs
-                : 0;
-            const slug = row.slug.trim().replace(/^\/+|\/+$/g, "");
-            return {
-              href: `/${slug}`,
-              label: row.title?.trim() || slug.split("/").pop() || "Услуга",
-              sortTs,
-            };
-          })
-          .sort((a, b) => b.sortTs - a.sortTs)
-          .slice(0, 4)
-          .map(({ href, label }) => ({ href, label }));
-        const articleRows = rows
-          .filter((row) => typeof row?.slug === "string" && row.slug.trim() !== "")
-          .filter((row) => {
-            const slug = row.slug.trim().replace(/^\/+|\/+$/g, "").toLowerCase();
-            return slug.startsWith("articles/") && slug !== "articles";
-          })
-          .map((row) => {
-            const createdTs = Date.parse(String(row.createdAt ?? ""));
-            const updatedTs = Date.parse(String(row.updatedAt ?? ""));
-            const sortTs = Number.isFinite(updatedTs)
-              ? updatedTs
-              : Number.isFinite(createdTs)
-                ? createdTs
-                : 0;
-            const slug = row.slug.trim().replace(/^\/+|\/+$/g, "");
-            return {
-              href: `/${slug}`,
-              label: row.title?.trim() || slug.split("/").pop() || "Статья",
-              sortTs,
-            };
-          })
-          .sort((a, b) => b.sortTs - a.sortTs)
-          .slice(0, 4)
-          .map(({ href, label }) => ({ href, label }));
+        const pageRows = rows.filter((row) => typeof row?.slug === "string" && row.slug.trim() !== "");
+        const catalogLinks = buildFooterSectionLinks(pageRows, CATALOG_ROOT);
+        const trainingLinks = buildFooterSectionLinks(pageRows, TRAINING_ROOT);
 
         if (cancelled) return;
-        if (serviceRows.length > 0) {
-          setLatestServiceItems(serviceRows);
+        if (catalogLinks.length > 0) {
+          setCatalogItems(catalogLinks);
         }
-        if (articleRows.length > 0) {
-          setLatestArticleItems(articleRows);
+        if (trainingLinks.length > 0) {
+          setTrainingItems(trainingLinks);
         }
       })
       .catch(() => {
         if (cancelled) return;
-        setLatestServiceItems([...FALLBACK_FOOTER_SERVICES]);
-        setLatestArticleItems([...FALLBACK_FOOTER_ARTICLES]);
+        setCatalogItems(toNavItems(FALLBACK_CATALOG_LINKS));
+        setTrainingItems(toNavItems(FALLBACK_TRAINING_LINKS));
       });
 
     return () => {
       cancelled = true;
     };
   }, [hidden]);
-
-  if (hidden) return null;
 
   const year = new Date().getFullYear();
   const email = (siteSettings?.email || "").trim() || "info@центр-каталогизации.рф";
@@ -278,405 +267,248 @@ export function SiteFooter({ siteSettings }: { siteSettings?: SiteSettings | nul
     externalSvgSrc: d.externalSvgSrc,
   })).filter((i) => i.href);
 
+  const footerDocuments = (siteSettings?.documents ?? [])
+    .filter((doc) => typeof doc?.name === "string" && /^data:application\/pdf;base64,/i.test(String(doc?.dataUrl ?? "")))
+    .slice(0, 3);
+  const previewFile = previewIndex !== null ? footerDocuments[previewIndex] ?? null : null;
+
+  useEffect(() => {
+    if (previewIndex === null) return;
+    if (previewIndex < footerDocuments.length) return;
+    setPreviewIndex(null);
+  }, [previewIndex, footerDocuments.length]);
+
+  useEffect(() => {
+    if (!previewFile) return;
+    let disposed = false;
+    let loadingTask: { promise: Promise<unknown>; destroy?: () => Promise<void> } | null = null;
+    let loadedPdf: {
+      numPages: number;
+      destroy?: () => Promise<void>;
+      getPage: (num: number) => Promise<{
+        getViewport: (params: { scale: number }) => { width: number; height: number };
+        render: (params: {
+          canvasContext: CanvasRenderingContext2D;
+          viewport: { width: number; height: number };
+        }) => { promise: Promise<unknown> };
+      }>;
+    } | null = null;
+
+    const renderPdf = async () => {
+      try {
+        setPdfLoadState("loading");
+        const pdfjs = await import("pdfjs-dist/build/pdf.mjs");
+        pdfjs.GlobalWorkerOptions.workerSrc = PDF_WORKER_SRC;
+        const data = dataUrlToUint8Array(previewFile.dataUrl);
+        loadingTask = pdfjs.getDocument({ data });
+        loadedPdf = (await loadingTask.promise) as NonNullable<typeof loadedPdf>;
+        if (disposed || !loadedPdf) return;
+
+        const nextPageCount = Number(loadedPdf.numPages || 0);
+        canvasRefs.current = [];
+        setPageCount(nextPageCount);
+        setPdfLoadState("ready");
+
+        await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+        await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+        if (disposed) return;
+
+        const hostWidth = previewViewportRef.current?.clientWidth ?? window.innerWidth;
+        const targetWidth = Math.max(320, Math.min(980, Math.floor(hostWidth - 24)));
+
+        for (let pageNum = 1; pageNum <= nextPageCount; pageNum += 1) {
+          if (disposed) break;
+          const page = await loadedPdf.getPage(pageNum);
+          const baseViewport = page.getViewport({ scale: 1 });
+          const scale = targetWidth / baseViewport.width;
+          const viewport = page.getViewport({ scale });
+          const canvas = canvasRefs.current[pageNum - 1];
+          if (!canvas) continue;
+          const context = canvas.getContext("2d", { alpha: false });
+          if (!context) continue;
+          canvas.width = Math.floor(viewport.width);
+          canvas.height = Math.floor(viewport.height);
+          await page.render({ canvasContext: context, viewport }).promise;
+        }
+      } catch {
+        if (!disposed) setPdfLoadState("error");
+      }
+    };
+
+    void renderPdf();
+
+    return () => {
+      disposed = true;
+      setPdfLoadState("idle");
+      setPageCount(0);
+      void loadingTask?.destroy?.();
+      void loadedPdf?.destroy?.();
+    };
+  }, [previewFile]);
+
+  useEffect(() => {
+    if (previewIndex === null) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setPreviewIndex(null);
+    };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [previewIndex]);
+
+  if (hidden) return null;
+
   return (
-    <footer className="mt-auto w-full shrink-0">
-      {/* Стили здесь: Tailwind v4 при обработке globals.css мог не включать внешние правила для сетки футера */}
-      <style>{`
-        .site-footer-col-heading {
-          margin-bottom: 0.35rem;
-          font-size: 11px;
-          font-weight: 800;
-          line-height: 1.12;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-          color: #496db3;
-        }
-        .site-footer-outer {
-          box-sizing: border-box;
-          padding: 1.25rem 1rem 0;
-          padding-bottom: env(safe-area-inset-bottom, 0);
-        }
-        @media (min-width: 640px) {
-          .site-footer-outer {
-            padding: 1.5rem 1.25rem 0;
-            padding-bottom: 0;
-          }
-        }
-        @media (min-width: 1024px) {
-          .site-footer-outer {
-            padding: 1.75rem 1.5rem 0;
-          }
-        }
-        .site-footer-bottom-wrap {
-          width: 100%;
-          box-sizing: border-box;
-          margin: 0;
-          padding: 0 1rem;
-          padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0));
-        }
-        @media (min-width: 640px) {
-          .site-footer-bottom-wrap {
-            padding: 0 1.25rem;
-          }
-        }
-        @media (min-width: 1024px) {
-          .site-footer-bottom-wrap {
-            padding: 0 1.5rem;
-          }
-        }
-        .site-footer-bottom-inner {
-          max-width: 1200px;
-          margin: 0 auto;
-          width: 100%;
-          box-sizing: border-box;
-          padding: 0.5rem 0.75rem 0.65rem;
-          background: rgba(255, 255, 255, 0.95);
-          border-top: 1px solid rgba(148, 163, 184, 0.12);
-          text-align: center;
-          font-size: 0.6875rem;
-          line-height: 1.28;
-          font-weight: 600;
-          color: #496db3;
-        }
-        .site-footer-bottom-inner p {
-          margin: 0;
-        }
-        @media (min-width: 640px) {
-          .site-footer-bottom-inner {
-            padding: 0.45rem 1rem 0.55rem;
-            font-size: 0.6875rem;
-          }
-        }
-        @media (min-width: 1024px) {
-          .site-footer-bottom-inner {
-            padding: 0.5rem 1.125rem 0.6rem;
-          }
-        }
-        /* Планшет/десктоп: полная сетка колонок (всё задаём здесь — не зависит от Tailwind sm:flex) */
-        .site-footer-cols-root {
-          display: none;
-          width: 100%;
-          box-sizing: border-box;
-        }
-        .site-footer-cols-root > * {
-          min-width: 0;
-        }
-        @media (min-width: 640px) {
-          .site-footer-cols-root {
-            display: flex;
-            flex-direction: row;
-            flex-wrap: nowrap;
-            align-items: flex-start;
-            gap: 1.25rem;
-            padding: 1.25rem 1.125rem 1rem;
-          }
-          .site-footer-cols-root > * {
-            flex: 1 1 0%;
-          }
-        }
-        @media (min-width: 1024px) {
-          .site-footer-cols-root {
-            gap: 2rem;
-            padding: 1.375rem 1.25rem 1.125rem;
-          }
-        }
-        /* Мобильный компакт: только до 639px */
-        .site-footer-mobile-compact {
-          display: none;
-        }
-        @media (max-width: 639px) {
-          .site-footer-mobile-compact {
-            display: flex;
-            flex-direction: column;
-            align-items: stretch;
-            gap: 0.1rem;
-            width: 100%;
-            box-sizing: border-box;
-            padding: 0.7rem 1.125rem 0.75rem;
-            text-align: center;
-          }
-          .site-footer-mobile-compact .site-footer-mobile-brand {
-            display: flex;
-            justify-content: center;
-            width: 100%;
-          }
-          .site-footer-mobile-compact .site-footer-mobile-legal {
-            width: 100%;
-            max-width: none;
-            padding: 0;
-            line-height: 1.18;
-          }
-          .site-footer-mobile-compact .site-footer-mobile-docs {
-            width: 100%;
-            max-width: none;
-            padding: 0;
-            margin: 0;
-          }
-          .site-footer-mobile-compact .site-footer-mobile-docs a {
-            padding: 0.1rem 0.3rem;
-          }
-          .site-footer-mobile-compact .site-footer-mobile-tel,
-          .site-footer-mobile-compact .site-footer-mobile-mail {
-            display: block;
-            width: 100%;
-            padding: 0.02rem 0;
-            margin: 0;
-            text-align: center;
-          }
-          .site-footer-mobile-compact .site-footer-social {
-            margin-top: 0;
-            margin-bottom: 0;
-            width: 100%;
-            justify-content: center;
-            gap: 0.25rem;
-            padding-top: 0.1rem;
-          }
-          .site-footer-mobile-compact .site-footer-social a {
-            min-width: 44px;
-            min-height: 44px;
-            padding: 0.35rem;
-          }
-        }
-        .site-footer-mobile-docs {
-          display: flex;
-          flex-wrap: wrap;
-          align-items: center;
-          justify-content: center;
-          gap: 0.35rem 0;
-          row-gap: 0.25rem;
-          max-width: 100%;
-        }
-        .site-footer-mobile-docs a {
-          font-size: 12px;
-          font-weight: 700;
-          color: #496db3;
-          padding: 0.35rem 0.5rem;
-          border-radius: 0.375rem;
-          transition: color 0.15s ease, background-color 0.15s ease;
-        }
-        .site-footer-mobile-docs a:hover {
-          color: #e53935;
-          text-decoration: underline;
-        }
-        .site-footer-mobile-docs a:active {
-          background-color: rgba(73, 109, 179, 0.08);
-        }
-        .site-footer-mobile-docs-sep {
-          width: 1px;
-          height: 0.875rem;
-          margin: 0 0.2rem;
-          flex-shrink: 0;
-          background: rgba(73, 109, 179, 0.35);
-        }
-        .site-footer-mobile-brand {
-          display: flex;
-          justify-content: center;
-          width: 100%;
-        }
-        .site-footer-mobile-legal {
-          margin: 0;
-          max-width: 22rem;
-          font-size: 11px;
-          font-weight: 500;
-          line-height: 1.22;
-          color: rgba(73, 109, 179, 0.75);
-          text-align: center;
-        }
-        .site-footer-mobile-tel,
-        .site-footer-mobile-mail {
-          font-size: 15px;
-          font-weight: 900;
-          color: #496db3;
-          padding: 0.08rem 0.5rem;
-          line-height: 1.2;
-          border-radius: 0.5rem;
-          text-decoration: none;
-          text-shadow: 0.25px 0 currentColor, -0.25px 0 currentColor, 0 0.25px currentColor,
-            0 -0.25px currentColor;
-        }
-        /* Десктоп: без бокового padding — иначе телефон/почта визуально «с отступом» от заголовка колонки */
-        @media (min-width: 640px) {
-          .site-footer-col-contacts .site-footer-mobile-tel,
-          .site-footer-col-contacts .site-footer-mobile-mail {
-            padding-left: 0;
-            padding-right: 0;
-          }
-        }
-        .site-footer-mobile-tel:hover,
-        .site-footer-mobile-mail:hover {
-          color: #e53935;
-          text-decoration: none;
-        }
-        .site-footer-social {
-          display: flex;
-          flex-wrap: wrap;
-          align-items: center;
-          gap: 0.625rem;
-          margin: 0.75rem 0 0;
-          padding: 0;
-          list-style: none;
-        }
-        .site-footer-social a {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          color: #496db3;
-          transition: color 0.15s ease, transform 0.15s ease, background-color 0.15s ease;
-          border-radius: 0.5rem;
-        }
-        .site-footer-social a:hover {
-          color: #e53935;
-          transform: scale(1.06);
-        }
-        .site-footer-social a:active {
-          background-color: rgba(73, 109, 179, 0.08);
-        }
-        .site-footer-social svg {
-          width: 22px;
-          height: 22px;
-          flex-shrink: 0;
-        }
-        .site-footer-social img {
-          width: 22px;
-          height: 22px;
-          object-fit: contain;
-          flex-shrink: 0;
-        }
-        @media (max-width: 639px) {
-          .site-footer-social {
-            justify-content: center;
-            gap: 0.3rem;
-            margin-top: 0.35rem;
-          }
-          .site-footer-social a {
-            min-width: 46px;
-            min-height: 46px;
-            padding: 0.4rem;
-            margin: 0;
-          }
-          .site-footer-social svg {
-            width: 24px;
-            height: 24px;
-          }
-          .site-footer-social img {
-            width: 24px;
-            height: 24px;
-          }
-        }
-      `}</style>
-      <div className="site-footer-outer">
-        <div
-          className="mx-auto max-w-[1200px] overflow-hidden bg-white/95 backdrop-blur"
-          style={{ borderTopLeftRadius: 28, borderTopRightRadius: 28 }}
-        >
-          <div className="site-footer-mobile-compact">
-            <div className="site-footer-mobile-brand">
-              <FooterBrandLink />
+    <footer className="mt-auto w-full shrink-0 border-t border-gray-900/10 bg-white pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+      <div className="mx-auto max-w-7xl px-6 py-4 sm:py-8 lg:px-8">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-x-8 sm:gap-y-6 lg:grid-cols-4 lg:gap-6">
+          <div className="min-w-0 text-center sm:text-left">
+            <FooterBrandLink />
+            <div className="mt-2 sm:mt-3">
+              <p className={`hidden sm:block ${colHeadingClass}`}>Документы</p>
+              <ul className="mt-1.5 space-y-0.5" role="list">
+                {footerDocuments.map((doc, i) => (
+                  <li key={`${doc.name}-${doc.size}`}>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewIndex(i)}
+                      className={`${footerLinkClass} cursor-pointer border-0 bg-transparent p-0 text-left`}
+                    >
+                      {filenameWithoutExtension(doc.name)}
+                    </button>
+                  </li>
+                ))}
+              </ul>
             </div>
-            <p className="site-footer-mobile-legal">
-              Использование и копирование материалов с сайта запрещено
-            </p>
-            <a
-              href={phoneHref}
-              className="site-footer-mobile-tel transition active:bg-slate-100/80"
-            >
-              {phoneLabel}
-            </a>
-            <a
-              href={mailtoHref}
-              className="site-footer-mobile-mail transition active:bg-slate-100/80"
-            >
-              {email}
-            </a>
-            <FooterSocialList items={socialItems} />
-            <nav className="site-footer-mobile-docs" aria-label="Документы">
-              {FOOTER_DOCS.map((doc, index) => (
-                <span key={doc.href} className="inline-flex items-center">
-                  {index > 0 ? <span className="site-footer-mobile-docs-sep" aria-hidden /> : null}
-                  <Link href={doc.href}>{doc.label}</Link>
-                </span>
-              ))}
-            </nav>
           </div>
 
-          <div className="site-footer-cols-root">
-            {/* Колонка 1: лого + правовой блок */}
-            <div className="site-footer-col site-footer-col-brand min-w-0">
-              <FooterBrandLink />
-              <p className="mt-2.5 text-[11px] font-medium leading-snug text-[#496db3]/75">
-                Использование и копирование материалов с сайта запрещено
-              </p>
-              <nav aria-label="Документы" className="mt-3">
-                <p className={headingClass}>Документы</p>
-                <div className="mt-1 flex flex-col gap-0">
-                  {FOOTER_DOCS.map((doc) => (
-                    <Link key={doc.href} href={doc.href} className={`${linkClass} rounded-lg sm:rounded-none`}>
-                      {doc.label}
+          <div className="hidden min-w-0 text-center sm:block sm:text-left">
+            <p className={colHeadingClass}>Каталогизация</p>
+            <ul className="mt-1.5 space-y-0.5" role="list" aria-label="Разделы каталогизации в подвале">
+              {catalogItems.map((item) => (
+                <li key={`${item.href}-${item.label}`}>
+                  {item.href.startsWith("/") ? (
+                    <Link href={item.href} className={footerLinkClass}>
+                      {item.label}
                     </Link>
-                  ))}
-                </div>
-              </nav>
-            </div>
+                  ) : (
+                    <a href={item.href} className={footerLinkClass}>
+                      {item.label}
+                    </a>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
 
-            {/* Колонка 2: услуги */}
-            <div className="site-footer-col min-w-0">
-              <p className={headingClass}>Услуги</p>
-              <nav aria-label="Услуги в подвале" className="flex flex-col gap-0 sm:gap-1">
-                {latestServiceItems.map((item) => (
-                  <Link key={item.label} href={item.href} className={`${linkClass} rounded-lg py-1 sm:rounded-none sm:py-0`}>
-                    {item.label}
-                  </Link>
-                ))}
-              </nav>
-            </div>
+          <div className="hidden min-w-0 text-center sm:block sm:text-left">
+            <p className={colHeadingClass}>Учебный центр</p>
+            <ul className="mt-1.5 space-y-0.5" role="list" aria-label="Разделы учебного центра в подвале">
+              {trainingItems.map((item) => (
+                <li key={`${item.href}-${item.label}`}>
+                  {item.href.startsWith("/") ? (
+                    <Link href={item.href} className={footerLinkClass}>
+                      {item.label}
+                    </Link>
+                  ) : (
+                    <a href={item.href} className={footerLinkClass}>
+                      {item.label}
+                    </a>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
 
-            {/* Колонка 3: статьи */}
-            <div className="site-footer-col min-w-0">
-              <p className={headingClass}>Статьи</p>
-              <nav aria-label="Статьи в подвале" className="flex flex-col gap-0 sm:gap-1">
-                {latestArticleItems.map((item) => (
-                  <Link key={item.href} href={item.href} className={`${linkClass} rounded-lg py-1 sm:rounded-none sm:py-0`}>
-                    {item.label}
-                  </Link>
-                ))}
-              </nav>
-            </div>
-
-            {/* Колонка 4: контакты — содержимое по левому краю колонки (не по центру) */}
-            <div className="site-footer-col site-footer-col-contacts min-w-0 text-left">
-              <p className={headingClass}>Контакты</p>
-              <div className="flex w-full flex-col items-start gap-0 text-left">
-                <a
-                  href={phoneHref}
-                  className="site-footer-mobile-tel w-fit max-w-full self-start transition active:bg-slate-100/80"
-                >
-                  {phoneLabel}
-                </a>
-                <a
-                  href={mailtoHref}
-                  className="site-footer-mobile-mail w-fit max-w-full self-start transition active:bg-slate-100/80"
-                >
-                  {email}
-                </a>
-                <p className="text-[12px] font-medium leading-tight text-[#496db3]/80">
-                  {address}
-                </p>
-                <Link href="/contacts" className={`${linkClass} rounded-lg sm:rounded-none`}>
-                  Все контакты
-                </Link>
-                <FooterSocialList items={socialItems} />
-              </div>
+          <div className="min-w-0 text-center sm:text-left">
+            <p className={colHeadingClass}>Контакты</p>
+            <div className="mt-1 flex flex-col items-center gap-1.5 sm:mt-1.5 sm:items-start">
+              <a
+                href={phoneHref}
+                className="text-sm font-semibold leading-tight text-gray-900 transition hover:text-[#496db3]"
+              >
+                {phoneLabel}
+              </a>
+              <a
+                href={mailtoHref}
+                className="text-sm font-semibold leading-tight text-gray-900 transition hover:text-[#496db3]"
+              >
+                {email}
+              </a>
+              <p className="max-w-xs text-sm leading-snug text-gray-600">{address}</p>
+              <Link href="/about" className={`${footerLinkClass} !hidden min-h-0 py-0 font-semibold sm:!inline-flex`}>
+                О компании
+              </Link>
+              <FooterSocialList items={socialItems} />
             </div>
           </div>
         </div>
       </div>
-      <div className="site-footer-bottom-wrap">
-        <div className="site-footer-bottom-inner">
-          <p>
+
+      <div className="border-t border-gray-900/10 bg-gray-50">
+        <div className="mx-auto max-w-7xl px-6 py-2.5 lg:px-8">
+          <p className="text-center text-xs leading-snug text-gray-500">
             © {year} {reqCompany} · ИНН {reqInn} · КПП {reqKpp} · ОГРН {reqOgrn}
           </p>
         </div>
       </div>
+
+      {previewFile ? (
+        <div
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/55 p-4 backdrop-blur-[1px]"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Просмотр документа ${previewFile.name}`}
+          onClick={() => setPreviewIndex(null)}
+        >
+          <div
+            className="flex h-[min(86vh,820px)] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3">
+              <div className="min-w-0 pr-3">
+                <p className="truncate text-sm font-semibold text-slate-900">
+                  {filenameWithoutExtension(previewFile.name)}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewIndex(null)}
+                className="rounded-md p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+                aria-label="Закрыть просмотр документа"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div ref={previewViewportRef} className="flex-1 overflow-y-auto bg-white p-3">
+              {pdfLoadState === "loading" ? (
+                <p className="py-10 text-center text-sm text-slate-500">Загрузка документа...</p>
+              ) : null}
+              {pdfLoadState === "error" ? (
+                <p className="py-10 text-center text-sm text-red-600">Не удалось отобразить PDF.</p>
+              ) : null}
+              {pdfLoadState === "ready" && pageCount > 0 ? (
+                <div className="mx-auto flex w-full max-w-[980px] flex-col gap-3">
+                  {Array.from({ length: pageCount }, (_, idx) => (
+                    <canvas
+                      key={idx + 1}
+                      ref={(node) => {
+                        canvasRefs.current[idx] = node;
+                      }}
+                      className="w-full bg-white"
+                    />
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </footer>
   );
 }

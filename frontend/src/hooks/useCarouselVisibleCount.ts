@@ -4,12 +4,16 @@ import { useLayoutEffect, useState } from "react";
  * Сколько карточек в ряд в горизонтальной карусели.
  * Брейкпоинты как у Tailwind: sm 640px, lg 1024px.
  *
- * Начальное состояние всегда **2** (без чтения window): и SSR, и первый клиентский рендер
- * совпадают — иначе на десктопе гидрация ломается (сервер 2, клиент 6).
- * Фактическую ширину ставит только useLayoutEffect (до первого paint).
+ * Новости (`articles`): **1 / 2 / 3** (узкий / средний / широкий).
+ * Отзывы и партнёры: **2 / 4 / 6**.
+ *
+ * Начальное состояние **2** без чтения window — SSR и первый клиентский кадр совпадают;
+ * фактическое число ставит useLayoutEffect (до первого paint).
  */
 function computeFromWidth(kind: "reviews" | "articles" | "partners", w: number): number {
-  if (kind === "articles") return w < 640 ? 2 : 4;
+  if (kind === "articles") {
+    return w < 640 ? 1 : w < 1024 ? 2 : 3;
+  }
   return w < 640 ? 2 : w < 1024 ? 4 : 6;
 }
 

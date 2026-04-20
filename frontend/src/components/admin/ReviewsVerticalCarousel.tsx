@@ -20,7 +20,10 @@ function isWebpDataUrl(value: string | null | undefined): boolean {
   return typeof value === "string" && value.startsWith("data:image/webp");
 }
 
-async function convertAnyImageToWebpDataUrl(source: File | string): Promise<string> {
+async function convertAnyImageToWebpDataUrl(
+  source: File | string,
+  options?: { maxWidth?: number; maxHeight?: number },
+): Promise<string> {
   const sourceDataUrl =
     typeof source === "string"
       ? source
@@ -42,9 +45,12 @@ async function convertAnyImageToWebpDataUrl(source: File | string): Promise<stri
 
   if (!image || !image.naturalWidth || !image.naturalHeight) return sourceDataUrl;
 
-  // Keep review images compact to avoid localStorage quota errors.
-  const maxSize = 1200;
-  const scale = Math.min(1, maxSize / image.naturalWidth, maxSize / image.naturalHeight);
+  // Keep images compact to avoid large payloads in admin saves.
+  const maxWidth = options?.maxWidth ?? 1200;
+  const maxHeight = options?.maxHeight ?? 1200;
+  const widthScale = maxWidth > 0 ? maxWidth / image.naturalWidth : 1;
+  const heightScale = maxHeight > 0 ? maxHeight / image.naturalHeight : 1;
+  const scale = Math.min(1, widthScale, heightScale);
   const targetWidth = Math.max(1, Math.round(image.naturalWidth * scale));
   const targetHeight = Math.max(1, Math.round(image.naturalHeight * scale));
 
@@ -82,11 +88,14 @@ async function convertAnyImageToWebpDataUrl(source: File | string): Promise<stri
   }
 }
 
-async function normalizeSlidesToWebp(slides: ReviewSlide[]): Promise<ReviewSlide[]> {
+async function normalizeSlidesToWebp(
+  slides: ReviewSlide[],
+  options?: { maxWidth?: number; maxHeight?: number },
+): Promise<ReviewSlide[]> {
   return Promise.all(
     slides.map(async (slide) => {
       if (!slide.image || isWebpDataUrl(slide.image)) return slide;
-      const converted = await convertAnyImageToWebpDataUrl(slide.image);
+      const converted = await convertAnyImageToWebpDataUrl(slide.image, options);
       return { ...slide, image: converted };
     }),
   );
@@ -116,6 +125,7 @@ export function ReviewsVerticalCarousel({
   const canNext = viewportStart < maxViewportStart;
   const activeSlide = useMemo(() => slides[activeIndex] ?? null, [slides, activeIndex]);
   const slidePaddingTop = aspect === "square" ? "100%" : "141.4214%";
+  const isPartnersMode = apiPath === "/api/pages/partners";
 
   useEffect(() => {
     let isMounted = true;
@@ -205,7 +215,10 @@ export function ReviewsVerticalCarousel({
     const files = Array.from(event.target.files ?? []);
     if (files.length === 0 || !activeSlide) return;
 
-    void Promise.all(files.map(convertAnyImageToWebpDataUrl)).then((images) => {
+    const resizeOptions = isPartnersMode
+      ? { maxWidth: 1200, maxHeight: Number.POSITIVE_INFINITY }
+      : undefined;
+    void Promise.all(files.map((f) => convertAnyImageToWebpDataUrl(f, resizeOptions))).then((images) => {
       const validImages = images.filter(Boolean);
       if (validImages.length === 0) return;
 
@@ -240,7 +253,10 @@ export function ReviewsVerticalCarousel({
 
   async function handleSave() {
     try {
-      const normalized = await normalizeSlidesToWebp(slides);
+      const resizeOptions = isPartnersMode
+        ? { maxWidth: 1200, maxHeight: Number.POSITIVE_INFINITY }
+        : undefined;
+      const normalized = await normalizeSlidesToWebp(slides, resizeOptions);
       setSlides(normalized);
       const payload = {
         slides: normalized.map((s) => ({
@@ -406,10 +422,16 @@ export function ReviewsVerticalCarousel({
                       style={{ paddingTop: slidePaddingTop }}
                     >
                       {slide.image ? (
-                        <img src={slide.image} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                        <img
+                          src={slide.image}
+                          alt=""
+                          className={`absolute inset-0 h-full w-full ${
+                            isPartnersMode ? "object-contain p-1.5" : "object-cover"
+                          }`}
+                        />
                       ) : (
                         <div className="absolute inset-0 flex h-full w-full items-center justify-center text-xs text-slate-500">
-                          Вертикальный слайд
+                          {isPartnersMode ? "Логотип партнера" : "Вертикальный слайд"}
                         </div>
                       )}
                     </div>

@@ -4,6 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { AdminSidebar } from "@/components/admin/Sidebar";
 import { AdminTopBar } from "@/components/admin/AdminTopBar";
+import {
+  AdminDocumentsUploadCard,
+  type AdminDocumentItem,
+} from "@/components/admin/AdminDocumentsUploadCard";
+import {
+  AdminDirectorEditor,
+  type AdminDirector,
+} from "@/components/admin/AdminDirectorEditor";
 import { apiGet, apiPut } from "@/lib/api";
 
 type SiteSettings = {
@@ -22,6 +30,9 @@ type SiteSettings = {
     kpp: string;
     ogrn: string;
   };
+  documents: AdminDocumentItem[];
+  topRibbonMessages: string[];
+  director: AdminDirector;
 };
 
 const emptySettings: SiteSettings = {
@@ -30,6 +41,9 @@ const emptySettings: SiteSettings = {
   address: "",
   social: { vk: "", telegram: "", max: "", whatsapp: "" },
   requisites: { companyName: "", inn: "", kpp: "", ogrn: "" },
+  documents: [],
+  topRibbonMessages: [],
+  director: { name: "", role: "Директор", message: "", photo: null },
 };
 
 export default function AdminSettingsPage() {
@@ -47,7 +61,35 @@ export default function AdminSettingsPage() {
     void (async () => {
       try {
         const data = await apiGet<{ settings?: SiteSettings }>("/api/pages/site-settings");
-        if (data?.settings) setSettings(data.settings);
+        if (data?.settings) {
+          const incoming = data.settings;
+          const legacyTeamMembers = (
+            incoming as unknown as {
+              teamMembers?: Array<{ name?: string; role?: string; photo?: string | null }>;
+            }
+          ).teamMembers;
+          const legacyDirector = Array.isArray(legacyTeamMembers) ? legacyTeamMembers[0] ?? null : null;
+          setSettings({
+            ...emptySettings,
+            ...incoming,
+            social: { ...emptySettings.social, ...(incoming.social ?? {}) },
+            requisites: { ...emptySettings.requisites, ...(incoming.requisites ?? {}) },
+            director: {
+              ...emptySettings.director,
+              ...(legacyDirector
+                ? {
+                    name: typeof legacyDirector.name === "string" ? legacyDirector.name : "",
+                    role: typeof legacyDirector.role === "string" ? legacyDirector.role : "",
+                    photo:
+                      typeof legacyDirector.photo === "string" || legacyDirector.photo === null
+                        ? legacyDirector.photo
+                        : null,
+                  }
+                : {}),
+              ...(incoming.director ?? {}),
+            },
+          });
+        }
       } catch {
         // keep empty; user can still fill and save
       } finally {
@@ -63,9 +105,11 @@ export default function AdminSettingsPage() {
     setSaving(true);
     setMsg(null);
     try {
-      const res = await apiPut<{ ok: boolean; settings: SiteSettings }>("/api/pages/site-settings", {
-        settings,
-      });
+      const res = await apiPut<{ ok: boolean; settings: SiteSettings }>(
+        "/api/pages/site-settings",
+        { settings },
+        30_000,
+      );
       if (res?.settings) setSettings(res.settings);
       setTone("success");
       setMsg("Сохранено.");
@@ -120,11 +164,8 @@ export default function AdminSettingsPage() {
                   </div>
                 ) : null}
 
-                <div
-                  className="mt-6 grid items-start gap-8"
-                  style={{ gridTemplateColumns: "1fr 1fr" }}
-                >
-                  <div className="space-y-8">
+                <div className="mt-6 grid grid-cols-1 items-start gap-8 xl:grid-cols-2">
+                  <div className="min-w-0 space-y-8">
                     <section className="space-y-3">
                       <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                         Контакты
@@ -213,9 +254,22 @@ export default function AdminSettingsPage() {
                         </div>
                       </div>
                     </section>
+
+                    <div className="my-6 h-px w-full bg-slate-100" aria-hidden="true" />
+                    <section>
+                      <AdminDocumentsUploadCard
+                        documents={settings.documents}
+                        onDocumentsChange={(documents) =>
+                          setSettings((s) => ({
+                            ...s,
+                            documents,
+                          }))
+                        }
+                      />
+                    </section>
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="min-w-0 space-y-3">
                     <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                       Реквизиты
                     </div>
@@ -277,6 +331,11 @@ export default function AdminSettingsPage() {
                         />
                       </div>
                     </div>
+                    <div className="my-6 h-px w-full bg-slate-100" aria-hidden="true" />
+                    <AdminDirectorEditor
+                      director={settings.director}
+                      onChange={(director) => setSettings((s) => ({ ...s, director }))}
+                    />
                   </div>
                 </div>
               </div>

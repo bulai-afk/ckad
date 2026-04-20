@@ -208,6 +208,59 @@
   }
 }
 
+/*
+ * Превью без картинки: logo_1.svg с прозрачным фоном.
+ * Иначе слои cardBgDim / cardBgGradient (чёрные) лежат поверх img — прозрачность SVG «съедается».
+ */
+.cardRoot[data-logo-fallback] .cardBgImageWrap {
+  background-color: rgb(248 250 252);
+}
+
+.cardRoot[data-logo-fallback] .cardBgDim,
+.cardRoot[data-logo-fallback] .cardBgGradient {
+  opacity: 0 !important;
+}
+
+.cardRoot[data-logo-fallback]:hover .content .title,
+.cardRoot[data-logo-fallback]:hover .content .description,
+.cardRoot[data-logo-fallback]:hover .content > p,
+.cardRoot[data-logo-fallback][data-preview-touch] .content .title,
+.cardRoot[data-logo-fallback][data-preview-touch] .content .description,
+.cardRoot[data-logo-fallback][data-preview-touch] .content > p,
+.cardRoot[data-logo-fallback][data-preview-always] .content .title,
+.cardRoot[data-logo-fallback][data-preview-always] .content .description,
+.cardRoot[data-logo-fallback][data-preview-always] .content > p,
+.cardRoot[data-logo-fallback].cardPreviewAlways .content .title,
+.cardRoot[data-logo-fallback].cardPreviewAlways .content .description,
+.cardRoot[data-logo-fallback].cardPreviewAlways .content > p {
+  color: #496db3 !important;
+  -webkit-text-fill-color: #496db3 !important;
+  text-shadow: none !important;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .cardRoot[data-logo-fallback]:not([data-preview-always]):active .content .title,
+  .cardRoot[data-logo-fallback]:not([data-preview-always]):active .content .description,
+  .cardRoot[data-logo-fallback]:not([data-preview-always]):active .content > p {
+    color: #496db3 !important;
+    -webkit-text-fill-color: #496db3 !important;
+    text-shadow: none !important;
+  }
+}
+
+.cardRoot[data-logo-fallback]:hover .content,
+.cardRoot[data-logo-fallback][data-preview-touch] .content,
+.cardRoot[data-logo-fallback][data-preview-always] .content,
+.cardRoot[data-logo-fallback].cardPreviewAlways .content {
+  color: #496db3;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .cardRoot[data-logo-fallback]:not([data-preview-always]):active .content {
+    color: #496db3;
+  }
+}
+
 .content {
   position: relative;
   z-index: 10;
@@ -395,4 +448,223 @@
 .link:focus-visible {
   outline: 2px solid #496db3;
   outline-offset: 2px;
+}
+
+/* --- Featured: широкий баннер, фото на всю карточку, тёмная левая колонка + outline CTA --- */
+.cardRootFeatured {
+  position: relative;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-height: 0;
+  /* Как превью страниц услуг в админке */
+  aspect-ratio: 2 / 1;
+  overflow: hidden;
+  border-radius: 1rem;
+  isolation: isolate;
+  box-sizing: border-box;
+  background-color: rgb(15 23 42);
+  box-shadow:
+    0 10px 40px rgba(15, 23, 42, 0.12),
+    0 2px 8px rgba(15, 23, 42, 0.06);
+  text-decoration: none;
+  color: inherit;
+  transition:
+    box-shadow 0.25s ease,
+    transform 0.25s ease;
+}
+
+.cardRootFeatured:hover {
+  box-shadow:
+    0 20px 50px rgba(73, 109, 179, 0.22),
+    0 8px 24px rgba(15, 23, 42, 0.1);
+  transform: translateY(-2px);
+}
+
+.cardRootFeatured:focus-visible {
+  outline: 2px solid #496db3;
+  outline-offset: 3px;
+}
+
+.cardRootFeaturedStretch {
+  width: 100%;
+  min-height: 0;
+  aspect-ratio: 2 / 1;
+  align-self: stretch;
+}
+
+.cardFeaturedBannerMedia {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.cardFeaturedBannerImg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.cardFeaturedBannerImgLogo {
+  object-fit: contain;
+  object-position: center right;
+  padding: 1rem 1.25rem 1rem 52%;
+  box-sizing: border-box;
+  background-color: rgb(248 250 252);
+}
+
+@media (max-width: 639px) {
+  .cardFeaturedBannerImgLogo {
+    object-position: center;
+    padding: 1.25rem;
+    background-color: rgb(248 250 252);
+  }
+}
+
+.cardFeaturedBannerPanel {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  box-sizing: border-box;
+  width: 52%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 0.75rem;
+  padding: 1.35rem 1.5rem 1.5rem;
+  background-color: rgb(0 0 0 / 0.68);
+  backdrop-filter: blur(4px);
+  overflow: hidden;
+}
+
+@media (min-width: 640px) {
+  .cardFeaturedBannerPanel {
+    padding: 1.6rem 1.75rem 1.65rem;
+  }
+}
+
+@media (max-width: 639px) {
+  .cardRootFeatured {
+    aspect-ratio: 2 / 1;
+  }
+
+  .cardFeaturedBannerPanel {
+    left: 0;
+    right: 0;
+    top: auto;
+    bottom: 0;
+    width: 100%;
+    height: 52%;
+    min-height: 0;
+    padding: 1.1rem 1.15rem 1.25rem;
+    justify-content: flex-start;
+    background-color: rgb(0 0 0 / 0.68);
+    backdrop-filter: blur(6px);
+  }
+}
+
+@media (max-width: 1265px) {
+  .cardFeaturedBannerPanel {
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.cardFeaturedBannerPanelTop {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  width: 100%;
+  min-width: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: hidden;
+}
+
+.cardFeaturedTitle {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.28;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #fff;
+  text-shadow: 0 1px 3px rgb(0 0 0 / 0.35);
+}
+
+@media (min-width: 640px) {
+  .cardFeaturedTitle {
+    font-size: 1.2rem;
+  }
+}
+
+.cardFeaturedDesc {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  font-weight: 500;
+  color: rgb(255 255 255 / 0.94);
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.3);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+@media (min-width: 640px) {
+  .cardFeaturedDesc {
+    font-size: 0.875rem;
+  }
+}
+
+@media (max-width: 439px) {
+  .description,
+  .cardFeaturedDesc {
+    display: none;
+  }
+
+  .cardFeaturedBannerPanelTop {
+    justify-content: center;
+  }
+}
+
+.cardFeaturedCtaGhost {
+  align-self: center;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  margin-top: auto;
+  padding: 0.5rem 1.25rem;
+  border: 1px solid rgb(255 255 255 / 0.92);
+  border-radius: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #fff;
+  background: transparent;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease;
+}
+
+@media (min-width: 640px) {
+  .cardFeaturedCtaGhost {
+    font-size: 0.875rem;
+    padding: 0.55rem 1.4rem;
+  }
+}
+
+.cardRootFeatured:hover .cardFeaturedCtaGhost {
+  border-color: #fff;
+  background-color: rgb(255 255 255 / 0.08);
 }

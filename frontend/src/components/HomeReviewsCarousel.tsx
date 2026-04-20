@@ -118,6 +118,22 @@ export function HomeReviewsCarousel({ slides }: HomeReviewsCarouselProps) {
     return null;
   }
 
+  const headingBlock = (
+    <div className="mx-auto mt-0 max-w-3xl text-center">
+      <h2 className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-base font-semibold text-[#b91c1c]">
+        Отзывы
+      </h2>
+      <p className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-pretty sm:-mt-2">
+        Отзывы о проделанной работе
+      </p>
+      <p className="mt-6 text-pretty text-sm font-medium text-slate-600 sm:text-base">
+        Мы гордимся каждым клиентом и бережно храним благодарности: это подтверждение того, что задачи по
+        каталогизации и анализу данных мы доводим до результата, которым можно делиться с коллегами и
+        руководством.
+      </p>
+    </div>
+  );
+
   const previewSlidesPayload = normalized.map((s, i) => ({
     src: typeof s.image === "string" ? s.image : null,
     label: `Отзыв ${i + 1}`,
@@ -132,38 +148,12 @@ export function HomeReviewsCarousel({ slides }: HomeReviewsCarouselProps) {
   };
 
   return (
-    <section className="bg-transparent p-0">
-      <div
-        className="mb-4 flex items-center justify-center text-[13px] font-semibold tracking-tight"
-        style={{ fontSize: "clamp(10px, 1.2vw, 16px)" }}
-      >
-        <h2
-          className="text-center uppercase text-[#496db3]"
-          style={{
-            fontSize: "230%",
-            lineHeight: 1.1,
-            fontWeight: 950,
-            textShadow:
-              "0.35px 0 currentColor, -0.35px 0 currentColor, 0 0.35px currentColor, 0 -0.35px currentColor",
-          }}
-        >
-          Отзывы о проделанной работе
-        </h2>
-      </div>
-
-      <div className="mb-4" style={{ fontSize: "clamp(13px, 0.7vw, 14px)" }}>
-        <p
-          className="whitespace-pre-wrap text-center font-semibold text-[#496db3]"
-          style={{ fontSize: "112%", lineHeight: 1.35 }}
-        >
-          Мы гордимся каждым клиентом и бережно храним благодарности: это подтверждение того, что задачи по
-          каталогизации и анализу данных мы доводим до результата, которым можно делиться с коллегами и
-          руководством.
-        </p>
-      </div>
-
-      <div
-        className="relative w-full min-w-0 touch-pan-y py-2"
+    <section className="bg-transparent py-8 sm:py-10 about-template-fallback">
+      <div className="mx-auto max-w-7xl px-6 lg:px-8">
+        {headingBlock}
+        <div className="mt-8 max-w-none">
+          <div
+            className="relative w-full min-w-0 touch-pan-y py-2"
         onMouseEnter={() => setCarouselHovered(true)}
         onMouseLeave={() => setCarouselHovered(false)}
         {...carouselSwipe}
@@ -236,7 +226,7 @@ export function HomeReviewsCarousel({ slides }: HomeReviewsCarouselProps) {
 
         {dotCount > 1 ? (
           <div
-            className="mt-4 flex flex-wrap items-center justify-center gap-2"
+            className="mt-4 flex flex-wrap items-center justify-center gap-1.5"
             role="tablist"
             aria-label="Переключение слайдов отзывов"
           >
@@ -246,21 +236,24 @@ export function HomeReviewsCarousel({ slides }: HomeReviewsCarouselProps) {
                 type="button"
                 role="tab"
                 aria-selected={i === safeIndex}
-                aria-label={`Слайд ${i + 1} из ${dotCount}`}
+                aria-label={`Перейти к отзыву ${i + 1} из ${dotCount}`}
                 onPointerDown={(e) => {
-                  /* иначе useCarouselSwipe на родителе: setPointerCapture ломает click */
                   e.stopPropagation();
                 }}
+                onPointerUp={(e) => e.stopPropagation()}
                 onClick={() => setIndex(i)}
-                className={`h-2.5 w-2.5 rounded-full border transition ${
+                className={`h-2.5 rounded-full transition-all ${
                   i === safeIndex
-                    ? "border-[#496db3] bg-[#496db3] shadow-[0_0_0_2px_rgba(73,109,179,0.25)]"
-                    : "border-[#496db3]/55 bg-white hover:border-[#496db3] hover:bg-[#496db3]/10"
+                    ? "w-6 bg-[#496db3]"
+                    : "w-2.5 bg-slate-300 hover:bg-slate-400"
                 }`}
               />
             ))}
           </div>
         ) : null}
+
+          </div>
+        </div>
       </div>
 
       {previewSession && typeof document !== "undefined"
