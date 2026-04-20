@@ -136,45 +136,52 @@ export function BannerPreviewReadonly({
     );
 
     return (
-      <div className="flex h-full min-h-0 w-full min-w-0 max-w-full flex-1 flex-col overflow-hidden md:grid md:grid-cols-2 md:grid-rows-1 md:gap-0">
-        {/* Мобильная: как в Tailwind Plus — текст по высоте контента, картинка на всю ширину и заполняет остаток кадра (не жёсткие 50/50). md+: две колонки 1fr|1fr. */}
-        <div className="relative z-20 flex min-h-0 shrink-0 flex-col justify-center overflow-y-auto overflow-x-hidden bg-slate-50 px-5 py-5 md:z-auto md:h-full md:min-h-0 md:w-full md:shrink md:overflow-visible md:self-stretch md:px-6 md:py-10">
-          {textBlock}
-        </div>
-        <div className="relative min-h-0 w-full min-w-0 max-w-full flex-1 overflow-hidden bg-slate-200 shadow-[inset_0_1px_0_0_rgb(203_213_225)] md:h-full md:min-h-0 md:w-full md:flex-none md:shadow-none md:border-l md:border-slate-200/90">
-          {imageSrc ? (
-            <img
-              src={imageSrc}
-              alt={bannerTitleForAlt(slide.title)}
-              className="absolute inset-0 box-border min-h-0 min-w-0 h-full w-full max-w-full object-contain md:object-cover"
-              style={{ objectPosition: `50% ${slide.imagePosY ?? 50}%` }}
-              loading="eager"
-              decoding="async"
-              onLoad={() => {
-                if (!bannerDebugEnabled()) return;
-                logBannerDebug("preview:img-load", {
-                  slideId: slide.id,
-                  image: describeBannerImageRef(imageSrc),
-                });
-              }}
-              onError={() => {
-                if (!bannerDebugEnabled()) return;
-                logBannerDebug("preview:img-error", {
-                  slideId: slide.id,
-                  image: describeBannerImageRef(imageSrc),
-                });
-              }}
-            />
-          ) : (
-            <div className="h-full w-full bg-slate-300" />
-          )}
-          {!imageSrc ? (
-            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
-              <div className="rounded-md border border-slate-500/40 bg-slate-900/35 px-3 py-1.5 text-xs font-medium text-white/90">
-                Выберите изображение для фона
-              </div>
+      <div className="relative h-full min-h-0 w-full overflow-hidden bg-slate-200">
+        {imageSrc ? (
+          <img
+            src={imageSrc}
+            alt={bannerTitleForAlt(slide.title)}
+            className="absolute inset-0 box-border h-full w-full min-h-0 min-w-0 max-w-full object-cover"
+            style={{ objectPosition: `50% ${slide.imagePosY ?? 50}%` }}
+            loading="eager"
+            decoding="async"
+            onLoad={() => {
+              if (!bannerDebugEnabled()) return;
+              logBannerDebug("preview:img-load", {
+                slideId: slide.id,
+                image: describeBannerImageRef(imageSrc),
+              });
+            }}
+            onError={() => {
+              if (!bannerDebugEnabled()) return;
+              logBannerDebug("preview:img-error", {
+                slideId: slide.id,
+                image: describeBannerImageRef(imageSrc),
+              });
+            }}
+          />
+        ) : (
+          <div className="absolute inset-0 bg-slate-300" />
+        )}
+        {slide.showOverlay !== false && imageSrc ? (
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundColor: "rgba(248, 250, 252, 0.58)",
+              backdropFilter: "blur(2px)",
+              WebkitBackdropFilter: "blur(2px)",
+            }}
+          />
+        ) : null}
+        {!imageSrc ? (
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+            <div className="rounded-md border border-slate-500/40 bg-slate-900/35 px-3 py-1.5 text-xs font-medium text-white/90">
+              Выберите изображение для фона
             </div>
-          ) : null}
+          </div>
+        ) : null}
+        <div className="relative z-20 flex h-full w-full items-center justify-center px-6 py-10">
+          {textBlock}
         </div>
       </div>
     );
