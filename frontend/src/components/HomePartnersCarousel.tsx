@@ -12,7 +12,7 @@ type HomePartnersCarouselProps = {
   slides: PartnerSlide[];
 };
 
-const partnerLogoCellClass = "min-w-0 h-auto w-full max-w-[158px] object-contain";
+const partnerLogoCellClass = "min-w-0 h-auto w-full max-w-[130px] object-contain sm:max-w-[158px]";
 
 export function HomePartnersCarousel({ slides }: HomePartnersCarouselProps) {
   const [runtimeSlides, setRuntimeSlides] = useState<PartnerSlide[]>(
@@ -83,7 +83,7 @@ export function HomePartnersCarousel({ slides }: HomePartnersCarouselProps) {
             ) : (
               <div
                 key={slide.id}
-                className="flex min-h-12 min-w-0 w-full max-w-[158px] items-center justify-center text-xs text-gray-400"
+                className="flex min-h-12 min-w-0 w-full max-w-[130px] items-center justify-center text-xs text-gray-400 sm:max-w-[158px]"
               >
                 Логотип
               </div>

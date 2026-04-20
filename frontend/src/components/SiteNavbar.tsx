@@ -193,9 +193,9 @@ export function SiteNavbar({ siteSettings }: SiteNavbarProps) {
           className="relative mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 min-[1206px]:justify-start min-[1206px]:gap-4 min-[1206px]:px-8 min-[1206px]:py-3.5"
         >
           <div className="flex min-w-0 shrink-0 items-center">
-            <Link href="/" className="-m-1 flex w-full max-w-full items-center p-1">
+            <Link href="/" className="-m-1 flex w-full max-w-full cursor-pointer select-none items-center p-1">
               <span className="sr-only">На главную — Центр каталогизации и анализа данных</span>
-              <img src="/logo.svg" alt="" className="h-7 w-auto max-w-[100%] object-contain" />
+              <img src="/logo.svg" alt="" className="h-7 w-auto max-w-[100%] select-none object-contain" draggable={false} />
             </Link>
             </div>
           <div className="flex min-[1206px]:hidden">
@@ -304,10 +304,10 @@ export function SiteNavbar({ siteSettings }: SiteNavbarProps) {
                   <Link
                     href="/"
                     onClick={closeMobileMenu}
-                    className="-m-1.5 p-1.5"
+                    className="-m-1.5 cursor-pointer select-none p-1.5"
                   >
                     <span className="sr-only">На главную — Центр каталогизации и анализа данных</span>
-                    <img src="/logo.svg" alt="" className="h-7 w-auto" />
+                    <img src="/logo.svg" alt="" className="h-7 w-auto select-none" draggable={false} />
                   </Link>
                   <button type="button" command="close" commandfor="mobile-menu" className="-m-2.5 rounded-md p-2.5 text-[#496db3]">
                     <span className="sr-only">Close menu</span>
