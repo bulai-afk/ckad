@@ -178,6 +178,9 @@ type StoredFolder = {
   showInNavbar?: boolean;
 };
 
+type PageDisplayOrderMap = Record<string, string[]>;
+type PageDisplayOrderRow = { sectionSlug: string; pageSlug: string };
+
 function coerceToFiniteNumber(value: unknown): number | undefined {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string") {
@@ -209,6 +212,42 @@ const FOLDERS_DATA_PATH = (() => {
   return path.resolve(process.cwd(), "data", "folders.json");
 })();
 const SITE_SETTINGS_DATA_PATH = path.resolve(process.cwd(), "data", "siteSettings.json");
+const PAGE_DISPLAY_ORDER_TABLE = "page_display_order";
+let pageDisplayOrderTableReady = false;
+
+function normalizeOrderSlug(input: string): string {
+  return String(input || "")
+    .trim()
+    .replace(/^\/+|\/+$/g, "")
+    .replace(/\\/g, "/")
+    .replace(/\/+/g, "/")
+    .toLowerCase();
+}
+
+function getSectionRootFromSlug(slug: string): string {
+  const normalized = normalizeOrderSlug(slug);
+  if (!normalized) return "";
+  return normalized.split("/")[0] || "";
+}
+
+async function ensurePageDisplayOrderTable(): Promise<void> {
+  if (pageDisplayOrderTableReady) return;
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS ${PAGE_DISPLAY_ORDER_TABLE} (
+      page_slug VARCHAR(255) NOT NULL,
+      section_slug VARCHAR(64) NOT NULL,
+      position INT NOT NULL DEFAULT 0,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (page_slug),
+      KEY idx_page_display_order_section_position (section_slug, position)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE ${PAGE_DISPLAY_ORDER_TABLE}
+    CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+  `);
+  pageDisplayOrderTableReady = true;
+}
 
 type SiteSettings = {
   email: string;
@@ -871,6 +910,82 @@ async function writeFoldersToFile(folders: StoredFolder[]): Promise<void> {
   );
 }
 
+async function readPageDisplayOrderFromDb(): Promise<PageDisplayOrderMap> {
+  await ensurePageDisplayOrderTable();
+  const rows = await prisma.$queryRawUnsafe<PageDisplayOrderRow[]>(`
+    SELECT d.section_slug AS sectionSlug, d.page_slug AS pageSlug
+    FROM ${PAGE_DISPLAY_ORDER_TABLE} d
+    INNER JOIN Page p
+      ON p.slug COLLATE utf8mb4_unicode_ci = d.page_slug COLLATE utf8mb4_unicode_ci
+    ORDER BY d.section_slug ASC, d.position ASC, d.page_slug ASC
+  `);
+  const out: PageDisplayOrderMap = {};
+  for (const row of rows) {
+    const section = normalizeOrderSlug(row.sectionSlug);
+    const slug = normalizeOrderSlug(row.pageSlug);
+    if (!section || !slug) continue;
+    if (!out[section]) out[section] = [];
+    out[section].push(slug);
+  }
+  return out;
+}
+
+async function upsertPageDisplayOrderInDb(section: string, slugs: string[]): Promise<void> {
+  await ensurePageDisplayOrderTable();
+  if (slugs.length === 0) {
+    await prisma.$executeRawUnsafe(
+      `DELETE FROM ${PAGE_DISPLAY_ORDER_TABLE} WHERE section_slug = ?`,
+      section,
+    );
+    return;
+  }
+
+  await prisma.$transaction(async (tx) => {
+    for (let i = 0; i < slugs.length; i += 1) {
+      const slug = slugs[i];
+      await tx.$executeRawUnsafe(
+        `INSERT INTO ${PAGE_DISPLAY_ORDER_TABLE} (page_slug, section_slug, position)
+         VALUES (?, ?, ?)
+         ON DUPLICATE KEY UPDATE section_slug = VALUES(section_slug), position = VALUES(position)`,
+        slug,
+        section,
+        i,
+      );
+    }
+    await tx.$executeRawUnsafe(
+      `DELETE FROM ${PAGE_DISPLAY_ORDER_TABLE}
+       WHERE section_slug = ?
+         AND page_slug NOT IN (${slugs.map(() => "?").join(",")})`,
+      section,
+      ...slugs,
+    );
+  });
+}
+
+async function remapPageSlugInDisplayOrder(oldSlug: string, newSlug: string): Promise<void> {
+  const oldNormalized = normalizeOrderSlug(oldSlug);
+  const newNormalized = normalizeOrderSlug(newSlug);
+  if (!oldNormalized || !newNormalized || oldNormalized === newNormalized) return;
+  await ensurePageDisplayOrderTable();
+  const section = getSectionRootFromSlug(newNormalized);
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(
+      `INSERT INTO ${PAGE_DISPLAY_ORDER_TABLE} (page_slug, section_slug, position)
+       SELECT ?, ?, position
+       FROM ${PAGE_DISPLAY_ORDER_TABLE}
+       WHERE page_slug = ?
+       ON DUPLICATE KEY UPDATE section_slug = VALUES(section_slug), position = VALUES(position)`,
+      newNormalized,
+      section,
+      oldNormalized,
+    );
+    await tx.$executeRawUnsafe(
+      `DELETE FROM ${PAGE_DISPLAY_ORDER_TABLE} WHERE page_slug = ?`,
+      oldNormalized,
+    );
+  });
+}
+
 async function readSiteSettingsFromFile(): Promise<SiteSettings> {
   try {
     const raw = await fs.readFile(SITE_SETTINGS_DATA_PATH, "utf-8");
@@ -1086,6 +1201,60 @@ pagesRouter.put("/folders", async (req, res) => {
       error: "Failed to save folders",
       detail: msg,
       path: FOLDERS_DATA_PATH,
+    });
+  }
+});
+
+pagesRouter.get("/display-order", async (_req, res) => {
+  try {
+    const orderBySection = await readPageDisplayOrderFromDb();
+    res.set("Cache-Control", "private, no-store, max-age=0, must-revalidate");
+    return res.json({ orderBySection });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    // eslint-disable-next-line no-console
+    console.error("[display-order GET]", msg);
+    return res.status(500).json({ error: "Failed to load display order", detail: msg });
+  }
+});
+
+pagesRouter.put("/display-order", async (req, res) => {
+  try {
+    const body = req.body ?? {};
+    const sectionRaw = (body as { section?: unknown }).section;
+    const slugsRaw = (body as { slugs?: unknown }).slugs;
+    const section = normalizeOrderSlug(String(sectionRaw || ""));
+    if (!section || !Array.isArray(slugsRaw)) {
+      return res.status(400).json({ error: "section string and slugs array are required" });
+    }
+
+    const seen = new Set<string>();
+    const normalizedSlugs = slugsRaw
+      .map((s) => normalizeOrderSlug(String(s || "")))
+      .filter((s) => s && (s === section || s.startsWith(`${section}/`)))
+      .filter((s) => {
+        if (seen.has(s)) return false;
+        seen.add(s);
+        return true;
+      });
+
+    const existingPages = await prisma.page.findMany({
+      where: { slug: { in: normalizedSlugs } },
+      select: { slug: true },
+    });
+    const existingSet = new Set(existingPages.map((p) => normalizeOrderSlug(p.slug)));
+    const persistedSlugs = normalizedSlugs.filter((s) => existingSet.has(s));
+
+    await upsertPageDisplayOrderInDb(section, persistedSlugs);
+    const next = await readPageDisplayOrderFromDb();
+    return res.json({ ok: true, orderBySection: next });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    // eslint-disable-next-line no-console
+    console.error("[display-order PUT]", msg);
+    return res.status(500).json({
+      error: "Failed to save display order",
+      detail: msg,
     });
   }
 });
@@ -1440,6 +1609,10 @@ pagesRouter.put("/folder-rename", async (req, res) => {
     });
 
     await prisma.$transaction(updates);
+    for (const page of pagesToRename) {
+      const updatedSlug = page.slug.replace(oldPrefix, newPrefix);
+      await remapPageSlugInDisplayOrder(page.slug, updatedSlug);
+    }
     return res.json({ renamed: pagesToRename.length });
   } catch (e: any) {
     if (e?.code === "P2002") {
@@ -1539,6 +1712,7 @@ pagesRouter.put("/:id", async (req, res) => {
           },
         });
       });
+    await remapPageSlugInDisplayOrder(existing.slug, slugValue);
 
     const firstTextBlock = existing.blocks.find((b) => b.type === "text");
     if (hasText) {
@@ -1743,10 +1917,19 @@ pagesRouter.delete("/:id", async (req, res) => {
   }
 
   try {
+    const existing = await prisma.page.findUnique({ where: { id }, select: { slug: true } });
+    if (!existing) {
+      return res.status(404).json({ error: "Page not found" });
+    }
     await prisma.$transaction([
       prisma.block.deleteMany({ where: { pageId: id } }),
       prisma.page.delete({ where: { id } }),
     ]);
+    await ensurePageDisplayOrderTable();
+    await prisma.$executeRawUnsafe(
+      `DELETE FROM ${PAGE_DISPLAY_ORDER_TABLE} WHERE page_slug = ?`,
+      normalizeOrderSlug(existing.slug),
+    );
     return res.status(204).send();
   } catch (e: any) {
     if (e?.code === "P2025") {

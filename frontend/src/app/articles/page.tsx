@@ -6,6 +6,10 @@ import {
 } from "@/components/ArticleTeaserCard";
 import { apiGet } from "@/lib/api";
 import { apiPagesSlugRequestPath } from "@/lib/apiPagesSlugUrl";
+import {
+  normalizePageDisplayOrderMap,
+  sortBySectionDisplayOrder,
+} from "@/lib/pageDisplayOrder";
 import { sanitizePublicAssetUrl } from "@/lib/publicAssetUrl";
 
 export const dynamic = "force-dynamic";
@@ -86,13 +90,31 @@ async function getArticles(): Promise<
 > {
   try {
     const pages = await apiGet<ArticleListItem[]>("/api/pages");
-    const sourceArticles = pages
+    let orderBySection = {};
+    try {
+      const displayOrderPayload = await apiGet<{ orderBySection?: unknown }>("/api/pages/display-order");
+      orderBySection = normalizePageDisplayOrderMap(displayOrderPayload?.orderBySection);
+    } catch {
+      orderBySection = {};
+    }
+    const byDateDesc = pages
       .filter((p) => isVisibleArticlePage(p) && normalizeSlug(p.slug).startsWith("articles/"))
       .sort((a, b) => {
         const ad = new Date(a.updatedAt || a.createdAt || 0).getTime();
         const bd = new Date(b.updatedAt || b.createdAt || 0).getTime();
         return bd - ad;
       });
+    const sourceArticles = sortBySectionDisplayOrder(
+      byDateDesc,
+      "articles",
+      (item) => normalizeSlug(item.slug),
+      orderBySection,
+      (a, b) => {
+        const ad = new Date(a.updatedAt || a.createdAt || 0).getTime();
+        const bd = new Date(b.updatedAt || b.createdAt || 0).getTime();
+        return bd - ad;
+      },
+    );
 
     const pageBySlug = await Promise.all(
       sourceArticles.map(async (p) => {

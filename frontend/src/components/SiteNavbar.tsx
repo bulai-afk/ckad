@@ -5,6 +5,11 @@ import Script from "next/script";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { apiGet } from "@/lib/api";
+import {
+  normalizePageDisplayOrderMap,
+  sortBySectionDisplayOrder,
+  type PageDisplayOrderMap,
+} from "@/lib/pageDisplayOrder";
 import { CallbackRequestModal } from "@/components/CallbackRequestModal";
 
 type PageSummary = {
@@ -53,12 +58,17 @@ function normalizeSlugPath(slug: string): string {
     .toLowerCase();
 }
 
-function buildSectionLinks(pages: PageSummary[], rootSlug: string): NavLinkItem[] {
+function buildSectionLinks(
+  pages: PageSummary[],
+  rootSlug: string,
+  orderBySection: PageDisplayOrderMap,
+): NavLinkItem[] {
   const root = normalizeSlugPath(rootSlug);
   const seen = new Set<string>();
-  const links: NavLinkItem[] = [];
+  const links: (NavLinkItem & { slugPath: string; sourceIndex: number })[] = [];
 
-  for (const p of pages) {
+  for (let sourceIndex = 0; sourceIndex < pages.length; sourceIndex += 1) {
+    const p = pages[sourceIndex];
     const normalizedSlug = normalizeSlugPath(String(p.slug || ""));
     if (!normalizedSlug.startsWith(`${root}/`)) continue;
     if (String(p.status).toUpperCase() !== "PUBLISHED") continue;
@@ -68,10 +78,19 @@ function buildSectionLinks(pages: PageSummary[], rootSlug: string): NavLinkItem[
     links.push({
       href: `/${normalizedSlug}`,
       label: String(p.title || "").trim() || normalizedSlug.split("/").pop() || "Страница",
+      slugPath: normalizedSlug,
+      sourceIndex,
     });
   }
 
-  return links.sort((a, b) => a.label.localeCompare(b.label, "ru"));
+  const sorted = sortBySectionDisplayOrder(
+    links,
+    root,
+    (item) => item.slugPath,
+    orderBySection,
+    (a, b) => a.sourceIndex - b.sourceIndex,
+  );
+  return sorted.map(({ href, label }) => ({ href, label }));
 }
 
 type SiteNavbarProps = {
@@ -86,6 +105,7 @@ type SiteNavbarProps = {
 export function SiteNavbar({ siteSettings }: SiteNavbarProps) {
   const pathname = usePathname();
   const [pages, setPages] = useState<PageSummary[] | null>(null);
+  const [orderBySection, setOrderBySection] = useState<PageDisplayOrderMap>({});
   const [topBannerIndex, setTopBannerIndex] = useState(0);
   const [isTopBannerFlipping, setIsTopBannerFlipping] = useState(false);
   const [callbackModalOpen, setCallbackModalOpen] = useState(false);
@@ -106,12 +126,27 @@ export function SiteNavbar({ siteSettings }: SiteNavbarProps) {
     let alive = true;
     void (async () => {
       try {
-        const data = await apiGet<PageSummary[]>("/api/pages", 10_000);
-        if (!alive || !Array.isArray(data)) return;
-        setPages(data);
+        const [pagesResult, orderResult] = await Promise.allSettled([
+          apiGet<PageSummary[]>("/api/pages", 10_000),
+          apiGet<{ orderBySection?: unknown }>("/api/pages/display-order", 10_000),
+        ]);
+        if (!alive) return;
+
+        if (pagesResult.status === "fulfilled" && Array.isArray(pagesResult.value)) {
+          setPages(pagesResult.value);
+        } else {
+          setPages([]);
+        }
+
+        if (orderResult.status === "fulfilled") {
+          setOrderBySection(normalizePageDisplayOrderMap(orderResult.value?.orderBySection));
+        } else {
+          setOrderBySection({});
+        }
       } catch {
         if (!alive) return;
         setPages([]);
+        setOrderBySection({});
       }
     })();
     return () => {
@@ -143,15 +178,15 @@ export function SiteNavbar({ siteSettings }: SiteNavbarProps) {
 
   const catalogLinks = useMemo(() => {
     if (!pages) return FALLBACK_CATALOG_LINKS;
-    const dynamic = buildSectionLinks(pages, CATALOG_ROOT);
+    const dynamic = buildSectionLinks(pages, CATALOG_ROOT, orderBySection);
     return dynamic.length > 0 ? dynamic : FALLBACK_CATALOG_LINKS;
-  }, [pages]);
+  }, [pages, orderBySection]);
 
   const trainingLinks = useMemo(() => {
     if (!pages) return FALLBACK_TRAINING_LINKS;
-    const dynamic = buildSectionLinks(pages, TRAINING_ROOT);
+    const dynamic = buildSectionLinks(pages, TRAINING_ROOT, orderBySection);
     return dynamic.length > 0 ? dynamic : FALLBACK_TRAINING_LINKS;
-  }, [pages]);
+  }, [pages, orderBySection]);
 
   function closeMobileMenu() {
     if (typeof document === "undefined") return;

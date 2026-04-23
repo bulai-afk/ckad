@@ -5,6 +5,11 @@ import { usePathname } from "next/navigation";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactElement } from "react";
+import {
+  normalizePageDisplayOrderMap,
+  sortBySectionDisplayOrder,
+  type PageDisplayOrderMap,
+} from "@/lib/pageDisplayOrder";
 
 const CATALOG_ROOT = "catalogization";
 const TRAINING_ROOT = "training-center";
@@ -33,12 +38,14 @@ function normalizeSlugPath(slug: string): string {
 function buildFooterSectionLinks(
   pages: { title: string; slug: string; status?: string }[],
   rootSlug: string,
+  orderBySection: PageDisplayOrderMap,
 ): { href: string; label: string }[] {
   const root = normalizeSlugPath(rootSlug);
   const seen = new Set<string>();
-  const links: { href: string; label: string }[] = [];
+  const links: { href: string; label: string; slugPath: string; sourceIndex: number }[] = [];
 
-  for (const p of pages) {
+  for (let sourceIndex = 0; sourceIndex < pages.length; sourceIndex += 1) {
+    const p = pages[sourceIndex];
     const normalizedSlug = normalizeSlugPath(String(p.slug || ""));
     if (!normalizedSlug.startsWith(`${root}/`)) continue;
     if (String(p.status).toUpperCase() !== "PUBLISHED") continue;
@@ -48,10 +55,19 @@ function buildFooterSectionLinks(
     links.push({
       href: `/${normalizedSlug}`,
       label: String(p.title || "").trim() || normalizedSlug.split("/").pop() || "Страница",
+      slugPath: normalizedSlug,
+      sourceIndex,
     });
   }
 
-  return links.sort((a, b) => a.label.localeCompare(b.label, "ru"));
+  const sorted = sortBySectionDisplayOrder(
+    links,
+    root,
+    (item) => item.slugPath,
+    orderBySection,
+    (a, b) => a.sourceIndex - b.sourceIndex,
+  );
+  return sorted.map(({ href, label }) => ({ href, label }));
 }
 
 const footerLinkClass =
@@ -213,15 +229,23 @@ export function SiteFooter({ siteSettings }: { siteSettings?: SiteSettings | nul
     if (hidden) return;
     let cancelled = false;
 
-    void fetch("/api/pages", { cache: "no-store" })
+    void Promise.all([
+      fetch("/api/pages", { cache: "no-store" }),
+      fetch("/api/pages/display-order", { cache: "no-store" }),
+    ])
       .then(async (res) => {
-        if (!res.ok) throw new Error("pages_fetch_failed");
-        const rows = (await res.json()) as FooterPageRow[];
+        const [pagesRes, orderRes] = res;
+        if (!pagesRes.ok) throw new Error("pages_fetch_failed");
+        const rows = (await pagesRes.json()) as FooterPageRow[];
         if (!Array.isArray(rows)) throw new Error("pages_invalid_payload");
+        const orderPayload = orderRes.ok
+          ? ((await orderRes.json()) as { orderBySection?: unknown })
+          : {};
+        const orderBySection = normalizePageDisplayOrderMap(orderPayload?.orderBySection);
 
         const pageRows = rows.filter((row) => typeof row?.slug === "string" && row.slug.trim() !== "");
-        const catalogLinks = buildFooterSectionLinks(pageRows, CATALOG_ROOT);
-        const trainingLinks = buildFooterSectionLinks(pageRows, TRAINING_ROOT);
+        const catalogLinks = buildFooterSectionLinks(pageRows, CATALOG_ROOT, orderBySection);
+        const trainingLinks = buildFooterSectionLinks(pageRows, TRAINING_ROOT, orderBySection);
 
         if (cancelled) return;
         if (catalogLinks.length > 0) {

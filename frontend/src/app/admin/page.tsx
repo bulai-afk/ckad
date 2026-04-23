@@ -7,11 +7,18 @@ import {
   NAV_FOLDERS_COOKIE_NAME,
   serializeNavFoldersCookie,
 } from "@/lib/navFoldersCookie";
+import {
+  normalizePageDisplayOrderMap,
+  sortBySectionDisplayOrder,
+  type PageDisplayOrderMap,
+} from "@/lib/pageDisplayOrder";
 import { AdminSidebar } from "@/components/admin/Sidebar";
 import { AdminTopBar } from "@/components/admin/AdminTopBar";
 import {
   ArrowUpCircleIcon,
+  Bars3Icon,
   PlusSmallIcon,
+  Squares2X2Icon,
   FolderIcon,
   DocumentTextIcon,
   DocumentPlusIcon,
@@ -216,6 +223,7 @@ const PAGE_KEYWORDS_MAX = 400;
 export default function AdminPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<AdminSectionTab>("catalog");
+  const [pagesViewMode, setPagesViewMode] = useState<"grid" | "list">("grid");
   const [pages, setPages] = useState<PageSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -258,6 +266,9 @@ export default function AdminPage() {
   );
   const [draggedFolderSlug, setDraggedFolderSlug] = useState<string | null>(null);
   const [folderDragOverSlug, setFolderDragOverSlug] = useState<string | null>(null);
+  const [pageOrderBySection, setPageOrderBySection] = useState<PageDisplayOrderMap>({});
+  const [dragOrderPageId, setDragOrderPageId] = useState<number | null>(null);
+  const [dragOrderOverPageId, setDragOrderOverPageId] = useState<number | null>(null);
   const [editFolderOldSlug, setEditFolderOldSlug] = useState<string>("");
   const [editFolderSlug, setEditFolderSlug] = useState<string>("");
   const [editFolderParentSlug, setEditFolderParentSlug] = useState<string>("__root");
@@ -284,8 +295,16 @@ export default function AdminPage() {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiGet<PageSummary[]>("/api/pages");
+      const [data, orderPayload] = await Promise.all([
+        apiGet<PageSummary[]>("/api/pages"),
+        apiGet<{ orderBySection?: unknown }>("/api/pages/display-order").catch(
+          () => ({ orderBySection: undefined }),
+        ),
+      ]);
       setPages(data);
+      if (orderPayload && typeof orderPayload === "object") {
+        setPageOrderBySection(normalizePageDisplayOrderMap(orderPayload.orderBySection));
+      }
     } catch (e) {
       setError("Не удалось загрузить страницы");
       // eslint-disable-next-line no-console
@@ -711,6 +730,36 @@ export default function AdminPage() {
     }
   }
 
+  async function saveSectionDisplayOrder(sectionSlug: string, orderedSlugs: string[]) {
+    const normalizedSection = normalizeUrlSlugPath(sectionSlug);
+    const normalizedSlugs = orderedSlugs
+      .map((s) => normalizeUrlSlugPath(s))
+      .filter((s) => s && (s === normalizedSection || s.startsWith(`${normalizedSection}/`)));
+    setPageOrderBySection((prev) => ({
+      ...prev,
+      [normalizedSection]: normalizedSlugs,
+    }));
+    try {
+      const payload = await apiPut<{ orderBySection?: unknown }>("/api/pages/display-order", {
+        section: normalizedSection,
+        slugs: normalizedSlugs,
+      });
+      if (payload && typeof payload === "object") {
+        setPageOrderBySection(normalizePageDisplayOrderMap(payload.orderBySection));
+      }
+    } catch {
+      setError("Не удалось сохранить порядок карточек.");
+      void (async () => {
+        try {
+          const payload = await apiGet<{ orderBySection?: unknown }>("/api/pages/display-order");
+          setPageOrderBySection(normalizePageDisplayOrderMap(payload?.orderBySection));
+        } catch {
+          // no-op
+        }
+      })();
+    }
+  }
+
   const activeTabConfig =
     ADMIN_SECTION_TABS.find((t) => t.id === activeTab) ?? ADMIN_SECTION_TABS[0];
   const currentSectionRoot = activeTabConfig.rootSlug;
@@ -723,7 +772,13 @@ export default function AdminPage() {
   const currentFolderKey = currentSectionRoot;
   const parentFolderForQuickDrop: string | null = null;
   const childFolders: string[] = [];
-  const visiblePages = sectionPages;
+  const visiblePages = sortBySectionDisplayOrder(
+    sectionPages,
+    currentSectionRoot,
+    (page) => normalizeUrlSlugPath(page.slug),
+    pageOrderBySection,
+    (a, b) => b.id - a.id,
+  );
 
   useEffect(() => {
     setCurrentFolder(currentSectionRoot);
@@ -1110,7 +1165,8 @@ export default function AdminPage() {
           <AdminTopBar />
 
           <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-6 py-6 lg:px-10">
-            <div className="mb-3 flex flex-wrap items-center gap-2">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2">
                 {ADMIN_SECTION_TABS.map((tab) => (
                   <button
                     key={tab.id}
@@ -1127,6 +1183,34 @@ export default function AdminPage() {
                     {tab.label}
                   </button>
                 ))}
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setPagesViewMode((prev) => (prev === "grid" ? "list" : "grid"))
+                }
+                className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border transition ${
+                  pagesViewMode === "grid"
+                    ? "border-[#496db3]/40 bg-[#496db3]/10 text-[#496db3]"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-[#496db3]/40 hover:text-[#496db3]"
+                }`}
+                title={
+                  pagesViewMode === "grid"
+                    ? "Переключить на список"
+                    : "Переключить на плитку"
+                }
+                aria-label={
+                  pagesViewMode === "grid"
+                    ? "Переключить на список"
+                    : "Переключить на плитку"
+                }
+              >
+                {pagesViewMode === "grid" ? (
+                  <Squares2X2Icon className="h-4 w-4 [stroke-width:2.1]" />
+                ) : (
+                  <Bars3Icon className="h-4 w-4 [stroke-width:2.1]" />
+                )}
+              </button>
             </div>
 
             <div className="flex h-full min-h-0 flex-col rounded-2xl border border-slate-200 bg-white p-6">
@@ -1304,18 +1388,54 @@ export default function AdminPage() {
                 ) : null}
 
                 {visiblePages.length > 0 ? (
-                  <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 xl:grid-cols-3">
-                    {visiblePages.map((p) => (
+                  <div
+                    className={`grid p-4 ${
+                      pagesViewMode === "grid"
+                        ? "grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"
+                        : "grid-cols-1 gap-2"
+                    }`}
+                  >
+                    {visiblePages.map((p, index) => (
                         <div
                           key={p.id}
-                        className="group relative flex min-h-[210px] w-full flex-col rounded-xl border border-slate-200 bg-white p-4 transition hover:border-[#496db3]/40 hover:shadow-sm"
-                          onPointerDown={(e) => {
-                            const target = e.target as Element | null;
-                          if (target?.closest("[data-page-menu-root='true']")) return;
-                          dragSourceRef.current = e.currentTarget as HTMLElement;
-                            dragStartRef.current = { x: e.clientX, y: e.clientY };
-                            setPendingDragPageId(p.id);
+                          draggable
+                          onDragStart={(e) => {
+                            setDragOrderPageId(p.id);
+                            setDragOrderOverPageId(p.id);
+                            e.dataTransfer.effectAllowed = "move";
+                            e.dataTransfer.setData("text/plain", String(p.id));
                           }}
+                          onDragOver={(e) => {
+                            if (dragOrderPageId === null || dragOrderPageId === p.id) return;
+                            e.preventDefault();
+                            if (dragOrderOverPageId !== p.id) {
+                              setDragOrderOverPageId(p.id);
+                            }
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            if (dragOrderPageId === null || dragOrderPageId === p.id) return;
+                            const ids = visiblePages.map((item) => item.id);
+                            const from = ids.indexOf(dragOrderPageId);
+                            const to = ids.indexOf(p.id);
+                            if (from < 0 || to < 0 || from === to) return;
+                            const moved = [...visiblePages];
+                            const [draggedItem] = moved.splice(from, 1);
+                            moved.splice(to, 0, draggedItem);
+                            void saveSectionDisplayOrder(
+                              currentSectionRoot,
+                              moved.map((item) => item.slug),
+                            );
+                          }}
+                          onDragEnd={() => {
+                            setDragOrderPageId(null);
+                            setDragOrderOverPageId(null);
+                          }}
+                        className={`group relative flex w-full rounded-xl border border-slate-200 bg-white transition hover:border-[#496db3]/40 hover:shadow-sm ${
+                          pagesViewMode === "grid"
+                            ? "min-h-[210px] flex-col p-4"
+                            : "min-h-0 flex-col p-2"
+                        } ${dragOrderOverPageId === p.id && dragOrderPageId !== p.id ? "border-[#496db3]" : ""}`}
                               onClick={(e) => {
                           const target = e.target as Element | null;
                           if (target?.closest("[data-page-menu-root='true']")) return;
@@ -1327,8 +1447,21 @@ export default function AdminPage() {
                           router.push(`/admin/page_editor/${p.id}`);
                         }}
                       >
-                        <div className="flex w-full min-w-0 flex-1 flex-col">
-                          <div className="relative mb-3 aspect-[2/1] w-full overflow-hidden rounded-lg bg-slate-100 ring-1 ring-slate-200">
+                        <div className={`flex w-full min-w-0 flex-1 ${pagesViewMode === "grid" ? "flex-col" : "flex-row gap-3"}`}>
+                          <div
+                            className={`relative overflow-hidden rounded-lg bg-slate-100 ring-1 ring-slate-200 ${
+                              pagesViewMode === "grid"
+                                ? "mb-3 aspect-[2/1] w-full"
+                                : "h-16 w-24 shrink-0"
+                            }`}
+                          >
+                            <div
+                              className="absolute right-2 top-2 z-20 inline-flex min-w-6 items-center justify-center rounded-full bg-[#496db3]/95 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white shadow-sm ring-1 ring-white/80"
+                              aria-label={`Позиция ${index + 1}`}
+                              title={`Позиция ${index + 1}`}
+                            >
+                              {index + 1}
+                            </div>
                             {p.preview ? (
                               <img
                                 src={p.preview}
@@ -1340,7 +1473,7 @@ export default function AdminPage() {
                                 Без превью
                               </div>
                             )}
-                            {activeTab === "articles" ? (
+                            {activeTab === "articles" && pagesViewMode === "grid" ? (
                               <div
                                 className="absolute left-2 top-2 z-20 flex max-w-[calc(100%-1rem)] rounded-full bg-white/95 p-0.5 shadow-sm ring-1 ring-slate-200/90"
                                 onClick={(e) => {
@@ -1386,9 +1519,55 @@ export default function AdminPage() {
                               </div>
                             ) : null}
                           </div>
-                          <div className="flex items-start justify-between gap-x-2 text-xs">
+                          <div className="flex min-w-0 flex-1 flex-col">
+                          <div className={`flex justify-between gap-x-2 ${pagesViewMode === "grid" ? "items-start text-xs" : "items-center text-[11px]"}`}>
                             <span className="text-slate-400">{formatPageDate(p.createdAt)}</span>
                             <div className="flex items-center gap-x-1.5">
+                              {activeTab === "articles" && pagesViewMode === "list" ? (
+                                <div
+                                  className="z-10 flex rounded-full bg-white/95 p-0.5 shadow-sm ring-1 ring-slate-200/90"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                  }}
+                                  onPointerDown={(e) => e.stopPropagation()}
+                                  role="group"
+                                  aria-label="Тип материала"
+                                >
+                                  <button
+                                    type="button"
+                                    disabled={articleKindSavingId === p.id}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      void handleArticleKindChange(p, "news");
+                                    }}
+                                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold transition ${
+                                      (p.articleKind ?? "news") === "news"
+                                        ? "bg-[#496db3] text-white"
+                                        : "text-slate-600 hover:bg-slate-100"
+                                    } ${articleKindSavingId === p.id ? "opacity-60" : ""}`}
+                                  >
+                                    Новость
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={articleKindSavingId === p.id}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      void handleArticleKindChange(p, "article");
+                                    }}
+                                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold transition ${
+                                      p.articleKind === "article"
+                                        ? "bg-[#496db3] text-white"
+                                        : "text-slate-600 hover:bg-slate-100"
+                                    } ${articleKindSavingId === p.id ? "opacity-60" : ""}`}
+                                  >
+                                    Статья
+                                  </button>
+                                </div>
+                              ) : null}
                               <button
                                 type="button"
                                 aria-label={
@@ -1402,7 +1581,9 @@ export default function AdminPage() {
                                   e.stopPropagation();
                                   void handleTogglePagePublished(p);
                                 }}
-                                className={`relative z-10 inline-flex items-center gap-2 rounded-full px-2.5 py-1 font-medium transition ${
+                                className={`relative z-10 inline-flex items-center rounded-full font-medium transition ${
+                                  pagesViewMode === "grid" ? "gap-2 px-2.5 py-1" : "gap-1 px-2 py-0.5"
+                                } ${
                                   p.status === "PUBLISHED"
                                     ? "bg-emerald-50 text-emerald-700"
                                     : "bg-slate-100 text-slate-600"
@@ -1414,15 +1595,23 @@ export default function AdminPage() {
                               >
                                 <span>{p.status === "PUBLISHED" ? "Опубликовано" : "Черновик"}</span>
                                 <span
-                                  className={`inline-flex h-5 w-9 items-center rounded-full border transition ${
+                                  className={`inline-flex items-center rounded-full border transition ${
+                                    pagesViewMode === "grid" ? "h-5 w-9" : "h-4 w-7"
+                                  } ${
                                     p.status === "PUBLISHED"
                                       ? "border-emerald-300 bg-emerald-100"
                                       : "border-slate-300 bg-slate-100"
                                   }`}
                                 >
                                   <span
-                                    className={`ml-0.5 inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${
-                                      p.status === "PUBLISHED" ? "translate-x-4" : "translate-x-0"
+                                    className={`ml-0.5 inline-block rounded-full bg-white shadow-sm transition-transform ${
+                                      pagesViewMode === "grid" ? "h-3.5 w-3.5" : "h-2.5 w-2.5"
+                                    } ${
+                                      p.status === "PUBLISHED"
+                                        ? pagesViewMode === "grid"
+                                          ? "translate-x-4"
+                                          : "translate-x-3"
+                                        : "translate-x-0"
                                     }`}
                                   />
                                 </span>
@@ -1430,7 +1619,9 @@ export default function AdminPage() {
                             <div className="relative shrink-0" data-page-menu-root="true">
                               <button
                                 type="button"
-                              className="inline-flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                              className={`inline-flex items-center justify-center rounded text-slate-500 hover:bg-slate-100 hover:text-slate-700 ${
+                                pagesViewMode === "grid" ? "h-6 w-6" : "h-5 w-5"
+                              }`}
                                 aria-label="Открыть меню страницы"
                                 onClick={(e) => {
                                   e.preventDefault();
@@ -1487,14 +1678,14 @@ export default function AdminPage() {
                           </div>
                         </div>
                           <div className="group relative grow">
-                            <h3 className="mt-3 text-base/6 font-semibold text-slate-900 group-hover:text-[#496db3]">
+                            <h3 className={`${pagesViewMode === "grid" ? "mt-3 text-base/6" : "mt-0 text-sm leading-5"} font-semibold text-slate-900 group-hover:text-[#496db3]`}>
                               <span className="absolute inset-0" />
                             {p.title || "(без названия)"}
                             </h3>
-                            <p className="mt-3 line-clamp-3 text-sm/6 text-slate-500">
+                            <p className={`${pagesViewMode === "grid" ? "mt-3 line-clamp-3 text-sm/6" : "mt-0.5 line-clamp-2 text-xs leading-5"} text-slate-500`}>
                               {(p.description || "").trim() || "Описание страницы пока не заполнено."}
                             </p>
-                            {parseKeywords(p.keywords).length > 0 && (
+                            {pagesViewMode === "grid" && parseKeywords(p.keywords).length > 0 && (
                               <div className="mt-3 flex flex-wrap gap-1.5">
                                 {parseKeywords(p.keywords).map((keyword) => (
                                   <span
@@ -1506,6 +1697,7 @@ export default function AdminPage() {
                                 ))}
                               </div>
                             )}
+                          </div>
                           </div>
                         </div>
                       </div>

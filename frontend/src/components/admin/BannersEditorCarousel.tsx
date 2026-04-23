@@ -1,11 +1,7 @@
 "use client";
 
-import { CheckIcon } from "@heroicons/react/20/solid";
 import {
-  Bars3BottomLeftIcon,
-  Bars3BottomRightIcon,
   EllipsisVerticalIcon,
-  SwatchIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -262,51 +258,6 @@ function normalizeSlide(raw: Partial<Slide> & { id: string; title: string }): Sl
   };
 }
 
-function AlignCenterIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 20 20"
-      fill="currentColor"
-      className={className}
-      aria-hidden="true"
-    >
-      <path
-        fillRule="evenodd"
-        d="M2 4.75A.75.75 0 0 1 2.75 4h14.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 4.75Zm5 5.5a.75.75 0 0 1 .75-.75h5.5a.75.75 0 0 1 0 1.5h-5.5A.75.75 0 0 1 7 10.25Zm-5 5a.75.75 0 0 1 .75-.75h14.5a.75.75 0 0 1 0 1.5H2.75a.75.75 0 0 1-.75-.75Z"
-        clipRule="evenodd"
-      />
-    </svg>
-  );
-}
-
-function AlignVerticalTopIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className} aria-hidden="true">
-      <path d="M3 3.75A.75.75 0 0 1 3.75 3h12.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 3.75Z" />
-      <path d="M7.75 7A.75.75 0 0 0 7 7.75v8.5c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-8.5a.75.75 0 0 0-.75-.75h-4.5Z" />
-    </svg>
-  );
-}
-
-function AlignVerticalMiddleIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className} aria-hidden="true">
-      <path d="M3 10a.75.75 0 0 1 .75-.75h12.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 10Z" />
-      <path d="M7.75 5A.75.75 0 0 0 7 5.75v8.5c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-8.5a.75.75 0 0 0-.75-.75h-4.5Z" />
-    </svg>
-  );
-}
-
-function AlignVerticalBottomIcon({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className} aria-hidden="true">
-      <path d="M3 16.25a.75.75 0 0 1 .75-.75h12.5a.75.75 0 0 1 0 1.5H3.75a.75.75 0 0 1-.75-.75Z" />
-      <path d="M7.75 3A.75.75 0 0 0 7 3.75v8.5c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-8.5a.75.75 0 0 0-.75-.75h-4.5Z" />
-    </svg>
-  );
-}
-
 async function compressImageFileToWebpDataUrl(file: File): Promise<string> {
   const dataUrl = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -457,9 +408,8 @@ export function BannersEditorCarousel() {
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [saveTone, setSaveTone] = useState<"success" | "error">("success");
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
-  const [imageAlignMode, setImageAlignMode] = useState(false);
-  const [colorMenuOpen, setColorMenuOpen] = useState(false);
-  const [fontSizeTarget, setFontSizeTarget] = useState<"title" | "subtitle" | "button">("title");
+  // Temporarily disabled due to incorrect behavior in split banners.
+  const imageAlignMode = false;
   const [linkModalOpen, setLinkModalOpen] = useState(false);
   const [linkModalValue, setLinkModalValue] = useState("");
   const [linkModalButtonText, setLinkModalButtonText] = useState("");
@@ -468,21 +418,7 @@ export function BannersEditorCarousel() {
   >("primary");
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const actionsMenuRef = useRef<HTMLDivElement | null>(null);
-  const colorDropdownRef = useRef<HTMLDivElement | null>(null);
   const linkModalInputRef = useRef<HTMLInputElement | null>(null);
-  const presetColors = [
-    "#ffffff",
-    "#f8fafc",
-    "#000000",
-    "#1e293b",
-    "#496db3",
-    "#2563eb",
-    "#16a34a",
-    "#dc2626",
-    "#f59e0b",
-    "#7c3aed",
-  ];
-  const fontSizes = [75, 100, 125, 150, 175, 200, 225, 250, 300, 350, 400];
 
 
   const bannerEditorSwipe = useCarouselSwipe(
@@ -492,31 +428,6 @@ export function BannersEditorCarousel() {
   );
 
   const activeSlide = useMemo(() => slides[activeIndex] ?? null, [slides, activeIndex]);
-  const activeFontSizeValue =
-    !activeSlide
-      ? 200
-      : fontSizeTarget === "title"
-        ? activeSlide.titleFontSize
-        : fontSizeTarget === "subtitle"
-          ? activeSlide.subtitleFontSize
-          : activeSlide.buttonFontSize;
-  const activeTextColorValue =
-    !activeSlide
-      ? "#ffffff"
-      : fontSizeTarget === "title"
-        ? activeSlide.titleColor
-        : fontSizeTarget === "subtitle"
-          ? activeSlide.subtitleColor
-          : activeSlide.buttonTextColor;
-
-  const activeElementH = useMemo(() => {
-    if (!activeSlide) return "center" as const;
-    const base = activeSlide.align;
-    if (fontSizeTarget === "title") return activeSlide.titleAlign ?? base;
-    if (fontSizeTarget === "subtitle") return activeSlide.subtitleAlign ?? base;
-    return activeSlide.buttonAlign ?? base;
-  }, [activeSlide, fontSizeTarget]);
-
   useEffect(() => {
     // eslint-disable-next-line no-console
     console.log(
@@ -664,17 +575,6 @@ export function BannersEditorCarousel() {
     window.addEventListener("pointerdown", onPointerDown);
     return () => window.removeEventListener("pointerdown", onPointerDown);
   }, [actionsMenuOpen]);
-
-  useEffect(() => {
-    if (!colorMenuOpen) return;
-    const onPointerDown = (event: PointerEvent) => {
-      const target = event.target as Node | null;
-      if (colorDropdownRef.current?.contains(target)) return;
-      setColorMenuOpen(false);
-    };
-    window.addEventListener("pointerdown", onPointerDown);
-    return () => window.removeEventListener("pointerdown", onPointerDown);
-  }, [colorMenuOpen]);
 
   useEffect(() => {
     if (!linkModalOpen) return;
@@ -911,313 +811,6 @@ export function BannersEditorCarousel() {
         <div className="mb-4 rounded-xl bg-white p-1">
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative z-10 flex flex-wrap items-center gap-1.5 bg-white p-1">
-              <button
-                type="button"
-                className={`inline-flex h-8 w-8 items-center justify-center rounded transition-colors hover:text-[#496db3] ${
-                  activeElementH === "left"
-                    ? "bg-slate-200 text-[#496db3]"
-                    : "text-slate-600"
-                }`}
-                onClick={() => {
-                  if (fontSizeTarget === "title") updateActiveSlide({ titleAlign: "left" });
-                  else if (fontSizeTarget === "subtitle")
-                    updateActiveSlide({ subtitleAlign: "left" });
-                  else updateActiveSlide({ buttonAlign: "left" });
-                }}
-                title="По горизонтали: влево"
-              >
-                <Bars3BottomLeftIcon className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                className={`inline-flex h-8 w-8 items-center justify-center rounded transition-colors hover:text-[#496db3] ${
-                  activeElementH === "center"
-                    ? "bg-slate-200 text-[#496db3]"
-                    : "text-slate-600"
-                }`}
-                onClick={() => {
-                  if (fontSizeTarget === "title") updateActiveSlide({ titleAlign: "center" });
-                  else if (fontSizeTarget === "subtitle")
-                    updateActiveSlide({ subtitleAlign: "center" });
-                  else updateActiveSlide({ buttonAlign: "center" });
-                }}
-                title="По горизонтали: по центру"
-              >
-                <AlignCenterIcon className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                className={`inline-flex h-8 w-8 items-center justify-center rounded transition-colors hover:text-[#496db3] ${
-                  activeElementH === "right"
-                    ? "bg-slate-200 text-[#496db3]"
-                    : "text-slate-600"
-                }`}
-                onClick={() => {
-                  if (fontSizeTarget === "title") updateActiveSlide({ titleAlign: "right" });
-                  else if (fontSizeTarget === "subtitle")
-                    updateActiveSlide({ subtitleAlign: "right" });
-                  else updateActiveSlide({ buttonAlign: "right" });
-                }}
-                title="По горизонтали: вправо"
-              >
-                <Bars3BottomRightIcon className="h-4 w-4" />
-              </button>
-              <div className="h-6 w-px shrink-0 bg-slate-200" aria-hidden="true" />
-              <label className="inline-flex items-center gap-1 rounded border border-slate-200 bg-white px-2 text-[11px] text-slate-600">
-                Размер
-                <select
-                  value={String(activeFontSizeValue)}
-                  onChange={(e) => {
-                    const base = Number(e.target.value);
-                    if (fontSizeTarget === "title") {
-                      updateActiveSlide({ titleFontSize: base });
-                      return;
-                    }
-                    if (fontSizeTarget === "subtitle") {
-                      updateActiveSlide({ subtitleFontSize: base });
-                      return;
-                    }
-                    updateActiveSlide({ buttonFontSize: base });
-                  }}
-                  className="h-8 bg-transparent text-xs text-slate-700 outline-none"
-                >
-                  {fontSizes.map((size) => (
-                    <option key={`font-${size}`} value={size}>
-                      {size}%
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <div className="h-6 w-px shrink-0 bg-slate-200" aria-hidden="true" />
-              <button
-                type="button"
-                className={`inline-flex h-8 w-8 items-center justify-center rounded transition-colors hover:text-[#496db3] ${
-                  activeSlide.verticalAlign === "top"
-                    ? "bg-slate-200 text-[#496db3]"
-                    : "text-slate-600"
-                }`}
-                onClick={() => updateActiveSlide({ verticalAlign: "top" })}
-                aria-label="Блок текста: верх"
-                title="Вертикаль всего текстового блока: верх"
-              >
-                <AlignVerticalTopIcon className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                className={`inline-flex h-8 w-8 items-center justify-center rounded transition-colors hover:text-[#496db3] ${
-                  activeSlide.verticalAlign === "middle"
-                    ? "bg-slate-200 text-[#496db3]"
-                    : "text-slate-600"
-                }`}
-                onClick={() => updateActiveSlide({ verticalAlign: "middle" })}
-                aria-label="Блок текста: центр"
-                title="Вертикаль всего текстового блока: центр"
-              >
-                <AlignVerticalMiddleIcon className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                className={`inline-flex h-8 w-8 items-center justify-center rounded transition-colors hover:text-[#496db3] ${
-                  activeSlide.verticalAlign === "bottom"
-                    ? "bg-slate-200 text-[#496db3]"
-                    : "text-slate-600"
-                }`}
-                onClick={() => updateActiveSlide({ verticalAlign: "bottom" })}
-                aria-label="Блок текста: низ"
-                title="Вертикаль всего текстового блока: низ"
-              >
-                <AlignVerticalBottomIcon className="h-4 w-4" />
-              </button>
-              <div className="h-6 w-px shrink-0 bg-slate-200" aria-hidden="true" />
-              <select
-                value={String(activeSlide.lineHeight)}
-                onChange={(e) => updateActiveSlide({ lineHeight: Number(e.target.value) })}
-                className="flex h-8 min-w-[4rem] items-center justify-between gap-1 rounded border border-slate-200 bg-white px-2 text-xs text-slate-700 transition-colors hover:border-slate-300"
-              >
-                <option value="1">1.0</option>
-                <option value="1.2">1.2</option>
-                <option value="1.4">1.4</option>
-                <option value="1.6">1.6</option>
-              </select>
-              <div ref={colorDropdownRef} className="relative z-20">
-                <button
-                  type="button"
-                  className="inline-flex h-8 w-8 items-center justify-center rounded border border-slate-200 bg-white transition-colors hover:border-slate-300"
-                  aria-label="Цвет шрифта"
-                  aria-expanded={colorMenuOpen}
-                  onClick={() => setColorMenuOpen((v) => !v)}
-                  title="Цвет текста"
-                >
-                  <span className="h-4 w-4 rounded border border-slate-200" style={{ backgroundColor: activeTextColorValue }} />
-                </button>
-                {colorMenuOpen ? (
-                  <div
-                    className="absolute left-0 top-full z-[10040] mt-1 rounded border border-slate-200 bg-white p-2 shadow-lg"
-                    style={{ width: 112, minWidth: 112 }}
-                    role="listbox"
-                  >
-                    <div className="grid grid-cols-4 gap-1.5">
-                      {presetColors.map((color) => {
-                        const isSelected =
-                          activeTextColorValue.toLowerCase() ===
-                          color.toLowerCase();
-                        const luminance = (() => {
-                          const r = parseInt(color.slice(1, 3), 16);
-                          const g = parseInt(color.slice(3, 5), 16);
-                          const b = parseInt(color.slice(5, 7), 16);
-                          return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-                        })();
-                        const iconLight = luminance < 0.6;
-                        return (
-                          <button
-                            key={color}
-                            type="button"
-                            role="option"
-                            aria-selected={isSelected}
-                            className={`flex aspect-square w-full items-center justify-center rounded border border-slate-200 transition-colors hover:ring-2 hover:ring-[#496db3] hover:ring-offset-1 ${
-                              isSelected
-                                ? "ring-2 ring-[#496db3] ring-offset-1"
-                                : ""
-                            }`}
-                            style={{ backgroundColor: color }}
-                            onClick={() => {
-                              if (fontSizeTarget === "title") {
-                                updateActiveSlide({ titleColor: color });
-                              } else if (fontSizeTarget === "subtitle") {
-                                updateActiveSlide({ subtitleColor: color });
-                              } else {
-                                updateActiveSlide({ buttonTextColor: color });
-                              }
-                              setColorMenuOpen(false);
-                            }}
-                            aria-label={`Цвет ${color}`}
-                          >
-                            {isSelected ? (
-                              <CheckIcon
-                                className={`h-3 w-3 ${
-                                  iconLight
-                                    ? "text-white drop-shadow-[0_0_1px_rgba(0,0,0,0.5)]"
-                                    : "text-slate-800"
-                                }`}
-                              />
-                            ) : null}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <label className="mt-2 flex items-center gap-2 rounded border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-600">
-                      <SwatchIcon className="h-3.5 w-3.5" />
-                      <input
-                        type="color"
-                        value={activeTextColorValue}
-                        onChange={(e) => {
-                          if (fontSizeTarget === "title") {
-                            updateActiveSlide({ titleColor: e.target.value });
-                          } else if (fontSizeTarget === "subtitle") {
-                            updateActiveSlide({ subtitleColor: e.target.value });
-                          } else {
-                            updateActiveSlide({ buttonTextColor: e.target.value });
-                          }
-                        }}
-                        className="h-5 w-6 cursor-pointer border-0 bg-transparent p-0"
-                        aria-label="Пользовательский цвет текста"
-                      />
-                    </label>
-                  </div>
-                ) : null}
-              </div>
-              <div className="h-6 w-px shrink-0 bg-slate-200" aria-hidden="true" />
-              <label className="inline-flex items-center gap-1 rounded border border-slate-200 bg-white px-2 text-[11px] text-slate-600">
-                Толщина
-                <select
-                  value={String(
-                    fontSizeTarget === "title"
-                      ? activeSlide.titleWeight
-                      : fontSizeTarget === "subtitle"
-                        ? activeSlide.subtitleWeight
-                        : activeSlide.buttonWeight,
-                  )}
-                  onChange={(e) => {
-                    const w = Number(e.target.value);
-                    if (fontSizeTarget === "title") updateActiveSlide({ titleWeight: w });
-                    else if (fontSizeTarget === "subtitle") updateActiveSlide({ subtitleWeight: w });
-                    else updateActiveSlide({ buttonWeight: w });
-                  }}
-                  className="h-8 bg-transparent text-xs text-slate-700 outline-none"
-                >
-                  {[300, 400, 500, 600, 700, 800, 900].map((w) => (
-                    <option key={`w-${w}`} value={w}>
-                      {w}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <div className="h-6 w-px shrink-0 bg-slate-200" aria-hidden="true" />
-              <button
-                type="button"
-                className={`inline-flex h-8 w-8 items-center justify-center rounded transition-colors hover:text-[#496db3] ${
-                  (fontSizeTarget === "title"
-                    ? activeSlide.titleBold
-                    : fontSizeTarget === "subtitle"
-                      ? activeSlide.subtitleBold
-                      : activeSlide.buttonBold)
-                    ? "bg-slate-200 text-[#496db3]"
-                    : "text-slate-600"
-                }`}
-                onClick={() => {
-                  if (fontSizeTarget === "title") {
-                    const next = !activeSlide.titleBold;
-                    updateActiveSlide({ titleBold: next, titleWeight: next ? 700 : 400 });
-                    return;
-                  }
-                  if (fontSizeTarget === "subtitle") {
-                    const next = !activeSlide.subtitleBold;
-                    updateActiveSlide({ subtitleBold: next, subtitleWeight: next ? 700 : 400 });
-                    return;
-                  }
-                  const next = !activeSlide.buttonBold;
-                  updateActiveSlide({ buttonBold: next, buttonWeight: next ? 700 : 600 });
-                }}
-                aria-label="Жирный"
-              >
-                <span className="text-sm font-bold">B</span>
-              </button>
-              <button
-                type="button"
-                className={`inline-flex h-8 w-8 items-center justify-center rounded transition-colors hover:text-[#496db3] ${
-                  (fontSizeTarget === "title"
-                    ? activeSlide.titleItalic
-                    : fontSizeTarget === "subtitle"
-                      ? activeSlide.subtitleItalic
-                      : activeSlide.buttonItalic)
-                    ? "bg-slate-200 text-[#496db3]"
-                    : "text-slate-600"
-                }`}
-                onClick={() => {
-                  if (fontSizeTarget === "title") {
-                    updateActiveSlide({ titleItalic: !activeSlide.titleItalic });
-                    return;
-                  }
-                  if (fontSizeTarget === "subtitle") {
-                    updateActiveSlide({ subtitleItalic: !activeSlide.subtitleItalic });
-                    return;
-                  }
-                  updateActiveSlide({ buttonItalic: !activeSlide.buttonItalic });
-                }}
-                aria-label="Курсив"
-              >
-                <span className="text-sm italic">I</span>
-              </button>
-              <button
-                type="button"
-                className={`inline-flex h-8 w-8 items-center justify-center rounded transition-colors hover:text-[#496db3] ${
-                  activeSlide.underline ? "bg-slate-200 text-[#496db3]" : "text-slate-600"
-                }`}
-                onClick={() => updateActiveSlide({ underline: !activeSlide.underline })}
-                aria-label="Подчеркнутый"
-              >
-                <span className="text-sm underline">U</span>
-              </button>
               <div ref={actionsMenuRef} className="relative z-[10030] ml-1">
                 <button
                   type="button"
@@ -1230,7 +823,7 @@ export function BannersEditorCarousel() {
                 </button>
                 {actionsMenuOpen ? (
                   <div
-                    className="absolute right-0 top-full z-[10040] mt-2 rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
+                    className="absolute left-0 top-full z-[10040] mt-2 rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
                     style={{ width: "13.5rem", minWidth: "13.5rem" }}
                   >
                     <button
@@ -1340,20 +933,6 @@ export function BannersEditorCarousel() {
                       {activeSlide?.showBottomLearnMore
                         ? "Убрать Learn more (внизу)"
                         : "Добавить Learn more (внизу)"}
-                    </button>
-                    <button
-                      type="button"
-                      className={`w-full px-3 py-1.5 text-left text-xs ${
-                        imageAlignMode
-                          ? "bg-slate-100 text-[#496db3]"
-                          : "text-slate-700 hover:bg-slate-100"
-                      }`}
-                      onClick={() => {
-                        setImageAlignMode((v) => !v);
-                        setActionsMenuOpen(false);
-                      }}
-                    >
-                      {imageAlignMode ? "Завершить положение фона" : "Положение фона"}
                     </button>
                     <button
                       type="button"
@@ -1600,11 +1179,6 @@ export function BannersEditorCarousel() {
       ) : null}
 
       <div className="relative overflow-hidden rounded-xl bg-transparent p-0">
-        {imageAlignMode ? (
-          <div className="mb-2 text-xs text-[#496db3]">
-            Режим выравнивания картинки по вертикали: потяните изображение мышкой вверх/вниз.
-          </div>
-        ) : null}
         <BannerCarouselFrame
           slides={slides}
           activeIndex={activeIndex}
@@ -1749,7 +1323,6 @@ export function BannersEditorCarousel() {
                               <h1
                                 contentEditable
                                 suppressContentEditableWarning
-                                onFocus={() => setFontSizeTarget("title")}
                                 onBlur={(e) => {
                                   const text = (e.currentTarget.textContent ?? "")
                                     .replace(/\s*\n+\s*/g, " ")
@@ -1771,7 +1344,6 @@ export function BannersEditorCarousel() {
                               <p
                                 contentEditable
                                 suppressContentEditableWarning
-                                onFocus={() => setFontSizeTarget("subtitle")}
                                 onBlur={(e) => {
                                   const text = e.currentTarget.textContent ?? "";
                                   setSlides((prev) =>
@@ -1800,7 +1372,6 @@ export function BannersEditorCarousel() {
                                   <span
                                     contentEditable
                                     suppressContentEditableWarning
-                                    onFocus={() => setFontSizeTarget("button")}
                                     onBlur={(e) => {
                                       const text = e.currentTarget.textContent ?? "";
                                       setSlides((prev) =>
@@ -1950,7 +1521,6 @@ export function BannersEditorCarousel() {
                             <h1
                               contentEditable
                               suppressContentEditableWarning
-                              onFocus={() => setFontSizeTarget("title")}
                               onBlur={(e) => {
                                 const text = e.currentTarget.textContent ?? "";
                                 setSlides((prev) =>
@@ -1968,7 +1538,6 @@ export function BannersEditorCarousel() {
                             <p
                               contentEditable
                               suppressContentEditableWarning
-                              onFocus={() => setFontSizeTarget("subtitle")}
                               onBlur={(e) => {
                                 const text = e.currentTarget.textContent ?? "";
                                 setSlides((prev) =>
@@ -1997,7 +1566,6 @@ export function BannersEditorCarousel() {
                                 <span
                                   contentEditable
                                   suppressContentEditableWarning
-                                  onFocus={() => setFontSizeTarget("button")}
                                   onBlur={(e) => {
                                     const text = e.currentTarget.textContent ?? "";
                                     setSlides((prev) =>

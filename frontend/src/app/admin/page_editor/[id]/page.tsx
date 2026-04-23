@@ -4,6 +4,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from "react-dom";
 import { useParams } from "next/navigation";
 import { apiGet, apiPut } from "@/lib/api";
+import { getSharedWebBlocksCss } from "@/lib/sharedWebBlocksCss";
+import { getPageShowRenderCss } from "@/lib/pageShowRender";
 import {
   alignCarouselStripToStartSlideIndex,
   getCarouselSlideWidthPx,
@@ -39,7 +41,6 @@ import {
   PlusIcon,
   StarIcon,
   StopIcon,
-  GlobeAltIcon,
   TableCellsIcon,
   TrashIcon,
   UnderlineIcon,
@@ -50,20 +51,19 @@ const ICON_SIZE = "h-4 w-4";
 
 /** Вставка из панели «Web»: расширяйте список и getWebElementHtml. */
 const WEB_PAGE_ELEMENTS = [
-  { id: "cover", label: "Обложка", description: "Пустая область под титул и оформление" },
-  { id: "carousel", label: "Карусель", description: "Слайды с изображениями, прокрутка на сайте" },
-  { id: "timeline", label: "Таймлайн", description: "Этапы работы по шкале времени" },
+  { id: "cover", tab: "media", label: "Баннер", description: "Градиентный баннер с заголовком, текстом и кнопкой" },
+  { id: "text-block", tab: "text", label: "Текстовый блок", description: "Обычный текстовый блок без колонок" },
+  { id: "text-media", tab: "text", label: "Текст слева, картинка справа", description: "Двухколоночный блок для текста и изображения" },
+  { id: "timeline", tab: "text", label: "Этапы работы", description: "Пошаговый блок этапов с заголовками и описаниями" },
+  { id: "work-pricing", tab: "text", label: "Стоимость работ", description: "Блок с факторами стоимости, диапазоном цены и призывом к расчёту" },
+  { id: "feature-grid", tab: "text", label: "Заголовок + преимущества", description: "Заголовок с описанием и список преимуществ с иконками" },
 ] as const;
+const WEB_BLOCK_SHELL_SELECTOR = ".page-web-cover, .page-web-carousel, .page-web-timeline, .page-web-text-media, .page-web-text-block";
 
 /** Соотношение сторон обложки (сохраняется в data-cover-aspect на .page-web-cover). arW/arH — как в CSS редактора (превью в меню). */
 const COVER_ASPECT_PRESETS = [
-  { id: "16-9", label: "16∶9", arW: 16, arH: 9 },
-  { id: "4-3", label: "4∶3", arW: 4, arH: 3 },
-  { id: "21-9", label: "21∶9", arW: 21, arH: 9 },
-  { id: "1-1", label: "1∶1", arW: 1, arH: 1 },
-  { id: "1-8", label: "1∶8", arW: 2, arH: 1 },
-  { id: "1-4", label: "1∶4", arW: 4, arH: 1 },
-  { id: "3-1", label: "3∶1", arW: 3, arH: 1 },
+  { id: "1-8", label: "2∶1", arW: 2, arH: 1 },
+  { id: "1-4", label: "4∶1", arW: 4, arH: 1 },
   { id: "8-1", label: "8∶1", arW: 8, arH: 1 },
 ] as const;
 
@@ -174,6 +174,133 @@ const LIST_COLORS = [
   { value: "rose", label: "Rose", hex: "#f43f5e" },
 ] as const;
 
+type FeatureGridIconPreset = {
+  id:
+    | "bolt"
+    | "users"
+    | "calendar"
+    | "star"
+    | "heart"
+    | "check"
+    | "shield"
+    | "rocket"
+    | "clock"
+    | "globe"
+    | "chart"
+    | "gear"
+    | "factory"
+    | "enterprise"
+    | "warehouse"
+    | "tools"
+    | "truck";
+  label: string;
+  path: string;
+};
+
+const FEATURE_GRID_ICON_PRESETS: readonly FeatureGridIconPreset[] = [
+  {
+    id: "bolt",
+    label: "Молния",
+    path: "m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z",
+  },
+  {
+    id: "users",
+    label: "Команда",
+    path:
+      "M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z",
+  },
+  {
+    id: "calendar",
+    label: "Календарь",
+    path:
+      "M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5",
+  },
+  {
+    id: "star",
+    label: "Звезда",
+    path:
+      "M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z",
+  },
+  {
+    id: "heart",
+    label: "Сердце",
+    path:
+      "M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z",
+  },
+  {
+    id: "check",
+    label: "Галочка",
+    path:
+      "M9 12.75 11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 0 1-1.043 3.296 3.745 3.745 0 0 1-3.296 1.043A3.745 3.745 0 0 1 12 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 0 1-3.296-1.043 3.745 3.745 0 0 1-1.043-3.296A3.745 3.745 0 0 1 3 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 0 1 1.043-3.296 3.746 3.746 0 0 1 3.296-1.043A3.746 3.746 0 0 1 12 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 0 1 3.296 1.043 3.746 3.746 0 0 1 1.043 3.296A3.745 3.745 0 0 1 21 12Z",
+  },
+  {
+    id: "shield",
+    label: "Щит",
+    path:
+      "M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z",
+  },
+  {
+    id: "rocket",
+    label: "Ракета",
+    path:
+      "M15.59 14.37a6 6 0 0 1-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 0 0 6.16-12.12A14.98 14.98 0 0 0 9.631 8.41m5.96 5.96a14.926 14.926 0 0 1-5.841 2.58m-.119-8.54a6 6 0 0 0-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 0 0-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 0 1-2.448-2.448 14.9 14.9 0 0 1 .06-.312m-2.24 2.39a4.493 4.493 0 0 0-1.757 4.306 4.493 4.493 0 0 0 4.306-1.758M16.5 9a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Z",
+  },
+  {
+    id: "clock",
+    label: "Часы",
+    path:
+      "M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z",
+  },
+  {
+    id: "globe",
+    label: "Глобус",
+    path:
+      "M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582m15.686 0A11.953 11.953 0 0 1 12 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0 1 21 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0 1 12 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 0 1 3 12c0-1.605.42-3.113 1.157-4.418",
+  },
+  {
+    id: "chart",
+    label: "График",
+    path:
+      "M3.75 3v11.25A2.25 2.25 0 0 0 6 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0 1 18 16.5h-2.25m-7.5 0h7.5m-7.5 0-1 3m8.5-3 1 3m0 0 .5 1.5m-.5-1.5h-9.5m0 0-.5 1.5m.75-9 3-3 2.148 2.148A12.061 12.061 0 0 1 16.5 7.605",
+  },
+  {
+    id: "gear",
+    label: "Шестерня",
+    path:
+      "M10.5 6h3m-5.72 1.28 2.12 2.12m6.2-2.12-2.12 2.12M6 10.5v3m12-3v3m-1.28 5.72-2.12-2.12m-6.2 2.12 2.12-2.12M10.5 18h3M12 15.75a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Z",
+  },
+  {
+    id: "factory",
+    label: "Завод",
+    path:
+      "M13.5 21v-7.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349M3.75 21V9.349m0 0a3.001 3.001 0 0 0 3.75-.615A2.993 2.993 0 0 0 9.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 0 0 2.25 1.016c.896 0 1.7-.393 2.25-1.015a3.001 3.001 0 0 0 3.75.614m-16.5 0a3.004 3.004 0 0 1-.621-4.72l1.189-1.19A1.5 1.5 0 0 1 5.378 3h13.243a1.5 1.5 0 0 1 1.06.44l1.19 1.189a3 3 0 0 1-.621 4.72M6.75 18h3.75a.75.75 0 0 0 .75-.75V13.5a.75.75 0 0 0-.75-.75H6.75a.75.75 0 0 0-.75.75v3.75c0 .414.336.75.75.75Z",
+  },
+  {
+    id: "enterprise",
+    label: "Предприятие",
+    path:
+      "M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21",
+  },
+  {
+    id: "warehouse",
+    label: "Склад",
+    path:
+      "m20.25 7.5-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z",
+  },
+  {
+    id: "tools",
+    label: "Инструменты",
+    path:
+      "M11.42 15.17 17.25 21A2.652 2.652 0 0 0 21 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 1 1-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 0 0 4.486-6.336l-3.276 3.277a3.004 3.004 0 0 1-2.25-2.25l3.276-3.276a4.5 4.5 0 0 0-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437 1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008Z",
+  },
+  {
+    id: "truck",
+    label: "Логистика",
+    path:
+      "M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12",
+  },
+] as const;
+
 // Палитра цветов как на `admin/banners` (выпадающее меню "Цвет шрифта").
 const BANNERS_FONT_COLOR_PRESETS = [
   "#ffffff",
@@ -224,12 +351,15 @@ type CoverBgAdjustRevertSnapshot = {
   hasBgClass: boolean;
   dataX: string | null;
   dataY: string | null;
+  coverBgImageVar: string;
+  coverBgPosVar: string;
 };
 
 /** Один общий `<input type="file">` для фона обложки и слайдов карусели (два отдельных input ломали диалог/change в WebKit). */
 type WebShellImageUploadPending =
   | { kind: "cover"; cover: HTMLElement }
-  | { kind: "carousel"; carousel: HTMLElement; slide: HTMLElement };
+  | { kind: "carousel"; carousel: HTMLElement; slide: HTMLElement }
+  | { kind: "feature-grid-image"; imageBox: HTMLElement };
 
 function buildCoverBgRevertSnapshot(cover: HTMLElement): CoverBgAdjustRevertSnapshot {
   return {
@@ -237,6 +367,8 @@ function buildCoverBgRevertSnapshot(cover: HTMLElement): CoverBgAdjustRevertSnap
     hasBgClass: cover.classList.contains("page-web-cover-has-bg"),
     dataX: cover.getAttribute("data-cover-bg-x"),
     dataY: cover.getAttribute("data-cover-bg-y"),
+    coverBgImageVar: cover.style.getPropertyValue("--cover-bg-image"),
+    coverBgPosVar: cover.style.getPropertyValue("--cover-bg-pos"),
   };
 }
 
@@ -258,6 +390,27 @@ function extractCoverBackgroundDataUrl(cover: HTMLElement): string | null {
   }
   const end = s.indexOf(")");
   return end >= 0 ? s.slice(0, end).trim() : null;
+}
+
+function ensureCoverBackgroundCssVars(
+  cover: HTMLElement,
+  fallbackPosX = 50,
+  fallbackPosY = 50,
+) {
+  const existingBg = cover.style.getPropertyValue("--cover-bg-image").trim();
+  const existingPos = cover.style.getPropertyValue("--cover-bg-pos").trim();
+  const src = extractCoverBackgroundDataUrl(cover);
+  if (src && !existingBg) {
+    const safe = src.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    cover.style.setProperty("--cover-bg-image", `url("${safe}")`);
+  }
+  if (!existingPos) {
+    const x = Number.parseFloat(cover.getAttribute("data-cover-bg-x") || `${fallbackPosX}`);
+    const y = Number.parseFloat(cover.getAttribute("data-cover-bg-y") || `${fallbackPosY}`);
+    const nx = clampPercent(Number.isFinite(x) ? x : fallbackPosX);
+    const ny = clampPercent(Number.isFinite(y) ? y : fallbackPosY);
+    cover.style.setProperty("--cover-bg-pos", `${nx}% ${ny}%`);
+  }
 }
 
 type CoverBgAdjustSessionState = {
@@ -606,11 +759,1084 @@ type PageDetails = {
   title: string;
   slug: string;
   status: "DRAFT" | "PUBLISHED";
+  description?: string | null;
   blocks: PageBlock[];
 };
 
+function normalizeComparableText(value: string): string {
+  return value.replace(/\u00A0/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+/**
+ * Старые страницы могли хранить автогенерированный text-блок:
+ * `<h2>{title}</h2><p>{description}</p>`. Это SEO/карточные данные, а не контент редактора.
+ */
+function isSeededTitleDescriptionTextBlock(
+  html: string,
+  pageTitle: string,
+  pageDescription: string | null | undefined,
+): boolean {
+  if (typeof document === "undefined") return false;
+  const raw = typeof html === "string" ? html.trim() : "";
+  const description = typeof pageDescription === "string" ? pageDescription.trim() : "";
+  if (!raw || !description) return false;
+  if (/data-web-element=|<table|<img|<iframe|<video|<ul|<ol/i.test(raw)) return false;
+  try {
+    const wrap = document.createElement("div");
+    wrap.innerHTML = raw;
+    const heading = wrap.querySelector("h1, h2, h3, h4, h5, h6");
+    const paragraph = wrap.querySelector("p");
+    if (!heading || !paragraph) return false;
+    const headingText = normalizeComparableText(heading.textContent || "");
+    const paragraphText = normalizeComparableText(paragraph.textContent || "");
+    return (
+      headingText === normalizeComparableText(pageTitle || "") &&
+      paragraphText === normalizeComparableText(description)
+    );
+  } catch {
+    return false;
+  }
+}
+
+function getTextMediaBlockHtml(textColumnHtml?: string): string {
+  const textHtml = typeof textColumnHtml === "string" && textColumnHtml.trim().length > 0
+    ? textColumnHtml
+    : "<h3>Заголовок блока</h3><p>Добавьте основной текст слева. Этот блок подходит для описания услуги, этапов или преимуществ.</p>";
+  return (
+    '<div class="page-web-text-media" data-web-element="text-media" contenteditable="false">' +
+    getWebTextMediaToolbarHtml() +
+    '<div class="page-web-text-media-col page-web-text-media-col--text" contenteditable="true">' +
+    textHtml +
+    "</div>" +
+    '<div class="page-web-text-media-col page-web-text-media-col--media" contenteditable="true">' +
+    '<p class="page-web-text-media-placeholder">Добавьте изображение в правую колонку</p>' +
+    "</div>" +
+    "</div>"
+  );
+}
+
+function getTextBlockHtml(textHtml?: string): string {
+  const html =
+    typeof textHtml === "string" && textHtml.trim().length > 0
+      ? textHtml
+      : "<h3>Заголовок</h3><p>Добавьте текст блока. Подходит для обычного контента страницы.</p>";
+  return (
+    '<div class="page-web-text-block" data-web-element="text-block" contenteditable="false">' +
+    getWebTextBlockToolbarHtml() +
+    '<div class="page-web-text-block-content" contenteditable="true">' +
+    html +
+    "</div>" +
+    "</div>"
+  );
+}
+
+function getFeatureGridTextBlockHtml(): string {
+  return getTextBlockHtml(
+    '<div class="page-web-feature-grid" data-feature-grid-cols="3">' +
+      '<div class="page-web-feature-grid-head">' +
+        '<p class="page-web-feature-grid-subtitle">Deploy faster</p>' +
+        '<h2 class="page-web-feature-grid-title">Everything you need to deploy your app</h2>' +
+        '<p class="page-web-feature-grid-lead">Quis tellus eget adipiscing convallis sit sit eget aliquet quis. Suspendisse eget egestas a elementum pulvinar et feugiat blandit at. In mi viverra elit nunc.</p>' +
+      '</div>' +
+      '<dl class="page-web-feature-grid-list">' +
+        '<div class="page-web-feature-grid-item">' +
+          '<dt class="page-web-feature-grid-item-title">' +
+            '<span class="page-web-feature-grid-icon-wrap" aria-hidden="true">' +
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="page-web-feature-grid-icon">' +
+                '<path d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z" stroke-linecap="round" stroke-linejoin="round"></path>' +
+              "</svg>" +
+            "</span>" +
+            "Server monitoring" +
+          "</dt>" +
+          '<dd class="page-web-feature-grid-item-body">' +
+            "<p>Non quo aperiam repellendus quas est est. Eos aut dolore aut ut sit nesciunt. Ex tempora quia. Sit nobis consequatur dolores incidunt.</p>" +
+            '<p class="page-web-feature-grid-item-link-wrap"><a href="#" class="page-web-feature-grid-link">Learn more <span aria-hidden="true">→</span></a></p>' +
+          "</dd>" +
+        "</div>" +
+        '<div class="page-web-feature-grid-item">' +
+          '<dt class="page-web-feature-grid-item-title">' +
+            '<span class="page-web-feature-grid-icon-wrap" aria-hidden="true">' +
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="page-web-feature-grid-icon">' +
+                '<path d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" stroke-linecap="round" stroke-linejoin="round"></path>' +
+              "</svg>" +
+            "</span>" +
+            "Collaborate" +
+          "</dt>" +
+          '<dd class="page-web-feature-grid-item-body">' +
+            "<p>Vero eum voluptatem aliquid nostrum voluptatem. Vitae esse natus. Earum nihil deserunt eos quasi cupiditate. A inventore et molestiae natus.</p>" +
+            '<p class="page-web-feature-grid-item-link-wrap"><a href="#" class="page-web-feature-grid-link">Learn more <span aria-hidden="true">→</span></a></p>' +
+          "</dd>" +
+        "</div>" +
+        '<div class="page-web-feature-grid-item">' +
+          '<dt class="page-web-feature-grid-item-title">' +
+            '<span class="page-web-feature-grid-icon-wrap" aria-hidden="true">' +
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="page-web-feature-grid-icon">' +
+                '<path d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5m-9-6h.008v.008H12v-.008ZM12 15h.008v.008H12V15Zm0 2.25h.008v.008H12v-.008ZM9.75 15h.008v.008H9.75V15Zm0 2.25h.008v.008H9.75v-.008ZM7.5 15h.008v.008H7.5V15Zm0 2.25h.008v.008H7.5v-.008Zm6.75-4.5h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V15Zm0 2.25h.008v.008h-.008v-.008Zm2.25-4.5h.008v.008H16.5v-.008Zm0 2.25h.008v.008H16.5V15Z" stroke-linecap="round" stroke-linejoin="round"></path>' +
+              "</svg>" +
+            "</span>" +
+            "Task scheduling" +
+          "</dt>" +
+          '<dd class="page-web-feature-grid-item-body">' +
+            "<p>Et quod quaerat dolorem quaerat architecto aliquam accusantium. Ex adipisci et doloremque autem quia quam. Quis eos molestiae at iure impedit.</p>" +
+            '<p class="page-web-feature-grid-item-link-wrap"><a href="#" class="page-web-feature-grid-link">Learn more <span aria-hidden="true">→</span></a></p>' +
+          "</dd>" +
+        "</div>" +
+      "</dl>" +
+    "</div>"
+  ).replace('data-web-element="text-block"', 'data-web-element="text-block" data-text-block-variant="feature-grid"');
+}
+
+function getWorkPricingTextBlockHtml(): string {
+  return getTextBlockHtml(
+    '<div class="page-web-work-pricing">' +
+      '<div class="wrc wrh wrp wse wtt wtv wuf wuo wuq wut">' +
+        '<div class="wsp wui wuu">' +
+          '<h3 class="wsx wtg wth wto">Lifetime membership</h3>' +
+          '<p class="wre wta wtn">Lorem ipsum dolor sit amet consect etur adipisicing elit. Itaque amet indis perferendis blanditiis repellendus etur quidem assumenda.</p>' +
+          '<div class="wrg wrj wrx wsc">' +
+            '<h4 class="wru wtd wtg wtq">What’s included</h4>' +
+            '<div class="wrm wrt wsh"></div>' +
+          "</div>" +
+          '<ul role="list" class="wrf wrk wrv wrz wtd wtn wug wuh">' +
+            '<li class="wrj wsb">' +
+              '<svg viewBox="0 0 20 20" fill="currentColor" data-slot="icon" aria-hidden="true" class="wrl wrn wru wtq">' +
+                '<path d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd" fill-rule="evenodd"></path>' +
+              "</svg>" +
+              "Private forum access" +
+            "</li>" +
+            '<li class="wrj wsb">' +
+              '<svg viewBox="0 0 20 20" fill="currentColor" data-slot="icon" aria-hidden="true" class="wrl wrn wru wtq">' +
+                '<path d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd" fill-rule="evenodd"></path>' +
+              "</svg>" +
+              "Member resources" +
+            "</li>" +
+            '<li class="wrj wsb">' +
+              '<svg viewBox="0 0 20 20" fill="currentColor" data-slot="icon" aria-hidden="true" class="wrl wrn wru wtq">' +
+                '<path d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd" fill-rule="evenodd"></path>' +
+              "</svg>" +
+              "Entry to annual conference" +
+            "</li>" +
+            '<li class="wrj wsb">' +
+              '<svg viewBox="0 0 20 20" fill="currentColor" data-slot="icon" aria-hidden="true" class="wrl wrn wru wtq">' +
+                '<path d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd" fill-rule="evenodd"></path>' +
+              "</svg>" +
+              "Official member t-shirt" +
+            "</li>" +
+          "</ul>" +
+        "</div>" +
+        '<div class="wrd wso wup wur wus wuv">' +
+          '<div class="wsd wsg wsu wsw wtu wtx wuq wuw wux wuz">' +
+            '<div class="wrc wrs wss">' +
+              '<p class="wsz wtg wtn">Pay once, own it forever</p>' +
+              '<p class="wre wrj wrw wry wsa">' +
+                '<span class="wsy wtg wth wto">70 000 ₽</span>' +
+                '<span class="wtd wtg wti wtn">руб</span>' +
+              "</p>" +
+              '<a href="#" class="wrg wri wro wsf wsl wsq wst wsw wtc wtg wtr wts wua wub wuc wue">Get access</a>' +
+              '<p class="wre wte wtn">Invoices and receipts available for easy company reimbursement</p>' +
+            "</div>" +
+          "</div>" +
+        "</div>" +
+      "</div>" +
+    "</div>"
+  ).replace('data-web-element="text-block"', 'data-web-element="text-block" data-text-block-variant="work-pricing"');
+}
+
+type CoverInsertBlockKind =
+  | "title"
+  | "subtitle"
+  | "button"
+  | "announcement"
+  | "announcement-learn-more"
+  | "bottom-learn-more";
+
+const COVER_TYPE_PRESETS = [
+  { id: "hero", label: "Банер с градиентом" },
+  { id: "image", label: "Текст на фоне изображения" },
+  { id: "split", label: "Изображение справа + градиент" },
+] as const;
+
+type CoverTypePresetId = (typeof COVER_TYPE_PRESETS)[number]["id"];
+
+function getCoverInsertElementNode(inner: HTMLElement, kind: CoverInsertBlockKind): HTMLElement | null {
+  if (kind === "title") {
+    return inner.querySelector(":scope > .page-web-cover-el-title") as HTMLElement | null;
+  }
+  if (kind === "subtitle") {
+    return inner.querySelector(":scope > .page-web-cover-el-subtitle") as HTMLElement | null;
+  }
+  if (kind === "button") {
+    return inner.querySelector(":scope > .page-web-cover-el-button-wrap") as HTMLElement | null;
+  }
+  if (kind === "announcement") {
+    return inner.querySelector(":scope > .page-web-cover-el-announcement-wrap") as HTMLElement | null;
+  }
+  if (kind === "announcement-learn-more") {
+    return inner.querySelector(".page-web-cover-el-announcement-learn-more") as HTMLElement | null;
+  }
+  return inner.querySelector(".page-web-cover-el-learn-more") as HTMLElement | null;
+}
+
+function getCoverInsertRootSelector(kind: Exclude<CoverInsertBlockKind, "announcement-learn-more">): string {
+  if (kind === "announcement") return ".page-web-cover-el-announcement-wrap";
+  if (kind === "title") return ".page-web-cover-el-title";
+  if (kind === "subtitle") return ".page-web-cover-el-subtitle";
+  if (kind === "button") return ".page-web-cover-el-button-wrap";
+  return ".page-web-cover-el-button-wrap";
+}
+
+function insertCoverNodeByVisualOrder(
+  inner: HTMLElement,
+  node: HTMLElement,
+  kind: Exclude<CoverInsertBlockKind, "announcement-learn-more">,
+) {
+  const order: Exclude<CoverInsertBlockKind, "announcement-learn-more">[] = [
+    "announcement",
+    "title",
+    "subtitle",
+    "button",
+    "bottom-learn-more",
+  ];
+  const myIdx = order.indexOf(kind);
+  if (myIdx < 0) {
+    inner.appendChild(node);
+    return;
+  }
+  for (let i = myIdx + 1; i < order.length; i += 1) {
+    const nextSelector = getCoverInsertRootSelector(order[i]);
+    const nextNode = inner.querySelector(`:scope > ${nextSelector}`) as HTMLElement | null;
+    if (nextNode) {
+      inner.insertBefore(node, nextNode);
+      return;
+    }
+  }
+  inner.appendChild(node);
+}
+
+function syncCoverElementsMenuLabels(toolbar: HTMLElement) {
+  const cover = toolbar.closest(".page-web-cover") as HTMLElement | null;
+  const inner = cover?.querySelector(".page-web-cover-inner") as HTMLElement | null;
+  if (!inner) return;
+  const labels: Record<CoverInsertBlockKind, { add: string; remove: string }> = {
+    title: { add: "Добавить заголовок", remove: "Убрать заголовок" },
+    subtitle: { add: "Добавить подзаголовок", remove: "Убрать подзаголовок" },
+    button: { add: "Добавить кнопку", remove: "Убрать кнопку" },
+    announcement: { add: "Добавить плашку анонса", remove: "Убрать плашку анонса" },
+    "announcement-learn-more": {
+      add: "Добавить Learn more (в плашке)",
+      remove: "Убрать Learn more (в плашке)",
+    },
+    "bottom-learn-more": {
+      add: "Добавить Learn more (внизу)",
+      remove: "Убрать Learn more (внизу)",
+    },
+  };
+  toolbar.querySelectorAll("[data-insert-cover-element]").forEach((node) => {
+    const btn = node as HTMLElement;
+    const raw = (btn.getAttribute("data-insert-cover-element") || "") as CoverInsertBlockKind;
+    if (!(raw in labels)) return;
+    const exists = !!getCoverInsertElementNode(inner, raw);
+    btn.textContent = exists ? labels[raw].remove : labels[raw].add;
+  });
+}
+
+function syncCoverTypeMenuState(toolbar: HTMLElement) {
+  const cover = toolbar.closest(".page-web-cover") as HTMLElement | null;
+  if (!cover) return;
+  const active = cover.getAttribute("data-cover-type");
+  toolbar.querySelectorAll(".page-web-cover-menu-type[data-set-cover-type]").forEach((node) => {
+    const btn = node as HTMLElement;
+    const preset = btn.getAttribute("data-set-cover-type");
+    btn.setAttribute("aria-checked", preset === active ? "true" : "false");
+  });
+}
+
+function getWebBlockMoveButtonHtml(direction: "up" | "down"): string {
+  const isUp = direction === "up";
+  return (
+    '<button type="button" class="page-web-block-move-btn page-web-block-move-' +
+    direction +
+    '" tabindex="-1" contenteditable="false" data-move-web-block="' +
+    direction +
+    '" aria-label="' +
+    (isUp ? "Переместить блок вверх" : "Переместить блок вниз") +
+    '" title="' +
+    (isUp ? "Переместить блок вверх" : "Переместить блок вниз") +
+    '">' +
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" class="page-web-block-move-icon">' +
+    '<path d="' +
+    (isUp ? "m4.5 15.75 7.5-7.5 7.5 7.5" : "m19.5 8.25-7.5 7.5-7.5-7.5") +
+    '" stroke-linecap="round" stroke-linejoin="round"></path>' +
+    "</svg>" +
+    "</button>"
+  );
+}
+
+function getWebTextMediaToolbarHtml(): string {
+  return (
+    '<div class="page-web-text-media-toolbar" contenteditable="false">' +
+    getWebBlockMoveButtonHtml("up") +
+    '<button type="button" class="page-web-text-media-menu-trigger" tabindex="-1" aria-label="Меню блока текст+картинка" aria-haspopup="true" title="Действия с блоком">' +
+    '<span class="page-web-text-media-menu-dots" aria-hidden="true"></span></button>' +
+    getWebBlockMoveButtonHtml("down") +
+    '<div role="menu" class="page-web-text-media-menu-dropdown">' +
+    '<button type="button" role="menuitem" class="page-web-text-media-menu-delete" contenteditable="false" tabindex="-1">Удалить блок</button>' +
+    "</div></div>"
+  );
+}
+
+function getWebTextBlockToolbarHtml(): string {
+  return (
+    '<div class="page-web-text-block-toolbar" contenteditable="false">' +
+    getWebBlockMoveButtonHtml("up") +
+    '<button type="button" class="page-web-text-block-menu-trigger" tabindex="-1" aria-label="Меню текстового блока" aria-haspopup="true" title="Действия с блоком">' +
+    '<span class="page-web-text-block-menu-dots" aria-hidden="true"></span></button>' +
+    getWebBlockMoveButtonHtml("down") +
+    '<div role="menu" class="page-web-text-block-menu-dropdown">' +
+    '<div class="page-web-text-block-menu-sub page-web-text-block-menu-sub--feature-grid-elements" contenteditable="false">' +
+    '<button type="button" class="page-web-text-block-menu-sub-trigger" tabindex="-1" aria-haspopup="true" aria-expanded="false">' +
+    '<span class="page-web-text-block-menu-sub-label">Элементы</span>' +
+    '<span class="page-web-text-block-menu-chevron" aria-hidden="true"></span></button>' +
+    '<div role="menu" class="page-web-text-block-menu-sub-panel">' +
+    '<button type="button" role="menuitem" class="page-web-text-block-menu-element" contenteditable="false" tabindex="-1" data-toggle-feature-grid-element="subtitle">Добавить подзаголовок</button>' +
+    '<button type="button" role="menuitem" class="page-web-text-block-menu-element" contenteditable="false" tabindex="-1" data-toggle-feature-grid-element="title">Добавить заголовок</button>' +
+    '<button type="button" role="menuitem" class="page-web-text-block-menu-element" contenteditable="false" tabindex="-1" data-toggle-feature-grid-element="lead">Добавить описание</button>' +
+    '<div class="page-web-text-block-menu-sep page-web-text-block-menu-sep--feature-grid-cards" aria-hidden="true"></div>' +
+    '<div class="page-web-text-block-menu-sub page-web-text-block-menu-sub--feature-grid-layout" contenteditable="false">' +
+    '<button type="button" class="page-web-text-block-menu-sub-trigger" tabindex="-1" aria-haspopup="true" aria-expanded="false">' +
+    '<span class="page-web-text-block-menu-sub-label">Сетка карточек</span>' +
+    '<span class="page-web-text-block-menu-chevron" aria-hidden="true"></span></button>' +
+    '<div role="menu" class="page-web-text-block-menu-sub-panel">' +
+    '<button type="button" role="menuitemradio" class="page-web-text-block-menu-grid-option" contenteditable="false" tabindex="-1" data-feature-grid-set-cols="2" aria-checked="false">' +
+    '<span class="page-web-text-block-menu-grid-option-radio" aria-hidden="true"></span><span class="page-web-text-block-menu-grid-option-label">2 в ряд</span></button>' +
+    '<button type="button" role="menuitemradio" class="page-web-text-block-menu-grid-option" contenteditable="false" tabindex="-1" data-feature-grid-set-cols="3" aria-checked="false">' +
+    '<span class="page-web-text-block-menu-grid-option-radio" aria-hidden="true"></span><span class="page-web-text-block-menu-grid-option-label">3 в ряд</span></button>' +
+    '<button type="button" role="menuitemradio" class="page-web-text-block-menu-grid-option" contenteditable="false" tabindex="-1" data-feature-grid-set-cols="4" aria-checked="false">' +
+    '<span class="page-web-text-block-menu-grid-option-radio" aria-hidden="true"></span><span class="page-web-text-block-menu-grid-option-label">4 в ряд</span></button>' +
+    "</div></div>" +
+    '<button type="button" role="menuitem" class="page-web-text-block-menu-element" contenteditable="false" tabindex="-1" data-feature-grid-cards-action="add">Добавить карточку</button>' +
+    '<button type="button" role="menuitem" class="page-web-text-block-menu-element" contenteditable="false" tabindex="-1" data-feature-grid-cards-action="remove">Убрать карточку</button>' +
+    '<button type="button" role="menuitem" class="page-web-text-block-menu-element" contenteditable="false" tabindex="-1" data-feature-grid-cards-decor-action="description">Убрать описания у карточек</button>' +
+    '<button type="button" role="menuitem" class="page-web-text-block-menu-element" contenteditable="false" tabindex="-1" data-feature-grid-cards-decor-action="icons">Добавить иконки к карточкам</button>' +
+    '<button type="button" role="menuitem" class="page-web-text-block-menu-element" contenteditable="false" tabindex="-1" data-feature-grid-cards-decor-action="learn-more">Добавить кнопку Learn more</button>' +
+    "</div></div>" +
+    '<div class="page-web-text-block-menu-sub page-web-text-block-menu-sub--feature-grid-extra" contenteditable="false">' +
+    '<button type="button" class="page-web-text-block-menu-sub-trigger" tabindex="-1" aria-haspopup="true" aria-expanded="false">' +
+    '<span class="page-web-text-block-menu-sub-label">Дополнительно</span>' +
+    '<span class="page-web-text-block-menu-chevron" aria-hidden="true"></span></button>' +
+    '<div role="menu" class="page-web-text-block-menu-sub-panel">' +
+    '<div class="page-web-text-block-menu-sub page-web-text-block-menu-sub--feature-grid-message" contenteditable="false">' +
+    '<button type="button" class="page-web-text-block-menu-sub-trigger" tabindex="-1" aria-haspopup="true" aria-expanded="false">' +
+    '<span class="page-web-text-block-menu-sub-label">Сообщение</span>' +
+    '<span class="page-web-text-block-menu-chevron" aria-hidden="true"></span></button>' +
+    '<div role="menu" class="page-web-text-block-menu-sub-panel">' +
+    '<button type="button" role="menuitemradio" class="page-web-text-block-menu-grid-option" contenteditable="false" tabindex="-1" data-feature-grid-message-position="none" aria-checked="false">' +
+    '<span class="page-web-text-block-menu-grid-option-radio" aria-hidden="true"></span><span class="page-web-text-block-menu-grid-option-label">Без сообщения</span></button>' +
+    '<button type="button" role="menuitemradio" class="page-web-text-block-menu-grid-option" contenteditable="false" tabindex="-1" data-feature-grid-message-position="right" aria-checked="false">' +
+    '<span class="page-web-text-block-menu-grid-option-radio" aria-hidden="true"></span><span class="page-web-text-block-menu-grid-option-label">Справа</span></button>' +
+    '<button type="button" role="menuitemradio" class="page-web-text-block-menu-grid-option" contenteditable="false" tabindex="-1" data-feature-grid-message-position="left" aria-checked="false">' +
+    '<span class="page-web-text-block-menu-grid-option-radio" aria-hidden="true"></span><span class="page-web-text-block-menu-grid-option-label">Слева</span></button>' +
+    '<button type="button" role="menuitemradio" class="page-web-text-block-menu-grid-option" contenteditable="false" tabindex="-1" data-feature-grid-message-position="bottom" aria-checked="false">' +
+    '<span class="page-web-text-block-menu-grid-option-radio" aria-hidden="true"></span><span class="page-web-text-block-menu-grid-option-label">Снизу</span></button>' +
+    '<div class="page-web-text-block-menu-sep" aria-hidden="true"></div>' +
+    '<button type="button" role="menuitemradio" class="page-web-text-block-menu-grid-option" contenteditable="false" tabindex="-1" data-feature-grid-message-color="green" aria-checked="false">' +
+    '<span class="page-web-text-block-menu-grid-option-radio" aria-hidden="true"></span><span class="page-web-text-block-menu-grid-option-label">Зеленое</span></button>' +
+    '<button type="button" role="menuitemradio" class="page-web-text-block-menu-grid-option" contenteditable="false" tabindex="-1" data-feature-grid-message-color="yellow" aria-checked="false">' +
+    '<span class="page-web-text-block-menu-grid-option-radio" aria-hidden="true"></span><span class="page-web-text-block-menu-grid-option-label">Желтое</span></button>' +
+    '<button type="button" role="menuitemradio" class="page-web-text-block-menu-grid-option" contenteditable="false" tabindex="-1" data-feature-grid-message-color="red" aria-checked="false">' +
+    '<span class="page-web-text-block-menu-grid-option-radio" aria-hidden="true"></span><span class="page-web-text-block-menu-grid-option-label">Красное</span></button>' +
+    "</div></div>" +
+    '<div class="page-web-text-block-menu-sub page-web-text-block-menu-sub--feature-grid-image" contenteditable="false">' +
+    '<button type="button" class="page-web-text-block-menu-sub-trigger" tabindex="-1" aria-haspopup="true" aria-expanded="false">' +
+    '<span class="page-web-text-block-menu-sub-label">Изображение</span>' +
+    '<span class="page-web-text-block-menu-chevron" aria-hidden="true"></span></button>' +
+    '<div role="menu" class="page-web-text-block-menu-sub-panel">' +
+    '<button type="button" role="menuitemradio" class="page-web-text-block-menu-grid-option" contenteditable="false" tabindex="-1" data-feature-grid-image-position="none" aria-checked="false">' +
+    '<span class="page-web-text-block-menu-grid-option-radio" aria-hidden="true"></span><span class="page-web-text-block-menu-grid-option-label">Без изображения</span></button>' +
+    '<button type="button" role="menuitemradio" class="page-web-text-block-menu-grid-option" contenteditable="false" tabindex="-1" data-feature-grid-image-position="right" aria-checked="false">' +
+    '<span class="page-web-text-block-menu-grid-option-radio" aria-hidden="true"></span><span class="page-web-text-block-menu-grid-option-label">Справа</span></button>' +
+    '<button type="button" role="menuitemradio" class="page-web-text-block-menu-grid-option" contenteditable="false" tabindex="-1" data-feature-grid-image-position="left" aria-checked="false">' +
+    '<span class="page-web-text-block-menu-grid-option-radio" aria-hidden="true"></span><span class="page-web-text-block-menu-grid-option-label">Слева</span></button>' +
+    '<button type="button" role="menuitemradio" class="page-web-text-block-menu-grid-option" contenteditable="false" tabindex="-1" data-feature-grid-image-position="bottom" aria-checked="false">' +
+    '<span class="page-web-text-block-menu-grid-option-radio" aria-hidden="true"></span><span class="page-web-text-block-menu-grid-option-label">Снизу</span></button>' +
+    "</div></div>" +
+    "</div></div>" +
+    '<div class="page-web-text-block-menu-sep page-web-text-block-menu-sep--feature-grid" aria-hidden="true"></div>' +
+    '<button type="button" role="menuitem" class="page-web-text-block-menu-delete" contenteditable="false" tabindex="-1">Удалить блок</button>' +
+    "</div></div>"
+  );
+}
+
+type FeatureGridElementKind = "subtitle" | "title" | "lead";
+type FeatureGridMessagePosition = "none" | "left" | "right" | "bottom";
+type FeatureGridMessageColor = "red" | "yellow" | "green";
+type FeatureGridImagePosition = "none" | "left" | "right" | "bottom";
+
+function isFeatureGridElementKind(value: string | null): value is FeatureGridElementKind {
+  return value === "subtitle" || value === "title" || value === "lead";
+}
+
+function isFeatureGridMessagePosition(value: string | null): value is FeatureGridMessagePosition {
+  return value === "none" || value === "left" || value === "right" || value === "bottom";
+}
+
+function isFeatureGridMessageColor(value: string | null): value is FeatureGridMessageColor {
+  return value === "red" || value === "yellow" || value === "green";
+}
+
+function isFeatureGridImagePosition(value: string | null): value is FeatureGridImagePosition {
+  return value === "none" || value === "left" || value === "right" || value === "bottom";
+}
+
+function getFeatureGridElementNode(root: HTMLElement, kind: FeatureGridElementKind): HTMLElement | null {
+  const head = root.querySelector(".page-web-feature-grid-head") as HTMLElement | null;
+  if (!head) return null;
+  if (kind === "subtitle") return head.querySelector(".page-web-feature-grid-subtitle") as HTMLElement | null;
+  if (kind === "title") return head.querySelector(".page-web-feature-grid-title") as HTMLElement | null;
+  return head.querySelector(".page-web-feature-grid-lead") as HTMLElement | null;
+}
+
+function createFeatureGridHeadNode(kind: FeatureGridElementKind): HTMLElement {
+  const node = document.createElement(kind === "title" ? "h2" : "p");
+  if (kind === "subtitle") {
+    node.className = "page-web-feature-grid-subtitle";
+    node.textContent = "Deploy faster";
+  } else if (kind === "title") {
+    node.className = "page-web-feature-grid-title";
+    node.textContent = "Everything you need to deploy your app";
+  } else {
+    node.className = "page-web-feature-grid-lead";
+    node.textContent =
+      "Quis tellus eget adipiscing convallis sit sit eget aliquet quis. Suspendisse eget egestas a elementum pulvinar et feugiat blandit at. In mi viverra elit nunc.";
+  }
+  return node;
+}
+
+function getFeatureGridMessagePosition(root: HTMLElement): FeatureGridMessagePosition | null {
+  const raw = root.getAttribute("data-feature-grid-message-position");
+  return isFeatureGridMessagePosition(raw) ? raw : null;
+}
+
+function getFeatureGridMessageColor(root: HTMLElement): FeatureGridMessageColor {
+  const raw = root.getAttribute("data-feature-grid-message-color");
+  return isFeatureGridMessageColor(raw) ? raw : "red";
+}
+
+function getFeatureGridImagePosition(root: HTMLElement): FeatureGridImagePosition {
+  const raw = root.getAttribute("data-feature-grid-image-position");
+  return isFeatureGridImagePosition(raw) ? raw : "none";
+}
+
+function ensureFeatureGridLeadRow(head: HTMLElement): HTMLElement {
+  let row = head.querySelector(":scope > .page-web-feature-grid-lead-row") as HTMLElement | null;
+  if (!row) {
+    row = document.createElement("div");
+    row.className = "page-web-feature-grid-lead-row";
+    const lead = head.querySelector(":scope > .page-web-feature-grid-lead") as HTMLElement | null;
+    if (lead) row.appendChild(lead);
+    head.appendChild(row);
+  }
+  return row;
+}
+
+function createFeatureGridMessageNode(): HTMLElement {
+  const node = document.createElement("div");
+  node.className = "page-web-feature-grid-message";
+  node.innerHTML =
+    '<p class="page-web-feature-grid-message-title">Важное сообщение</p>' +
+    "<p>Здесь появится дополнительная информация в формате alert-блока.</p>";
+  return node;
+}
+
+function createFeatureGridImageNode(): HTMLElement {
+  const node = document.createElement("div");
+  node.className = "page-web-feature-grid-image";
+  node.setAttribute("data-feature-grid-image-has-src", "0");
+  node.innerHTML = '<p class="page-web-feature-grid-image-placeholder">Добавьте изображение</p>';
+  return node;
+}
+
+function ensureFeatureGridImageNode(root: HTMLElement): HTMLElement {
+  let image = root.querySelector(":scope > .page-web-feature-grid-image") as HTMLElement | null;
+  if (image) return image;
+  image = createFeatureGridImageNode();
+  root.appendChild(image);
+  return image;
+}
+
+function clearFeatureGridImage(root: HTMLElement): boolean {
+  let changed = false;
+  root.querySelectorAll(":scope > .page-web-feature-grid-image").forEach((n) => {
+    n.remove();
+    changed = true;
+  });
+  if (root.hasAttribute("data-feature-grid-image-position")) {
+    root.removeAttribute("data-feature-grid-image-position");
+    changed = true;
+  }
+  return changed;
+}
+
+function clearFeatureGridMessage(root: HTMLElement): boolean {
+  const head = root.querySelector(".page-web-feature-grid-head") as HTMLElement | null;
+  let changed = false;
+  if (head) {
+    const row = head.querySelector(":scope > .page-web-feature-grid-lead-row") as HTMLElement | null;
+    if (row) {
+      const lead = row.querySelector(":scope > .page-web-feature-grid-lead") as HTMLElement | null;
+      const message = row.querySelector(":scope > .page-web-feature-grid-message") as HTMLElement | null;
+      if (message) {
+        message.remove();
+        changed = true;
+      }
+      row.removeAttribute("data-feature-grid-message-position");
+      if (lead) {
+        head.appendChild(lead);
+        changed = true;
+      }
+      row.remove();
+      changed = true;
+    }
+  }
+  if (root.hasAttribute("data-feature-grid-message-position")) {
+    root.removeAttribute("data-feature-grid-message-position");
+    changed = true;
+  }
+  return changed;
+}
+
+function ensureFeatureGridMessage(root: HTMLElement, position: FeatureGridMessagePosition): boolean {
+  if (position === "none") return clearFeatureGridMessage(root);
+  const head = ensureFeatureGridHead(root);
+  const row = ensureFeatureGridLeadRow(head);
+  let changed = false;
+  const rowLead = row.querySelector(":scope > .page-web-feature-grid-lead") as HTMLElement | null;
+  const headDirectLeads = Array.from(
+    head.querySelectorAll(":scope > .page-web-feature-grid-lead"),
+  ) as HTMLElement[];
+  let lead = rowLead;
+  if (!lead && headDirectLeads.length > 0) {
+    lead = headDirectLeads[0];
+    row.insertBefore(lead, row.firstChild);
+    changed = true;
+  }
+  if (lead) {
+    const extras = [
+      ...headDirectLeads.filter((n) => n !== lead),
+      ...Array.from(row.querySelectorAll(":scope > .page-web-feature-grid-lead")).filter((n) => n !== lead),
+    ] as HTMLElement[];
+    extras.forEach((n) => {
+      n.remove();
+      changed = true;
+    });
+  } else {
+    lead = createFeatureGridHeadNode("lead");
+    row.insertBefore(lead, row.firstChild);
+    changed = true;
+  }
+  let message = row.querySelector(":scope > .page-web-feature-grid-message") as HTMLElement | null;
+  if (!message) {
+    message = createFeatureGridMessageNode();
+    row.appendChild(message);
+    changed = true;
+  }
+  if (row.getAttribute("data-feature-grid-message-position") !== position) {
+    row.setAttribute("data-feature-grid-message-position", position);
+    changed = true;
+  }
+  if (root.getAttribute("data-feature-grid-message-position") !== position) {
+    root.setAttribute("data-feature-grid-message-position", position);
+    changed = true;
+  }
+  if (!isFeatureGridMessageColor(root.getAttribute("data-feature-grid-message-color"))) {
+    root.setAttribute("data-feature-grid-message-color", "red");
+    changed = true;
+  }
+  return changed;
+}
+
+function setFeatureGridMessageColor(root: HTMLElement, color: FeatureGridMessageColor): boolean {
+  if (root.getAttribute("data-feature-grid-message-color") === color) return false;
+  root.setAttribute("data-feature-grid-message-color", color);
+  return true;
+}
+
+function normalizeFeatureGridMessageLayoutsInEditor(rootEl: HTMLElement): boolean {
+  let changed = false;
+  rootEl.querySelectorAll(".page-web-feature-grid").forEach((node) => {
+    const grid = node as HTMLElement;
+    const pos = getFeatureGridMessagePosition(grid);
+    if (!pos) return;
+    if (pos === "none") {
+      if (clearFeatureGridMessage(grid)) changed = true;
+      return;
+    }
+    if (ensureFeatureGridMessage(grid, pos)) changed = true;
+  });
+  return changed;
+}
+
+function setFeatureGridImagePosition(root: HTMLElement, position: FeatureGridImagePosition): boolean {
+  if (position === "none") return clearFeatureGridImage(root);
+  let changed = false;
+  const image = ensureFeatureGridImageNode(root);
+  if (image.parentElement !== root || root.lastElementChild !== image) {
+    root.appendChild(image);
+    changed = true;
+  }
+  if (image.getAttribute("data-feature-grid-image-has-src") !== "1") {
+    image.setAttribute("data-feature-grid-image-has-src", "0");
+  }
+  if (root.getAttribute("data-feature-grid-image-position") !== position) {
+    root.setAttribute("data-feature-grid-image-position", position);
+    changed = true;
+  }
+  return changed;
+}
+
+function normalizeFeatureGridImageLayoutsInEditor(rootEl: HTMLElement): boolean {
+  let changed = false;
+  rootEl.querySelectorAll(".page-web-feature-grid").forEach((node) => {
+    const root = node as HTMLElement;
+    const pos = getFeatureGridImagePosition(root);
+    if (pos === "none") {
+      if (clearFeatureGridImage(root)) changed = true;
+      return;
+    }
+    if (setFeatureGridImagePosition(root, pos)) changed = true;
+  });
+  return changed;
+}
+
+function createFeatureGridCardNode(index: number): HTMLElement {
+  const iconHtml = getFeatureGridIconWrapHtml("bolt");
+  const wrap = document.createElement("div");
+  wrap.innerHTML =
+    '<div class="page-web-feature-grid-item">' +
+    '<dt class="page-web-feature-grid-item-title">' +
+    iconHtml +
+    "Карточка " +
+    String(index) +
+    "</dt>" +
+    '<dd class="page-web-feature-grid-item-body">' +
+    "<p>Добавьте описание карточки. Здесь можно указать ключевое преимущество.</p>" +
+    '<p class="page-web-feature-grid-item-link-wrap"><a href="#" class="page-web-feature-grid-link">Learn more <span aria-hidden="true">→</span></a></p>' +
+    "</dd>" +
+    "</div>";
+  return wrap.firstElementChild as HTMLElement;
+}
+
+function getFeatureGridCardItems(root: HTMLElement): HTMLElement[] {
+  return Array.from(root.querySelectorAll(".page-web-feature-grid-list .page-web-feature-grid-item")) as HTMLElement[];
+}
+
+function getFeatureGridCardsList(root: HTMLElement): HTMLElement | null {
+  return root.querySelector(".page-web-feature-grid-list") as HTMLElement | null;
+}
+
+function getFeatureGridCardsCount(root: HTMLElement): number {
+  return getFeatureGridCardItems(root).length;
+}
+
+function addOneFeatureGridCard(root: HTMLElement): boolean {
+  let list = getFeatureGridCardsList(root);
+  if (!list) {
+    list = document.createElement("dl");
+    list.className = "page-web-feature-grid-list";
+    root.appendChild(list);
+  }
+  const nextIndex = getFeatureGridCardsCount(root) + 1;
+  list.appendChild(createFeatureGridCardNode(nextIndex));
+  return true;
+}
+
+function removeOneFeatureGridCard(root: HTMLElement): boolean {
+  const list = getFeatureGridCardsList(root);
+  if (!list) return false;
+  const items = Array.from(list.querySelectorAll(".page-web-feature-grid-item")) as HTMLElement[];
+  if (items.length === 0) return false;
+  items[items.length - 1].remove();
+  if (list.querySelectorAll(".page-web-feature-grid-item").length === 0) {
+    list.remove();
+  }
+  return true;
+}
+
+function createFeatureGridCardIconNode(): HTMLElement {
+  const wrap = document.createElement("div");
+  wrap.innerHTML = getFeatureGridIconWrapHtml("bolt");
+  return wrap.firstElementChild as HTMLElement;
+}
+
+function getFeatureGridIconPresetById(id: string | null | undefined): FeatureGridIconPreset {
+  const found = FEATURE_GRID_ICON_PRESETS.find((item) => item.id === id);
+  return found ?? FEATURE_GRID_ICON_PRESETS[0];
+}
+
+function getFeatureGridIconWrapHtml(id: string | null | undefined): string {
+  const icon = getFeatureGridIconPresetById(id);
+  return (
+    '<span class="page-web-feature-grid-icon-wrap" data-feature-grid-icon-id="' +
+    icon.id +
+    '" aria-hidden="true">' +
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="page-web-feature-grid-icon">' +
+    '<path d="' +
+    icon.path +
+    '" stroke-linecap="round" stroke-linejoin="round"></path>' +
+    "</svg>" +
+    "</span>"
+  );
+}
+
+function detectFeatureGridIconPresetId(iconWrap: HTMLElement): FeatureGridIconPreset["id"] {
+  const attrId = iconWrap.getAttribute("data-feature-grid-icon-id");
+  if (FEATURE_GRID_ICON_PRESETS.some((n) => n.id === attrId)) return attrId as FeatureGridIconPreset["id"];
+  const path = (iconWrap.querySelector("path")?.getAttribute("d") || "").trim();
+  const byPath = FEATURE_GRID_ICON_PRESETS.find((n) => n.path === path);
+  return (byPath?.id ?? FEATURE_GRID_ICON_PRESETS[0].id) as FeatureGridIconPreset["id"];
+}
+
+function createFeatureGridLearnMoreNode(): HTMLElement {
+  const wrap = document.createElement("div");
+  wrap.innerHTML =
+    '<p class="page-web-feature-grid-item-link-wrap"><a href="#" class="page-web-feature-grid-link">Learn more <span aria-hidden="true">→</span></a></p>';
+  return wrap.firstElementChild as HTMLElement;
+}
+
+function hasFeatureGridCardIcons(root: HTMLElement): boolean {
+  return !!root.querySelector(".page-web-feature-grid-item-title .page-web-feature-grid-icon-wrap");
+}
+
+function hasFeatureGridCardLearnMore(root: HTMLElement): boolean {
+  return !!root.querySelector(".page-web-feature-grid-item-link-wrap .page-web-feature-grid-link");
+}
+
+function hasFeatureGridCardDescriptions(root: HTMLElement): boolean {
+  const items = getFeatureGridCardItems(root);
+  if (items.length === 0) return false;
+  return items.some((item) => {
+    const body = item.querySelector(":scope > .page-web-feature-grid-item-body") as HTMLElement | null;
+    if (!body) return false;
+    return !!body.querySelector(":scope > p:not(.page-web-feature-grid-item-link-wrap)");
+  });
+}
+
+function toggleFeatureGridCardIcons(root: HTMLElement): boolean {
+  const items = getFeatureGridCardItems(root);
+  if (items.length === 0) return false;
+  const hasIcons = hasFeatureGridCardIcons(root);
+  if (hasIcons) {
+    items.forEach((item) => {
+      const title = item.querySelector(":scope > .page-web-feature-grid-item-title") as HTMLElement | null;
+      if (!title) return;
+      title.querySelectorAll(".page-web-feature-grid-icon-wrap").forEach((n) => n.remove());
+    });
+    return true;
+  }
+  items.forEach((item) => {
+    const title = item.querySelector(":scope > .page-web-feature-grid-item-title") as HTMLElement | null;
+    if (!title) return;
+    if (title.querySelector(".page-web-feature-grid-icon-wrap")) return;
+    title.insertBefore(createFeatureGridCardIconNode(), title.firstChild);
+  });
+  return true;
+}
+
+function toggleFeatureGridCardLearnMore(root: HTMLElement): boolean {
+  const items = getFeatureGridCardItems(root);
+  if (items.length === 0) return false;
+  const hasLearnMore = hasFeatureGridCardLearnMore(root);
+  if (hasLearnMore) {
+    items.forEach((item) => {
+      const body = item.querySelector(":scope > .page-web-feature-grid-item-body") as HTMLElement | null;
+      if (!body) return;
+      body.querySelectorAll(".page-web-feature-grid-item-link-wrap").forEach((n) => n.remove());
+    });
+    return true;
+  }
+  items.forEach((item) => {
+    const body = item.querySelector(":scope > .page-web-feature-grid-item-body") as HTMLElement | null;
+    if (!body) return;
+    if (body.querySelector(".page-web-feature-grid-item-link-wrap")) return;
+    body.appendChild(createFeatureGridLearnMoreNode());
+  });
+  return true;
+}
+
+function toggleFeatureGridCardDescriptions(root: HTMLElement): boolean {
+  const items = getFeatureGridCardItems(root);
+  if (items.length === 0) return false;
+  const hasDescriptions = hasFeatureGridCardDescriptions(root);
+  if (hasDescriptions) {
+    items.forEach((item) => {
+      const body = item.querySelector(":scope > .page-web-feature-grid-item-body") as HTMLElement | null;
+      if (!body) return;
+      body.querySelectorAll(":scope > p:not(.page-web-feature-grid-item-link-wrap)").forEach((n) => n.remove());
+    });
+    return true;
+  }
+  items.forEach((item) => {
+    const body = item.querySelector(":scope > .page-web-feature-grid-item-body") as HTMLElement | null;
+    if (!body) return;
+    const description = document.createElement("p");
+    description.textContent = "Добавьте описание карточки. Здесь можно указать ключевое преимущество.";
+    const linkWrap = body.querySelector(":scope > .page-web-feature-grid-item-link-wrap");
+    if (linkWrap) body.insertBefore(description, linkWrap);
+    else body.appendChild(description);
+  });
+  return true;
+}
+
+function getFeatureGridCols(root: HTMLElement): 2 | 3 | 4 {
+  const raw = root.getAttribute("data-feature-grid-cols");
+  if (raw === "2") return 2;
+  if (raw === "4") return 4;
+  return 3;
+}
+
+function setFeatureGridCols(root: HTMLElement, cols: 2 | 3 | 4): boolean {
+  const current = getFeatureGridCols(root);
+  if (current === cols) return false;
+  root.setAttribute("data-feature-grid-cols", String(cols));
+  return true;
+}
+
+function ensureFeatureGridHead(root: HTMLElement): HTMLElement {
+  let head = root.querySelector(".page-web-feature-grid-head") as HTMLElement | null;
+  if (head) return head;
+  head = document.createElement("div");
+  head.className = "page-web-feature-grid-head";
+  root.insertBefore(head, root.firstChild);
+  return head;
+}
+
+function insertFeatureGridHeadNodeByOrder(head: HTMLElement, node: HTMLElement, kind: FeatureGridElementKind) {
+  if (kind === "lead") {
+    const row = ensureFeatureGridLeadRow(head);
+    const message = row.querySelector(":scope > .page-web-feature-grid-message");
+    if (message) row.insertBefore(node, message);
+    else row.appendChild(node);
+    return;
+  }
+  const order: FeatureGridElementKind[] = ["subtitle", "title", "lead"];
+  const myIdx = order.indexOf(kind);
+  const getSelector = (k: FeatureGridElementKind) =>
+    k === "subtitle" ? ".page-web-feature-grid-subtitle" : k === "title" ? ".page-web-feature-grid-title" : ".page-web-feature-grid-lead";
+  for (let i = myIdx + 1; i < order.length; i++) {
+    const after = head.querySelector(`:scope > ${getSelector(order[i])}`) as HTMLElement | null;
+    if (after) {
+      head.insertBefore(node, after);
+      return;
+    }
+  }
+  head.appendChild(node);
+}
+
+function toggleFeatureGridTextBlockElement(block: HTMLElement, kind: FeatureGridElementKind): boolean {
+  const content = block.querySelector(":scope > .page-web-text-block-content") as HTMLElement | null;
+  if (!content) return false;
+  const root = content.querySelector(".page-web-feature-grid") as HTMLElement | null;
+  if (!root) return false;
+  const existing = getFeatureGridElementNode(root, kind);
+  if (existing) {
+    const parent = existing.parentElement;
+    existing.remove();
+    if (kind === "lead" && parent?.classList.contains("page-web-feature-grid-lead-row")) {
+      if (!parent.querySelector(".page-web-feature-grid-message")) parent.remove();
+    }
+    return true;
+  }
+  const head = ensureFeatureGridHead(root);
+  const node = createFeatureGridHeadNode(kind);
+  insertFeatureGridHeadNodeByOrder(head, node, kind);
+  return true;
+}
+
+function syncFeatureGridElementsMenuState(toolbar: HTMLElement) {
+  const block = toolbar.closest(".page-web-text-block") as HTMLElement | null;
+  if (!block) return;
+  const content = block.querySelector(":scope > .page-web-text-block-content") as HTMLElement | null;
+  const root = content?.querySelector(".page-web-feature-grid") as HTMLElement | null;
+  const labels: Record<FeatureGridElementKind, { add: string; remove: string }> = {
+    subtitle: { add: "Добавить подзаголовок", remove: "Убрать подзаголовок" },
+    title: { add: "Добавить заголовок", remove: "Убрать заголовок" },
+    lead: { add: "Добавить описание", remove: "Убрать описание" },
+  };
+  toolbar.querySelectorAll("[data-toggle-feature-grid-element]").forEach((node) => {
+    const btn = node as HTMLElement;
+    const raw = btn.getAttribute("data-toggle-feature-grid-element");
+    if (!isFeatureGridElementKind(raw)) return;
+    const exists = root ? !!getFeatureGridElementNode(root, raw) : false;
+    btn.textContent = exists ? labels[raw].remove : labels[raw].add;
+  });
+  toolbar.querySelectorAll("[data-feature-grid-cards-action='remove']").forEach((node) => {
+    const btn = node as HTMLButtonElement;
+    const hasCards = root ? getFeatureGridCardsCount(root) > 0 : false;
+    btn.disabled = !hasCards;
+    btn.setAttribute("aria-disabled", hasCards ? "false" : "true");
+  });
+  toolbar.querySelectorAll("[data-feature-grid-cards-decor-action]").forEach((node) => {
+    const btn = node as HTMLButtonElement;
+    const action = btn.getAttribute("data-feature-grid-cards-decor-action");
+    const hasCards = root ? getFeatureGridCardsCount(root) > 0 : false;
+    btn.disabled = !hasCards;
+    btn.setAttribute("aria-disabled", hasCards ? "false" : "true");
+    if (!hasCards) return;
+    if (action === "description") {
+      btn.textContent = hasFeatureGridCardDescriptions(root as HTMLElement)
+        ? "Убрать описания у карточек"
+        : "Добавить описания к карточкам";
+      return;
+    }
+    if (action === "icons") {
+      btn.textContent = hasFeatureGridCardIcons(root as HTMLElement) ? "Убрать иконки у карточек" : "Добавить иконки к карточкам";
+      return;
+    }
+    if (action === "learn-more") {
+      btn.textContent = hasFeatureGridCardLearnMore(root as HTMLElement)
+        ? "Убрать кнопку Learn more"
+        : "Добавить кнопку Learn more";
+    }
+  });
+  const currentCols = root ? getFeatureGridCols(root) : 3;
+  toolbar.querySelectorAll("[data-feature-grid-set-cols]").forEach((node) => {
+    const btn = node as HTMLButtonElement;
+    const cols = btn.getAttribute("data-feature-grid-set-cols");
+    btn.setAttribute("aria-checked", cols === String(currentCols) ? "true" : "false");
+  });
+  const currentMessagePosition = root ? (getFeatureGridMessagePosition(root) ?? "none") : "none";
+  toolbar.querySelectorAll("[data-feature-grid-message-position]").forEach((node) => {
+    const btn = node as HTMLButtonElement;
+    const pos = btn.getAttribute("data-feature-grid-message-position");
+    btn.setAttribute("aria-checked", pos && pos === currentMessagePosition ? "true" : "false");
+  });
+  const currentMessageColor = root ? getFeatureGridMessageColor(root) : "red";
+  toolbar.querySelectorAll("[data-feature-grid-message-color]").forEach((node) => {
+    const btn = node as HTMLButtonElement;
+    const color = btn.getAttribute("data-feature-grid-message-color");
+    btn.setAttribute("aria-checked", color && color === currentMessageColor ? "true" : "false");
+  });
+  const currentImagePosition = root ? getFeatureGridImagePosition(root) : "none";
+  toolbar.querySelectorAll("[data-feature-grid-image-position]").forEach((node) => {
+    const btn = node as HTMLButtonElement;
+    const pos = btn.getAttribute("data-feature-grid-image-position");
+    btn.setAttribute("aria-checked", pos && pos === currentImagePosition ? "true" : "false");
+  });
+}
+
+function syncTextBlockToolbarVariantState(toolbar: HTMLElement) {
+  const block = toolbar.closest(".page-web-text-block") as HTMLElement | null;
+  if (!block) return;
+  const variant = block.getAttribute("data-text-block-variant") || "";
+  if (toolbar.getAttribute("data-text-block-variant") !== variant) {
+    toolbar.setAttribute("data-text-block-variant", variant);
+  }
+  if (variant === "feature-grid") {
+    syncFeatureGridElementsMenuState(toolbar);
+  }
+}
+
+function moveWebBlockByToolbar(toolbar: HTMLElement, direction: "up" | "down", ed: HTMLElement): boolean {
+  const block = toolbar.closest(
+    ".page-web-cover, .page-web-carousel, .page-web-timeline, .page-web-text-media, .page-web-text-block",
+  ) as HTMLElement | null;
+  if (!block || !ed.contains(block)) return false;
+  const parent = block.parentElement;
+  if (!parent) return false;
+  const blocks = Array.from(parent.children).filter((node) =>
+    (node as HTMLElement).matches?.(
+      ".page-web-cover, .page-web-carousel, .page-web-timeline, .page-web-text-media, .page-web-text-block",
+    ),
+  ) as HTMLElement[];
+  const idx = blocks.indexOf(block);
+  if (idx < 0) return false;
+  const neighbor = direction === "up" ? blocks[idx - 1] : blocks[idx + 1];
+  if (!neighbor) return false;
+  if (direction === "up") parent.insertBefore(block, neighbor);
+  else parent.insertBefore(neighbor, block);
+  return true;
+}
+
+/**
+ * Block-mode редактор: на полотне остаются только web-блоки.
+ * Старый свободный HTML переносится в блок "текст слева, картинка справа".
+ */
+function normalizeToBlockEditorHtml(inputHtml: string): string {
+  if (typeof document === "undefined") return inputHtml;
+  const raw = typeof inputHtml === "string" ? inputHtml.trim() : "";
+  if (!raw) return "";
+  try {
+    const wrap = document.createElement("div");
+    wrap.innerHTML = raw;
+    // Чистим служебный chrome редактора, если он случайно попал в сохранённый HTML.
+    wrap
+      .querySelectorAll(
+        '.page-editor, [aria-label="Добавить блок"], .page-web-text-block-toolbar, .oin, .oit, .oja, .ohx, .oie, .oir, .oia, .oif, .ohw, .oig, .oid, .oij, .oim, .oil',
+      )
+      .forEach((n) => n.remove());
+    const blockHtml: string[] = [];
+    const legacy = document.createElement("div");
+    const isAllowedBlock = (el: Element) =>
+      el.matches(".page-web-cover, .page-web-carousel, .page-web-timeline, .page-web-text-media, .page-web-text-block");
+    const hasEditorChromeInside = (el: Element) =>
+      Boolean(
+        el.querySelector(
+          '.page-editor, [aria-label="Добавить блок"], .page-web-text-media-toolbar, .page-web-text-block-toolbar, .oin, .oit, .oja, .ohx, .oie, .oir, .oia, .oif, .ohw, .oig',
+        ),
+      );
+    const appendLegacyNode = (node: Node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        if ((node.textContent || "").trim().length === 0) return;
+        legacy.appendChild(node.cloneNode(true));
+        return;
+      }
+      if (!(node instanceof Element)) return;
+      // Никогда не переносим в контент служебную разметку самого редактора.
+      if (
+        node.matches(".page-editor, .page-web-text-media-toolbar, .page-web-text-block-toolbar, .oin, .oit, .oja, .ohx, .oie, .oir, .oia, .oif, .ohw, .oig") ||
+        node.matches('[aria-label="Добавить блок"]') ||
+        hasEditorChromeInside(node)
+      ) {
+        return;
+      }
+      if (isAllowedBlock(node)) return;
+      if (
+        node.matches(
+          ".page-web-cover-toolbar, .page-web-carousel-toolbar, .page-web-timeline-toolbar, .page-web-text-media-toolbar, .page-web-text-block-toolbar, .page-web-cover-delete, .page-web-carousel-arrow",
+        )
+      ) {
+        return;
+      }
+      if (node.tagName.toLowerCase() === "br" && legacy.childNodes.length === 0) return;
+      const clone = node.cloneNode(true) as Element;
+      if ((clone.textContent || "").replace(/\u00A0/g, " ").trim().length === 0 && !clone.querySelector("img,video,iframe,table,ul,ol")) {
+        return;
+      }
+      legacy.appendChild(clone);
+    };
+
+    for (const node of Array.from(wrap.childNodes)) {
+      if (node instanceof Element && isAllowedBlock(node)) {
+        blockHtml.push(node.outerHTML);
+      } else {
+        appendLegacyNode(node);
+      }
+    }
+
+    const legacyHtml = legacy.innerHTML.trim();
+    if (legacyHtml) {
+      blockHtml.push(getTextMediaBlockHtml(legacyHtml));
+    }
+    return blockHtml.join("");
+  } catch {
+    return "";
+  }
+}
+
 /** Логи каретки: префикс `[page-editor-caret]`. Выключить: `false`. Без пересборки: `localStorage.setItem('debugPageEditorCaret','0')`. */
 const DEBUG_PAGE_EDITOR_CARET = true;
+/** Логи синхронизации cover-стилей: `localStorage.setItem('debugPageCoverSync','1')`. */
+const DEBUG_PAGE_COVER_SYNC = true;
 
 function caretDebugOn(): boolean {
   if (!DEBUG_PAGE_EDITOR_CARET) return false;
@@ -620,6 +1846,47 @@ function caretDebugOn(): boolean {
   } catch {
     return true;
   }
+}
+
+function coverSyncDebugOn(): boolean {
+  if (!DEBUG_PAGE_COVER_SYNC) return false;
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem("debugPageCoverSync") === "1";
+  } catch {
+    return false;
+  }
+}
+
+function logEditorCoverSyncState(root: HTMLElement, phase: string) {
+  if (!coverSyncDebugOn() || typeof window === "undefined") return;
+  const covers = Array.from(root.querySelectorAll(".page-web-cover")) as HTMLElement[];
+  const rootRect = root.getBoundingClientRect();
+  console.log("[editor-cover-sync] snapshot", {
+    phase,
+    covers: covers.length,
+    rootWidth: rootRect.width,
+    rootHeight: rootRect.height,
+  });
+  covers.forEach((cover, index) => {
+    const type = cover.getAttribute("data-cover-type") || "unknown";
+    const directChildren = Array.from(cover.children) as HTMLElement[];
+    const bg = directChildren.find((el) => el.classList.contains("page-web-cover-bg")) ?? null;
+    const blue = bg?.querySelector(".page-web-cover-blob--blue") as HTMLElement | null;
+    const red = bg?.querySelector(".page-web-cover-blob--red") as HTMLElement | null;
+    const splitAfter = window.getComputedStyle(cover, "::after");
+    console.log("[editor-cover-sync] cover", {
+      index,
+      type,
+      hasBgWrap: !!bg,
+      hasBlueBlob: !!blue,
+      hasRedBlob: !!red,
+      blueAnim: blue ? window.getComputedStyle(blue).animationName : "none",
+      redAnim: red ? window.getComputedStyle(red).animationName : "none",
+      splitAfterBgImage: splitAfter.backgroundImage,
+      splitAfterWidth: splitAfter.width,
+    });
+  });
 }
 
 function describeNodeForCaretLog(n: Node | null): string {
@@ -728,7 +1995,8 @@ export default function PageEditorDetailsPage() {
   const [listColorOpen, setListColorOpen] = useState(false);
   const [listStart, setListStart] = useState<number>(1);
   const [tableOpen, setTableOpen] = useState(false);
-  const [webElementsOpen, setWebElementsOpen] = useState(false);
+  const [addElementDialogOpen, setAddElementDialogOpen] = useState(false);
+  const [addElementDialogTab, setAddElementDialogTab] = useState<"media" | "text">("media");
   const [tableHover, setTableHover] = useState<{ rows: number; cols: number } | null>(null);
   const [isInTable, setIsInTable] = useState(false);
   const [tableBorderStyle, setTableBorderStyle] = useState<string>("solid");
@@ -743,6 +2011,8 @@ export default function PageEditorDetailsPage() {
   const [tableWidthModalValue, setTableWidthModalValue] = useState("");
   const [coverButtonLinkModalOpen, setCoverButtonLinkModalOpen] = useState(false);
   const [coverButtonLinkModalValue, setCoverButtonLinkModalValue] = useState("");
+  const [featureGridIconPickerOpen, setFeatureGridIconPickerOpen] = useState(false);
+  const [featureGridIconPickerValue, setFeatureGridIconPickerValue] = useState<FeatureGridIconPreset["id"]>("bolt");
   const [tableWidthSubmenuOpen, setTableWidthSubmenuOpen] = useState(false);
   const [tableRowHeightSubmenuOpen, setTableRowHeightSubmenuOpen] = useState(false);
   const [tableVerticalAlign, setTableVerticalAlign] = useState<"top" | "middle" | "bottom">("middle");
@@ -774,7 +2044,6 @@ export default function PageEditorDetailsPage() {
   const listStyleDropdownRef = useRef<HTMLDivElement | null>(null);
   const listStyleButtonMousedownRef = useRef(false);
   const tableDropdownRef = useRef<HTMLDivElement | null>(null);
-  const webElementsDropdownRef = useRef<HTMLDivElement | null>(null);
   const tableBorderDropdownRef = useRef<HTMLDivElement | null>(null);
   const tableWidthModalInputRef = useRef<HTMLInputElement | null>(null);
   const coverButtonLinkModalInputRef = useRef<HTMLInputElement | null>(null);
@@ -808,7 +2077,9 @@ export default function PageEditorDetailsPage() {
   const [selectedCellRange, setSelectedCellRange] = useState<{ rows: number; cols: number }>({ rows: 1, cols: 1 });
   const cellDragStartRef = useRef<{ cell: HTMLTableCellElement; table: HTMLTableElement } | null>(null);
   const savedRangeRef = useRef<Range | null>(null);
+  const insertWebAfterBlockRef = useRef<HTMLElement | null>(null);
   const coverButtonLinkTargetRef = useRef<HTMLElement | null>(null);
+  const featureGridIconPickerTargetRef = useRef<HTMLElement | null>(null);
   const commandRangeRef = useRef<Range | null>(null);
   /** After setContentHtml, selection is restored in the contentHtml effect using this marker id. */
   const pendingEditorCaretRef = useRef<string | null>(null);
@@ -910,9 +2181,6 @@ export default function PageEditorDetailsPage() {
       if (tableOpen && tableDropdownRef.current && !tableDropdownRef.current.contains(target)) {
         setTableOpen(false);
       }
-      if (webElementsOpen && webElementsDropdownRef.current && !webElementsDropdownRef.current.contains(target)) {
-        setWebElementsOpen(false);
-      }
       if (tableBorderOpen && tableBorderDropdownRef.current && !tableBorderDropdownRef.current.contains(target)) {
         setTableBorderOpen(false);
         setTableBorderColorOpen(false);
@@ -929,6 +2197,38 @@ export default function PageEditorDetailsPage() {
       const inCellMenu = cellMenuRef.current?.contains(target);
       const inToolbar = toolbarRef.current?.contains(target);
       const el = editorRef.current;
+      const eventPath =
+        typeof e.composedPath === "function" ? e.composedPath() : [];
+      const inCoverToolbarFromPath = eventPath.some((node) => {
+        if (!(node instanceof Element)) return false;
+        return !!node.closest?.(".page-web-cover-toolbar");
+      });
+      const targetEl =
+        target instanceof Element ? target : (target.parentElement as Element | null);
+      const inCoverToolbar = inCoverToolbarFromPath || !!targetEl?.closest?.(".page-web-cover-toolbar");
+      if (el && !inCoverToolbar) {
+        el.querySelectorAll(".page-web-cover-toolbar").forEach((node) => {
+          closeCoverToolbarMenus(node as HTMLElement);
+        });
+      }
+      const inTextMediaToolbar = eventPath.some((node) => {
+        if (!(node instanceof Element)) return false;
+        return !!node.closest?.(".page-web-text-media-toolbar");
+      }) || !!targetEl?.closest?.(".page-web-text-media-toolbar");
+      if (el && !inTextMediaToolbar) {
+        el.querySelectorAll(".page-web-text-media-toolbar").forEach((node) => {
+          closeTextMediaToolbarMenus(node as HTMLElement);
+        });
+      }
+      const inTextBlockToolbar = eventPath.some((node) => {
+        if (!(node instanceof Element)) return false;
+        return !!node.closest?.(".page-web-text-block-toolbar");
+      }) || !!targetEl?.closest?.(".page-web-text-block-toolbar");
+      if (el && !inTextBlockToolbar) {
+        el.querySelectorAll(".page-web-text-block-toolbar").forEach((node) => {
+          closeTextBlockToolbarMenus(node as HTMLElement);
+        });
+      }
       const editingCell = (target as Element)?.closest?.("table.page-editor-table td[data-cell-editing]");
       if (!editingCell && !inToolbar && !inCellMenu && el) {
         let hadEditing = false;
@@ -971,7 +2271,7 @@ export default function PageEditorDetailsPage() {
       document.removeEventListener("click", handler);
       document.removeEventListener("mousedown", cellMenuHandler);
     };
-  }, [fontSizeOpen, fontColorOpen, listStyleOpen, tableOpen, webElementsOpen, tableBorderOpen, cellMenuOpen, clearTableSelection]);
+  }, [fontSizeOpen, fontColorOpen, listStyleOpen, tableOpen, tableBorderOpen, cellMenuOpen, clearTableSelection]);
 
   useEffect(() => {
     function setSelectedImageWrapper(next: HTMLElement | null) {
@@ -1633,8 +2933,16 @@ export default function PageEditorDetailsPage() {
         setTitle(page.title || "");
         setSlug(page.slug || "");
         const firstText = page.blocks.find((b) => b.type === "text")?.data?.text;
-        const initialHtml = typeof firstText === "string" ? firstText : "";
-        const normalizedInitialHtml = await normalizeHtmlInlineImagesToWebp(initialHtml);
+        const rawInitialHtml = typeof firstText === "string" ? firstText : "";
+        const initialHtml = isSeededTitleDescriptionTextBlock(
+          rawInitialHtml,
+          page.title || "",
+          page.description,
+        )
+          ? ""
+          : rawInitialHtml;
+        const blockModeInitialHtml = normalizeToBlockEditorHtml(initialHtml);
+        const normalizedInitialHtml = await normalizeHtmlInlineImagesToWebp(blockModeInitialHtml);
         setContentHtml(normalizedInitialHtml);
       } catch {
         setError("Не удалось загрузить страницу");
@@ -1681,13 +2989,18 @@ export default function PageEditorDetailsPage() {
   useLayoutEffect(() => {
     if (!editorRef.current) return;
     const root = editorRef.current;
+    const blockModeHtml = normalizeToBlockEditorHtml(contentHtml);
+    if (blockModeHtml !== contentHtml) {
+      setContentHtml(blockModeHtml);
+    }
+    const effectiveContentHtml = blockModeHtml;
     const pendingId = pendingEditorCaretRef.current;
     const safeId = pendingId ? pendingId.replace(/"/g, "") : "";
     // React re-renders can clear a contentEditable with no React children; the live marker then
     // disappears while contentHtml still holds the full HTML. We must re-apply innerHTML in that case.
     const markerStillInDom = !!pendingId && !!root.querySelector(`[data-editor-caret="${safeId}"]`);
     const skipDestructiveInnerHtmlSync = !!pendingId && markerStillInDom;
-    const innerDiffers = root.innerHTML !== contentHtml;
+    const innerDiffers = root.innerHTML !== effectiveContentHtml;
 
     if (caretDebugOn()) {
       logPageEditorCaret("layoutEffect[contentHtml]:start", {
@@ -1696,7 +3009,7 @@ export default function PageEditorDetailsPage() {
         skipDestructiveInnerHtmlSync,
         innerDiffers,
         rootChildCount: root.childNodes.length,
-        contentHtmlLength: contentHtml.length,
+        contentHtmlLength: effectiveContentHtml.length,
         rootInnerLength: root.innerHTML.length,
       });
       snapshotSelection("layoutEffect[contentHtml]:selection-start", root);
@@ -1708,7 +3021,7 @@ export default function PageEditorDetailsPage() {
           reason: "sync from React state (marker missing or no pending caret)",
         });
       }
-      root.innerHTML = contentHtml;
+      root.innerHTML = effectiveContentHtml;
       if (caretDebugOn()) {
         snapshotSelection("layoutEffect[contentHtml]:after-innerHTML-assign", root);
       }
@@ -1729,8 +3042,25 @@ export default function PageEditorDetailsPage() {
     if (ensureWebTimelineToolbarInEditor(root) && caretDebugOn()) {
       logPageEditorCaret("layoutEffect[contentHtml]:web-timeline-toolbar-upgrade", {});
     }
+    if (ensureWebTextMediaToolbarInEditor(root) && caretDebugOn()) {
+      logPageEditorCaret("layoutEffect[contentHtml]:web-text-media-toolbar-upgrade", {});
+    }
+    if (ensureWebTextBlockToolbarInEditor(root) && caretDebugOn()) {
+      logPageEditorCaret("layoutEffect[contentHtml]:web-text-block-toolbar-upgrade", {});
+    }
+    if (normalizeFeatureGridMessageLayoutsInEditor(root) && caretDebugOn()) {
+      logPageEditorCaret("layoutEffect[contentHtml]:feature-grid-message-layout-normalize", {});
+    }
+    if (normalizeFeatureGridImageLayoutsInEditor(root) && caretDebugOn()) {
+      logPageEditorCaret("layoutEffect[contentHtml]:feature-grid-image-layout-normalize", {});
+    }
+    if (ensureWebInsertHandlesInEditor(root) && caretDebugOn()) {
+      logPageEditorCaret("layoutEffect[contentHtml]:web-insert-handles-upgrade", {});
+    }
     sanitizeLeakedNodesOutOfWebCovers(root);
     sanitizeLeakedNodesOutOfWebCarousels(root);
+    sanitizeLeakedNodesOutOfWebTextMedia(root);
+    sanitizeLeakedNodesOutOfWebTextBlocks(root);
     if (normalizeWebCarouselStripInEditor(root) && caretDebugOn()) {
       logPageEditorCaret("layoutEffect[contentHtml]:web-carousel-strip-normalize", {});
     }
@@ -1742,6 +3072,9 @@ export default function PageEditorDetailsPage() {
     }
     if (normalizeWebCoverAspectAttributes(root) && caretDebugOn()) {
       logPageEditorCaret("layoutEffect[contentHtml]:cover-aspect-default", {});
+    }
+    if (normalizeWebCoverTypeAttributes(root) && caretDebugOn()) {
+      logPageEditorCaret("layoutEffect[contentHtml]:cover-type-default", {});
     }
     root.querySelectorAll(".page-editor-table").forEach((t) => syncTableColgroup(t as HTMLTableElement));
     if (root.innerHTML !== before) {
@@ -1856,6 +3189,16 @@ export default function PageEditorDetailsPage() {
   }, [contentHtml]);
 
   useEffect(() => {
+    if (!coverSyncDebugOn()) return;
+    const root = editorRef.current;
+    if (!root) return;
+    const id = window.requestAnimationFrame(() => {
+      logEditorCoverSyncState(root, "contentHtml-change");
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [contentHtml, loading]);
+
+  useEffect(() => {
     const onSelectionChange = () => {
       updateToolbarState();
       highlightSelectedTableCells();
@@ -1869,13 +3212,6 @@ export default function PageEditorDetailsPage() {
       setCellMenuViewport(null);
       setCellMenuRect(null);
       setCellMenuOpen(false);
-      const ed = editorRef.current;
-      ed?.querySelectorAll('.page-web-carousel-toolbar[data-menu-open="1"]').forEach((node) => {
-        closeCarouselToolbarMenus(node as HTMLElement);
-      });
-      ed?.querySelectorAll('.page-web-timeline-toolbar[data-menu-open="1"]').forEach((node) => {
-        closeTimelineToolbarMenus(node as HTMLElement);
-      });
     };
     const scrollEl = editorScrollRef.current;
     if (scrollEl) {
@@ -2099,10 +3435,13 @@ export default function PageEditorDetailsPage() {
   }
 
   function getWebCoverElementsMenuHtml(): string {
-    const items: { data: string; label: string }[] = [
-      { data: "title", label: "Заголовок" },
-      { data: "subtitle", label: "Подзаголовок" },
-      { data: "button", label: "Кнопка" },
+    const items: { data: CoverInsertBlockKind; label: string }[] = [
+      { data: "title", label: "Добавить заголовок" },
+      { data: "subtitle", label: "Добавить подзаголовок" },
+      { data: "button", label: "Добавить кнопку" },
+      { data: "announcement", label: "Добавить плашку анонса" },
+      { data: "announcement-learn-more", label: "Добавить Learn more (в плашке)" },
+      { data: "bottom-learn-more", label: "Добавить Learn more (внизу)" },
     ];
     return items
       .map(
@@ -2116,7 +3455,19 @@ export default function PageEditorDetailsPage() {
       .join("");
   }
 
-  type CoverInsertBlockKind = "title" | "subtitle" | "button";
+  function getWebCoverTypeMenuHtml(): string {
+    return COVER_TYPE_PRESETS.map((preset) => {
+      return (
+        '<button type="button" role="menuitemradio" class="page-web-cover-menu-type" contenteditable="false" tabindex="-1" data-set-cover-type="' +
+        preset.id +
+        '" aria-checked="false">' +
+        '<span class="page-web-cover-menu-type-radio" aria-hidden="true"></span>' +
+        '<span class="page-web-cover-menu-type-label">' +
+        preset.label +
+        "</span></button>"
+      );
+    }).join("");
+  }
 
   function insertCoverBlockElement(cover: HTMLElement, kind: CoverInsertBlockKind, ed: HTMLElement) {
     const inner = cover.querySelector(".page-web-cover-inner") as HTMLElement | null;
@@ -2130,7 +3481,13 @@ export default function PageEditorDetailsPage() {
         ? '<h2 class="page-web-cover-el-title">Заголовок</h2>'
         : kind === "subtitle"
           ? '<p class="page-web-cover-el-subtitle">Подзаголовок</p>'
-          : '<p class="page-web-cover-el-button-wrap"><span class="page-web-cover-el-button" role="button">Кнопка</span></p>';
+          : kind === "button"
+            ? '<p class="page-web-cover-el-button-wrap"><span class="page-web-cover-el-button" role="button">Кнопка</span></p>'
+            : kind === "announcement"
+              ? '<p class="page-web-cover-el-announcement-wrap"><span class="page-web-cover-el-announcement"><span class="page-web-cover-el-announcement-text">Announcing our next round of funding.</span><span class="page-web-cover-el-announcement-learn-more" role="button">Learn more</span></span></p>'
+              : kind === "announcement-learn-more"
+                ? '<span class="page-web-cover-el-announcement-learn-more" role="button">Learn more</span>'
+                : '<span class="page-web-cover-el-learn-more" role="button">Learn more</span>';
 
     const wrap = document.createElement("div");
     wrap.innerHTML = html.trim();
@@ -2142,19 +3499,54 @@ export default function PageEditorDetailsPage() {
       !(inner.textContent || "").replace(/\u200b/g, "").trim();
     if (onlyBr && inner.firstChild) inner.removeChild(inner.firstChild);
 
-    inner.appendChild(node);
+    if (kind === "announcement-learn-more") {
+      const existingAnnouncement = inner.querySelector(".page-web-cover-el-announcement") as HTMLElement | null;
+      if (existingAnnouncement) {
+        if (!existingAnnouncement.querySelector(".page-web-cover-el-announcement-learn-more")) {
+          existingAnnouncement.appendChild(node);
+        }
+      } else {
+        const wrapWithAnnouncement = document.createElement("div");
+        wrapWithAnnouncement.innerHTML =
+          '<p class="page-web-cover-el-announcement-wrap"><span class="page-web-cover-el-announcement"><span class="page-web-cover-el-announcement-text">Announcing our next round of funding.</span></span></p>';
+        const announcementWrap = wrapWithAnnouncement.firstElementChild as HTMLElement | null;
+        const announcement = announcementWrap?.querySelector(".page-web-cover-el-announcement") as HTMLElement | null;
+        if (announcement && announcementWrap) {
+          announcement.appendChild(node);
+          insertCoverNodeByVisualOrder(inner, announcementWrap, "announcement");
+        }
+      }
+    } else if (kind === "bottom-learn-more") {
+      const buttonWrap = inner.querySelector(":scope > .page-web-cover-el-button-wrap") as HTMLElement | null;
+      if (buttonWrap) {
+        if (!buttonWrap.querySelector(".page-web-cover-el-learn-more")) {
+          buttonWrap.appendChild(node);
+        }
+      } else {
+        const wrapWithLearnMore = document.createElement("div");
+        wrapWithLearnMore.innerHTML = '<p class="page-web-cover-el-button-wrap"></p>';
+        const buttonWrapNode = wrapWithLearnMore.firstElementChild as HTMLElement | null;
+        if (buttonWrapNode) {
+          buttonWrapNode.appendChild(node);
+          insertCoverNodeByVisualOrder(inner, buttonWrapNode, "button");
+        }
+      }
+    } else {
+      insertCoverNodeByVisualOrder(inner, node, kind);
+    }
 
     requestAnimationFrame(() => {
       const sel = window.getSelection();
       if (!sel || !ed.contains(inner)) return;
       const r = document.createRange();
-      if (kind === "button") {
-        const btn = node.querySelector(".page-web-cover-el-button");
-        if (btn?.firstChild?.nodeType === Node.TEXT_NODE) {
-          r.selectNodeContents(btn.firstChild);
-        } else if (btn) {
-          r.selectNodeContents(btn);
-          r.collapse(false);
+      if (kind === "button" || kind === "announcement" || kind === "announcement-learn-more" || kind === "bottom-learn-more") {
+        const targetTextNode =
+          node.querySelector(".page-web-cover-el-button")?.firstChild ||
+          node.querySelector(".page-web-cover-el-announcement-text")?.firstChild ||
+          node.querySelector(".page-web-cover-el-announcement-learn-more")?.firstChild ||
+          node.querySelector(".page-web-cover-el-learn-more")?.firstChild;
+        if (targetTextNode?.nodeType === Node.TEXT_NODE) {
+          r.selectNodeContents(targetTextNode);
         } else {
           r.selectNodeContents(node);
           r.collapse(false);
@@ -2173,18 +3565,47 @@ export default function PageEditorDetailsPage() {
     });
   }
 
+  function toggleCoverBlockElement(cover: HTMLElement, kind: CoverInsertBlockKind, ed: HTMLElement) {
+    const inner = cover.querySelector(".page-web-cover-inner") as HTMLElement | null;
+    if (!inner || !ed.contains(inner)) return false;
+    const existing = getCoverInsertElementNode(inner, kind);
+    if (existing) {
+      existing.remove();
+      if (kind === "bottom-learn-more") {
+        const wrap = inner.querySelector(":scope > .page-web-cover-el-button-wrap") as HTMLElement | null;
+        const hasButton = !!wrap?.querySelector(".page-web-cover-el-button");
+        const hasLearnMore = !!wrap?.querySelector(".page-web-cover-el-learn-more");
+        if (wrap && !hasButton && !hasLearnMore) {
+          wrap.remove();
+        }
+      }
+      return true;
+    }
+    insertCoverBlockElement(cover, kind, ed);
+    return true;
+  }
+
   function getWebCoverToolbarHtml(): string {
     return (
       '<div class="page-web-cover-toolbar" contenteditable="false">' +
-      '<button type="button" class="page-web-cover-menu-trigger" tabindex="-1" aria-label="Меню обложки" aria-haspopup="true" title="Действия с обложкой">' +
+      getWebBlockMoveButtonHtml("up") +
+      '<button type="button" class="page-web-cover-menu-trigger" tabindex="-1" aria-label="Меню баннера" aria-haspopup="true" title="Действия с баннером">' +
       '<span class="page-web-cover-menu-dots" aria-hidden="true"></span></button>' +
+      getWebBlockMoveButtonHtml("down") +
       '<div role="menu" class="page-web-cover-menu-dropdown">' +
       '<div class="page-web-cover-menu-sub" contenteditable="false">' +
       '<button type="button" class="page-web-cover-menu-sub-trigger" tabindex="-1" aria-haspopup="true" aria-expanded="false">' +
-      '<span class="page-web-cover-menu-sub-label">Размер обложки</span>' +
+      '<span class="page-web-cover-menu-sub-label">Размер баннера</span>' +
       '<span class="page-web-cover-menu-chevron" aria-hidden="true"></span></button>' +
       '<div role="menu" class="page-web-cover-menu-sub-panel">' +
       getWebCoverAspectMenuHtml() +
+      "</div></div>" +
+      '<div class="page-web-cover-menu-sub" contenteditable="false">' +
+      '<button type="button" class="page-web-cover-menu-sub-trigger" tabindex="-1" aria-haspopup="true" aria-expanded="false">' +
+      '<span class="page-web-cover-menu-sub-label">Тип баннера</span>' +
+      '<span class="page-web-cover-menu-chevron" aria-hidden="true"></span></button>' +
+      '<div role="menu" class="page-web-cover-menu-sub-panel page-web-cover-type-panel">' +
+      getWebCoverTypeMenuHtml() +
       "</div></div>" +
       '<div class="page-web-cover-menu-sub" contenteditable="false">' +
       '<button type="button" class="page-web-cover-menu-sub-trigger" tabindex="-1" aria-haspopup="true" aria-expanded="false">' +
@@ -2194,10 +3615,22 @@ export default function PageEditorDetailsPage() {
       getWebCoverElementsMenuHtml() +
       "</div></div>" +
       '<button type="button" role="menuitem" class="page-web-cover-menu-upload" contenteditable="false" tabindex="-1">Загрузить изображение</button>' +
-      '<button type="button" role="menuitem" class="page-web-cover-menu-align-bg" contenteditable="false" tabindex="-1">Положение фона</button>' +
       '<div class="page-web-cover-menu-sep" aria-hidden="true"></div>' +
-      '<button type="button" role="menuitem" class="page-web-cover-menu-delete" contenteditable="false" tabindex="-1">Удалить обложку</button>' +
+      '<button type="button" role="menuitem" class="page-web-cover-menu-delete" contenteditable="false" tabindex="-1">Удалить баннер</button>' +
       "</div></div>"
+    );
+  }
+
+  function getWebCoverBlobLayersHtml(): string {
+    return (
+      '<div class="page-web-cover-bg" contenteditable="false" aria-hidden="true">' +
+      '<div class="page-web-cover-blob-layer page-web-cover-blob-layer--blue" contenteditable="false" aria-hidden="true">' +
+      '<div class="page-web-cover-blob page-web-cover-blob--blue"></div>' +
+      "</div>" +
+      '<div class="page-web-cover-blob-layer page-web-cover-blob-layer--red" contenteditable="false" aria-hidden="true">' +
+      '<div class="page-web-cover-blob page-web-cover-blob--red"></div>' +
+      "</div>" +
+      "</div>"
     );
   }
 
@@ -2205,9 +3638,14 @@ export default function PageEditorDetailsPage() {
     if (kind === "cover") {
       // Панель с меню только в редакторе; перед сохранением вырезается из HTML.
       return (
-        '<div class="page-web-cover" data-web-element="cover" data-cover-aspect="1-4" contenteditable="false">' +
+        '<div class="page-web-cover" data-web-element="cover" data-cover-type="hero" data-cover-aspect="1-8" data-cover-halign="center" data-cover-valign="middle" contenteditable="false">' +
         getWebCoverToolbarHtml() +
-        '<div class="page-web-cover-inner" contenteditable="false" title="Нажмите, чтобы ввести текст на обложке"><br></div>' +
+        getWebCoverBlobLayersHtml() +
+        '<div class="page-web-cover-inner" contenteditable="false" title="Нажмите, чтобы отредактировать текст баннера">' +
+        '<h2 class="page-web-cover-el-title">Data to enrich your online business</h2>' +
+        '<p class="page-web-cover-el-subtitle">Anim aute id magna aliqua ad ad non deserunt sunt. Qui irure qui lorem cupidatat commodo.</p>' +
+        '<p class="page-web-cover-el-button-wrap"><span class="page-web-cover-el-button" role="button">Get started</span></p>' +
+        "</div>" +
         "</div>"
       );
     }
@@ -2237,6 +3675,11 @@ export default function PageEditorDetailsPage() {
       return (
         '<div class="page-web-timeline" data-web-element="timeline">' +
         getWebTimelineToolbarHtml() +
+        '<div class="page-web-timeline-head">' +
+        '<p class="page-web-timeline-subtitle">Как мы работаем</p>' +
+        '<h3 class="page-web-timeline-heading">Этапы работы</h3>' +
+        '<p class="page-web-timeline-description">Прозрачный процесс от первого брифа до финального результата с понятными сроками на каждом шаге.</p>' +
+        "</div>" +
         '<div class="page-web-timeline-item">' +
         '<div class="page-web-timeline-dot" aria-hidden="true"></div>' +
         '<div class="page-web-timeline-content">' +
@@ -2260,6 +3703,18 @@ export default function PageEditorDetailsPage() {
         "</div>"
       );
     }
+    if (kind === "text-block") {
+      return getTextBlockHtml();
+    }
+    if (kind === "text-media") {
+      return getTextMediaBlockHtml();
+    }
+    if (kind === "feature-grid") {
+      return getFeatureGridTextBlockHtml();
+    }
+    if (kind === "work-pricing") {
+      return getWorkPricingTextBlockHtml();
+    }
     return "";
   }
 
@@ -2276,8 +3731,10 @@ export default function PageEditorDetailsPage() {
     ).join("");
     return (
       '<div class="page-web-carousel-toolbar" contenteditable="false">' +
+      getWebBlockMoveButtonHtml("up") +
       '<button type="button" class="page-web-carousel-menu-trigger" tabindex="-1" aria-label="Меню карусели" aria-haspopup="true" title="Действия с каруселью">' +
       '<span class="page-web-carousel-menu-dots" aria-hidden="true"></span></button>' +
+      getWebBlockMoveButtonHtml("down") +
       '<div role="menu" class="page-web-carousel-menu-dropdown">' +
       '<div class="page-web-carousel-menu-sub" contenteditable="false">' +
       '<button type="button" class="page-web-carousel-menu-sub-trigger" tabindex="-1" aria-haspopup="true" aria-expanded="false">' +
@@ -2299,8 +3756,10 @@ export default function PageEditorDetailsPage() {
   function getWebTimelineToolbarHtml(): string {
     return (
       '<div class="page-web-timeline-toolbar" contenteditable="false">' +
+      getWebBlockMoveButtonHtml("up") +
       '<button type="button" class="page-web-timeline-menu-trigger" tabindex="-1" aria-label="Меню таймлайна" aria-haspopup="true" title="Действия с таймлайном">' +
       '<span class="page-web-timeline-menu-dots" aria-hidden="true"></span></button>' +
+      getWebBlockMoveButtonHtml("down") +
       '<div role="menu" class="page-web-timeline-menu-dropdown">' +
       '<button type="button" role="menuitem" class="page-web-timeline-menu-add-step" contenteditable="false" tabindex="-1">Добавить этап</button>' +
       '<button type="button" role="menuitem" class="page-web-timeline-menu-remove-step" contenteditable="false" tabindex="-1">Удалить последний этап</button>' +
@@ -2350,14 +3809,71 @@ export default function PageEditorDetailsPage() {
         changed = true;
       }
 
+      const legacyLayers = Array.from(cover.querySelectorAll(":scope > .page-web-cover-blob-layer")) as HTMLElement[];
+      const bgWraps = Array.from(cover.querySelectorAll(":scope > .page-web-cover-bg")) as HTMLElement[];
+      let bg = bgWraps[0] ?? null;
+      if (bgWraps.length > 1) {
+        for (const extra of bgWraps.slice(1)) {
+          extra.remove();
+          changed = true;
+        }
+      }
+      if (!bg) {
+        const tmp = document.createElement("div");
+        tmp.innerHTML = getWebCoverBlobLayersHtml();
+        bg = tmp.firstElementChild as HTMLElement;
+        const anchor = (cover.querySelector(":scope > .page-web-cover-inner") as Node | null) ?? null;
+        cover.insertBefore(bg, anchor);
+        changed = true;
+      }
+      if (bg.parentElement !== cover) {
+        const anchor = (cover.querySelector(":scope > .page-web-cover-inner") as Node | null) ?? null;
+        cover.insertBefore(bg, anchor);
+        changed = true;
+      }
+      if (legacyLayers.length > 0) {
+        for (const l of legacyLayers) {
+          bg.appendChild(l);
+        }
+        changed = true;
+      }
+      const layers = Array.from(bg.querySelectorAll(":scope > .page-web-cover-blob-layer")) as HTMLElement[];
+      const keepBlue = layers.find((l) => l.classList.contains("page-web-cover-blob-layer--blue")) ?? null;
+      const keepRed = layers.find((l) => l.classList.contains("page-web-cover-blob-layer--red")) ?? null;
+      for (const l of layers) {
+        const isBlue = l.classList.contains("page-web-cover-blob-layer--blue");
+        const isRed = l.classList.contains("page-web-cover-blob-layer--red");
+        if ((isBlue && keepBlue !== l) || (isRed && keepRed !== l) || (!isBlue && !isRed)) {
+          l.remove();
+          changed = true;
+        }
+      }
+      const blueBlob = keepBlue?.querySelector(":scope > .page-web-cover-blob--blue");
+      const redBlob = keepRed?.querySelector(":scope > .page-web-cover-blob--red");
+      if (!keepBlue || !keepRed || !blueBlob || !redBlob) {
+        const tmp = document.createElement("div");
+        tmp.innerHTML = getWebCoverBlobLayersHtml();
+        const fresh = tmp.firstElementChild as HTMLElement;
+        bg.replaceWith(fresh);
+        bg = fresh;
+        changed = true;
+      }
+      const anchor = (cover.querySelector(":scope > .page-web-cover-inner") as Node | null) ?? null;
+      if (anchor && (anchor.compareDocumentPosition(bg) & Node.DOCUMENT_POSITION_FOLLOWING)) {
+        cover.insertBefore(bg, anchor);
+        changed = true;
+      }
+
       toolbar = cover.querySelector(".page-web-cover-toolbar") as HTMLElement | null;
       if (
         toolbar &&
         (!toolbar.querySelector(".page-web-cover-menu-sub") ||
+          !toolbar.querySelector(".page-web-block-move-up") ||
+          !toolbar.querySelector(".page-web-block-move-down") ||
           !toolbar.querySelector(".page-web-cover-aspect-grid") ||
           !toolbar.querySelector("[data-set-cover-aspect]") ||
+          !toolbar.querySelector("[data-set-cover-type]") ||
           !toolbar.querySelector(".page-web-cover-menu-upload") ||
-          !toolbar.querySelector(".page-web-cover-menu-align-bg") ||
           !toolbar.querySelector("[data-insert-cover-element]"))
       ) {
         const tmp = document.createElement("div");
@@ -2389,6 +3905,8 @@ export default function PageEditorDetailsPage() {
       if (
         toolbar &&
         (!toolbar.querySelector(".page-web-carousel-menu-sub") ||
+          !toolbar.querySelector(".page-web-block-move-up") ||
+          !toolbar.querySelector(".page-web-block-move-down") ||
           !toolbar.querySelector("[data-set-carousel-aspect]") ||
           !toolbar.querySelector(".page-web-carousel-menu-fullscreen") ||
           !toolbar.querySelector(".page-web-carousel-menu-upload-slide") ||
@@ -2447,6 +3965,8 @@ export default function PageEditorDetailsPage() {
       if (
         toolbar &&
         (!toolbar.querySelector(".page-web-timeline-menu-add-step") ||
+          !toolbar.querySelector(".page-web-block-move-up") ||
+          !toolbar.querySelector(".page-web-block-move-down") ||
           !toolbar.querySelector(".page-web-timeline-menu-remove-step") ||
           !toolbar.querySelector(".page-web-timeline-menu-delete"))
       ) {
@@ -2454,6 +3974,142 @@ export default function PageEditorDetailsPage() {
         tmp.innerHTML = getWebTimelineToolbarHtml();
         const fresh = tmp.firstElementChild as HTMLElement;
         toolbar.replaceWith(fresh);
+        changed = true;
+      }
+    });
+    return changed;
+  }
+
+  function ensureWebTextMediaToolbarInEditor(root: HTMLElement): boolean {
+    let changed = false;
+    root.querySelectorAll(".page-web-text-media").forEach((n) => {
+      const block = n as HTMLElement;
+      let toolbar = block.querySelector(":scope > .page-web-text-media-toolbar") as HTMLElement | null;
+      if (!toolbar) {
+        const tmp = document.createElement("div");
+        tmp.innerHTML = getWebTextMediaToolbarHtml();
+        toolbar = tmp.firstElementChild as HTMLElement;
+        block.insertBefore(toolbar, block.firstChild);
+        changed = true;
+      } else if (toolbar.parentElement !== block || block.firstElementChild !== toolbar) {
+        block.insertBefore(toolbar, block.firstChild);
+        changed = true;
+      }
+      toolbar = block.querySelector(".page-web-text-media-toolbar") as HTMLElement | null;
+      if (
+        toolbar &&
+        (!toolbar.querySelector(".page-web-text-media-menu-trigger") ||
+          !toolbar.querySelector(".page-web-block-move-up") ||
+          !toolbar.querySelector(".page-web-block-move-down") ||
+          !toolbar.querySelector(".page-web-text-media-menu-delete"))
+      ) {
+        const tmp = document.createElement("div");
+        tmp.innerHTML = getWebTextMediaToolbarHtml();
+        const fresh = tmp.firstElementChild as HTMLElement;
+        toolbar.replaceWith(fresh);
+        changed = true;
+      }
+    });
+    return changed;
+  }
+
+  function ensureWebTextBlockToolbarInEditor(root: HTMLElement): boolean {
+    let changed = false;
+    root.querySelectorAll(".page-web-text-block").forEach((n) => {
+      const block = n as HTMLElement;
+      if (block.getAttribute("contenteditable") !== "false") {
+        block.setAttribute("contenteditable", "false");
+        changed = true;
+      }
+      let toolbar = block.querySelector(":scope > .page-web-text-block-toolbar") as HTMLElement | null;
+      if (!toolbar) {
+        const tmp = document.createElement("div");
+        tmp.innerHTML = getWebTextBlockToolbarHtml();
+        toolbar = tmp.firstElementChild as HTMLElement;
+        block.insertBefore(toolbar, block.firstChild);
+        changed = true;
+      } else if (toolbar.parentElement !== block || block.firstElementChild !== toolbar) {
+        block.insertBefore(toolbar, block.firstChild);
+        changed = true;
+      }
+      let content = block.querySelector(":scope > .page-web-text-block-content") as HTMLElement | null;
+      if (!content) {
+        content = document.createElement("div");
+        content.className = "page-web-text-block-content";
+        content.setAttribute("contenteditable", "true");
+        const movable = Array.from(block.childNodes).filter((ch) => ch !== toolbar);
+        movable.forEach((ch) => content?.appendChild(ch));
+        if (!(content.textContent || "").trim() && !content.querySelector("img,table,ul,ol,iframe,video")) {
+          content.innerHTML = "<h3>Заголовок</h3><p>Добавьте текст блока. Подходит для обычного контента страницы.</p>";
+        }
+        block.appendChild(content);
+        changed = true;
+      } else {
+        if (content.parentElement !== block || block.lastElementChild !== content) {
+          block.appendChild(content);
+          changed = true;
+        }
+        if (content.getAttribute("contenteditable") !== "true") {
+          content.setAttribute("contenteditable", "true");
+          changed = true;
+        }
+      }
+      toolbar = block.querySelector(".page-web-text-block-toolbar") as HTMLElement | null;
+      if (
+        toolbar &&
+        (!toolbar.querySelector(".page-web-text-block-menu-trigger") ||
+          !toolbar.querySelector(".page-web-block-move-up") ||
+          !toolbar.querySelector(".page-web-block-move-down") ||
+          !toolbar.querySelector(".page-web-text-block-menu-delete") ||
+          !toolbar.querySelector(".page-web-text-block-menu-sub-trigger") ||
+          !toolbar.querySelector('[data-toggle-feature-grid-element="title"]') ||
+          !toolbar.querySelector('[data-feature-grid-set-cols="4"]') ||
+          !toolbar.querySelector('[data-feature-grid-cards-decor-action="description"]') ||
+          !toolbar.querySelector('[data-feature-grid-cards-decor-action="icons"]') ||
+          !toolbar.querySelector('[data-feature-grid-image-position="right"]'))
+      ) {
+        const tmp = document.createElement("div");
+        tmp.innerHTML = getWebTextBlockToolbarHtml();
+        const fresh = tmp.firstElementChild as HTMLElement;
+        toolbar.replaceWith(fresh);
+        changed = true;
+      }
+      toolbar = block.querySelector(".page-web-text-block-toolbar") as HTMLElement | null;
+      if (toolbar) {
+        const variant = block.getAttribute("data-text-block-variant") || "";
+        if (toolbar.getAttribute("data-text-block-variant") !== variant) {
+          toolbar.setAttribute("data-text-block-variant", variant);
+          changed = true;
+        }
+        syncTextBlockToolbarVariantState(toolbar);
+      }
+    });
+    return changed;
+  }
+
+  function ensureWebInsertHandlesInEditor(root: HTMLElement): boolean {
+    let changed = false;
+    root.querySelectorAll(WEB_BLOCK_SHELL_SELECTOR).forEach((node) => {
+      const block = node as HTMLElement;
+      let handle = block.querySelector(":scope > .page-web-insert-handle") as HTMLElement | null;
+      if (!handle) {
+        handle = document.createElement("div");
+        handle.className = "page-web-insert-handle";
+        handle.setAttribute("contenteditable", "false");
+        changed = true;
+      }
+      let btn = handle.querySelector(":scope > .page-web-insert-handle-btn") as HTMLButtonElement | null;
+      if (!btn) {
+        handle.innerHTML =
+          '<button type="button" class="page-web-insert-handle-btn" contenteditable="false" tabindex="-1" data-insert-web-after="1" aria-label="Добавить блок после текущего" title="Добавить блок"></button>';
+        btn = handle.querySelector(":scope > .page-web-insert-handle-btn") as HTMLButtonElement | null;
+        changed = true;
+      }
+      if (!btn?.textContent?.trim()) {
+        if (btn) btn.textContent = "Добавить";
+      }
+      if (handle.parentElement !== block || block.lastElementChild !== handle) {
+        block.appendChild(handle);
         changed = true;
       }
     });
@@ -2494,6 +4150,27 @@ export default function PageEditorDetailsPage() {
     return changed;
   }
 
+  function normalizeWebCoverTypeAttributes(root: HTMLElement): boolean {
+    let changed = false;
+    root.querySelectorAll(".page-web-cover").forEach((n) => {
+      const h = n as HTMLElement;
+      const current = h.getAttribute("data-cover-type");
+      if (current === "hero" || current === "image" || current === "split") {
+        if (current === "split" && h.classList.contains("page-web-cover-has-bg")) {
+          const before = `${h.style.getPropertyValue("--cover-bg-image")}|${h.style.getPropertyValue("--cover-bg-pos")}`;
+          ensureCoverBackgroundCssVars(h);
+          const after = `${h.style.getPropertyValue("--cover-bg-image")}|${h.style.getPropertyValue("--cover-bg-pos")}`;
+          if (before !== after) changed = true;
+        }
+        return;
+      }
+      const inferred = h.classList.contains("page-web-cover-has-bg") ? "image" : "hero";
+      h.setAttribute("data-cover-type", inferred);
+      changed = true;
+    });
+    return changed;
+  }
+
   function normalizeWebCarouselAspectAttributes(root: HTMLElement): boolean {
     let changed = false;
     root.querySelectorAll(".page-web-carousel").forEach((n) => {
@@ -2514,7 +4191,10 @@ export default function PageEditorDetailsPage() {
       const wrap = document.createElement("div");
       wrap.innerHTML = html;
       wrap.querySelectorAll(".page-web-cover-toolbar").forEach((n) => n.remove());
+      wrap.querySelectorAll(".page-web-insert-handle").forEach((n) => n.remove());
       wrap.querySelectorAll(".page-web-cover-delete").forEach((n) => n.remove());
+      wrap.querySelectorAll(".page-web-cover-bg").forEach((n) => n.remove());
+      wrap.querySelectorAll(".page-web-cover-blob-layer").forEach((n) => n.remove());
       wrap.querySelectorAll(".page-web-cover").forEach((n) => (n as HTMLElement).removeAttribute("contenteditable"));
       wrap.querySelectorAll(".page-web-cover-inner").forEach((n) => {
         const h = n as HTMLElement;
@@ -2529,6 +4209,22 @@ export default function PageEditorDetailsPage() {
       wrap.querySelectorAll(".page-web-timeline-toolbar").forEach((n) => n.remove());
       wrap.querySelectorAll(".page-web-timeline").forEach((n) => {
         (n as HTMLElement).removeAttribute("contenteditable");
+      });
+      wrap.querySelectorAll(".page-web-text-media-toolbar").forEach((n) => n.remove());
+      wrap.querySelectorAll(".page-web-text-media").forEach((n) => {
+        (n as HTMLElement).removeAttribute("contenteditable");
+      });
+      wrap.querySelectorAll(".page-web-text-media-col").forEach((n) => {
+        (n as HTMLElement).removeAttribute("contenteditable");
+      });
+      wrap.querySelectorAll(".page-web-text-block-toolbar").forEach((n) => n.remove());
+      wrap.querySelectorAll(".page-web-text-block").forEach((n) => {
+        (n as HTMLElement).removeAttribute("contenteditable");
+      });
+      wrap.querySelectorAll(".page-web-text-block-content").forEach((n) => {
+        const h = n as HTMLElement;
+        h.removeAttribute("contenteditable");
+        h.classList.remove("page-web-text-block-content");
       });
       wrap.querySelectorAll(".page-web-carousel-slide[data-carousel-active]").forEach((n) => {
         (n as HTMLElement).removeAttribute("data-carousel-active");
@@ -2616,7 +4312,10 @@ export default function PageEditorDetailsPage() {
           const hel = ch as HTMLElement;
           if (hel.classList.contains("page-web-cover-toolbar")) continue;
           if (hel.classList.contains("page-web-cover-delete")) continue;
+          if (hel.classList.contains("page-web-cover-bg")) continue;
+          if (hel.classList.contains("page-web-cover-blob-layer")) continue;
           if (hel.classList.contains("page-web-cover-inner")) continue;
+          if (hel.classList.contains("page-web-insert-handle")) continue;
           movable.push(ch);
         } else if (ch.nodeType === Node.TEXT_NODE) {
           if ((ch.textContent || "").replace(/\u200b/g, "").trim()) movable.push(ch);
@@ -2708,6 +4407,7 @@ export default function PageEditorDetailsPage() {
           if (hel.classList.contains("page-web-carousel-toolbar")) continue;
           if (hel.classList.contains("page-web-carousel-arrow")) continue;
           if (hel.classList.contains("page-web-carousel-viewport")) continue;
+          if (hel.classList.contains("page-web-insert-handle")) continue;
           movable.push(ch);
         } else if (ch.nodeType === Node.TEXT_NODE) {
           if ((ch.textContent || "").replace(/\u200b/g, "").trim()) movable.push(ch);
@@ -2719,6 +4419,63 @@ export default function PageEditorDetailsPage() {
         frag.appendChild(ch);
       }
       parent.insertBefore(frag, carousel.nextSibling);
+      changed = true;
+    });
+    return changed;
+  }
+
+  /** Посторонние узлы прямым потомком `.page-web-text-media` переносим после блока. */
+  function sanitizeLeakedNodesOutOfWebTextMedia(root: HTMLElement): boolean {
+    let changed = false;
+    root.querySelectorAll(".page-web-text-media").forEach((cov) => {
+      const block = cov as HTMLElement;
+      const parent = block.parentNode;
+      if (!parent) return;
+      const movable: Node[] = [];
+      for (const ch of Array.from(block.childNodes)) {
+        if (ch.nodeType === Node.ELEMENT_NODE) {
+          const hel = ch as HTMLElement;
+          if (hel.classList.contains("page-web-text-media-toolbar")) continue;
+          if (hel.classList.contains("page-web-text-media-col--text")) continue;
+          if (hel.classList.contains("page-web-text-media-col--media")) continue;
+          if (hel.classList.contains("page-web-insert-handle")) continue;
+          movable.push(ch);
+        } else if (ch.nodeType === Node.TEXT_NODE) {
+          if ((ch.textContent || "").replace(/\u200b/g, "").trim()) movable.push(ch);
+        }
+      }
+      if (movable.length === 0) return;
+      const frag = document.createDocumentFragment();
+      for (const ch of movable) frag.appendChild(ch);
+      parent.insertBefore(frag, block.nextSibling);
+      changed = true;
+    });
+    return changed;
+  }
+
+  /** Посторонние узлы прямым потомком `.page-web-text-block` переносим после блока. */
+  function sanitizeLeakedNodesOutOfWebTextBlocks(root: HTMLElement): boolean {
+    let changed = false;
+    root.querySelectorAll(".page-web-text-block").forEach((cov) => {
+      const block = cov as HTMLElement;
+      const parent = block.parentNode;
+      if (!parent) return;
+      const movable: Node[] = [];
+      for (const ch of Array.from(block.childNodes)) {
+        if (ch.nodeType === Node.ELEMENT_NODE) {
+          const hel = ch as HTMLElement;
+          if (hel.classList.contains("page-web-text-block-toolbar")) continue;
+          if (hel.classList.contains("page-web-text-block-content")) continue;
+          if (hel.classList.contains("page-web-insert-handle")) continue;
+          movable.push(ch);
+        } else if (ch.nodeType === Node.TEXT_NODE) {
+          if ((ch.textContent || "").replace(/\u200b/g, "").trim()) movable.push(ch);
+        }
+      }
+      if (movable.length === 0) return;
+      const frag = document.createDocumentFragment();
+      for (const ch of movable) frag.appendChild(ch);
+      parent.insertBefore(frag, block.nextSibling);
       changed = true;
     });
     return changed;
@@ -2894,7 +4651,11 @@ export default function PageEditorDetailsPage() {
    */
   function normalizeWebCoverButtonAnchorsToSpans(root: HTMLElement): boolean {
     let changed = false;
-    root.querySelectorAll("a.page-web-cover-el-button").forEach((node) => {
+    root
+      .querySelectorAll(
+        "a.page-web-cover-el-button, a.page-web-cover-el-announcement-learn-more, a.page-web-cover-el-learn-more",
+      )
+      .forEach((node) => {
       const a = node as HTMLAnchorElement;
       const span = document.createElement("span");
       span.className = a.className;
@@ -2916,7 +4677,11 @@ export default function PageEditorDetailsPage() {
     try {
       const wrap = document.createElement("div");
       wrap.innerHTML = html;
-      wrap.querySelectorAll("span.page-web-cover-el-button[data-href]").forEach((node) => {
+      wrap
+        .querySelectorAll(
+          "span.page-web-cover-el-button[data-href], span.page-web-cover-el-announcement-learn-more[data-href], span.page-web-cover-el-learn-more[data-href]",
+        )
+        .forEach((node) => {
         const span = node as HTMLSpanElement;
         const href = (span.getAttribute("data-href") || "").trim();
         if (!href) return;
@@ -3102,6 +4867,108 @@ export default function PageEditorDetailsPage() {
     setTimeout(() => updateToolbarState(), 0);
   }
 
+  function removeWebTextMediaBlock(block: HTMLElement) {
+    const el = editorRef.current;
+    if (!el || !el.contains(block)) return;
+    const parent = block.parentNode;
+    const next = block.nextSibling;
+    block.remove();
+    setContentHtml(el.innerHTML);
+    syncMarkerBold();
+    const selection = window.getSelection();
+    const r = document.createRange();
+    if (next) {
+      if (next.nodeType === Node.TEXT_NODE) {
+        r.setStart(next, 0);
+      } else if (next.nodeType === Node.ELEMENT_NODE) {
+        r.selectNodeContents(next);
+        r.collapse(true);
+      } else {
+        r.setStart(parent ?? el, 0);
+        r.collapse(true);
+      }
+    } else {
+      const pad = document.createElement("div");
+      pad.innerHTML = "<br>";
+      parent?.appendChild(pad);
+      r.setStart(pad, 0);
+      r.collapse(true);
+    }
+    r.collapse(true);
+    selection?.removeAllRanges();
+    selection?.addRange(r);
+    savedRangeRef.current = r.cloneRange();
+    el.focus();
+    setTimeout(() => updateToolbarState(), 0);
+  }
+
+  function removeWebTextBlock(block: HTMLElement) {
+    const el = editorRef.current;
+    if (!el || !el.contains(block)) return;
+    const parent = block.parentNode;
+    const next = block.nextSibling;
+    block.remove();
+    setContentHtml(el.innerHTML);
+    syncMarkerBold();
+    const selection = window.getSelection();
+    const r = document.createRange();
+    if (next) {
+      if (next.nodeType === Node.TEXT_NODE) {
+        r.setStart(next, 0);
+      } else if (next.nodeType === Node.ELEMENT_NODE) {
+        r.selectNodeContents(next);
+        r.collapse(true);
+      } else {
+        r.setStart(parent ?? el, 0);
+        r.collapse(true);
+      }
+    } else {
+      const pad = document.createElement("div");
+      pad.innerHTML = "<br>";
+      parent?.appendChild(pad);
+      r.setStart(pad, 0);
+      r.collapse(true);
+    }
+    r.collapse(true);
+    selection?.removeAllRanges();
+    selection?.addRange(r);
+    savedRangeRef.current = r.cloneRange();
+    el.focus();
+    setTimeout(() => updateToolbarState(), 0);
+  }
+
+  const WEB_MENU_DEBUG = true;
+
+  function getWebMenuToolbarDebugState(toolbar: HTMLElement) {
+    const openSubs = Array.from(toolbar.querySelectorAll("[data-submenu-open='1']")) as HTMLElement[];
+    const rect = toolbar.getBoundingClientRect();
+    return {
+      toolbarClass: toolbar.className,
+      variant: toolbar.getAttribute("data-text-block-variant") || "",
+      menuOpen: toolbar.getAttribute("data-menu-open") === "1",
+      openSubmenuCount: openSubs.length,
+      openSubmenuClasses: openSubs.map((n) => n.className),
+      rect: {
+        left: Math.round(rect.left),
+        top: Math.round(rect.top),
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+      },
+    };
+  }
+
+  function logWebMenuDebug(event: string, toolbar: HTMLElement, extra?: Record<string, unknown>) {
+    if (!WEB_MENU_DEBUG) return;
+    try {
+      console.log("[web-menu-debug]", event, {
+        ...getWebMenuToolbarDebugState(toolbar),
+        ...(extra || {}),
+      });
+    } catch {
+      // Ignore debug logging failures.
+    }
+  }
+
   function resetCarouselMenuDropdownStyles(toolbar: HTMLElement) {
     const dd = toolbar.querySelector(".page-web-carousel-menu-dropdown") as HTMLElement | null;
     if (!dd) return;
@@ -3114,6 +4981,64 @@ export default function PageEditorDetailsPage() {
     dd.style.removeProperty("min-width");
   }
 
+  function resetCoverMenuDropdownStyles(toolbar: HTMLElement) {
+    const dd = toolbar.querySelector(".page-web-cover-menu-dropdown") as HTMLElement | null;
+    if (dd) {
+      dd.style.removeProperty("position");
+      dd.style.removeProperty("left");
+      dd.style.removeProperty("top");
+      dd.style.removeProperty("right");
+      dd.style.removeProperty("transform");
+      dd.style.removeProperty("z-index");
+      dd.style.removeProperty("min-width");
+    }
+    toolbar.querySelectorAll(".page-web-cover-menu-sub-panel").forEach((node) => {
+      const panel = node as HTMLElement;
+      panel.style.removeProperty("position");
+      panel.style.removeProperty("left");
+      panel.style.removeProperty("top");
+      panel.style.removeProperty("right");
+      panel.style.removeProperty("transform");
+      panel.style.removeProperty("z-index");
+    });
+  }
+
+  function resetTextBlockMenuDropdownStyles(toolbar: HTMLElement) {
+    const dd = toolbar.querySelector(".page-web-text-block-menu-dropdown") as HTMLElement | null;
+    if (dd) {
+      dd.style.removeProperty("display");
+      dd.style.removeProperty("visibility");
+      dd.style.removeProperty("opacity");
+      dd.style.removeProperty("pointer-events");
+      dd.removeAttribute("data-force-hidden");
+    }
+    toolbar.querySelectorAll(".page-web-text-block-menu-sub-panel").forEach((node) => {
+      const panel = node as HTMLElement;
+      panel.style.removeProperty("display");
+      panel.style.removeProperty("visibility");
+      panel.style.removeProperty("opacity");
+      panel.style.removeProperty("pointer-events");
+      panel.removeAttribute("data-force-hidden");
+    });
+  }
+
+  /** Возвращаем баннерное меню к CSS-якорю рядом с кнопкой тулбара. */
+  function positionCoverMenuDropdownFixed(toolbar: HTMLElement) {
+    resetCoverMenuDropdownStyles(toolbar);
+  }
+
+  function positionCoverSubmenuPanelsFixed(toolbar: HTMLElement) {
+    toolbar.querySelectorAll(".page-web-cover-menu-sub-panel").forEach((node) => {
+      const panel = node as HTMLElement;
+      panel.style.removeProperty("position");
+      panel.style.removeProperty("left");
+      panel.style.removeProperty("top");
+      panel.style.removeProperty("right");
+      panel.style.removeProperty("transform");
+      panel.style.removeProperty("z-index");
+    });
+  }
+
   /** Меню ⋮ в слое fixed — иначе слайды/stacking перекрывают absolute-выпадашку. */
   function positionCarouselMenuDropdownFixed(toolbar: HTMLElement) {
     const dd = toolbar.querySelector(".page-web-carousel-menu-dropdown") as HTMLElement | null;
@@ -3121,13 +5046,24 @@ export default function PageEditorDetailsPage() {
     if (!dd || !trig) return;
     const apply = () => {
       const r = trig.getBoundingClientRect();
+      const viewportW = window.innerWidth;
+      const viewportH = window.innerHeight;
       dd.style.position = "fixed";
-      dd.style.left = `${r.left}px`;
-      dd.style.top = `${r.bottom + 4}px`;
+      dd.style.left = `${r.right + 4}px`;
+      dd.style.top = `${r.top}px`;
       dd.style.right = "auto";
       dd.style.transform = "none";
       dd.style.zIndex = "10000";
       dd.style.minWidth = "12rem";
+      const ddRect = dd.getBoundingClientRect();
+      const leftIfRight = r.right + 4;
+      const leftIfLeft = r.left - ddRect.width - 4;
+      const clampedLeft = leftIfRight + ddRect.width <= viewportW - 8
+        ? leftIfRight
+        : Math.max(8, leftIfLeft);
+      const clampedTop = Math.max(8, Math.min(r.top, viewportH - ddRect.height - 8));
+      dd.style.left = `${clampedLeft}px`;
+      dd.style.top = `${clampedTop}px`;
     };
     requestAnimationFrame(() => {
       requestAnimationFrame(apply);
@@ -3135,19 +5071,134 @@ export default function PageEditorDetailsPage() {
   }
 
   function closeCarouselToolbarMenus(toolbar: HTMLElement) {
-    toolbar.removeAttribute("data-menu-open");
+    logWebMenuDebug("close-carousel:start", toolbar);
     toolbar.querySelectorAll('.page-web-carousel-menu-sub[data-submenu-open="1"]').forEach((s) => {
       (s as HTMLElement).removeAttribute("data-submenu-open");
     });
     toolbar.querySelectorAll(".page-web-carousel-menu-sub-trigger").forEach((tr) => {
       (tr as HTMLElement).setAttribute("aria-expanded", "false");
     });
+    toolbar.removeAttribute("data-menu-open");
     resetCarouselMenuDropdownStyles(toolbar);
+    logWebMenuDebug("close-carousel:end", toolbar);
   }
 
   function closeTimelineToolbarMenus(toolbar: HTMLElement) {
     toolbar.removeAttribute("data-menu-open");
   }
+
+  function closeTextMediaToolbarMenus(toolbar: HTMLElement) {
+    logWebMenuDebug("close-text-media:start", toolbar);
+    toolbar.removeAttribute("data-menu-open");
+    logWebMenuDebug("close-text-media:end", toolbar);
+  }
+
+  function closeTextBlockToolbarMenus(toolbar: HTMLElement) {
+    logWebMenuDebug("close-text-block:start", toolbar);
+    const dd = toolbar.querySelector(".page-web-text-block-menu-dropdown") as HTMLElement | null;
+    if (dd) {
+      dd.style.display = "none";
+      dd.style.visibility = "hidden";
+      dd.style.opacity = "0";
+      dd.style.pointerEvents = "none";
+      dd.setAttribute("data-force-hidden", "1");
+    }
+    toolbar.querySelectorAll(".page-web-text-block-menu-sub-panel").forEach((node) => {
+      const panel = node as HTMLElement;
+      panel.style.display = "none";
+      panel.style.visibility = "hidden";
+      panel.style.opacity = "0";
+      panel.style.pointerEvents = "none";
+      panel.setAttribute("data-force-hidden", "1");
+    });
+    toolbar.querySelectorAll('.page-web-text-block-menu-sub[data-submenu-open="1"]').forEach((s) => {
+      (s as HTMLElement).removeAttribute("data-submenu-open");
+    });
+    toolbar.querySelectorAll(".page-web-text-block-menu-sub-trigger").forEach((tr) => {
+      (tr as HTMLElement).setAttribute("aria-expanded", "false");
+    });
+    toolbar.removeAttribute("data-menu-open");
+    // Safari repaint workaround: force synchronous layout after hiding overlay layers.
+    void toolbar.offsetHeight;
+    logWebMenuDebug("close-text-block:end", toolbar);
+  }
+
+  function closeAllOpenWebBlockMenus(ed: HTMLElement) {
+    if (WEB_MENU_DEBUG) {
+      console.log("[web-menu-debug] close-all:start", {
+        cover: ed.querySelectorAll(".page-web-cover-toolbar").length,
+        carousel: ed.querySelectorAll(".page-web-carousel-toolbar").length,
+        timeline: ed.querySelectorAll(".page-web-timeline-toolbar").length,
+        textMedia: ed.querySelectorAll(".page-web-text-media-toolbar").length,
+        textBlock: ed.querySelectorAll(".page-web-text-block-toolbar").length,
+      });
+    }
+    ed.querySelectorAll(".page-web-cover-toolbar").forEach((node) => {
+      closeCoverToolbarMenus(node as HTMLElement);
+    });
+    ed.querySelectorAll(".page-web-carousel-toolbar").forEach((node) => {
+      closeCarouselToolbarMenus(node as HTMLElement);
+    });
+    ed.querySelectorAll(".page-web-timeline-toolbar").forEach((node) => {
+      closeTimelineToolbarMenus(node as HTMLElement);
+    });
+    ed.querySelectorAll(".page-web-text-media-toolbar").forEach((node) => {
+      closeTextMediaToolbarMenus(node as HTMLElement);
+    });
+    ed.querySelectorAll(".page-web-text-block-toolbar").forEach((node) => {
+      closeTextBlockToolbarMenus(node as HTMLElement);
+    });
+    if (WEB_MENU_DEBUG) {
+      console.log("[web-menu-debug] close-all:end");
+    }
+  }
+
+  useEffect(() => {
+    const onDocMouseDown = (event: MouseEvent) => {
+      const ed = editorRef.current;
+      if (!ed) return;
+      const raw = event.target as EventTarget | null;
+      const target = raw instanceof Element ? raw : (raw as Node | null)?.parentElement ?? null;
+      const insideMenuSurface = !!target?.closest(
+        [
+          ".page-web-cover-menu-trigger",
+          ".page-web-cover-menu-sub-trigger",
+          ".page-web-cover-menu-dropdown",
+          ".page-web-cover-menu-sub-panel",
+          ".page-web-carousel-menu-trigger",
+          ".page-web-carousel-menu-sub-trigger",
+          ".page-web-carousel-menu-dropdown",
+          ".page-web-carousel-menu-sub-panel",
+          ".page-web-timeline-menu-trigger",
+          ".page-web-timeline-menu-dropdown",
+          ".page-web-text-media-menu-trigger",
+          ".page-web-text-media-menu-dropdown",
+          ".page-web-text-block-menu-trigger",
+          ".page-web-text-block-menu-sub-trigger",
+          ".page-web-text-block-menu-dropdown",
+          ".page-web-text-block-menu-sub-panel",
+        ].join(", "),
+      );
+      if (insideMenuSurface) {
+        if (WEB_MENU_DEBUG) {
+          console.log("[web-menu-debug] doc-mousedown:inside-menu", {
+            targetClass: target?.className || "",
+          });
+        }
+        return;
+      }
+      if (WEB_MENU_DEBUG) {
+        console.log("[web-menu-debug] doc-mousedown:outside-menu", {
+          targetClass: target?.className || "",
+        });
+      }
+      closeAllOpenWebBlockMenus(ed);
+    };
+    document.addEventListener("mousedown", onDocMouseDown, true);
+    return () => {
+      document.removeEventListener("mousedown", onDocMouseDown, true);
+    };
+  }, []);
 
   function getActiveCarouselSlide(carousel: HTMLElement): HTMLElement | null {
     const active = carousel.querySelector(".page-web-carousel-slide[data-carousel-active]") as HTMLElement | null;
@@ -3197,26 +5248,39 @@ export default function PageEditorDetailsPage() {
     if (!html) return;
     const el = editorRef.current;
     if (!el) return;
-    el.focus();
-    const range = savedRangeRef.current;
-    if (range) {
-      try {
-        if (el.contains(range.commonAncestorContainer)) {
-          const sel = window.getSelection();
-          if (sel) {
-            sel.removeAllRanges();
-            sel.addRange(range);
-          }
-        }
-      } catch {
-        // ignore
-      }
+    const targetBlock = insertWebAfterBlockRef.current;
+    if (targetBlock && targetBlock.isConnected && el.contains(targetBlock)) {
+      targetBlock.insertAdjacentHTML("afterend", html);
+    } else {
+      el.insertAdjacentHTML("beforeend", html);
     }
-    document.execCommand("insertHTML", false, html);
+    insertWebAfterBlockRef.current = null;
     setContentHtml(el.innerHTML);
-    setWebElementsOpen(false);
+    setAddElementDialogOpen(false);
     syncMarkerBold();
     setTimeout(updateToolbarState, 0);
+  }
+
+  function openAddElementDialog(afterBlock: HTMLElement | null) {
+    insertWebAfterBlockRef.current = afterBlock;
+    setAddElementDialogOpen(true);
+  }
+
+  function closeAddElementDialog() {
+    insertWebAfterBlockRef.current = null;
+    setAddElementDialogOpen(false);
+  }
+
+  function isRangeInsideStructuredTextBlock(ed: HTMLElement, range: Range): boolean {
+    if (!ed.contains(range.commonAncestorContainer)) return false;
+    let node: Node | null = range.startContainer;
+    if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+    if (!node || !(node instanceof Element)) return false;
+
+    const allowed = node.closest(
+      '.page-web-cover-inner[data-cover-unlocked="1"], .page-web-timeline-subtitle, .page-web-timeline-heading, .page-web-timeline-description, .page-web-timeline-term, .page-web-timeline-title, .page-web-timeline-text, .page-web-text-media-col, .page-web-text-block-content, table.page-editor-table td[data-cell-editing]',
+    ) as HTMLElement | null;
+    return Boolean(allowed && ed.contains(allowed));
   }
 
   function getCellsToApplyBorder(): HTMLTableCellElement[] {
@@ -4447,15 +6511,60 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
   }
 
   function handleCoverButtonDoubleClick(e: React.MouseEvent): boolean {
-    const target = (e.target as HTMLElement).closest?.(".page-web-cover-el-button") as HTMLElement | null;
+    const target = (e.target as HTMLElement).closest?.(
+      ".page-web-cover-el-button, .page-web-cover-el-announcement-learn-more, .page-web-cover-el-learn-more, .page-web-feature-grid-link, .page-web-work-pricing .wue",
+    ) as HTMLElement | null;
     const ed = editorRef.current;
     if (!target || !ed || !ed.contains(target)) return false;
     e.preventDefault();
     e.stopPropagation();
     coverButtonLinkTargetRef.current = target;
-    setCoverButtonLinkModalValue((target.getAttribute("data-href") || "").trim());
+    const currentLink =
+      (target.getAttribute("data-href") || "").trim() ||
+      (target.tagName === "A" ? (target.getAttribute("href") || "").trim() : "");
+    setCoverButtonLinkModalValue(currentLink === "#" ? "" : currentLink);
     setCoverButtonLinkModalOpen(true);
     return true;
+  }
+
+  function handleFeatureGridIconDoubleClick(e: React.MouseEvent): boolean {
+    const target = (e.target as HTMLElement).closest?.(".page-web-feature-grid-icon-wrap") as HTMLElement | null;
+    const ed = editorRef.current;
+    if (!target || !ed || !ed.contains(target)) return false;
+    if (!target.closest(".page-web-feature-grid-item-title")) return false;
+    e.preventDefault();
+    e.stopPropagation();
+    ed.querySelectorAll('.page-web-feature-grid-icon-wrap[data-feature-grid-icon-target="1"]').forEach((n) => {
+      (n as HTMLElement).removeAttribute("data-feature-grid-icon-target");
+    });
+    target.setAttribute("data-feature-grid-icon-target", "1");
+    featureGridIconPickerTargetRef.current = target;
+    setFeatureGridIconPickerValue(detectFeatureGridIconPresetId(target));
+    setFeatureGridIconPickerOpen(true);
+    return true;
+  }
+
+  function handleFeatureGridImageDoubleClick(e: React.MouseEvent): boolean {
+    const target = (e.target as HTMLElement).closest?.(".page-web-feature-grid-image") as HTMLElement | null;
+    const ed = editorRef.current;
+    if (!target || !ed || !ed.contains(target)) return false;
+    if (!target.closest(".page-web-feature-grid")) return false;
+    e.preventDefault();
+    e.stopPropagation();
+    webShellImageUploadPendingRef.current = { kind: "feature-grid-image", imageBox: target };
+    webShellImageInputRef.current?.click();
+    return true;
+  }
+
+  function closeFeatureGridIconPicker() {
+    const ed = editorRef.current;
+    if (ed) {
+      ed.querySelectorAll('.page-web-feature-grid-icon-wrap[data-feature-grid-icon-target="1"]').forEach((n) => {
+        (n as HTMLElement).removeAttribute("data-feature-grid-icon-target");
+      });
+    }
+    featureGridIconPickerTargetRef.current = null;
+    setFeatureGridIconPickerOpen(false);
   }
 
   function applyCoverButtonLinkAndClose() {
@@ -4466,10 +6575,37 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       return;
     }
     const href = coverButtonLinkModalValue.trim();
-    if (href) target.setAttribute("data-href", href);
-    else target.removeAttribute("data-href");
+    if (target.tagName === "A") {
+      if (href) target.setAttribute("href", href);
+      else target.setAttribute("href", "#");
+    } else {
+      if (href) target.setAttribute("data-href", href);
+      else target.removeAttribute("data-href");
+    }
     setContentHtml(ed.innerHTML);
     setCoverButtonLinkModalOpen(false);
+  }
+
+  function applyFeatureGridIconAndClose(nextId?: FeatureGridIconPreset["id"]) {
+    const ed = editorRef.current;
+    const marked = ed?.querySelector(
+      '.page-web-feature-grid-icon-wrap[data-feature-grid-icon-target="1"]',
+    ) as HTMLElement | null;
+    const refTarget = featureGridIconPickerTargetRef.current;
+    const target =
+      marked && ed?.contains(marked)
+        ? marked
+        : refTarget && ed?.contains(refTarget)
+          ? refTarget
+          : null;
+    if (!ed || !target) {
+      closeFeatureGridIconPicker();
+      return;
+    }
+    const iconId = (nextId ?? featureGridIconPickerValue) as FeatureGridIconPreset["id"];
+    target.outerHTML = getFeatureGridIconWrapHtml(iconId);
+    setContentHtml(ed.innerHTML);
+    closeFeatureGridIconPicker();
   }
 
   function handleEditorFocusOut(e: React.FocusEvent) {
@@ -4494,21 +6630,31 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
 
   function handleEditorBeforeInput(e: React.FormEvent<HTMLDivElement>) {
     const native = e.nativeEvent as InputEvent;
+    const inputType =
+      typeof native.inputType === "string" && native.inputType.trim() !== ""
+        ? native.inputType
+        : typeof native.data === "string"
+          ? "insertText"
+          : "";
     const ed = editorRef.current;
     if (!ed) return;
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) return;
     const range = sel.getRangeAt(0);
     if (!ed.contains(range.commonAncestorContainer)) return;
-    if (tryPreventWebCoverNonDeleteInput(ed, range, native.inputType)) {
+    if (inputType.startsWith("insert") && !isRangeInsideStructuredTextBlock(ed, range)) {
       e.preventDefault();
       return;
     }
-    if (native.inputType === "deleteContentBackward" && range.collapsed) {
+    if (tryPreventWebCoverNonDeleteInput(ed, range, inputType)) {
+      e.preventDefault();
+      return;
+    }
+    if (inputType === "deleteContentBackward" && range.collapsed) {
       if (tryHandleWebCoverBackspace(ed, range)) e.preventDefault();
       return;
     }
-    if (native.inputType === "deleteContentForward" && range.collapsed) {
+    if (inputType === "deleteContentForward" && range.collapsed) {
       if (tryHandleWebCoverForwardBlock(ed, range)) e.preventDefault();
     }
   }
@@ -4569,11 +6715,44 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
     });
   }
 
+  function handleWebInsertHandleMouseDown(e: React.MouseEvent): boolean {
+    const rawTarget = e.target as EventTarget | null;
+    const target = rawTarget instanceof Element ? rawTarget : (rawTarget as Node | null)?.parentElement ?? null;
+    const trigger = target?.closest?.("[data-insert-web-after]") as HTMLElement | null;
+    const ed = editorRef.current;
+    if (!trigger || !ed?.contains(trigger)) return false;
+    const block = trigger.closest(WEB_BLOCK_SHELL_SELECTOR) as HTMLElement | null;
+    if (!block || !ed.contains(block)) return false;
+    e.preventDefault();
+    e.stopPropagation();
+    const native = e.nativeEvent as MouseEvent & { stopImmediatePropagation?: () => void };
+    native.stopImmediatePropagation?.();
+    closeAllOpenWebBlockMenus(ed);
+    openAddElementDialog(block);
+    setTableOpen(false);
+    return true;
+  }
+
   function handleCoverToolbarMouseDown(e: React.MouseEvent) {
     const target = e.target as HTMLElement;
     const ed = editorRef.current;
     const toolbar = target.closest?.(".page-web-cover-toolbar") as HTMLElement | null;
     if (!toolbar || !ed?.contains(toolbar)) return;
+    e.stopPropagation();
+    const native = e.nativeEvent as MouseEvent & { stopImmediatePropagation?: () => void };
+    native.stopImmediatePropagation?.();
+
+    const moveBtn = target.closest?.("[data-move-web-block]") as HTMLElement | null;
+    if (moveBtn && toolbar.contains(moveBtn)) {
+      e.preventDefault();
+      const dir = moveBtn.getAttribute("data-move-web-block");
+      if ((dir === "up" || dir === "down") && moveWebBlockByToolbar(toolbar, dir, ed)) {
+        closeCoverToolbarMenus(toolbar);
+        setContentHtml(ed.innerHTML);
+        setTimeout(() => updateToolbarState(), 0);
+      }
+      return;
+    }
 
     const aspectBtn = target.closest?.("[data-set-cover-aspect]") as HTMLElement | null;
     if (aspectBtn && toolbar.contains(aspectBtn)) {
@@ -4583,13 +6762,44 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       const cover = toolbar.closest(".page-web-cover") as HTMLElement | null;
       if (cover && v && COVER_ASPECT_PRESETS.some((p) => p.id === v) && ed.contains(cover)) {
         cover.setAttribute("data-cover-aspect", v);
-        toolbar.removeAttribute("data-menu-open");
-        toolbar.querySelectorAll('.page-web-cover-menu-sub[data-submenu-open="1"]').forEach((s) => {
-          (s as HTMLElement).removeAttribute("data-submenu-open");
-        });
-        toolbar.querySelectorAll(".page-web-cover-menu-sub-trigger").forEach((tr) => {
-          (tr as HTMLElement).setAttribute("aria-expanded", "false");
-        });
+        closeCoverToolbarMenus(toolbar);
+        setContentHtml(ed.innerHTML);
+        setTimeout(() => updateToolbarState(), 0);
+      }
+      return;
+    }
+
+    const typeBtn = target.closest?.("[data-set-cover-type]") as HTMLElement | null;
+    if (typeBtn && toolbar.contains(typeBtn)) {
+      e.preventDefault();
+      e.stopPropagation();
+      const rawType = typeBtn.getAttribute("data-set-cover-type");
+      const cover = toolbar.closest(".page-web-cover") as HTMLElement | null;
+      const nextType: CoverTypePresetId | null =
+        rawType === "hero" || rawType === "image" || rawType === "split" ? rawType : null;
+      if (cover && nextType && ed.contains(cover)) {
+        cover.setAttribute("data-cover-type", nextType);
+        if (nextType === "split") {
+          cover.setAttribute("data-cover-halign", "left");
+          cover.setAttribute("data-cover-valign", "middle");
+          cover.setAttribute("data-cover-aspect", "1-8");
+          ensureCoverBackgroundCssVars(cover);
+        } else if (nextType === "image") {
+          cover.setAttribute("data-cover-halign", "center");
+          cover.setAttribute("data-cover-valign", "middle");
+          cover.setAttribute("data-cover-aspect", "1-8");
+        } else {
+          cover.setAttribute("data-cover-halign", "center");
+          cover.setAttribute("data-cover-valign", "middle");
+          cover.setAttribute("data-cover-aspect", "1-8");
+        }
+        toolbar
+          .querySelectorAll(".page-web-cover-menu-type[data-set-cover-type]")
+          .forEach((btn) => {
+            const selected = (btn as HTMLElement).getAttribute("data-set-cover-type") === nextType;
+            (btn as HTMLElement).setAttribute("aria-checked", selected ? "true" : "false");
+          });
+        closeCoverToolbarMenus(toolbar);
         setContentHtml(ed.innerHTML);
         setTimeout(() => updateToolbarState(), 0);
       }
@@ -4603,11 +6813,20 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       const raw = insertCoverElBtn.getAttribute("data-insert-cover-element") ?? "";
       const cover = toolbar.closest(".page-web-cover") as HTMLElement | null;
       if (!cover || !ed.contains(cover)) return;
-      if (raw === "title" || raw === "subtitle" || raw === "button") {
-        insertCoverBlockElement(cover, raw, ed);
+      if (
+        raw === "title" ||
+        raw === "subtitle" ||
+        raw === "button" ||
+        raw === "announcement" ||
+        raw === "announcement-learn-more" ||
+        raw === "bottom-learn-more"
+      ) {
+        const changed = toggleCoverBlockElement(cover, raw, ed);
         closeCoverToolbarMenus(toolbar);
+        if (changed) {
         setContentHtml(ed.innerHTML);
         setTimeout(() => updateToolbarState(), 0);
+        }
       }
       return;
     }
@@ -4629,6 +6848,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
           const open = parent?.getAttribute("data-submenu-open") === "1";
           (tr as HTMLElement).setAttribute("aria-expanded", open ? "true" : "false");
         });
+        positionCoverSubmenuPanelsFixed(toolbar);
       }
       return;
     }
@@ -4644,42 +6864,11 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       return;
     }
 
-    const alignBgBtn = target.closest?.(".page-web-cover-menu-align-bg") as HTMLElement | null;
-    if (alignBgBtn && toolbar.contains(alignBgBtn)) {
-      e.preventDefault();
-      e.stopPropagation();
-      const cover = toolbar.closest(".page-web-cover") as HTMLElement | null;
-      if (!cover || !ed.contains(cover)) return;
-      if (!cover.classList.contains("page-web-cover-has-bg")) return;
-      const imageSrc = extractCoverBackgroundDataUrl(cover);
-      if (!imageSrc) return;
-      const posX = Number.parseFloat(cover.getAttribute("data-cover-bg-x") || "50");
-      const posY = Number.parseFloat(cover.getAttribute("data-cover-bg-y") || "50");
-      coverBgAdjustingRef.current = true;
-      setCoverBgAdjustSession({
-        mount: cover,
-        imageSrc,
-        posX: Number.isFinite(posX) ? posX : 50,
-        posY: Number.isFinite(posY) ? posY : 50,
-        revert: buildCoverBgRevertSnapshot(cover),
-      });
-      closeCoverToolbarMenus(toolbar);
-      setContentHtml(ed.innerHTML);
-      setTimeout(() => updateToolbarState(), 0);
-      return;
-    }
-
     const del = target.closest?.(".page-web-cover-menu-delete");
     if (del) {
       e.preventDefault();
       e.stopPropagation();
-      toolbar.removeAttribute("data-menu-open");
-      toolbar.querySelectorAll('.page-web-cover-menu-sub[data-submenu-open="1"]').forEach((s) => {
-        (s as HTMLElement).removeAttribute("data-submenu-open");
-      });
-      toolbar.querySelectorAll(".page-web-cover-menu-sub-trigger").forEach((tr) => {
-        (tr as HTMLElement).setAttribute("aria-expanded", "false");
-      });
+      closeCoverToolbarMenus(toolbar);
       const cover = toolbar.closest(".page-web-cover");
       if (cover && ed.contains(cover)) removeWebCoverBlock(cover as HTMLElement);
       return;
@@ -4689,17 +6878,17 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       e.preventDefault();
       e.stopPropagation();
       const wasOpen = toolbar.getAttribute("data-menu-open") === "1";
-      ed.querySelectorAll('.page-web-cover-toolbar[data-menu-open="1"]').forEach((node) => {
-        const n = node as HTMLElement;
-        n.removeAttribute("data-menu-open");
-        n.querySelectorAll('.page-web-cover-menu-sub[data-submenu-open="1"]').forEach((s) => {
-          (s as HTMLElement).removeAttribute("data-submenu-open");
-        });
-        n.querySelectorAll(".page-web-cover-menu-sub-trigger").forEach((tr) => {
-          (tr as HTMLElement).setAttribute("aria-expanded", "false");
-        });
+      logWebMenuDebug("cover-trigger:click", toolbar, { wasOpen });
+      ed.querySelectorAll(".page-web-cover-toolbar").forEach((node) => {
+        closeCoverToolbarMenus(node as HTMLElement);
       });
-      if (!wasOpen) toolbar.setAttribute("data-menu-open", "1");
+      if (!wasOpen) {
+        syncCoverElementsMenuLabels(toolbar);
+        syncCoverTypeMenuState(toolbar);
+        toolbar.setAttribute("data-menu-open", "1");
+        positionCoverMenuDropdownFixed(toolbar);
+        logWebMenuDebug("cover-trigger:opened", toolbar);
+      }
     }
   }
 
@@ -4708,6 +6897,19 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
     const ed = editorRef.current;
     const toolbar = target.closest?.(".page-web-carousel-toolbar") as HTMLElement | null;
     if (!toolbar || !ed?.contains(toolbar)) return;
+
+    const moveBtn = target.closest?.("[data-move-web-block]") as HTMLElement | null;
+    if (moveBtn && toolbar.contains(moveBtn)) {
+      e.preventDefault();
+      e.stopPropagation();
+      const dir = moveBtn.getAttribute("data-move-web-block");
+      if ((dir === "up" || dir === "down") && moveWebBlockByToolbar(toolbar, dir, ed)) {
+        closeCarouselToolbarMenus(toolbar);
+        setContentHtml(ed.innerHTML);
+        setTimeout(() => updateToolbarState(), 0);
+      }
+      return;
+    }
 
     const aspectBtn = target.closest?.("[data-set-carousel-aspect]") as HTMLElement | null;
     if (aspectBtn && toolbar.contains(aspectBtn)) {
@@ -4860,7 +7062,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       e.preventDefault();
       e.stopPropagation();
       const wasOpen = toolbar.getAttribute("data-menu-open") === "1";
-      ed.querySelectorAll('.page-web-carousel-toolbar[data-menu-open="1"]').forEach((node) => {
+      ed.querySelectorAll(".page-web-carousel-toolbar").forEach((node) => {
         closeCarouselToolbarMenus(node as HTMLElement);
       });
       if (!wasOpen) {
@@ -4888,6 +7090,17 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
     e.stopPropagation();
     const timeline = toolbar.closest(".page-web-timeline") as HTMLElement | null;
     if (!timeline || !ed.contains(timeline)) return;
+
+    const moveBtn = target.closest?.("[data-move-web-block]") as HTMLElement | null;
+    if (moveBtn && toolbar.contains(moveBtn)) {
+      const dir = moveBtn.getAttribute("data-move-web-block");
+      if ((dir === "up" || dir === "down") && moveWebBlockByToolbar(toolbar, dir, ed)) {
+        closeTimelineToolbarMenus(toolbar);
+        setContentHtml(ed.innerHTML);
+        setTimeout(() => updateToolbarState(), 0);
+      }
+      return;
+    }
 
     const addBtn = target.closest?.(".page-web-timeline-menu-add-step");
     if (addBtn) {
@@ -4938,10 +7151,261 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
 
     if (target.closest?.(".page-web-timeline-menu-trigger")) {
       const wasOpen = toolbar.getAttribute("data-menu-open") === "1";
-      ed.querySelectorAll('.page-web-timeline-toolbar[data-menu-open="1"]').forEach((node) => {
+      ed.querySelectorAll(".page-web-timeline-toolbar").forEach((node) => {
         closeTimelineToolbarMenus(node as HTMLElement);
       });
       if (!wasOpen) toolbar.setAttribute("data-menu-open", "1");
+    }
+  }
+
+  function handleTextMediaToolbarMouseDown(e: React.MouseEvent) {
+    const target = e.target as HTMLElement;
+    const ed = editorRef.current;
+    const toolbar = target.closest?.(".page-web-text-media-toolbar") as HTMLElement | null;
+    if (!toolbar || !ed?.contains(toolbar)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const block = toolbar.closest(".page-web-text-media") as HTMLElement | null;
+    if (!block || !ed.contains(block)) return;
+
+    const moveBtn = target.closest?.("[data-move-web-block]") as HTMLElement | null;
+    if (moveBtn && toolbar.contains(moveBtn)) {
+      const dir = moveBtn.getAttribute("data-move-web-block");
+      if ((dir === "up" || dir === "down") && moveWebBlockByToolbar(toolbar, dir, ed)) {
+        closeTextMediaToolbarMenus(toolbar);
+        setContentHtml(ed.innerHTML);
+        setTimeout(() => updateToolbarState(), 0);
+      }
+      return;
+    }
+
+    const delBtn = target.closest?.(".page-web-text-media-menu-delete");
+    if (delBtn) {
+      closeTextMediaToolbarMenus(toolbar);
+      removeWebTextMediaBlock(block);
+      return;
+    }
+
+    if (target.closest?.(".page-web-text-media-menu-trigger")) {
+      const wasOpen = toolbar.getAttribute("data-menu-open") === "1";
+      ed.querySelectorAll(".page-web-text-media-toolbar").forEach((node) => {
+        closeTextMediaToolbarMenus(node as HTMLElement);
+      });
+      if (!wasOpen) toolbar.setAttribute("data-menu-open", "1");
+    }
+  }
+
+  function handleTextBlockToolbarMouseDown(e: React.MouseEvent) {
+    const rawTarget = e.target as EventTarget | null;
+    const target = (rawTarget instanceof Element
+      ? rawTarget
+      : (rawTarget as Node | null)?.parentElement ?? null) as HTMLElement | null;
+    if (!target) return;
+    const ed = editorRef.current;
+    const toolbar = target.closest?.(".page-web-text-block-toolbar") as HTMLElement | null;
+    if (!toolbar || !ed?.contains(toolbar)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const block = toolbar.closest(".page-web-text-block") as HTMLElement | null;
+    if (!block || !ed.contains(block)) return;
+
+    const moveBtn = target.closest?.("[data-move-web-block]") as HTMLElement | null;
+    if (moveBtn && toolbar.contains(moveBtn)) {
+      const dir = moveBtn.getAttribute("data-move-web-block");
+      if ((dir === "up" || dir === "down") && moveWebBlockByToolbar(toolbar, dir, ed)) {
+        closeTextBlockToolbarMenus(toolbar);
+        setContentHtml(ed.innerHTML);
+        setTimeout(() => updateToolbarState(), 0);
+      }
+      return;
+    }
+
+    const subTrigger = target.closest?.(".page-web-text-block-menu-sub-trigger") as HTMLElement | null;
+    if (subTrigger) {
+      const sub = subTrigger.closest(".page-web-text-block-menu-sub") as HTMLElement | null;
+      if (sub) {
+        const wasOpen = sub.getAttribute("data-submenu-open") === "1";
+        logWebMenuDebug("text-block-sub-trigger:click", toolbar, {
+          wasOpen,
+          subClass: sub.className,
+        });
+        const sameLevelContainer = sub.parentElement;
+        if (sameLevelContainer) {
+          Array.from(sameLevelContainer.children).forEach((node) => {
+            const el = node as HTMLElement;
+            if (!el.classList?.contains("page-web-text-block-menu-sub")) return;
+            if (el !== sub) el.removeAttribute("data-submenu-open");
+          });
+        }
+        if (wasOpen) sub.removeAttribute("data-submenu-open");
+        else sub.setAttribute("data-submenu-open", "1");
+        toolbar.querySelectorAll(".page-web-text-block-menu-sub-trigger").forEach((tr) => {
+          const parent = tr.closest(".page-web-text-block-menu-sub");
+          const open = parent?.getAttribute("data-submenu-open") === "1";
+          (tr as HTMLElement).setAttribute("aria-expanded", open ? "true" : "false");
+        });
+        logWebMenuDebug("text-block-sub-trigger:after", toolbar, {
+          subIsOpenNow: sub.getAttribute("data-submenu-open") === "1",
+        });
+      }
+      return;
+    }
+
+    const elementBtn = target.closest?.("[data-toggle-feature-grid-element]") as HTMLElement | null;
+    if (elementBtn) {
+      const raw = elementBtn.getAttribute("data-toggle-feature-grid-element");
+      if (isFeatureGridElementKind(raw) && block.getAttribute("data-text-block-variant") === "feature-grid") {
+        if (toggleFeatureGridTextBlockElement(block, raw)) {
+          syncFeatureGridElementsMenuState(toolbar);
+          setContentHtml(ed.innerHTML);
+          setTimeout(() => updateToolbarState(), 0);
+        }
+      }
+      closeTextBlockToolbarMenus(toolbar);
+      return;
+    }
+
+    const messagePosBtn = target.closest?.("[data-feature-grid-message-position]") as HTMLElement | null;
+    if (messagePosBtn) {
+      if (block.getAttribute("data-text-block-variant") === "feature-grid") {
+        const positionRaw = messagePosBtn.getAttribute("data-feature-grid-message-position");
+        const content = block.querySelector(":scope > .page-web-text-block-content") as HTMLElement | null;
+        const root = content?.querySelector(".page-web-feature-grid") as HTMLElement | null;
+        if (root && isFeatureGridMessagePosition(positionRaw)) {
+          const changed = positionRaw === "none"
+            ? clearFeatureGridMessage(root)
+            : ensureFeatureGridMessage(root, positionRaw);
+          syncFeatureGridElementsMenuState(toolbar);
+          if (changed) {
+            setContentHtml(ed.innerHTML);
+            setTimeout(() => updateToolbarState(), 0);
+          }
+        }
+      }
+      closeTextBlockToolbarMenus(toolbar);
+      return;
+    }
+
+    const messageColorBtn = target.closest?.("[data-feature-grid-message-color]") as HTMLElement | null;
+    if (messageColorBtn) {
+      if (block.getAttribute("data-text-block-variant") === "feature-grid") {
+        const colorRaw = messageColorBtn.getAttribute("data-feature-grid-message-color");
+        const content = block.querySelector(":scope > .page-web-text-block-content") as HTMLElement | null;
+        const root = content?.querySelector(".page-web-feature-grid") as HTMLElement | null;
+        if (root && isFeatureGridMessageColor(colorRaw)) {
+          const changed = setFeatureGridMessageColor(root, colorRaw);
+          syncFeatureGridElementsMenuState(toolbar);
+          if (changed) {
+            setContentHtml(ed.innerHTML);
+            setTimeout(() => updateToolbarState(), 0);
+          }
+        }
+      }
+      closeTextBlockToolbarMenus(toolbar);
+      return;
+    }
+
+    const imagePosBtn = target.closest?.("[data-feature-grid-image-position]") as HTMLElement | null;
+    if (imagePosBtn) {
+      if (block.getAttribute("data-text-block-variant") === "feature-grid") {
+        const positionRaw = imagePosBtn.getAttribute("data-feature-grid-image-position");
+        const content = block.querySelector(":scope > .page-web-text-block-content") as HTMLElement | null;
+        const root = content?.querySelector(".page-web-feature-grid") as HTMLElement | null;
+        if (root && isFeatureGridImagePosition(positionRaw)) {
+          const changed = setFeatureGridImagePosition(root, positionRaw);
+          syncFeatureGridElementsMenuState(toolbar);
+          if (changed) {
+            setContentHtml(ed.innerHTML);
+            setTimeout(() => updateToolbarState(), 0);
+          }
+        }
+      }
+      closeTextBlockToolbarMenus(toolbar);
+      return;
+    }
+
+    const cardsActionBtn = target.closest?.("[data-feature-grid-cards-action]") as HTMLElement | null;
+    if (cardsActionBtn) {
+      if (block.getAttribute("data-text-block-variant") === "feature-grid") {
+        const action = cardsActionBtn.getAttribute("data-feature-grid-cards-action");
+        const content = block.querySelector(":scope > .page-web-text-block-content") as HTMLElement | null;
+        const root = content?.querySelector(".page-web-feature-grid") as HTMLElement | null;
+        if (root && (action === "add" || action === "remove")) {
+          const changed = action === "add" ? addOneFeatureGridCard(root) : removeOneFeatureGridCard(root);
+          if (changed) {
+            syncFeatureGridElementsMenuState(toolbar);
+            setContentHtml(ed.innerHTML);
+            setTimeout(() => updateToolbarState(), 0);
+          }
+        }
+      }
+      closeTextBlockToolbarMenus(toolbar);
+      return;
+    }
+
+    const setColsBtn = target.closest?.("[data-feature-grid-set-cols]") as HTMLElement | null;
+    if (setColsBtn) {
+      if (block.getAttribute("data-text-block-variant") === "feature-grid") {
+        const colsRaw = setColsBtn.getAttribute("data-feature-grid-set-cols");
+        const content = block.querySelector(":scope > .page-web-text-block-content") as HTMLElement | null;
+        const root = content?.querySelector(".page-web-feature-grid") as HTMLElement | null;
+        if (root && (colsRaw === "2" || colsRaw === "3" || colsRaw === "4")) {
+          const changed = setFeatureGridCols(root, Number(colsRaw) as 2 | 3 | 4);
+          if (changed) {
+            syncFeatureGridElementsMenuState(toolbar);
+            setContentHtml(ed.innerHTML);
+            setTimeout(() => updateToolbarState(), 0);
+          } else {
+            syncFeatureGridElementsMenuState(toolbar);
+          }
+        }
+      }
+      closeTextBlockToolbarMenus(toolbar);
+      return;
+    }
+
+    const cardsDecorActionBtn = target.closest?.("[data-feature-grid-cards-decor-action]") as HTMLElement | null;
+    if (cardsDecorActionBtn) {
+      if (block.getAttribute("data-text-block-variant") === "feature-grid") {
+        const action = cardsDecorActionBtn.getAttribute("data-feature-grid-cards-decor-action");
+        const content = block.querySelector(":scope > .page-web-text-block-content") as HTMLElement | null;
+        const root = content?.querySelector(".page-web-feature-grid") as HTMLElement | null;
+        if (root && (action === "description" || action === "icons" || action === "learn-more")) {
+          const changed = action === "description"
+            ? toggleFeatureGridCardDescriptions(root)
+            : action === "icons"
+              ? toggleFeatureGridCardIcons(root)
+              : toggleFeatureGridCardLearnMore(root);
+          if (changed) {
+            syncFeatureGridElementsMenuState(toolbar);
+            setContentHtml(ed.innerHTML);
+            setTimeout(() => updateToolbarState(), 0);
+          }
+        }
+      }
+      closeTextBlockToolbarMenus(toolbar);
+      return;
+    }
+
+    const delBtn = target.closest?.(".page-web-text-block-menu-delete");
+    if (delBtn) {
+      closeTextBlockToolbarMenus(toolbar);
+      removeWebTextBlock(block);
+      return;
+    }
+
+    if (target.closest?.(".page-web-text-block-menu-trigger")) {
+      const wasOpen = toolbar.getAttribute("data-menu-open") === "1";
+      logWebMenuDebug("text-block-trigger:click", toolbar, { wasOpen });
+      ed.querySelectorAll(".page-web-text-block-toolbar").forEach((node) => {
+        closeTextBlockToolbarMenus(node as HTMLElement);
+      });
+      if (!wasOpen) {
+        resetTextBlockMenuDropdownStyles(toolbar);
+        toolbar.setAttribute("data-menu-open", "1");
+        syncTextBlockToolbarVariantState(toolbar);
+        logWebMenuDebug("text-block-trigger:opened", toolbar);
+      }
     }
   }
 
@@ -4980,6 +7444,32 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       if (viewport) {
         requestAnimationFrame(() => alignWebCarouselViewportToActive(viewport));
       }
+    }
+  }
+
+  function handleTextMediaEditorMouseDown(e: React.MouseEvent) {
+    const target = e.target as HTMLElement;
+    const block = target.closest?.(".page-web-text-media") as HTMLElement | null;
+    const ed = editorRef.current;
+    if (!block || !ed?.contains(block)) return;
+    if (target.closest?.(".page-web-text-media-toolbar")) {
+      handleTextMediaToolbarMouseDown(e);
+      return;
+    }
+  }
+
+  function handleTextBlockEditorMouseDown(e: React.MouseEvent) {
+    const rawTarget = e.target as EventTarget | null;
+    const target = (rawTarget instanceof Element
+      ? rawTarget
+      : (rawTarget as Node | null)?.parentElement ?? null) as HTMLElement | null;
+    if (!target) return;
+    const block = target.closest?.(".page-web-text-block") as HTMLElement | null;
+    const ed = editorRef.current;
+    if (!block || !ed?.contains(block)) return;
+    if (target.closest?.(".page-web-text-block-toolbar")) {
+      handleTextBlockToolbarMouseDown(e);
+      return;
     }
   }
 
@@ -5175,6 +7665,8 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
     cover.style.background = "";
     cover.removeAttribute("data-cover-bg-x");
     cover.removeAttribute("data-cover-bg-y");
+    cover.style.removeProperty("--cover-bg-image");
+    cover.style.removeProperty("--cover-bg-pos");
   }
 
   function restoreCoverBgRevert(cover: HTMLElement, revert: CoverBgAdjustRevertSnapshot) {
@@ -5189,6 +7681,10 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
     else cover.removeAttribute("data-cover-bg-x");
     if (revert.dataY != null) cover.setAttribute("data-cover-bg-y", revert.dataY);
     else cover.removeAttribute("data-cover-bg-y");
+    if (revert.coverBgImageVar) cover.style.setProperty("--cover-bg-image", revert.coverBgImageVar);
+    else cover.style.removeProperty("--cover-bg-image");
+    if (revert.coverBgPosVar) cover.style.setProperty("--cover-bg-pos", revert.coverBgPosVar);
+    else cover.style.removeProperty("--cover-bg-pos");
   }
 
   function applyCoverBackgroundImage(cover: HTMLElement, dataUrl: string, posX = 50, posY = 50) {
@@ -5197,6 +7693,8 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
     const x = clampPercent(posX);
     const y = clampPercent(posY);
     cover.style.background = `url("${safe}") ${x}% ${y}% / cover no-repeat`;
+    cover.style.setProperty("--cover-bg-image", `url("${safe}")`);
+    cover.style.setProperty("--cover-bg-pos", `${x}% ${y}%`);
     cover.setAttribute("data-cover-bg-x", String(x));
     cover.setAttribute("data-cover-bg-y", String(y));
   }
@@ -5238,14 +7736,40 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
   }, []);
 
   function closeCoverToolbarMenus(toolbar: HTMLElement) {
-    toolbar.removeAttribute("data-menu-open");
+    logWebMenuDebug("close-cover:start", toolbar);
     toolbar.querySelectorAll('.page-web-cover-menu-sub[data-submenu-open="1"]').forEach((s) => {
       (s as HTMLElement).removeAttribute("data-submenu-open");
     });
     toolbar.querySelectorAll(".page-web-cover-menu-sub-trigger").forEach((tr) => {
       (tr as HTMLElement).setAttribute("aria-expanded", "false");
     });
+    toolbar.removeAttribute("data-menu-open");
+    resetCoverMenuDropdownStyles(toolbar);
+    logWebMenuDebug("close-cover:end", toolbar);
   }
+
+  useEffect(() => {
+    let rafId: number | null = null;
+    const closeOnViewportChange = () => {
+      if (rafId !== null) return;
+      rafId = window.requestAnimationFrame(() => {
+        rafId = null;
+        const ed = editorRef.current;
+        if (!ed) return;
+        if (WEB_MENU_DEBUG) {
+          console.log("[web-menu-debug] viewport-change:close-all");
+        }
+        closeAllOpenWebBlockMenus(ed);
+      });
+    };
+    window.addEventListener("scroll", closeOnViewportChange, { passive: true, capture: true });
+    window.addEventListener("resize", closeOnViewportChange);
+    return () => {
+      if (rafId !== null) window.cancelAnimationFrame(rafId);
+      window.removeEventListener("scroll", closeOnViewportChange, true);
+      window.removeEventListener("resize", closeOnViewportChange);
+    };
+  }, []);
 
   async function convertImageFileToWebpDataUrl(file: File): Promise<string | null> {
     const fileDataUrl = await new Promise<string | null>((resolve) => {
@@ -5369,6 +7893,24 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       return;
     }
 
+    if (pending.kind === "feature-grid-image") {
+      const imageBox = pending.imageBox;
+      if (!ed.contains(imageBox)) return;
+      void (async () => {
+        const file = files[0];
+        const webp = await convertImageFileToWebpDataUrl(file);
+        if (!webp) return;
+        imageBox.style.backgroundImage = `url("${webp.replace(/"/g, '\\"')}")`;
+        imageBox.style.backgroundSize = "cover";
+        imageBox.style.backgroundPosition = "center";
+        imageBox.style.backgroundRepeat = "no-repeat";
+        imageBox.setAttribute("data-feature-grid-image-has-src", "1");
+        setContentHtml(ed.innerHTML);
+        setTimeout(() => updateToolbarState(), 0);
+      })();
+      return;
+    }
+
     const { carousel, slide } = pending;
     if (!ed.contains(carousel) || !ed.contains(slide)) return;
     void (async () => {
@@ -5428,6 +7970,10 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
     if (!el) return;
     const selPaste = window.getSelection();
     if (selPaste && selPaste.rangeCount > 0 && selectionInsideNonEditableWebShell(el, selPaste.getRangeAt(0))) {
+      e.preventDefault();
+      return;
+    }
+    if (selPaste && selPaste.rangeCount > 0 && !isRangeInsideStructuredTextBlock(el, selPaste.getRangeAt(0))) {
       e.preventDefault();
       return;
     }
@@ -5548,21 +8094,31 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
 
   useLayoutEffect(() => {
     webCoverNativeInputRef.current.beforeInput = (e: InputEvent) => {
+      const inputType =
+        typeof e.inputType === "string" && e.inputType.trim() !== ""
+          ? e.inputType
+          : typeof e.data === "string"
+            ? "insertText"
+            : "";
       const ed = editorRef.current;
       if (!ed) return;
       const sel = window.getSelection();
       if (!sel || sel.rangeCount === 0) return;
       const range = sel.getRangeAt(0);
       if (!ed.contains(range.commonAncestorContainer)) return;
-      if (tryPreventWebCoverNonDeleteInput(ed, range, e.inputType)) {
+      if (inputType.startsWith("insert") && !isRangeInsideStructuredTextBlock(ed, range)) {
         e.preventDefault();
         return;
       }
-      if (e.inputType === "deleteContentBackward" && range.collapsed) {
+      if (tryPreventWebCoverNonDeleteInput(ed, range, inputType)) {
+        e.preventDefault();
+        return;
+      }
+      if (inputType === "deleteContentBackward" && range.collapsed) {
         if (tryHandleWebCoverBackspace(ed, range)) e.preventDefault();
         return;
       }
-      if (e.inputType === "deleteContentForward" && range.collapsed) {
+      if (inputType === "deleteContentForward" && range.collapsed) {
         if (tryHandleWebCoverForwardBlock(ed, range)) e.preventDefault();
       }
     };
@@ -5602,6 +8158,8 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
     };
   }, []);
 
+  const addElementDialogItems = WEB_PAGE_ELEMENTS.filter((item) => item.tab === addElementDialogTab);
+
   return (
     <div className="min-h-screen bg-white">
       {success && (
@@ -5619,6 +8177,79 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
           >
             <XMarkIcon className="h-3 w-3 [stroke-width:2.2]" />
           </button>
+        </div>
+      )}
+      {addElementDialogOpen && (
+        <div
+          className="fixed inset-0 z-[20020] flex items-center justify-center bg-slate-900/40 p-3 backdrop-blur-sm"
+          onClick={() => closeAddElementDialog()}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Добавить блок"
+        >
+          <div
+            className="relative w-full max-w-xl rounded-2xl bg-white p-4 shadow-xl ring-1 ring-slate-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded text-slate-500 transition-colors hover:bg-slate-100 hover:text-[#496db3]"
+              onClick={() => closeAddElementDialog()}
+              aria-label="Закрыть"
+            >
+              <XMarkIcon className="h-4 w-4 [stroke-width:2.2]" />
+            </button>
+            <div className="mb-3 flex items-center gap-2">
+              <span className="h-px flex-1 bg-slate-200" aria-hidden="true" />
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700"
+                onMouseDown={(e) => e.preventDefault()}
+              >
+                <PlusIcon className="h-3.5 w-3.5" />
+                Добавить
+              </button>
+              <span className="h-px flex-1 bg-slate-200" aria-hidden="true" />
+            </div>
+            <div className="mb-3 inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1">
+              <button
+                type="button"
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                  addElementDialogTab === "media"
+                    ? "bg-white text-[#496db3] shadow-sm ring-1 ring-[#496db3]/20"
+                    : "text-slate-600 hover:text-slate-800"
+                }`}
+                onClick={() => setAddElementDialogTab("media")}
+              >
+                Медиа
+              </button>
+              <button
+                type="button"
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                  addElementDialogTab === "text"
+                    ? "bg-white text-[#496db3] shadow-sm ring-1 ring-[#496db3]/20"
+                    : "text-slate-600 hover:text-slate-800"
+                }`}
+                onClick={() => setAddElementDialogTab("text")}
+              >
+                Текст
+              </button>
+            </div>
+            <div className="grid grid-cols-1 gap-2">
+              {addElementDialogItems.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className="flex w-full flex-col items-start gap-0.5 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-left transition-colors hover:border-[#496db3]/40 hover:bg-slate-50"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => insertWebPageElement(item.id)}
+                >
+                  <span className="text-xs font-semibold text-slate-900">{item.label}</span>
+                  <span className="text-[11px] text-slate-500">{item.description}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       )}
       {tableWidthModalOpen && (
@@ -5751,6 +8382,71 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
           </div>
         </div>
       )}
+      {featureGridIconPickerOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-3 backdrop-blur-sm"
+          onClick={closeFeatureGridIconPicker}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Выбор иконки карточки"
+        >
+          <div
+            className="relative w-full max-w-md rounded-2xl bg-white p-4 shadow-xl ring-1 ring-slate-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span
+              className="absolute right-2 top-2 inline-flex h-5 w-5 cursor-pointer items-center justify-center text-slate-500 transition-colors hover:text-[#496db3]"
+              onClick={closeFeatureGridIconPicker}
+              role="button"
+              aria-label="Закрыть"
+            >
+              <XMarkIcon className="h-4 w-4 [stroke-width:2.2]" />
+            </span>
+            <div className="mt-2">
+              <p className="text-sm font-semibold text-slate-800">Иконка карточки</p>
+              <p className="mt-1 text-xs text-slate-500">Выберите иконку для выбранной карточки.</p>
+            </div>
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              {FEATURE_GRID_ICON_PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-xs transition-colors ${
+                    featureGridIconPickerValue === preset.id
+                      ? "border-[#496db3]/50 bg-[#496db3]/10 text-[#496db3]"
+                      : "border-slate-200 bg-white text-slate-700 hover:border-[#496db3]/35 hover:bg-slate-50"
+                  }`}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => setFeatureGridIconPickerValue(preset.id)}
+                >
+                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#496db3]/12 text-[#496db3]">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
+                      <path d={preset.path} strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </span>
+                  <span>{preset.label}</span>
+                </button>
+              ))}
+            </div>
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                className="rounded-full border border-slate-200 bg-white px-4 py-1.5 text-xs text-slate-700 hover:bg-slate-50"
+                onClick={closeFeatureGridIconPicker}
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                className="inline-flex rounded-full bg-[#496db3] px-4 py-1.5 text-xs font-medium text-white hover:brightness-105"
+                onClick={() => applyFeatureGridIconAndClose()}
+              >
+                Применить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {tableRowHeightModalOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-3 backdrop-blur-sm"
@@ -5818,6 +8514,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         </div>
       )}
       <style>{`
+        ${getSharedWebBlocksCss(".page-editor")}
         .page-editor ul { --list-marker-color: #000000; }
         ${LIST_COLORS.filter((c) => c.value).map(
           (c) => `.page-editor ul[data-list-color="${c.value}"] { --list-marker-color: ${c.hex}; }`
@@ -5897,42 +8594,22 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-editor-image-resize-nw { top: -5px; left: -5px; cursor: nw-resize; }
         .page-editor .page-editor-image-resize-se { bottom: -5px; right: -5px; cursor: se-resize; }
         .page-editor .page-editor-image-resize-sw { bottom: -5px; left: -5px; cursor: sw-resize; }
-        .page-editor .page-web-cover { position: relative; display: flex; flex-direction: column; width: 100%; max-width: 100%; margin: 1rem 0; padding: 1.25rem 1.5rem; border-radius: 12px; background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 45%, #f8fafc 100%); border: 1px solid #cbd5e1; box-sizing: border-box; overflow: visible; user-select: none; -webkit-user-select: none; }
-        .page-editor .page-web-cover.page-web-cover-has-bg { background-color: #e2e8f0; }
-        .page-editor .page-web-cover[data-cover-aspect="16-9"],
-        .page-editor .page-web-cover:not([data-cover-aspect]) { aspect-ratio: 16 / 9; }
-        .page-editor .page-web-cover[data-cover-aspect="4-3"] { aspect-ratio: 4 / 3; }
-        .page-editor .page-web-cover[data-cover-aspect="21-9"] { aspect-ratio: 21 / 9; }
-        .page-editor .page-web-cover[data-cover-aspect="1-1"] { aspect-ratio: 1 / 1; }
-        /* 1-8 / 1-4: в меню «1/8», «1/4» = доля высоты от ширины → горизонтальные баннеры (не 1/8 по оси). */
-        .page-editor .page-web-cover[data-cover-aspect="1-8"] { aspect-ratio: 2 / 1; }
-        .page-editor .page-web-cover[data-cover-aspect="1-4"] { aspect-ratio: 4 / 1; }
-        .page-editor .page-web-cover[data-cover-aspect="3-1"] { aspect-ratio: 3 / 1; }
-        .page-editor .page-web-cover[data-cover-aspect="8-1"] { aspect-ratio: 8 / 1; }
-        .page-editor .page-web-cover-inner { flex: 1; min-height: 0; max-width: 100%; width: 100%; outline: none; overflow: hidden; display: flex; flex-direction: column; padding-left: 2.25rem; padding-right: 1rem; box-sizing: border-box; user-select: text; -webkit-user-select: text; }
-        .page-editor .page-web-cover-inner[contenteditable="false"] { cursor: pointer; }
-        .page-editor .page-web-cover[data-cover-halign="left"] .page-web-cover-inner,
-        .page-editor .page-web-cover:not([data-cover-halign]) .page-web-cover-inner { align-items: flex-start; text-align: left; }
-        .page-editor .page-web-cover[data-cover-halign="center"] .page-web-cover-inner { align-items: center; text-align: center; }
-        .page-editor .page-web-cover[data-cover-halign="right"] .page-web-cover-inner { align-items: flex-end; text-align: right; }
-        .page-editor .page-web-cover[data-cover-valign="top"] .page-web-cover-inner,
-        .page-editor .page-web-cover:not([data-cover-valign]) .page-web-cover-inner { justify-content: flex-start; }
-        .page-editor .page-web-cover[data-cover-valign="middle"] .page-web-cover-inner { justify-content: center; }
-        .page-editor .page-web-cover[data-cover-valign="bottom"] .page-web-cover-inner { justify-content: flex-end; }
-        .page-editor .page-web-cover-el-title { margin: 0 0 0.35rem; font-size: clamp(1.25rem, 3vw, 1.75rem); font-weight: 700; color: #0f172a; line-height: 1.2; }
-        .page-editor .page-web-cover-el-subtitle { margin: 0 0 0.75rem; font-size: 0.95rem; color: #475569; line-height: 1.45; max-width: 36rem; }
-        .page-editor .page-web-cover-el-button-wrap { margin: 0; }
-        .page-editor .page-web-cover-el-button { display: inline-flex; align-items: center; justify-content: center; padding: 0.45rem 1rem; font-size: 0.875rem; font-weight: 600; color: #fff; background: #496db3; border-radius: 9999px; text-decoration: none; cursor: pointer; box-sizing: border-box; }
-        .page-editor .page-web-cover-el-button:hover { filter: brightness(1.05); }
+        ${getPageShowRenderCss(".page-editor")}
         .page-editor .page-web-timeline { --timeline-dot-size: 0.8rem; --timeline-line-size: 2px; --timeline-term-gap: 1.35rem; --timeline-gap: 0.9rem; position: relative; width: 100%; margin: 1rem 0; padding-top: var(--timeline-term-gap); display: grid; grid-template-columns: repeat(var(--timeline-cols, 3), minmax(0, 1fr)); gap: var(--timeline-gap); box-sizing: border-box; }
+        .page-editor .page-web-timeline-head { grid-column: 1 / -1; margin: 0 0 0.6rem; display: grid; gap: 0; text-align: center; }
+        .page-editor .page-web-timeline-subtitle { margin: 0; color: #b91c1c; font-size: clamp(0.76rem, 1.15cqi, 0.88rem); line-height: 1; font-weight: 600; }
+        .page-editor .page-web-timeline-heading { margin: 0; color: #496db3; font-size: clamp(0.98rem, 2.7cqi, 1.75rem); line-height: 1; font-weight: 600; letter-spacing: -0.02em; }
+        .page-editor .page-web-timeline-subtitle + .page-web-timeline-heading { margin-top: -0.16rem; }
+        .page-editor .page-web-timeline-description { margin: 0; color: #64748b; font-size: inherit; line-height: 1.5; }
+        .page-editor .page-web-timeline-heading + .page-web-timeline-description { margin-top: 1rem; }
         .page-editor .page-web-timeline-item { position: relative; min-height: 1.5rem; padding-top: calc(var(--timeline-dot-size) + 0.35rem); }
         .page-editor .page-web-timeline-item::before { content: none; }
         .page-editor .page-web-timeline-item ~ .page-web-timeline-item::before { content: ""; position: absolute; top: calc(var(--timeline-dot-size) / 2 - var(--timeline-line-size) / 2); left: calc(-50% - var(--timeline-gap)); width: calc(100% + var(--timeline-gap)); height: var(--timeline-line-size); background: #cbd5e1; pointer-events: none; z-index: 1; }
-        .page-editor .page-web-timeline-term { position: absolute; left: calc(0px - (var(--timeline-gap) / 2)); top: calc((var(--timeline-dot-size) / 2) - var(--timeline-term-gap)); transform: translateX(-50%); margin: 0; padding: 0 0.45rem; font-size: 0.75rem; font-weight: 600; color: #64748b; line-height: 1.25; white-space: nowrap; background: #fff; }
+        .page-editor .page-web-timeline-term { position: absolute; left: calc(0px - (var(--timeline-gap) / 2)); top: calc((var(--timeline-dot-size) / 2) - var(--timeline-term-gap)); transform: translateX(-50%); margin: 0; padding: 0 0.45rem; font-size: clamp(0.76rem, 1.15cqi, 0.88rem); font-weight: 600; color: #64748b; line-height: 1.25; white-space: nowrap; background: #fff; }
         .page-editor .page-web-timeline-dot { position: absolute; left: 50%; top: 0; transform: translateX(-50%); width: var(--timeline-dot-size); height: var(--timeline-dot-size); border-radius: 9999px; background: #496db3; box-shadow: 0 0 0 3px #e2e8f0; z-index: 2; }
         .page-editor .page-web-timeline-content { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; padding-left: 0; text-align: center; }
-        .page-editor .page-web-timeline-title { margin: 0; font-size: 0.95rem; font-weight: 700; color: #0f172a; line-height: 1.35; text-align: center; }
-        .page-editor .page-web-timeline-text { margin: 0; font-size: 0.9rem; color: #475569; line-height: 1.5; text-align: center; }
+        .page-editor .page-web-timeline-title { margin: 0; font-size: inherit; font-weight: 700; color: #0f172a; line-height: 1.5; text-align: center; }
+        .page-editor .page-web-timeline-text { margin: 0; font-size: inherit; color: #475569; line-height: 1.5; text-align: center; }
         @media (max-width: 767px) {
           .page-editor .page-web-timeline { grid-template-columns: 1fr; --timeline-gap: 1rem; }
           .page-editor .page-web-timeline-item { min-height: 0; padding-top: 0; padding-left: 1.5rem; }
@@ -5941,15 +8618,43 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
           .page-editor .page-web-timeline-item:not(:last-of-type)::before { content: ""; position: absolute; left: calc(var(--timeline-dot-size) / 2 - var(--timeline-line-size) / 2); top: calc(0.2rem + (var(--timeline-dot-size) / 2) - (var(--timeline-line-size) / 2)); width: var(--timeline-line-size); height: calc(100% + var(--timeline-gap)); background: #cbd5e1; pointer-events: none; z-index: 1; }
           .page-editor .page-web-timeline-dot { left: 0; top: 0.2rem; transform: none; }
           .page-editor .page-web-timeline-term { position: static; transform: none; margin: 0 0 0.35rem; padding: 0; background: transparent; text-align: left; }
+          .page-editor .page-web-timeline-head { text-align: left; }
           .page-editor .page-web-timeline-content { align-items: flex-start; text-align: left; }
           .page-editor .page-web-timeline-title,
           .page-editor .page-web-timeline-text { text-align: left; }
         }
-        .page-editor .page-web-timeline-toolbar { position: absolute; left: 0; right: auto; top: -2.25rem; z-index: 80; width: max-content; pointer-events: auto; user-select: none; -webkit-user-select: none; }
+        .page-editor .page-web-timeline-toolbar { position: absolute; left: -8px; right: auto; top: 50%; z-index: 80; width: max-content; pointer-events: auto; user-select: none; -webkit-user-select: none; transform: translateY(-50%); }
+        .page-editor .page-web-cover-toolbar,
+        .page-editor .page-web-carousel-toolbar,
+        .page-editor .page-web-timeline-toolbar,
+        .page-editor .page-web-text-media-toolbar,
+        .page-editor .page-web-text-block-toolbar { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+        .page-editor .page-web-cover,
+        .page-editor .page-web-carousel,
+        .page-editor .page-web-timeline,
+        .page-editor .page-web-text-media,
+        .page-editor .page-web-text-block { position: relative; }
+        .page-editor .page-web-insert-handle { position: absolute; left: 50%; bottom: -14px; transform: translateX(-50%); z-index: 75; opacity: 0; pointer-events: none; transition: opacity 0.15s ease; }
+        .page-editor .page-web-insert-handle-btn { pointer-events: auto; display: inline-flex; align-items: center; gap: 6px; border-radius: 9999px; border: 1px solid #cbd5e1; background: rgba(255,255,255,0.98); color: #475569; font-size: 11px; font-weight: 600; line-height: 1; padding: 5px 10px; box-shadow: 0 4px 12px rgba(15,23,42,0.08); cursor: pointer; white-space: nowrap; }
+        .page-editor .page-web-insert-handle-btn::before { content: "+"; font-size: 14px; font-weight: 700; line-height: 1; color: #496db3; }
+        .page-editor .page-web-insert-handle-btn:hover { border-color: #94a3b8; color: #0f172a; background: #fff; }
+        .page-editor .page-web-cover:hover > .page-web-insert-handle,
+        .page-editor .page-web-cover:focus-within > .page-web-insert-handle,
+        .page-editor .page-web-carousel:hover > .page-web-insert-handle,
+        .page-editor .page-web-carousel:focus-within > .page-web-insert-handle,
+        .page-editor .page-web-timeline:hover > .page-web-insert-handle,
+        .page-editor .page-web-timeline:focus-within > .page-web-insert-handle,
+        .page-editor .page-web-text-media:hover > .page-web-insert-handle,
+        .page-editor .page-web-text-media:focus-within > .page-web-insert-handle,
+        .page-editor .page-web-text-block:hover > .page-web-insert-handle,
+        .page-editor .page-web-text-block:focus-within > .page-web-insert-handle { opacity: 1; }
+        .page-editor .page-web-block-move-btn { display: flex; width: 28px; height: 28px; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid #cbd5e1; background: rgba(255,255,255,0.95); color: #64748b; cursor: pointer; padding: 0; }
+        .page-editor .page-web-block-move-btn:hover { border-color: #94a3b8; color: #0f172a; background: #fff; }
+        .page-editor .page-web-block-move-icon { width: 14px; height: 14px; display: block; }
         .page-editor .page-web-timeline-menu-trigger { display: flex; width: 28px; height: 28px; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid #cbd5e1; background: rgba(255,255,255,0.95); color: #64748b; cursor: pointer; padding: 0; }
         .page-editor .page-web-timeline-menu-trigger:hover { border-color: #94a3b8; color: #0f172a; background: #fff; }
         .page-editor .page-web-timeline-menu-dots::before { content: "\\22EE"; font-size: 1rem; line-height: 1; }
-        .page-editor .page-web-timeline-menu-dropdown { display: none; position: absolute; left: 0; right: auto; top: calc(100% + 4px); min-width: 14rem; padding: 4px 0; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 10px 24px rgba(15,23,42,0.12); z-index: 90; }
+        .page-editor .page-web-timeline-menu-dropdown { display: none; position: absolute; left: calc(100% + 4px); right: auto; top: 32px; min-width: 14rem; padding: 4px 0; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 10px 24px rgba(15,23,42,0.12); z-index: 90; }
         .page-editor .page-web-timeline-toolbar[data-menu-open="1"] .page-web-timeline-menu-dropdown { display: block; }
         .page-editor .page-web-timeline-menu-add-step,
         .page-editor .page-web-timeline-menu-remove-step { display: block; width: 100%; box-sizing: border-box; text-align: left; padding: 8px 12px; font-size: 13px; font-weight: 500; color: #0f172a; background: transparent; border: none; cursor: pointer; border-radius: 4px; white-space: nowrap; }
@@ -5959,12 +8664,12 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-timeline-menu-delete { display: block; width: 100%; box-sizing: border-box; text-align: left; padding: 8px 12px; font-size: 13px; font-weight: 500; color: #b91c1c; background: transparent; border: none; cursor: pointer; border-radius: 4px; white-space: nowrap; }
         .page-editor .page-web-timeline-menu-delete:hover { background: #fef2f2; }
         /* Поверх градиента обложки, вне потока — не сдвигает текст редактора */
-        .page-editor .page-web-cover-toolbar { position: absolute; left: 8px; top: 50%; right: auto; margin: 0; z-index: 10; transform: translateY(-50%); width: max-content; pointer-events: auto; user-select: none; -webkit-user-select: none; }
+        .page-editor .page-web-cover-toolbar { position: absolute; left: 8px; top: 50%; right: auto; margin: 0; z-index: 10040; transform: translateY(-50%); width: max-content; pointer-events: auto; user-select: none; -webkit-user-select: none; }
         .page-editor .page-web-cover-menu-trigger { display: flex; width: 28px; height: 28px; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid #cbd5e1; background: rgba(255,255,255,0.95); color: #64748b; cursor: pointer; user-select: none; -webkit-user-select: none; padding: 0; }
         .page-editor .page-web-cover-menu-trigger:hover { border-color: #94a3b8; color: #0f172a; background: #fff; }
         .page-editor .page-web-cover-menu-dots { display: inline-block; font-size: 1rem; line-height: 1; transform: translateY(-1px); }
         .page-editor .page-web-cover-menu-dots::before { content: "\u22EE"; }
-        .page-editor .page-web-cover-menu-dropdown { display: none; position: absolute; left: 0; top: calc(100% + 4px); width: max-content; min-width: 0; max-width: min(14rem, calc(100vw - 2rem)); padding: 4px 0; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 10px 24px rgba(15,23,42,0.12); z-index: 20; }
+        .page-editor .page-web-cover-menu-dropdown { display: none; position: absolute; left: calc(100% + 4px); top: 32px; width: max-content; min-width: 0; max-width: min(14rem, calc(100vw - 2rem)); padding: 4px 0; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 10px 24px rgba(15,23,42,0.12); z-index: 10050; }
         .page-editor .page-web-cover-toolbar[data-menu-open="1"] .page-web-cover-menu-dropdown { display: block; }
         .page-editor .page-web-cover-menu-sub { position: relative; }
         .page-editor .page-web-cover-menu-sub-trigger { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; font-size: 13px; font-weight: 500; color: #0f172a; background: transparent; border: none; cursor: pointer; border-radius: 4px; text-align: left; }
@@ -5972,14 +8677,21 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-cover-menu-sub-label { flex: 1; min-width: 0; }
         .page-editor .page-web-cover-menu-chevron { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: 1.25rem; color: #64748b; font-size: 1rem; line-height: 1; transition: transform 0.15s ease; }
         .page-editor .page-web-cover-menu-chevron::before { content: "\\203A"; }
-        .page-editor .page-web-cover-menu-sub[data-submenu-open="1"] .page-web-cover-menu-chevron { transform: rotate(90deg); }
-        .page-editor .page-web-cover-menu-sub-panel { display: none; position: absolute; left: calc(100% + 4px); top: 0; padding: 10px; min-width: 0; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 10px 24px rgba(15,23,42,0.12); z-index: 30; }
-        .page-editor .page-web-cover-menu-sub[data-submenu-open="1"] .page-web-cover-menu-sub-panel { display: block; }
+        .page-editor .page-web-cover-toolbar[data-menu-open="1"] .page-web-cover-menu-sub[data-submenu-open="1"] > .page-web-cover-menu-sub-trigger .page-web-cover-menu-chevron { transform: rotate(90deg); }
+        .page-editor .page-web-cover-menu-sub-panel { display: none; position: absolute; left: calc(100% + 4px); top: 0; padding: 10px; min-width: 0; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 10px 24px rgba(15,23,42,0.12); z-index: 10060; }
+        .page-editor .page-web-cover-toolbar[data-menu-open="1"] .page-web-cover-menu-sub[data-submenu-open="1"] > .page-web-cover-menu-sub-panel { display: block; }
+        .page-editor .page-web-cover-type-panel { display: none; flex-direction: column; gap: 2px; padding: 6px; min-width: 14.5rem; box-sizing: border-box; }
+        .page-editor .page-web-cover-toolbar[data-menu-open="1"] .page-web-cover-menu-sub[data-submenu-open="1"] > .page-web-cover-menu-sub-panel .page-web-cover-type-panel { display: flex; }
+        .page-editor .page-web-cover-menu-type { display: flex; width: 100%; box-sizing: border-box; align-items: center; gap: 8px; text-align: left; padding: 8px 10px; font-size: 13px; font-weight: 500; color: #0f172a; background: transparent; border: none; cursor: pointer; border-radius: 6px; white-space: nowrap; }
+        .page-editor .page-web-cover-menu-type:hover { background: #f1f5f9; }
+        .page-editor .page-web-cover-menu-type-radio { width: 14px; height: 14px; border-radius: 9999px; border: 1.5px solid #94a3b8; box-sizing: border-box; background: #fff; flex-shrink: 0; }
+        .page-editor .page-web-cover-menu-type[aria-checked="true"] .page-web-cover-menu-type-radio { border-color: #496db3; box-shadow: inset 0 0 0 3px #496db3; }
+        .page-editor .page-web-cover-menu-type-label { flex: 1; min-width: 0; }
         .page-editor .page-web-cover-elements-panel { display: none; flex-direction: column; gap: 2px; padding: 6px; min-width: 11rem; box-sizing: border-box; }
-        .page-editor .page-web-cover-menu-sub[data-submenu-open="1"] .page-web-cover-elements-panel { display: flex; }
+        .page-editor .page-web-cover-toolbar[data-menu-open="1"] .page-web-cover-menu-sub[data-submenu-open="1"] > .page-web-cover-menu-sub-panel .page-web-cover-elements-panel { display: flex; }
         .page-editor .page-web-cover-menu-insert-cover-el { display: block; width: 100%; box-sizing: border-box; text-align: left; padding: 8px 12px; font-size: 13px; font-weight: 500; color: #0f172a; background: transparent; border: none; cursor: pointer; border-radius: 4px; white-space: nowrap; }
         .page-editor .page-web-cover-menu-insert-cover-el:hover { background: #f1f5f9; }
-        .page-editor .page-web-cover-aspect-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; width: 156px; box-sizing: border-box; }
+        .page-editor .page-web-cover-aspect-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; width: 156px; box-sizing: border-box; }
         .page-editor .page-web-cover-menu-aspect { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; width: 100%; box-sizing: border-box; margin: 0; padding: 6px 2px; text-align: center; font-size: 10px; font-weight: 600; line-height: 1.1; color: #0f172a; background: transparent; border: none; cursor: pointer; border-radius: 6px; }
         .page-editor .page-web-cover-menu-aspect:hover { background: #f1f5f9; }
         .page-editor .page-web-cover-menu-aspect-preview { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 30px; }
@@ -5993,14 +8705,70 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-cover[data-cover-aspect="1-4"] .page-web-cover-menu-aspect[data-set-cover-aspect="1-4"],
         .page-editor .page-web-cover[data-cover-aspect="3-1"] .page-web-cover-menu-aspect[data-set-cover-aspect="3-1"],
         .page-editor .page-web-cover[data-cover-aspect="8-1"] .page-web-cover-menu-aspect[data-set-cover-aspect="8-1"] { background: #f1f5f9; box-shadow: inset 0 0 0 1px #496db3; }
+        .page-editor .page-web-cover[data-cover-type="hero"] .page-web-cover-menu-type[data-set-cover-type="hero"],
+        .page-editor .page-web-cover[data-cover-type="image"] .page-web-cover-menu-type[data-set-cover-type="image"],
+        .page-editor .page-web-cover[data-cover-type="split"] .page-web-cover-menu-type[data-set-cover-type="split"] { background: #f1f5f9; }
         .page-editor .page-web-cover-menu-sep { height: 1px; margin: 6px 8px; background: #e2e8f0; pointer-events: none; }
         .page-editor .page-web-cover-menu-upload { display: block; width: 100%; box-sizing: border-box; text-align: left; padding: 8px 12px; font-size: 13px; font-weight: 500; color: #0f172a; background: transparent; border: none; cursor: pointer; border-radius: 4px; white-space: nowrap; }
         .page-editor .page-web-cover-menu-upload:hover { background: #f1f5f9; }
-        .page-editor .page-web-cover-menu-align-bg { display: block; width: 100%; box-sizing: border-box; text-align: left; padding: 8px 12px; font-size: 13px; font-weight: 500; color: #0f172a; background: transparent; border: none; cursor: pointer; border-radius: 4px; white-space: nowrap; }
-        .page-editor .page-web-cover-menu-align-bg:hover { background: #f1f5f9; }
-        .page-editor .page-web-cover:not(.page-web-cover-has-bg) .page-web-cover-menu-align-bg { display: none; }
         .page-editor .page-web-cover-menu-delete { display: block; width: 100%; box-sizing: border-box; text-align: left; padding: 8px 12px; font-size: 13px; font-weight: 500; color: #b91c1c; background: transparent; border: none; cursor: pointer; border-radius: 4px; white-space: nowrap; }
         .page-editor .page-web-cover-menu-delete:hover { background: #fef2f2; }
+        .page-editor .page-web-text-media { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1rem; width: 100%; margin: 1rem 0; }
+        .page-editor .page-web-text-media-toolbar { position: absolute; left: -8px; top: 50%; z-index: 80; width: max-content; pointer-events: auto; user-select: none; -webkit-user-select: none; transform: translateY(-50%); }
+        .page-editor .page-web-text-media-menu-trigger { display: flex; width: 28px; height: 28px; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid #cbd5e1; background: rgba(255,255,255,0.95); color: #64748b; cursor: pointer; padding: 0; }
+        .page-editor .page-web-text-media-menu-trigger:hover { border-color: #94a3b8; color: #0f172a; background: #fff; }
+        .page-editor .page-web-text-media-menu-dots::before { content: "\\22EE"; font-size: 1rem; line-height: 1; }
+        .page-editor .page-web-text-media-menu-dropdown { display: none; position: absolute; left: calc(100% + 4px); right: auto; top: 32px; min-width: 11.5rem; padding: 4px 0; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 10px 24px rgba(15,23,42,0.12); z-index: 90; }
+        .page-editor .page-web-text-media-toolbar[data-menu-open="1"] .page-web-text-media-menu-dropdown { display: block; }
+        .page-editor .page-web-text-media-menu-delete { display: block; width: 100%; box-sizing: border-box; text-align: left; padding: 8px 12px; font-size: 13px; font-weight: 500; color: #b91c1c; background: transparent; border: none; cursor: pointer; border-radius: 4px; white-space: nowrap; }
+        .page-editor .page-web-text-media-menu-delete:hover { background: #fef2f2; }
+        .page-editor .page-web-text-block { position: relative; width: 100%; margin: 1rem 0; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; padding: 1rem; box-sizing: border-box; }
+        .page-editor .page-web-text-block-toolbar { position: absolute; left: -8px; top: 50%; z-index: 80; width: max-content; pointer-events: auto; user-select: none; -webkit-user-select: none; transform: translateY(-50%); }
+        .page-editor .page-web-text-block-menu-trigger { display: flex; width: 28px; height: 28px; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid #cbd5e1; background: rgba(255,255,255,0.95); color: #64748b; cursor: pointer; padding: 0; }
+        .page-editor .page-web-text-block-menu-trigger:hover { border-color: #94a3b8; color: #0f172a; background: #fff; }
+        .page-editor .page-web-text-block-menu-dots::before { content: "\\22EE"; font-size: 1rem; line-height: 1; }
+        .page-editor .page-web-text-block-menu-dropdown { display: none; position: absolute; left: calc(100% + 4px); right: auto; top: 32px; min-width: 11.5rem; padding: 4px 0; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 10px 24px rgba(15,23,42,0.12); z-index: 90; transform: translateZ(0); -webkit-transform: translateZ(0); backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+        .page-editor .page-web-text-block-menu-dropdown[data-force-hidden="1"] { display: none !important; visibility: hidden !important; opacity: 0 !important; pointer-events: none !important; }
+        .page-editor .page-web-text-block-toolbar[data-menu-open="1"] .page-web-text-block-menu-dropdown { display: block; }
+        .page-editor .page-web-text-block-menu-sub { position: relative; display: none; }
+        .page-editor .page-web-text-block-toolbar[data-text-block-variant="feature-grid"] .page-web-text-block-menu-sub--feature-grid-elements { display: block; }
+        .page-editor .page-web-text-block-toolbar[data-text-block-variant="feature-grid"] .page-web-text-block-menu-sub--feature-grid-extra { display: block; }
+        .page-editor .page-web-text-block-menu-sub-panel .page-web-text-block-menu-sub { display: block; }
+        .page-editor .page-web-text-block-menu-sub-trigger { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; font-size: 13px; font-weight: 500; color: #0f172a; background: transparent; border: none; cursor: pointer; border-radius: 4px; text-align: left; }
+        .page-editor .page-web-text-block-menu-sub-trigger:hover { background: #f1f5f9; }
+        .page-editor .page-web-text-block-menu-sub-label { flex: 1; min-width: 0; }
+        .page-editor .page-web-text-block-menu-chevron { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: 1.25rem; color: #64748b; font-size: 1rem; line-height: 1; transition: transform 0.15s ease; }
+        .page-editor .page-web-text-block-menu-chevron::before { content: "\\203A"; }
+        .page-editor .page-web-text-block-toolbar[data-menu-open="1"] .page-web-text-block-menu-sub[data-submenu-open="1"] > .page-web-text-block-menu-sub-trigger .page-web-text-block-menu-chevron { transform: rotate(90deg); }
+        .page-editor .page-web-text-block-menu-sub-panel { display: none; position: absolute; left: calc(100% + 4px); top: 0; padding: 6px; min-width: 12rem; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 10px 24px rgba(15,23,42,0.12); z-index: 120; transform: translateZ(0); -webkit-transform: translateZ(0); backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+        .page-editor .page-web-text-block-menu-sub-panel[data-force-hidden="1"] { display: none !important; visibility: hidden !important; opacity: 0 !important; pointer-events: none !important; }
+        .page-editor .page-web-text-block-toolbar[data-menu-open="1"] .page-web-text-block-menu-sub[data-submenu-open="1"] > .page-web-text-block-menu-sub-panel { display: block; }
+        .page-editor .page-web-text-block-menu-element { display: block; width: 100%; box-sizing: border-box; text-align: left; padding: 8px 10px; font-size: 13px; font-weight: 500; color: #0f172a; background: transparent; border: none; cursor: pointer; border-radius: 6px; white-space: nowrap; }
+        .page-editor .page-web-text-block-menu-element:hover { background: #f1f5f9; }
+        .page-editor .page-web-text-block-menu-element[disabled] { opacity: 0.45; cursor: not-allowed; }
+        .page-editor .page-web-text-block-menu-element[disabled]:hover { background: transparent; }
+        .page-editor .page-web-text-block-menu-grid-option { display: flex; width: 100%; box-sizing: border-box; align-items: center; gap: 8px; text-align: left; padding: 8px 10px; font-size: 13px; font-weight: 500; color: #0f172a; background: transparent; border: none; cursor: pointer; border-radius: 6px; white-space: nowrap; }
+        .page-editor .page-web-text-block-menu-grid-option:hover { background: #f1f5f9; }
+        .page-editor .page-web-text-block-menu-grid-option-radio { width: 14px; height: 14px; border-radius: 9999px; border: 1.5px solid #94a3b8; box-sizing: border-box; background: #fff; flex-shrink: 0; }
+        .page-editor .page-web-text-block-menu-grid-option[aria-checked="true"] .page-web-text-block-menu-grid-option-radio { border-color: #496db3; box-shadow: inset 0 0 0 3px #496db3; }
+        .page-editor .page-web-text-block-menu-grid-option-label { flex: 1; min-width: 0; }
+        .page-editor .page-web-text-block-menu-sep { height: 1px; margin: 6px 8px; background: #e2e8f0; pointer-events: none; display: none; }
+        .page-editor .page-web-text-block-toolbar[data-text-block-variant="feature-grid"] .page-web-text-block-menu-sep--feature-grid { display: block; }
+        .page-editor .page-web-text-block-menu-sub-panel .page-web-text-block-menu-sep { display: block; margin: 6px 0; }
+        .page-editor .page-web-text-block-menu-delete { display: block; width: 100%; box-sizing: border-box; text-align: left; padding: 8px 12px; font-size: 13px; font-weight: 500; color: #b91c1c; background: transparent; border: none; cursor: pointer; border-radius: 4px; white-space: nowrap; }
+        .page-editor .page-web-text-block-menu-delete:hover { background: #fef2f2; }
+        .page-editor .page-web-text-block-content { outline: none; }
+        .page-editor .page-web-text-block-content h3 { margin: 0 0 0.55rem; font-size: 1.2rem; line-height: 1.2; color: #0f172a; }
+        .page-editor .page-web-text-block-content p { margin: 0; color: #475569; line-height: 1.55; }
+        .page-editor .page-web-text-media-col { min-height: 210px; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; padding: 1rem; box-sizing: border-box; outline: none; }
+        .page-editor .page-web-text-media-col--media { background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%); display: flex; align-items: center; justify-content: center; text-align: center; color: #64748b; }
+        .page-editor .page-web-text-media-col h3 { margin: 0 0 0.55rem; font-size: 1.2rem; line-height: 1.2; color: #0f172a; }
+        .page-editor .page-web-text-media-col p { margin: 0; color: #475569; line-height: 1.55; }
+        .page-editor .page-web-text-media-placeholder { color: #64748b; font-size: 0.9rem; }
+        @media (max-width: 767px) {
+          .page-editor .page-web-text-media { grid-template-columns: 1fr; }
+          .page-editor .page-web-text-media-col { min-height: 160px; }
+        }
         .page-editor .page-web-carousel { position: relative; width: 100%; max-width: 100%; min-width: 0; margin: 1rem 0; padding-top: 2.25rem; box-sizing: border-box; display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 10px; background: transparent; border: none; overflow: visible; user-select: none; -webkit-user-select: none; min-height: 0; caret-color: transparent; }
         .page-editor .page-web-carousel-viewport,
         .page-editor .page-web-carousel-strip,
@@ -6012,7 +8780,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-carousel-menu-trigger { display: flex; width: 28px; height: 28px; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid #cbd5e1; background: rgba(255,255,255,0.95); color: #64748b; cursor: pointer; padding: 0; }
         .page-editor .page-web-carousel-menu-trigger:hover { border-color: #94a3b8; color: #0f172a; background: #fff; }
         .page-editor .page-web-carousel-menu-dots::before { content: "\\22EE"; font-size: 1rem; line-height: 1; }
-        .page-editor .page-web-carousel-menu-dropdown { display: none; position: absolute; left: 0; right: auto; top: calc(100% + 4px); min-width: 12rem; padding: 4px 0; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 10px 24px rgba(15,23,42,0.12); z-index: 110; }
+        .page-editor .page-web-carousel-menu-dropdown { display: none; position: absolute; left: calc(100% + 4px); right: auto; top: 32px; min-width: 12rem; padding: 4px 0; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 10px 24px rgba(15,23,42,0.12); z-index: 110; }
         .page-editor .page-web-carousel-toolbar[data-menu-open="1"] .page-web-carousel-menu-dropdown { display: block; }
         .page-editor .page-web-carousel-menu-sub { position: relative; }
         .page-editor .page-web-carousel-menu-sub-trigger { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; font-size: 13px; font-weight: 500; color: #0f172a; background: transparent; border: none; cursor: pointer; border-radius: 4px; text-align: left; }
@@ -6020,9 +8788,9 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-carousel-menu-sub-label { flex: 1; min-width: 0; }
         .page-editor .page-web-carousel-menu-chevron { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: 1.25rem; color: #64748b; font-size: 1rem; line-height: 1; transition: transform 0.15s ease; }
         .page-editor .page-web-carousel-menu-chevron::before { content: "\\203A"; }
-        .page-editor .page-web-carousel-menu-sub[data-submenu-open="1"] .page-web-carousel-menu-chevron { transform: rotate(90deg); }
+        .page-editor .page-web-carousel-toolbar[data-menu-open="1"] .page-web-carousel-menu-sub[data-submenu-open="1"] > .page-web-carousel-menu-sub-trigger .page-web-carousel-menu-chevron { transform: rotate(90deg); }
         .page-editor .page-web-carousel-menu-sub-panel { display: none; position: absolute; left: calc(100% + 4px); top: 0; padding: 6px; min-width: 12rem; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 10px 24px rgba(15,23,42,0.12); z-index: 120; }
-        .page-editor .page-web-carousel-menu-sub[data-submenu-open="1"] .page-web-carousel-menu-sub-panel { display: block; }
+        .page-editor .page-web-carousel-toolbar[data-menu-open="1"] .page-web-carousel-menu-sub[data-submenu-open="1"] > .page-web-carousel-menu-sub-panel { display: block; }
         .page-editor .page-web-carousel-menu-image-type { display: flex; width: 100%; box-sizing: border-box; align-items: center; gap: 8px; text-align: left; padding: 8px 10px; font-size: 13px; font-weight: 500; color: #0f172a; background: transparent; border: none; cursor: pointer; border-radius: 6px; white-space: nowrap; }
         .page-editor .page-web-carousel-menu-image-type:hover { background: #f1f5f9; }
         .page-editor .page-web-carousel-menu-image-type-radio { width: 14px; height: 14px; border-radius: 9999px; border: 1.5px solid #94a3b8; box-sizing: border-box; background: #fff; flex-shrink: 0; }
@@ -6113,6 +8881,18 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
                 <h1 className="text-sm font-semibold text-slate-900">
                   {title || "Без названия"}
                 </h1>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                       if (!Number.isFinite(pageId)) return;
+                       window.open(`/admin/page_show/${pageId}`, "_blank", "noopener,noreferrer");
+                    }}
+                     disabled={!Number.isFinite(pageId)}
+                    className="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Просмотр
+                  </button>
                 <button
                   type="button"
                   onClick={() => void handleSave()}
@@ -6121,6 +8901,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
                 >
                   {saving ? "Сохранение…" : "Сохранить"}
                 </button>
+                </div>
               </div>
 
               {error && <div className="shrink-0 text-xs text-red-600">{error}</div>}
@@ -6577,7 +9358,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
                       }}
                       onClick={() => {
                         setTableOpen((v) => !v);
-                        setWebElementsOpen(false);
+                        closeAddElementDialog();
                       }}
                       aria-label="Вставить таблицу"
                       aria-expanded={tableOpen}
@@ -6813,109 +9594,85 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
 
                   <div className="h-6 w-px shrink-0 bg-slate-200" aria-hidden="true" />
 
-                  <div ref={webElementsDropdownRef} className="relative">
-                    <button
-                      type="button"
-                      className="inline-flex h-8 min-w-[2rem] items-center justify-center gap-0.5 rounded border border-slate-200 bg-white px-1.5 text-slate-600 transition-colors hover:border-slate-300 hover:text-[#496db3]"
-                      onMouseDown={(e) => {
-                        saveSelectionFromEditor();
-                        e.preventDefault();
-                      }}
-                      onClick={() => {
-                        setWebElementsOpen((v) => !v);
-                        setTableOpen(false);
-                      }}
-                      aria-label="Web-элементы"
-                      aria-expanded={webElementsOpen}
-                      title="Web-элементы"
-                    >
-                      <GlobeAltIcon className={ICON_SIZE} />
-                      <ChevronDownIcon
-                        className={`h-3 w-3 shrink-0 text-slate-500 transition-transform ${webElementsOpen ? "rotate-180" : ""}`}
-                      />
-                    </button>
-                    {webElementsOpen && (
-                      <div
-                        className="absolute right-0 top-full z-50 mt-1 min-w-[220px] rounded border border-slate-200 bg-white py-1 shadow-lg"
-                        role="menu"
-                      >
-                        <div className="border-b border-slate-100 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                          Web-элементы
-                        </div>
-                        {WEB_PAGE_ELEMENTS.map((item) => (
-                          <button
-                            key={item.id}
-                            type="button"
-                            role="menuitem"
-                            className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => insertWebPageElement(item.id)}
-                          >
-                            <span className="font-medium text-slate-900">{item.label}</span>
-                            <span className="text-[11px] text-slate-500">{item.description}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
                 </div>
 
                 <div
                   ref={editorScrollRef}
                   className="relative z-0 min-h-0 flex-1 overflow-y-auto"
                 >
-                  <div ref={editorWrapperRef} className="relative min-h-[calc(100vh-12rem)]">
-                <div
-                  ref={editorRef}
-                  contentEditable
-                  suppressContentEditableWarning
-                  onMouseDown={(e) => {
-                    const ed = editorRef.current;
-                    const t = e.target as HTMLElement;
-                    if (ed && !t.closest?.(".page-web-cover-toolbar")) {
-                      ed.querySelectorAll('.page-web-cover-toolbar[data-menu-open="1"]').forEach((node) => {
-                        const n = node as HTMLElement;
-                        n.removeAttribute("data-menu-open");
-                        n.querySelectorAll('.page-web-cover-menu-sub[data-submenu-open="1"]').forEach((s) => {
-                          (s as HTMLElement).removeAttribute("data-submenu-open");
+                  <div
+                    ref={editorWrapperRef}
+                    className="page-editor relative min-h-[calc(100vh-12rem)] w-full px-4 pb-4 pt-0 text-[12px] text-slate-900 outline-none [&_ul]:list-disc [&_ul]:list-outside [&_ul]:pl-6 [&_ul]:my-0 [&_ol]:pl-6 [&_ol]:my-0 [&_ol_ol]:pl-6 [&_ol_ol_ol]:pl-6 [&_li]:pl-1 [&_li]:my-0"
+                  >
+                    <div
+                      ref={editorRef}
+                      suppressContentEditableWarning
+                      onMouseDown={(e) => {
+                        if (handleWebInsertHandleMouseDown(e)) return;
+                        const ed = editorRef.current;
+                        const rawTarget = e.target as EventTarget | null;
+                        const t =
+                          rawTarget instanceof Element
+                            ? rawTarget
+                            : (rawTarget as Node | null)?.parentElement ?? null;
+                        const nativePath =
+                          typeof e.nativeEvent.composedPath === "function"
+                            ? e.nativeEvent.composedPath()
+                            : [];
+                        const inCoverToolbarFromPath = nativePath.some((node) => {
+                          if (!(node instanceof Element)) return false;
+                          return !!node.closest?.(".page-web-cover-toolbar");
                         });
-                        n.querySelectorAll(".page-web-cover-menu-sub-trigger").forEach((tr) => {
-                          (tr as HTMLElement).setAttribute("aria-expanded", "false");
-                        });
-                      });
-                    }
-                    if (ed && !t.closest?.(".page-web-carousel-toolbar")) {
-                      ed.querySelectorAll('.page-web-carousel-toolbar[data-menu-open="1"]').forEach((node) => {
-                        closeCarouselToolbarMenus(node as HTMLElement);
-                      });
-                    }
-                    if (ed && !t.closest?.(".page-web-timeline-toolbar")) {
-                      ed.querySelectorAll('.page-web-timeline-toolbar[data-menu-open="1"]').forEach((node) => {
-                        closeTimelineToolbarMenus(node as HTMLElement);
-                      });
-                    }
-                    handleCarouselEditorMouseDown(e);
-                    handleTimelineToolbarMouseDown(e);
-                    handleCoverSurfaceMouseDown(e);
-                    handleCoverToolbarMouseDown(e);
-                    handleCoverInnerMouseDown(e);
-                    handleTableCellMouseDown(e);
-                  }}
-                  onDoubleClick={(e) => {
-                    if (handleCoverButtonDoubleClick(e)) return;
-                    handleTableCellDoubleClick(e);
-                  }}
-                  onBlur={handleEditorFocusOut}
-                  onBeforeInput={handleEditorBeforeInput}
-                  onKeyDown={handleKeyDown}
-                  onPaste={handlePaste}
-                  onInput={(e) => {
-                    const html = (e.target as HTMLDivElement).innerHTML;
-                    scheduleEditorHtmlStateSync(html);
-                    syncMarkerBold();
-                  }}
-                  className="page-editor min-h-[calc(100vh-12rem)] w-full p-4 text-sm text-slate-900 outline-none [&_ul]:list-disc [&_ul]:list-outside [&_ul]:pl-6 [&_ul]:my-0 [&_ol]:pl-6 [&_ol]:my-0 [&_ol_ol]:pl-6 [&_ol_ol_ol]:pl-6 [&_li]:pl-1 [&_li]:my-0"
+                        if (ed && !inCoverToolbarFromPath && !t?.closest?.(".page-web-cover-toolbar")) {
+                          ed.querySelectorAll(".page-web-cover-toolbar").forEach((node) => {
+                            closeCoverToolbarMenus(node as HTMLElement);
+                          });
+                        }
+                        if (ed && !t?.closest?.(".page-web-carousel-toolbar")) {
+                          ed.querySelectorAll(".page-web-carousel-toolbar").forEach((node) => {
+                            closeCarouselToolbarMenus(node as HTMLElement);
+                          });
+                        }
+                        if (ed && !t?.closest?.(".page-web-timeline-toolbar")) {
+                          ed.querySelectorAll(".page-web-timeline-toolbar").forEach((node) => {
+                            closeTimelineToolbarMenus(node as HTMLElement);
+                          });
+                        }
+                        if (ed && !t?.closest?.(".page-web-text-media-toolbar")) {
+                          ed.querySelectorAll(".page-web-text-media-toolbar").forEach((node) => {
+                            closeTextMediaToolbarMenus(node as HTMLElement);
+                          });
+                        }
+                        if (ed && !t?.closest?.(".page-web-text-block-toolbar")) {
+                          ed.querySelectorAll(".page-web-text-block-toolbar").forEach((node) => {
+                            closeTextBlockToolbarMenus(node as HTMLElement);
+                          });
+                        }
+                        handleCarouselEditorMouseDown(e);
+                        handleTimelineToolbarMouseDown(e);
+                        handleTextMediaEditorMouseDown(e);
+                        handleTextBlockEditorMouseDown(e);
+                        handleCoverSurfaceMouseDown(e);
+                        handleCoverToolbarMouseDown(e);
+                        handleCoverInnerMouseDown(e);
+                        handleTableCellMouseDown(e);
+                      }}
+                      onDoubleClick={(e) => {
+                        if (handleCoverButtonDoubleClick(e)) return;
+                        if (handleFeatureGridImageDoubleClick(e)) return;
+                        if (handleFeatureGridIconDoubleClick(e)) return;
+                        handleTableCellDoubleClick(e);
+                      }}
+                      onBlur={handleEditorFocusOut}
+                      onBeforeInput={handleEditorBeforeInput}
+                      onKeyDown={handleKeyDown}
+                      onPaste={handlePaste}
+                      onInput={(e) => {
+                        const html = e.currentTarget.innerHTML;
+                        scheduleEditorHtmlStateSync(html);
+                        syncMarkerBold();
+                      }}
+                      className="w-full"
                     />
                     {cellMenuViewport &&
                       cellMenuViewport.topBtn &&

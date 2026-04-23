@@ -10,6 +10,10 @@ import {
   type ServiceListItem,
   type ServiceTreeNode,
 } from "@/lib/serviceTree";
+import {
+  normalizePageDisplayOrderMap,
+  sortBySectionDisplayOrder,
+} from "@/lib/pageDisplayOrder";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +26,13 @@ async function getOtherServicesCards(): Promise<{
       apiGet<ServiceListItem[]>("/api/pages"),
       apiGet<{ folders?: ServiceFolderMeta[] }>("/api/pages/folders"),
     ]);
+    let orderBySection = {};
+    try {
+      const displayOrderPayload = await apiGet<{ orderBySection?: unknown }>("/api/pages/display-order");
+      orderBySection = normalizePageDisplayOrderMap(displayOrderPayload?.orderBySection);
+    } catch {
+      orderBySection = {};
+    }
     const folders = Array.isArray(foldersPayload?.folders) ? foldersPayload.folders : [];
     const folderMetaBySlug = new Map(folders.map((f) => [normalizeSlug(f.slug), f] as const));
     const rootMeta = folderMetaBySlug.get("other-services");
@@ -29,14 +40,32 @@ async function getOtherServicesCards(): Promise<{
 
     const sourcePages = pages
       .filter((p) => isVisibleServicePage(p) && normalizeSlug(p.slug).startsWith("other-services/"))
-      .map((p) => ({ ...p, slug: normalizeSlug(p.slug) }))
-      .sort((a, b) => a.title.localeCompare(b.title, "ru"));
+      .map((p) => ({ ...p, slug: normalizeSlug(p.slug) }));
+    const sourceOrderIndex = new Map<string, number>(
+      sourcePages.map((p, idx) => [normalizeSlug(p.slug), idx] as const),
+    );
 
     const tree = buildServicesTree(sourcePages, folderMetaBySlug, {
       rootSlug: "other-services",
       rootLabel: "Прочие услуги",
     });
-    return { cards: collectServiceCardsForHome(tree), rootDescription };
+    const sortedCards = sortBySectionDisplayOrder(
+      collectServiceCardsForHome(tree),
+      "other-services",
+      (node) => normalizeSlug(node.slugPath),
+      orderBySection,
+      (a, b) => {
+        const ar = sourceOrderIndex.get(normalizeSlug(a.slugPath));
+        const br = sourceOrderIndex.get(normalizeSlug(b.slugPath));
+        if (ar !== undefined && br !== undefined) return ar - br;
+        if (ar !== undefined) return -1;
+        if (br !== undefined) return 1;
+        const ta = a.pages[0]?.title?.trim() || a.label;
+        const tb = b.pages[0]?.title?.trim() || b.label;
+        return ta.localeCompare(tb, "ru");
+      },
+    );
+    return { cards: sortedCards, rootDescription };
   } catch {
     return { cards: [], rootDescription: null };
   }

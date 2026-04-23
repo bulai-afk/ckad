@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { PublicCarouselViewportSync } from "@/components/PublicCarouselViewportSync";
-import { PublicFolderBreadcrumbLabel } from "@/components/PublicFolderBreadcrumbLabel";
 import { HomeServicesFolderCards } from "@/components/HomeServicesFolderCards";
 import { apiGet } from "@/lib/api";
 import { apiPagesSlugRequestPath } from "@/lib/apiPagesSlugUrl";
+import { getSharedWebBlocksCss } from "@/lib/sharedWebBlocksCss";
+import { ensureCoverBgLayers, getPageShowRenderCss } from "@/lib/pageShowRender";
 import { CallbackRequestModal } from "@/components/CallbackRequestModal";
 import {
   buildServicesTree,
@@ -78,6 +79,7 @@ function getBlockText(page: PageData | null, type: string): string {
 }
 
 const CALLBACK_FORM_LINK = "callback://open";
+const PREVIEW_BASE_WIDTH = 1120;
 
 export default function Page() {
   const params = useParams<{ slug?: string[] | string }>();
@@ -89,16 +91,16 @@ export default function Page() {
   }, [params]);
 
   const [page, setPage] = useState<PageData | null>(null);
+  const isArticlesPage = slugParts[0] === "articles";
+  const contentRootRef = useRef<HTMLElement | null>(null);
+  const previewViewportRef = useRef<HTMLDivElement | null>(null);
+  const previewCanvasRef = useRef<HTMLElement | null>(null);
+  const [previewScale, setPreviewScale] = useState(1);
+  const [previewScaledHeight, setPreviewScaledHeight] = useState<number | null>(null);
   /** Нет CMS-страницы по slug, но есть папка в /api/pages/folders — показываем тот же хаб, что на /services */
   const [serviceFolderHub, setServiceFolderHub] = useState<ServiceTreeNode | null>(null);
   const [loading, setLoading] = useState(true);
   const [callbackModalOpen, setCallbackModalOpen] = useState(false);
-  const folderSlug = slugParts.length > 1 ? slugParts[0] : null;
-  const folderTitle = folderSlug
-    ? decodeURIComponent(folderSlug)
-        .replace(/-/g, " ")
-        .replace(/^\p{L}/u, (ch) => ch.toUpperCase())
-    : null;
 
   useEffect(() => {
     if (slugParts.length === 0) {
@@ -228,6 +230,74 @@ export default function Page() {
     };
   }, [page]);
 
+  useEffect(() => {
+    if (isArticlesPage) return;
+    const root = contentRootRef.current;
+    if (!root) return;
+    ensureCoverBgLayers(root);
+  }, [page, previewScale, isArticlesPage]);
+
+  useEffect(() => {
+    if (isArticlesPage) return;
+    const viewport = previewViewportRef.current;
+    const canvas = previewCanvasRef.current;
+    if (!viewport || !canvas) return;
+
+    const recalc = () => {
+      const vw = Math.max(1, viewport.clientWidth);
+      const nextScale = vw / PREVIEW_BASE_WIDTH;
+      const baseHeight = Math.max(canvas.scrollHeight, canvas.offsetHeight, 1);
+      setPreviewScale(nextScale);
+      setPreviewScaledHeight(baseHeight * nextScale);
+    };
+
+    recalc();
+    const observer = new ResizeObserver(recalc);
+    observer.observe(viewport);
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, [page, loading, isArticlesPage]);
+
+  useEffect(() => {
+    if (!page) return;
+    const extractBgUrl = (value: string): string | null => {
+      if (!value.includes("url(")) return null;
+      const start = value.indexOf("url(");
+      let s = value.slice(start + 4).trim();
+      if (s.startsWith('"')) {
+        const end = s.indexOf('"', 1);
+        if (end < 0) return null;
+        return s.slice(1, end).replace(/\\"/g, '"').replace(/\\\\/g, "\\");
+      }
+      if (s.startsWith("'")) {
+        const end = s.indexOf("'", 1);
+        if (end < 0) return null;
+        return s.slice(1, end);
+      }
+      const end = s.indexOf(")");
+      return end >= 0 ? s.slice(0, end).trim() : null;
+    };
+    const covers = Array.from(
+      document.querySelectorAll(".page-content .page-web-cover[data-cover-type=\"split\"]"),
+    ) as HTMLElement[];
+    covers.forEach((cover) => {
+      const src = extractBgUrl(cover.style.background || "");
+      if (src && !cover.style.getPropertyValue("--cover-bg-image").trim()) {
+        const safe = src.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+        cover.style.setProperty("--cover-bg-image", `url("${safe}")`);
+      }
+      if (!cover.style.getPropertyValue("--cover-bg-pos").trim()) {
+        const x = Number.parseFloat(cover.getAttribute("data-cover-bg-x") || "50");
+        const y = Number.parseFloat(cover.getAttribute("data-cover-bg-y") || "50");
+        const nx = Number.isFinite(x) ? Math.min(100, Math.max(0, x)) : 50;
+        const ny = Number.isFinite(y) ? Math.min(100, Math.max(0, y)) : 50;
+        cover.style.setProperty("--cover-bg-pos", `${nx}% ${ny}%`);
+      }
+    });
+    const root = contentRootRef.current;
+    if (root) ensureCoverBgLayers(root);
+  }, [page]);
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100 text-slate-900">
@@ -352,41 +422,13 @@ export default function Page() {
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
-      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
-        <nav
-          aria-label="Хлебные крошки"
-          className="mb-5 flex flex-wrap items-center gap-1.5 text-sm text-slate-500"
-        >
-          <Link
-            href="/"
-            className="inline-flex items-center rounded p-1 hover:bg-slate-200 hover:text-slate-700"
-            aria-label="Главная"
-          >
-            <HomeIcon className="h-4 w-4" />
-          </Link>
-          <ChevronRightIcon className="h-4 w-4 text-slate-400" />
-          {folderSlug ? (
-            <>
-              <Link
-                href={`/${folderSlug}`}
-                className="rounded px-1 py-0.5 text-slate-600 hover:bg-slate-200 hover:text-slate-800"
-              >
-                <PublicFolderBreadcrumbLabel
-                  folderSlug={folderSlug}
-                  fallbackTitle={folderTitle ?? ""}
-                />
-              </Link>
-              <ChevronRightIcon className="h-4 w-4 text-slate-400" />
-            </>
-          ) : null}
-          <span className="rounded px-1 py-0.5 text-slate-700">{page.title}</span>
-        </nav>
-
-        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+      <div className="mx-auto w-full pb-6 pt-0">
+        <section>
           <PublicCarouselViewportSync />
 
+          {isArticlesPage ? (
           <main
-            className="space-y-4"
+            className="page-editor goz-full-width"
             onClick={(e) => {
               const target = e.target as HTMLElement;
               const link = target.closest?.("a.page-web-cover-el-button") as HTMLAnchorElement | null;
@@ -409,15 +451,10 @@ export default function Page() {
             }
             if (block.type === "text") {
               const html = typeof block.data.text === "string" ? block.data.text : "";
-              const isArticlesSection = slugParts[0] === "articles";
               return (
                 <div
                   key={block.id}
-                  className={
-                    isArticlesSection
-                      ? "article-page-content page-content"
-                      : "page-content text-base leading-relaxed text-slate-800"
-                  }
+                  className="article-page-content page-content"
                   dangerouslySetInnerHTML={{ __html: html }}
                 />
               );
@@ -438,12 +475,76 @@ export default function Page() {
             </p>
           )}
           </main>
+          ) : (
+          <div ref={previewViewportRef} className="w-full overflow-hidden">
+            <div style={{ height: previewScaledHeight !== null ? `${previewScaledHeight}px` : undefined }}>
+              <main
+                ref={(node) => {
+                  previewCanvasRef.current = node;
+                  contentRootRef.current = node;
+                }}
+                className="page-editor goz-full-width"
+                style={{
+                  width: `${PREVIEW_BASE_WIDTH}px`,
+                  transform: `scale(${previewScale})`,
+                  transformOrigin: "top left",
+                }}
+                onClick={(e) => {
+                  const target = e.target as HTMLElement;
+                  const link = target.closest?.("a.page-web-cover-el-button") as HTMLAnchorElement | null;
+                  if (!link) return;
+                  const href = (link.getAttribute("href") || "").trim();
+                  if (href !== CALLBACK_FORM_LINK) return;
+                  e.preventDefault();
+                  setCallbackModalOpen(true);
+                }}
+              >
+          {page.blocks.map((block) => {
+            if (
+              block.type === "summary" ||
+              block.type === "preview" ||
+              block.type === "keywords" ||
+              block.type === "seo_title" ||
+              block.type === "seo_description"
+            ) {
+              return null;
+            }
+            if (block.type === "text") {
+              const html = typeof block.data.text === "string" ? block.data.text : "";
+              return (
+                <div
+                  key={block.id}
+                  className="page-content text-[12px] leading-relaxed text-slate-800"
+                  dangerouslySetInnerHTML={{ __html: html }}
+                />
+              );
+            }
+
+            return (
+              <div
+                key={block.id}
+                className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3 text-xs text-slate-500"
+              >
+                Неподдерживаемый тип блока: {block.type}
+              </div>
+            );
+          })}
+          {page.blocks.length === 0 && (
+            <p className="text-sm text-slate-500">
+              У этой страницы пока нет контента.
+            </p>
+          )}
+              </main>
+            </div>
+          </div>
+          )}
           <CallbackRequestModal
             open={callbackModalOpen}
             onClose={() => setCallbackModalOpen(false)}
             sourceMessage="Заявка из кнопки обложки страницы."
           />
           <style>{`
+          ${getSharedWebBlocksCss(".page-content")}
           .page-content img { max-width: 100%; height: auto; }
           .page-content table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; }
           .page-content td, .page-content th { border: 1px solid #cbd5e1; padding: 0.5rem; vertical-align: top; }
@@ -473,40 +574,40 @@ export default function Page() {
           .page-content ol > li[data-marker-bold]::before { font-weight: bold; }
           .page-content li { margin: 0.15rem 0; }
           .page-content p { margin: 0.5rem 0; }
-          .page-content .page-web-cover { display: flex; flex-direction: column; width: 100%; max-width: 100%; margin: 1.25rem 0; padding: 1.25rem 1.5rem; border-radius: 12px; background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 45%, #f8fafc 100%); border: 1px solid #cbd5e1; box-sizing: border-box; overflow: hidden; }
-          .page-content .page-web-cover.page-web-cover-has-bg { background-color: #e2e8f0; }
-          .page-content .page-web-cover[data-cover-aspect="16-9"],
-          .page-content .page-web-cover:not([data-cover-aspect]) { aspect-ratio: 16 / 9; }
-          .page-content .page-web-cover[data-cover-aspect="4-3"] { aspect-ratio: 4 / 3; }
-          .page-content .page-web-cover[data-cover-aspect="21-9"] { aspect-ratio: 21 / 9; }
-          .page-content .page-web-cover[data-cover-aspect="1-1"] { aspect-ratio: 1 / 1; }
-          .page-content .page-web-cover[data-cover-aspect="1-8"] { aspect-ratio: 2 / 1; }
-          .page-content .page-web-cover[data-cover-aspect="1-4"] { aspect-ratio: 4 / 1; }
-          .page-content .page-web-cover[data-cover-aspect="3-1"] { aspect-ratio: 3 / 1; }
-          .page-content .page-web-cover[data-cover-aspect="8-1"] { aspect-ratio: 8 / 1; }
-          .page-content .page-web-cover-inner { flex: 1; min-height: 0; max-width: 100%; width: 100%; display: flex; flex-direction: column; padding-left: 2.25rem; padding-right: 1rem; box-sizing: border-box; }
-          .page-content .page-web-cover[data-cover-halign="left"] .page-web-cover-inner,
-          .page-content .page-web-cover:not([data-cover-halign]) .page-web-cover-inner { align-items: flex-start; text-align: left; }
-          .page-content .page-web-cover[data-cover-halign="center"] .page-web-cover-inner { align-items: center; text-align: center; }
-          .page-content .page-web-cover[data-cover-halign="right"] .page-web-cover-inner { align-items: flex-end; text-align: right; }
-          .page-content .page-web-cover[data-cover-valign="top"] .page-web-cover-inner,
-          .page-content .page-web-cover:not([data-cover-valign]) .page-web-cover-inner { justify-content: flex-start; }
-          .page-content .page-web-cover[data-cover-valign="middle"] .page-web-cover-inner { justify-content: center; }
-          .page-content .page-web-cover[data-cover-valign="bottom"] .page-web-cover-inner { justify-content: flex-end; }
-          .page-content .page-web-cover-el-title { margin: 0 0 0.35rem; font-size: clamp(1.25rem, 3vw, 1.75rem); font-weight: 700; color: #0f172a; line-height: 1.2; }
-          .page-content .page-web-cover-el-subtitle { margin: 0 0 0.75rem; font-size: 0.95rem; color: #475569; line-height: 1.45; max-width: 36rem; }
-          .page-content .page-web-cover-el-button-wrap { margin: 0; }
-          .page-content .page-web-cover-el-button { display: inline-flex; align-items: center; justify-content: center; padding: 0.45rem 1rem; font-size: 0.875rem; font-weight: 600; color: #fff; background: #496db3; border-radius: 9999px; text-decoration: none; cursor: pointer; box-sizing: border-box; }
-          .page-content .page-web-cover-el-button:hover { filter: brightness(1.05); }
+          .goz-full-width .page-content { width: 100%; max-width: none; }
+          .goz-full-width .page-content .page-web-cover,
+          .goz-full-width .page-content .page-web-carousel,
+          .goz-full-width .page-content .page-web-timeline,
+          .goz-full-width .page-content .page-web-text-media,
+          .goz-full-width .page-content .page-web-text-block { max-width: none; width: 100%; }
+          .page-content .page-web-text-block:not([data-text-block-variant="feature-grid"]) { width: 100%; margin: 1.25rem 0; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; padding: 1rem; box-sizing: border-box; }
+          .page-content .page-web-text-block h3 { margin: 0 0 0.55rem; font-size: 1.2rem; line-height: 1.2; color: #0f172a; }
+          .page-content .page-web-text-block p { margin: 0; color: #475569; line-height: 1.55; }
+          .page-content .page-web-text-media { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1rem; width: 100%; margin: 1.25rem 0; }
+          .page-content .page-web-text-media-col { min-height: 210px; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; padding: 1rem; box-sizing: border-box; overflow-wrap: anywhere; }
+          .page-content .page-web-text-media-col--media { background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%); display: flex; align-items: center; justify-content: center; text-align: center; color: #64748b; }
+          .page-content .page-web-text-media-col h3 { margin: 0 0 0.55rem; font-size: 1.2rem; line-height: 1.2; color: #0f172a; }
+          .page-content .page-web-text-media-col p { margin: 0; color: #475569; line-height: 1.55; }
+          .page-content .page-web-text-media-placeholder { color: #64748b; font-size: 0.9rem; }
+          @media (max-width: 767px) {
+            .page-content .page-web-text-media { grid-template-columns: 1fr; }
+            .page-content .page-web-text-media-col { min-height: 160px; }
+          }
           .page-content .page-web-timeline { --timeline-dot-size: 0.8rem; --timeline-line-size: 2px; --timeline-term-gap: 1.35rem; --timeline-gap: 1rem; position: relative; width: 100%; margin: 1.25rem 0; padding-top: var(--timeline-term-gap); display: grid; grid-template-columns: repeat(var(--timeline-cols, 3), minmax(0, 1fr)); gap: var(--timeline-gap); box-sizing: border-box; }
+          .page-content .page-web-timeline-head { grid-column: 1 / -1; margin: 0 0 0.6rem; display: grid; gap: 0; text-align: center; }
+          .page-content .page-web-timeline-subtitle { margin: 0; color: #b91c1c; font-size: clamp(0.76rem, 1.15cqi, 0.88rem); line-height: 1; font-weight: 600; }
+          .page-content .page-web-timeline-heading { margin: 0; color: #496db3; font-size: clamp(0.98rem, 2.7cqi, 1.75rem); line-height: 1; letter-spacing: -0.02em; font-weight: 600; }
+          .page-content .page-web-timeline-subtitle + .page-web-timeline-heading { margin-top: -0.16rem; }
+          .page-content .page-web-timeline-description { margin: 0; color: #64748b; font-size: inherit; line-height: 1.5; }
+          .page-content .page-web-timeline-heading + .page-web-timeline-description { margin-top: 1rem; }
           .page-content .page-web-timeline-item { position: relative; min-height: 1.5rem; padding-top: calc(var(--timeline-dot-size) + 0.35rem); }
           .page-content .page-web-timeline-item::before { content: none; }
           .page-content .page-web-timeline-item ~ .page-web-timeline-item::before { content: ""; position: absolute; top: calc(var(--timeline-dot-size) / 2 - var(--timeline-line-size) / 2); left: calc(-50% - var(--timeline-gap)); width: calc(100% + var(--timeline-gap)); height: var(--timeline-line-size); background: #cbd5e1; pointer-events: none; z-index: 1; }
-          .page-content .page-web-timeline-term { position: absolute; left: calc(0px - (var(--timeline-gap) / 2)); top: calc((var(--timeline-dot-size) / 2) - var(--timeline-term-gap)); transform: translateX(-50%); margin: 0; padding: 0 0.45rem; font-size: 0.78rem; font-weight: 600; color: #64748b; line-height: 1.25; white-space: nowrap; background: #fff; }
+          .page-content .page-web-timeline-term { position: absolute; left: calc(0px - (var(--timeline-gap) / 2)); top: calc((var(--timeline-dot-size) / 2) - var(--timeline-term-gap)); transform: translateX(-50%); margin: 0; padding: 0 0.45rem; font-size: clamp(0.76rem, 1.15cqi, 0.88rem); font-weight: 600; color: #64748b; line-height: 1.25; white-space: nowrap; background: #fff; }
           .page-content .page-web-timeline-dot { position: absolute; left: 50%; top: 0; transform: translateX(-50%); width: var(--timeline-dot-size); height: var(--timeline-dot-size); border-radius: 9999px; background: #496db3; box-shadow: 0 0 0 3px #e2e8f0; z-index: 2; }
           .page-content .page-web-timeline-content { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; padding-left: 0; text-align: center; }
-          .page-content .page-web-timeline-title { margin: 0; font-size: 1rem; font-weight: 700; color: #0f172a; line-height: 1.35; text-align: center; }
-          .page-content .page-web-timeline-text { margin: 0; font-size: 0.95rem; color: #475569; line-height: 1.55; text-align: center; }
+          .page-content .page-web-timeline-title { margin: 0; font-size: inherit; font-weight: 700; color: #0f172a; line-height: 1.5; text-align: center; }
+          .page-content .page-web-timeline-text { margin: 0; font-size: inherit; color: #475569; line-height: 1.5; text-align: center; }
           @media (max-width: 767px) {
             .page-content .page-web-timeline { grid-template-columns: 1fr; --timeline-gap: 1rem; }
             .page-content .page-web-timeline-item { min-height: 0; padding-top: 0; padding-left: 1.5rem; }
@@ -515,6 +616,7 @@ export default function Page() {
             .page-content .page-web-timeline-item:not(:last-of-type)::before { content: ""; position: absolute; left: calc(var(--timeline-dot-size) / 2 - var(--timeline-line-size) / 2); top: calc(0.2rem + (var(--timeline-dot-size) / 2) - (var(--timeline-line-size) / 2)); width: var(--timeline-line-size); height: calc(100% + var(--timeline-gap)); background: #cbd5e1; pointer-events: none; z-index: 1; }
             .page-content .page-web-timeline-dot { left: 0; top: 0.2rem; transform: none; }
             .page-content .page-web-timeline-term { position: static; transform: none; margin: 0 0 0.35rem; padding: 0; background: transparent; text-align: left; }
+            .page-content .page-web-timeline-head { text-align: left; }
             .page-content .page-web-timeline-content { align-items: flex-start; text-align: left; }
             .page-content .page-web-timeline-title,
             .page-content .page-web-timeline-text { text-align: left; }
@@ -570,6 +672,14 @@ export default function Page() {
           .page-content .page-web-carousel-viewport::-webkit-scrollbar-track { background: transparent; }
           .page-content .page-web-carousel-viewport::-webkit-scrollbar-thumb { background-color: rgba(100, 116, 139, 0.35); border-radius: 999px; }
           .page-content .page-web-carousel-viewport::-webkit-scrollbar-thumb:hover { background-color: rgba(71, 85, 105, 0.5); }
+          .page-editor .page-content { padding: 0 1rem 1rem; box-sizing: border-box; }
+          ${getSharedWebBlocksCss(".page-editor")}
+          ${getSharedWebBlocksCss(".page-content")}
+          ${getPageShowRenderCss(".page-editor .page-content")}
+          .page-content .page-web-feature-grid-image,
+          .page-editor .page-content .page-web-feature-grid-image {
+            border: none !important;
+          }
           `}</style>
         </section>
       </div>
