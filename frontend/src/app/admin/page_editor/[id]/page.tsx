@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { useParams } from "next/navigation";
 import { apiGet, apiPut } from "@/lib/api";
 import { getSharedWebBlocksCss } from "@/lib/sharedWebBlocksCss";
-import { getPageShowRenderCss } from "@/lib/pageShowRender";
+import { getPageShowRenderCss, getWorkPricingRenderCss } from "@/lib/pageShowRender";
 import {
   alignCarouselStripToStartSlideIndex,
   getCarouselSlideWidthPx,
@@ -942,6 +942,33 @@ function getWorkPricingTextBlockHtml(): string {
   ).replace('data-web-element="text-block"', 'data-web-element="text-block" data-text-block-variant="work-pricing"');
 }
 
+function addOneWorkPricingItem(block: HTMLElement): boolean {
+  const content = block.querySelector(":scope > .page-web-text-block-content") as HTMLElement | null;
+  const list = content?.querySelector(".page-web-work-pricing .wrf") as HTMLElement | null;
+  if (!list) return false;
+  const nextIndex = list.querySelectorAll(":scope > li").length + 1;
+  const li = document.createElement("li");
+  li.className = "wrj wsb";
+  li.innerHTML =
+    '<svg viewBox="0 0 20 20" fill="currentColor" data-slot="icon" aria-hidden="true" class="wrl wrn wru wtq">' +
+    '<path d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd" fill-rule="evenodd"></path>' +
+    "</svg>" +
+    "Новый пункт " +
+    String(nextIndex);
+  list.appendChild(li);
+  return true;
+}
+
+function removeOneWorkPricingItem(block: HTMLElement): boolean {
+  const content = block.querySelector(":scope > .page-web-text-block-content") as HTMLElement | null;
+  const list = content?.querySelector(".page-web-work-pricing .wrf") as HTMLElement | null;
+  if (!list) return false;
+  const items = Array.from(list.querySelectorAll(":scope > li")) as HTMLElement[];
+  if (items.length <= 1) return false;
+  items[items.length - 1]?.remove();
+  return true;
+}
+
 type CoverInsertBlockKind =
   | "title"
   | "subtitle"
@@ -1162,6 +1189,8 @@ function getWebTextBlockToolbarHtml(): string {
     "</div></div>" +
     "</div></div>" +
     '<div class="page-web-text-block-menu-sep page-web-text-block-menu-sep--feature-grid" aria-hidden="true"></div>' +
+    '<button type="button" role="menuitem" class="page-web-text-block-menu-element page-web-text-block-menu-element--work-pricing" contenteditable="false" tabindex="-1" data-work-pricing-action="add-item">Добавить пункт</button>' +
+    '<button type="button" role="menuitem" class="page-web-text-block-menu-element page-web-text-block-menu-element--work-pricing" contenteditable="false" tabindex="-1" data-work-pricing-action="remove-item">Убрать пункт</button>' +
     '<button type="button" role="menuitem" class="page-web-text-block-menu-delete" contenteditable="false" tabindex="-1">Удалить блок</button>' +
     "</div></div>"
   );
@@ -4061,6 +4090,8 @@ export default function PageEditorDetailsPage() {
           !toolbar.querySelector(".page-web-block-move-up") ||
           !toolbar.querySelector(".page-web-block-move-down") ||
           !toolbar.querySelector(".page-web-text-block-menu-delete") ||
+          !toolbar.querySelector('[data-work-pricing-action="add-item"]') ||
+          !toolbar.querySelector('[data-work-pricing-action="remove-item"]') ||
           !toolbar.querySelector(".page-web-text-block-menu-sub-trigger") ||
           !toolbar.querySelector('[data-toggle-feature-grid-element="title"]') ||
           !toolbar.querySelector('[data-feature-grid-set-cols="4"]') ||
@@ -7387,6 +7418,24 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       return;
     }
 
+    const workPricingActionBtn = target.closest?.("[data-work-pricing-action]") as HTMLElement | null;
+    if (workPricingActionBtn) {
+      if (block.getAttribute("data-text-block-variant") === "work-pricing") {
+        const action = workPricingActionBtn.getAttribute("data-work-pricing-action");
+        if (action === "add-item" || action === "remove-item") {
+          const changed = action === "add-item"
+            ? addOneWorkPricingItem(block)
+            : removeOneWorkPricingItem(block);
+          if (changed) {
+            setContentHtml(ed.innerHTML);
+            setTimeout(() => updateToolbarState(), 0);
+          }
+        }
+      }
+      closeTextBlockToolbarMenus(toolbar);
+      return;
+    }
+
     const delBtn = target.closest?.(".page-web-text-block-menu-delete");
     if (delBtn) {
       closeTextBlockToolbarMenus(toolbar);
@@ -8595,7 +8644,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-editor-image-resize-se { bottom: -5px; right: -5px; cursor: se-resize; }
         .page-editor .page-editor-image-resize-sw { bottom: -5px; left: -5px; cursor: sw-resize; }
         ${getPageShowRenderCss(".page-editor")}
-        .page-editor .page-web-timeline { --timeline-dot-size: 0.8rem; --timeline-line-size: 2px; --timeline-term-gap: 1.35rem; --timeline-gap: 0.9rem; position: relative; width: 100%; margin: 1rem 0; padding-top: var(--timeline-term-gap); display: grid; grid-template-columns: repeat(var(--timeline-cols, 3), minmax(0, 1fr)); gap: var(--timeline-gap); box-sizing: border-box; }
+        .page-editor .page-web-timeline { --timeline-dot-size: 0.8rem; --timeline-line-size: 2px; --timeline-term-gap: 1.35rem; --timeline-gap: 0.9rem; position: relative; width: 100%; margin: 0 0 1rem; padding-top: var(--timeline-term-gap); display: grid; grid-template-columns: repeat(var(--timeline-cols, 3), minmax(0, 1fr)); gap: var(--timeline-gap); box-sizing: border-box; }
         .page-editor .page-web-timeline-head { grid-column: 1 / -1; margin: 0 0 0.6rem; display: grid; gap: 0; text-align: center; }
         .page-editor .page-web-timeline-subtitle { margin: 0; color: #b91c1c; font-size: clamp(0.76rem, 1.15cqi, 0.88rem); line-height: 1; font-weight: 600; }
         .page-editor .page-web-timeline-heading { margin: 0; color: #496db3; font-size: clamp(0.98rem, 2.7cqi, 1.75rem); line-height: 1; font-weight: 600; letter-spacing: -0.02em; }
@@ -8733,6 +8782,8 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-text-block-menu-sub { position: relative; display: none; }
         .page-editor .page-web-text-block-toolbar[data-text-block-variant="feature-grid"] .page-web-text-block-menu-sub--feature-grid-elements { display: block; }
         .page-editor .page-web-text-block-toolbar[data-text-block-variant="feature-grid"] .page-web-text-block-menu-sub--feature-grid-extra { display: block; }
+        .page-editor .page-web-text-block-menu-element--work-pricing { display: none; }
+        .page-editor .page-web-text-block-toolbar[data-text-block-variant="work-pricing"] .page-web-text-block-menu-element--work-pricing { display: block; }
         .page-editor .page-web-text-block-menu-sub-panel .page-web-text-block-menu-sub { display: block; }
         .page-editor .page-web-text-block-menu-sub-trigger { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; font-size: 13px; font-weight: 500; color: #0f172a; background: transparent; border: none; cursor: pointer; border-radius: 4px; text-align: left; }
         .page-editor .page-web-text-block-menu-sub-trigger:hover { background: #f1f5f9; }
@@ -8760,6 +8811,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-text-block-content { outline: none; }
         .page-editor .page-web-text-block-content h3 { margin: 0 0 0.55rem; font-size: 1.2rem; line-height: 1.2; color: #0f172a; }
         .page-editor .page-web-text-block-content p { margin: 0; color: #475569; line-height: 1.55; }
+        ${getWorkPricingRenderCss(".page-editor")}
         .page-editor .page-web-text-media-col { min-height: 210px; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; padding: 1rem; box-sizing: border-box; outline: none; }
         .page-editor .page-web-text-media-col--media { background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%); display: flex; align-items: center; justify-content: center; text-align: center; color: #64748b; }
         .page-editor .page-web-text-media-col h3 { margin: 0 0 0.55rem; font-size: 1.2rem; line-height: 1.2; color: #0f172a; }

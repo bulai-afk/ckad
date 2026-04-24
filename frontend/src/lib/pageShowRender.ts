@@ -66,6 +66,139 @@ export function ensureCoverBgLayers(root: ParentNode): void {
   });
 }
 
+export function getTimelineRenderCss(scope: string): string {
+  return `
+${scope} .page-web-timeline { --timeline-dot-size: 0.8rem; --timeline-line-size: 2px; --timeline-term-gap: 1.35rem; --timeline-gap: 1rem; position: relative; width: 100%; margin: 0 0 1.25rem; padding-top: var(--timeline-term-gap); display: grid; grid-template-columns: repeat(var(--timeline-cols, 3), minmax(0, 1fr)); gap: var(--timeline-gap); box-sizing: border-box; }
+${scope} .page-web-timeline-head { grid-column: 1 / -1; margin: 0 0 0.6rem; display: grid; gap: 0; text-align: center; }
+${scope} .page-web-timeline-subtitle { margin: 0; color: #b91c1c; font-size: clamp(0.76rem, 1.15cqi, 0.88rem); line-height: 1; font-weight: 600; }
+${scope} .page-web-timeline-heading { margin: 0; color: #496db3; font-size: clamp(0.98rem, 2.7cqi, 1.75rem); line-height: 1; letter-spacing: -0.02em; font-weight: 600; }
+${scope} .page-web-timeline-subtitle + .page-web-timeline-heading { margin-top: -0.16rem; }
+${scope} .page-web-timeline-description { margin: 0; color: #64748b; font-size: inherit; line-height: 1.5; }
+${scope} .page-web-timeline-heading + .page-web-timeline-description { margin-top: 1rem; }
+${scope} .page-web-timeline-item { position: relative; min-height: 1.5rem; padding-top: calc(var(--timeline-dot-size) + 0.35rem); }
+${scope} .page-web-timeline-item::before { content: none; }
+${scope} .page-web-timeline-item ~ .page-web-timeline-item::before { content: ""; position: absolute; top: calc(var(--timeline-dot-size) / 2 - var(--timeline-line-size) / 2); left: calc(-50% - var(--timeline-gap)); width: calc(100% + var(--timeline-gap)); height: var(--timeline-line-size); background: #cbd5e1; pointer-events: none; z-index: 1; }
+${scope} .page-web-timeline-term { position: absolute; left: calc(0px - (var(--timeline-gap) / 2)); top: calc((var(--timeline-dot-size) / 2) - var(--timeline-term-gap)); transform: translateX(-50%); margin: 0; padding: 0 0.45rem; font-size: clamp(0.76rem, 1.15cqi, 0.88rem); font-weight: 600; color: #64748b; line-height: 1.25; white-space: nowrap; background: #fff; }
+${scope} .page-web-timeline-dot { position: absolute; left: 50%; top: 0; transform: translateX(-50%); width: var(--timeline-dot-size); height: var(--timeline-dot-size); border-radius: 9999px; background: #496db3; box-shadow: 0 0 0 3px #e2e8f0; z-index: 2; }
+${scope} .page-web-timeline-content { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; padding-left: 0; text-align: center; }
+${scope} .page-web-timeline-title { margin: 0; font-size: inherit; font-weight: 700; color: #0f172a; line-height: 1.5; text-align: center; }
+${scope} .page-web-timeline-text { margin: 0; font-size: inherit; color: #475569; line-height: 1.5; text-align: center; }
+@media (max-width: 767px) {
+${scope} .page-web-timeline { grid-template-columns: 1fr; --timeline-gap: 1rem; }
+${scope} .page-web-timeline-item { min-height: 0; padding-top: 0; padding-left: 1.5rem; }
+${scope} .page-web-timeline-item::before { content: none; }
+${scope} .page-web-timeline-item ~ .page-web-timeline-item::before { content: none; }
+${scope} .page-web-timeline-item:not(:last-of-type)::before { content: ""; position: absolute; left: calc(var(--timeline-dot-size) / 2 - var(--timeline-line-size) / 2); top: calc(0.2rem + (var(--timeline-dot-size) / 2) - (var(--timeline-line-size) / 2)); width: var(--timeline-line-size); height: calc(100% + var(--timeline-gap)); background: #cbd5e1; pointer-events: none; z-index: 1; }
+${scope} .page-web-timeline-dot { left: 0; top: 0.2rem; transform: none; }
+${scope} .page-web-timeline-term { position: static; transform: none; margin: 0 0 0.35rem; padding: 0; background: transparent; text-align: left; }
+${scope} .page-web-timeline-head { text-align: left; }
+${scope} .page-web-timeline-content { align-items: flex-start; text-align: left; }
+${scope} .page-web-timeline-title,
+${scope} .page-web-timeline-text { text-align: left; }
+}
+`;
+}
+
+export function getWorkPricingRenderCss(scope: string): string {
+  return `
+${scope} .page-web-work-pricing .wrc { margin-inline: auto; }
+${scope} .page-web-work-pricing .wrh { margin-top: 0; }
+${scope} .page-web-work-pricing .wrp { max-width: 42rem; }
+${scope} .page-web-work-pricing .wse { border-radius: 1.5rem; }
+${scope} .page-web-work-pricing .wtv { --tw-ring-color: #e5e7eb; }
+${scope} .page-web-work-pricing .wtt { box-shadow: 0 0 0 1px var(--tw-ring-color, #e5e7eb); }
+${scope} .page-web-work-pricing .wrc.wse.wtt { background: #ffffff; }
+${scope} .page-web-work-pricing .wsp { padding: 2rem 1.5rem; }
+${scope} .page-web-work-pricing .wui { width: 100%; }
+${scope} .page-web-work-pricing .wuu { display: grid; align-content: start; gap: 1rem; }
+${scope} .page-web-work-pricing .wsx { margin: 0; color: #496db3; font-size: clamp(1.35rem, 2.9cqi, 2rem); line-height: 1.15; letter-spacing: -0.02em; }
+${scope} .page-web-work-pricing h3.wsx.wto { color: #496db3 !important; }
+${scope} .page-web-work-pricing .wre { margin: 0; }
+${scope} .page-web-work-pricing .wta { line-height: 1.6; }
+${scope} .page-web-work-pricing .wtn { color: #4b5563; }
+${scope} .page-web-work-pricing .wrg { display: flex; }
+${scope} .page-web-work-pricing .wrj { align-items: center; }
+${scope} .page-web-work-pricing .wrx { margin-top: 0.25rem; }
+${scope} .page-web-work-pricing .wsc { gap: 0.7rem; }
+${scope} .page-web-work-pricing .wru { font-size: 0.94rem; }
+${scope} .page-web-work-pricing .wtd { line-height: 1.35; }
+${scope} .page-web-work-pricing .wtg { font-weight: 700; }
+${scope} .page-web-work-pricing .wtq { color: #b91c1c; }
+${scope} .page-web-work-pricing .wrm { flex: 1 1 0%; display: flex; align-items: center; }
+${scope} .page-web-work-pricing .wrt { height: 1px; margin: 0; position: relative; top: 0; }
+${scope} .page-web-work-pricing .wsh { background: #e5e7eb; }
+${scope} .page-web-work-pricing .wrf { margin: 0; padding: 0 !important; list-style: none !important; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+${scope} .page-web-work-pricing .wrk { gap: 0.75rem 1rem; }
+${scope} .page-web-work-pricing .wrv { color: #111827; }
+${scope} .page-web-work-pricing .wrz { line-height: 1.5; }
+${scope} .page-web-work-pricing .wug { margin-top: 0.25rem; }
+${scope} .page-web-work-pricing .wuh { font-size: inherit; }
+${scope} .page-web-work-pricing .wsb { display: flex; gap: 0.5rem; align-items: center; color: #111827; }
+${scope} .page-web-work-pricing .wrf > li::before { content: none !important; display: none !important; }
+${scope} .page-web-work-pricing .wrl { width: 1rem; display: inline-block; }
+${scope} .page-web-work-pricing .wrn { height: 1rem; color: #496db3; stroke: currentColor; stroke-width: 1.2; }
+${scope} .page-web-work-pricing .wrd { background: #f3f4f6; padding: 0.8rem; display: flex; align-items: center; }
+${scope} .page-web-work-pricing .wso { align-items: center; }
+${scope} .page-web-work-pricing .wup { border-radius: 1rem; }
+${scope} .page-web-work-pricing .wur { width: 100%; }
+${scope} .page-web-work-pricing .wus { text-align: center; }
+${scope} .page-web-work-pricing .wuv { justify-content: center; }
+${scope} .page-web-work-pricing .wsd { border-radius: 1rem; }
+${scope} .page-web-work-pricing .wsg { background: #f3f4f6; }
+${scope} .page-web-work-pricing .wsu { width: 100%; }
+${scope} .page-web-work-pricing .wsw { display: grid; }
+${scope} .page-web-work-pricing .wtu { justify-items: center; }
+${scope} .page-web-work-pricing .wtx { align-content: center; }
+${scope} .page-web-work-pricing .wuw { gap: 0.85rem; }
+${scope} .page-web-work-pricing .wux { padding: 1.2rem 1rem; }
+${scope} .page-web-work-pricing .wuz { text-align: center; }
+${scope} .page-web-work-pricing .wrs { width: 100%; max-width: 16.5rem; }
+${scope} .page-web-work-pricing .wss { margin-inline: auto; }
+${scope} .page-web-work-pricing .wsz { color: #4b5563; font-size: 0.95rem; line-height: 1.4; font-weight: 600; }
+${scope} .page-web-work-pricing .wrw { justify-content: center; }
+${scope} .page-web-work-pricing .wry { gap: 0.35rem; }
+${scope} .page-web-work-pricing .wsa { margin-top: 0.1rem; }
+${scope} .page-web-work-pricing .wsy { font-size: clamp(1.85rem, 4.2cqi, 3rem); line-height: 1; letter-spacing: -0.02em; }
+${scope} .page-web-work-pricing .wsy.wto { color: #496db3 !important; }
+${scope} .page-web-work-pricing .wth { font-weight: 700; }
+${scope} .page-web-work-pricing .wto { color: #111827; }
+${scope} .page-web-work-pricing .wti { font-size: 0.9rem; }
+${scope} .page-web-work-pricing .wri { width: 100%; }
+${scope} .page-web-work-pricing .wro { margin-top: 0.15rem; }
+${scope} .page-web-work-pricing .wsf { justify-content: center; }
+${scope} .page-web-work-pricing .wsl { border-radius: 0.45rem; }
+${scope} .page-web-work-pricing .wsq { border: 1px solid #4f46e5; }
+${scope} .page-web-work-pricing .wst { background: #4f46e5; }
+${scope} .page-web-work-pricing .wtc { color: #fff; }
+${scope} .page-web-work-pricing .wtr { font-size: 0.92rem; }
+${scope} .page-web-work-pricing .wts { line-height: 1.3; }
+${scope} .page-web-work-pricing .wua { font-weight: 700; }
+${scope} .page-web-work-pricing .wub { text-decoration: none; }
+${scope} .page-web-work-pricing .wuc { padding: 0.58rem 0.86rem; }
+${scope} .page-web-work-pricing .wue { display: inline-flex; }
+${scope} .page-web-work-pricing .wte { margin-top: 0.85rem; font-size: 0.88rem; line-height: 1.5; color: #6b7280; }
+${scope} .page-web-work-pricing .wue { background: #496db3 !important; border-color: #496db3 !important; color: #ffffff !important; }
+${scope} .page-web-work-pricing .wue:hover { background: #3f5f9b !important; border-color: #3f5f9b !important; color: #ffffff !important; }
+${scope} .page-web-work-pricing a.wrg.wri.wro.wsf.wsl.wsq.wst.wsw.wtc.wtg.wtr.wts.wua.wub.wuc.wue { background: #496db3 !important; border-color: #496db3 !important; color: #ffffff !important; }
+${scope} .page-web-work-pricing a.wrg.wri.wro.wsf.wsl.wsq.wst.wsw.wtc.wtg.wtr.wts.wua.wub.wuc.wue:hover { background: #3f5f9b; border-color: #3f5f9b; }
+@media (max-width: 767px) {
+${scope} .page-web-work-pricing .wrf { grid-template-columns: minmax(0, 1fr); }
+${scope} .page-web-work-pricing .wsp { padding: 1.25rem 1rem; }
+${scope} .page-web-work-pricing .wrd { padding: 0.65rem; }
+}
+@media (min-width: 1024px) {
+${scope} .page-web-work-pricing .wut { max-width: none; }
+${scope} .page-web-work-pricing .wuq { display: flex; }
+${scope} .page-web-work-pricing .wuo { margin-inline: 0; }
+${scope} .page-web-work-pricing .wsp { flex: 1 1 auto; padding: 2rem 2rem 2.25rem; }
+${scope} .page-web-work-pricing .wrd { flex: 0 0 36%; min-width: 17.5rem; }
+}
+@media (min-width: 640px) {
+${scope} .page-web-work-pricing .wuf { margin-top: 0; }
+}
+`;
+}
+
 export function getPageShowRenderCss(scope: string): string {
   return `
 @keyframes heroPoliceBlobA {
