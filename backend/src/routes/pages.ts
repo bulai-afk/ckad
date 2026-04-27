@@ -3,6 +3,7 @@ import { prisma } from "../prisma";
 import sharp from "sharp";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { backendDataPath, backendRootDir } from "../backendPaths";
 
 export const pagesRouter = Router();
 
@@ -202,16 +203,16 @@ function normalizeFontSizeToPercent(value: unknown): number {
   return Math.max(75, Math.min(400, Math.round(n)));
 }
 
-const BANNERS_DATA_PATH = path.resolve(process.cwd(), "data", "banners.json");
-const REVIEWS_DATA_PATH = path.resolve(process.cwd(), "data", "reviews.json");
-const PARTNERS_DATA_PATH = path.resolve(process.cwd(), "data", "partners.json");
+const BANNERS_DATA_PATH = backendDataPath("banners.json");
+const REVIEWS_DATA_PATH = backendDataPath("reviews.json");
+const PARTNERS_DATA_PATH = backendDataPath("partners.json");
 /** На проде задайте FOLDERS_JSON_PATH на каталог с правом записи (volume). */
 const FOLDERS_DATA_PATH = (() => {
   const p = process.env.FOLDERS_JSON_PATH?.trim();
-  if (p) return path.isAbsolute(p) ? p : path.resolve(process.cwd(), p);
-  return path.resolve(process.cwd(), "data", "folders.json");
+  if (p) return path.isAbsolute(p) ? p : path.resolve(backendRootDir(), p);
+  return backendDataPath("folders.json");
 })();
-const SITE_SETTINGS_DATA_PATH = path.resolve(process.cwd(), "data", "siteSettings.json");
+const SITE_SETTINGS_DATA_PATH = backendDataPath("siteSettings.json");
 const PAGE_DISPLAY_ORDER_TABLE = "page_display_order";
 let pageDisplayOrderTableReady = false;
 

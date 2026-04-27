@@ -1,9 +1,10 @@
 import { Router } from "express";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { backendDataPath } from "../backendPaths";
 
 const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const FEEDBACK_REQUESTS_DATA_PATH = path.resolve(process.cwd(), "data", "feedbackRequests.json");
+const FEEDBACK_REQUESTS_DATA_PATH = backendDataPath("feedbackRequests.json");
 
 export const feedbackRouter = Router();
 
