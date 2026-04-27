@@ -52,19 +52,19 @@ const ICON_SIZE = "h-4 w-4";
 /** Вставка из панели «Web»: расширяйте список и getWebElementHtml. */
 const WEB_PAGE_ELEMENTS = [
   { id: "cover", tab: "media", label: "Баннер", description: "Градиентный баннер с заголовком, текстом и кнопкой" },
-  { id: "text-block", tab: "text", label: "Текстовый блок", description: "Обычный текстовый блок без колонок" },
-  { id: "text-media", tab: "text", label: "Текст слева, картинка справа", description: "Двухколоночный блок для текста и изображения" },
   { id: "timeline", tab: "text", label: "Этапы работы", description: "Пошаговый блок этапов с заголовками и описаниями" },
   { id: "work-pricing", tab: "text", label: "Стоимость работ", description: "Блок с факторами стоимости, диапазоном цены и призывом к расчёту" },
-  { id: "feature-grid", tab: "text", label: "Заголовок + преимущества", description: "Заголовок с описанием и список преимуществ с иконками" },
+  { id: "feature-grid", tab: "text", label: "Текстовый блок", description: "Заголовок с описанием и список преимуществ с иконками" },
+  { id: "spacer", tab: "decor", label: "Отступ", description: "Пустой декоративный блок для дополнительного вертикального воздуха" },
 ] as const;
-const WEB_BLOCK_SHELL_SELECTOR = ".page-web-cover, .page-web-carousel, .page-web-timeline, .page-web-text-media, .page-web-text-block";
+const WEB_BLOCK_SHELL_SELECTOR =
+  ".page-web-cover, .page-web-carousel, .page-web-timeline, .page-web-text-media, .page-web-text-block, .page-web-spacer";
 
 /** Соотношение сторон обложки (сохраняется в data-cover-aspect на .page-web-cover). arW/arH — как в CSS редактора (превью в меню). */
 const COVER_ASPECT_PRESETS = [
   { id: "1-8", label: "2∶1", arW: 2, arH: 1 },
   { id: "1-4", label: "4∶1", arW: 4, arH: 1 },
-  { id: "8-1", label: "8∶1", arW: 8, arH: 1 },
+  { id: "6-1", label: "6∶1", arW: 6, arH: 1 },
 ] as const;
 
 /** Тип изображения в карусели (сохраняется в data-carousel-aspect на .page-web-carousel). */
@@ -192,7 +192,10 @@ type FeatureGridIconPreset = {
     | "enterprise"
     | "warehouse"
     | "tools"
-    | "truck";
+    | "truck"
+    | "alert"
+    | "bug"
+    | "fire";
   label: string;
   path: string;
 };
@@ -267,13 +270,13 @@ const FEATURE_GRID_ICON_PRESETS: readonly FeatureGridIconPreset[] = [
     id: "gear",
     label: "Шестерня",
     path:
-      "M10.5 6h3m-5.72 1.28 2.12 2.12m6.2-2.12-2.12 2.12M6 10.5v3m12-3v3m-1.28 5.72-2.12-2.12m-6.2 2.12 2.12-2.12M10.5 18h3M12 15.75a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Z",
+      "M12 7.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Zm0-3v2.25m0 10.5V19.5m7.5-7.5h-2.25m-10.5 0H4.5m12.303-5.303-1.59 1.59m-6.426 6.426-1.59 1.59m9.606 0-1.59-1.59m-6.426-6.426-1.59-1.59",
   },
   {
     id: "factory",
     label: "Завод",
     path:
-      "M13.5 21v-7.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349M3.75 21V9.349m0 0a3.001 3.001 0 0 0 3.75-.615A2.993 2.993 0 0 0 9.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 0 0 2.25 1.016c.896 0 1.7-.393 2.25-1.015a3.001 3.001 0 0 0 3.75.614m-16.5 0a3.004 3.004 0 0 1-.621-4.72l1.189-1.19A1.5 1.5 0 0 1 5.378 3h13.243a1.5 1.5 0 0 1 1.06.44l1.19 1.189a3 3 0 0 1-.621 4.72M6.75 18h3.75a.75.75 0 0 0 .75-.75V13.5a.75.75 0 0 0-.75-.75H6.75a.75.75 0 0 0-.75.75v3.75c0 .414.336.75.75.75Z",
+      "M3 21h18M4.5 21V11.25l4.5 2.25V9l4.5 2.25V7.5l4.5 2.25V21M7.5 21v-3h3v3m3 0v-4.5h3V21M18 9V4.5h1.5V9M15.75 6h4.5",
   },
   {
     id: "enterprise",
@@ -299,7 +302,26 @@ const FEATURE_GRID_ICON_PRESETS: readonly FeatureGridIconPreset[] = [
     path:
       "M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12",
   },
+  {
+    id: "alert",
+    label: "Проблема",
+    path:
+      "M12 9v4.5m0 3.75h.008v.008H12v-.008ZM10.29 3.86 1.82 18a1.875 1.875 0 0 0 1.61 2.813h16.94A1.875 1.875 0 0 0 21.98 18L13.51 3.86a1.875 1.875 0 0 0-3.22 0Z",
+  },
+  {
+    id: "bug",
+    label: "Сбой",
+    path:
+      "M9 9h6m-6 0a3 3 0 0 0-3 3v3a6 6 0 1 0 12 0v-3a3 3 0 0 0-3-3m-6 0V7.5A1.5 1.5 0 0 1 10.5 6h3A1.5 1.5 0 0 1 15 7.5V9m-9.75 3H3m2.25 4.5H3m18-4.5h-2.25M21 16.5h-2.25M6.5 4.5l1.5 1.5m8-1.5-1.5 1.5",
+  },
+  {
+    id: "fire",
+    label: "Критично",
+    path:
+      "M12 3.75c.643 1.302.99 2.734.99 4.185 0 1.11-.203 2.198-.598 3.218.92-.56 1.69-1.34 2.25-2.25.724 1.252 1.108 2.674 1.108 4.125A5.75 5.75 0 0 1 10 18.75c-2.899 0-5.25-2.351-5.25-5.25 0-2.076.84-3.864 2.25-5.25.26 1.053.826 1.996 1.62 2.707A8.89 8.89 0 0 0 9.75 6.75c0-1.11.84-2.25 2.25-3Z",
+  },
 ] as const;
+const FEATURE_GRID_PROBLEM_ICON_IDS = new Set<FeatureGridIconPreset["id"]>(["alert", "bug", "fire"]);
 
 // Палитра цветов как на `admin/banners` (выпадающее меню "Цвет шрифта").
 const BANNERS_FONT_COLOR_PRESETS = [
@@ -1145,6 +1167,7 @@ function getWebTextBlockToolbarHtml(): string {
     '<button type="button" role="menuitem" class="page-web-text-block-menu-element" contenteditable="false" tabindex="-1" data-feature-grid-cards-action="remove">Убрать карточку</button>' +
     '<button type="button" role="menuitem" class="page-web-text-block-menu-element" contenteditable="false" tabindex="-1" data-feature-grid-cards-decor-action="description">Убрать описания у карточек</button>' +
     '<button type="button" role="menuitem" class="page-web-text-block-menu-element" contenteditable="false" tabindex="-1" data-feature-grid-cards-decor-action="icons">Добавить иконки к карточкам</button>' +
+    '<button type="button" role="menuitem" class="page-web-text-block-menu-element" contenteditable="false" tabindex="-1" data-feature-grid-cards-decor-action="numbers">Включить нумерацию в кружке</button>' +
     '<button type="button" role="menuitem" class="page-web-text-block-menu-element" contenteditable="false" tabindex="-1" data-feature-grid-cards-decor-action="learn-more">Добавить кнопку Learn more</button>' +
     "</div></div>" +
     '<div class="page-web-text-block-menu-sub page-web-text-block-menu-sub--feature-grid-extra" contenteditable="false">' +
@@ -1536,6 +1559,10 @@ function hasFeatureGridCardIcons(root: HTMLElement): boolean {
   return !!root.querySelector(".page-web-feature-grid-item-title .page-web-feature-grid-icon-wrap");
 }
 
+function hasFeatureGridCardNumbers(root: HTMLElement): boolean {
+  return root.getAttribute("data-feature-grid-card-numbers") === "1";
+}
+
 function hasFeatureGridCardLearnMore(root: HTMLElement): boolean {
   return !!root.querySelector(".page-web-feature-grid-item-link-wrap .page-web-feature-grid-link");
 }
@@ -1562,12 +1589,31 @@ function toggleFeatureGridCardIcons(root: HTMLElement): boolean {
     });
     return true;
   }
+  root.removeAttribute("data-feature-grid-card-numbers");
   items.forEach((item) => {
     const title = item.querySelector(":scope > .page-web-feature-grid-item-title") as HTMLElement | null;
     if (!title) return;
     if (title.querySelector(".page-web-feature-grid-icon-wrap")) return;
     title.insertBefore(createFeatureGridCardIconNode(), title.firstChild);
   });
+  return true;
+}
+
+function toggleFeatureGridCardNumbers(root: HTMLElement): boolean {
+  const items = getFeatureGridCardItems(root);
+  if (items.length === 0) return false;
+  const enabled = hasFeatureGridCardNumbers(root);
+  if (enabled) {
+    root.removeAttribute("data-feature-grid-card-numbers");
+    return true;
+  }
+  // Numbered circles are an alternative to per-card icons.
+  items.forEach((item) => {
+    const title = item.querySelector(":scope > .page-web-feature-grid-item-title") as HTMLElement | null;
+    if (!title) return;
+    title.querySelectorAll(".page-web-feature-grid-icon-wrap").forEach((n) => n.remove());
+  });
+  root.setAttribute("data-feature-grid-card-numbers", "1");
   return true;
 }
 
@@ -1767,14 +1813,14 @@ function syncTextBlockToolbarVariantState(toolbar: HTMLElement) {
 
 function moveWebBlockByToolbar(toolbar: HTMLElement, direction: "up" | "down", ed: HTMLElement): boolean {
   const block = toolbar.closest(
-    ".page-web-cover, .page-web-carousel, .page-web-timeline, .page-web-text-media, .page-web-text-block",
+    ".page-web-cover, .page-web-carousel, .page-web-timeline, .page-web-text-media, .page-web-text-block, .page-web-spacer",
   ) as HTMLElement | null;
   if (!block || !ed.contains(block)) return false;
   const parent = block.parentElement;
   if (!parent) return false;
   const blocks = Array.from(parent.children).filter((node) =>
     (node as HTMLElement).matches?.(
-      ".page-web-cover, .page-web-carousel, .page-web-timeline, .page-web-text-media, .page-web-text-block",
+      ".page-web-cover, .page-web-carousel, .page-web-timeline, .page-web-text-media, .page-web-text-block, .page-web-spacer",
     ),
   ) as HTMLElement[];
   const idx = blocks.indexOf(block);
@@ -1800,17 +1846,17 @@ function normalizeToBlockEditorHtml(inputHtml: string): string {
     // Чистим служебный chrome редактора, если он случайно попал в сохранённый HTML.
     wrap
       .querySelectorAll(
-        '.page-editor, [aria-label="Добавить блок"], .page-web-text-block-toolbar, .oin, .oit, .oja, .ohx, .oie, .oir, .oia, .oif, .ohw, .oig, .oid, .oij, .oim, .oil',
+        '.page-editor, [aria-label="Добавить блок"], .page-web-text-block-toolbar, .page-web-spacer-toolbar, .oin, .oit, .oja, .ohx, .oie, .oir, .oia, .oif, .ohw, .oig, .oid, .oij, .oim, .oil',
       )
       .forEach((n) => n.remove());
     const blockHtml: string[] = [];
     const legacy = document.createElement("div");
     const isAllowedBlock = (el: Element) =>
-      el.matches(".page-web-cover, .page-web-carousel, .page-web-timeline, .page-web-text-media, .page-web-text-block");
+      el.matches(".page-web-cover, .page-web-carousel, .page-web-timeline, .page-web-text-media, .page-web-text-block, .page-web-spacer");
     const hasEditorChromeInside = (el: Element) =>
       Boolean(
         el.querySelector(
-          '.page-editor, [aria-label="Добавить блок"], .page-web-text-media-toolbar, .page-web-text-block-toolbar, .oin, .oit, .oja, .ohx, .oie, .oir, .oia, .oif, .ohw, .oig',
+          '.page-editor, [aria-label="Добавить блок"], .page-web-text-media-toolbar, .page-web-text-block-toolbar, .page-web-spacer-toolbar, .oin, .oit, .oja, .ohx, .oie, .oir, .oia, .oif, .ohw, .oig',
         ),
       );
     const appendLegacyNode = (node: Node) => {
@@ -1822,7 +1868,7 @@ function normalizeToBlockEditorHtml(inputHtml: string): string {
       if (!(node instanceof Element)) return;
       // Никогда не переносим в контент служебную разметку самого редактора.
       if (
-        node.matches(".page-editor, .page-web-text-media-toolbar, .page-web-text-block-toolbar, .oin, .oit, .oja, .ohx, .oie, .oir, .oia, .oif, .ohw, .oig") ||
+        node.matches(".page-editor, .page-web-text-media-toolbar, .page-web-text-block-toolbar, .page-web-spacer-toolbar, .oin, .oit, .oja, .ohx, .oie, .oir, .oia, .oif, .ohw, .oig") ||
         node.matches('[aria-label="Добавить блок"]') ||
         hasEditorChromeInside(node)
       ) {
@@ -1831,7 +1877,7 @@ function normalizeToBlockEditorHtml(inputHtml: string): string {
       if (isAllowedBlock(node)) return;
       if (
         node.matches(
-          ".page-web-cover-toolbar, .page-web-carousel-toolbar, .page-web-timeline-toolbar, .page-web-text-media-toolbar, .page-web-text-block-toolbar, .page-web-cover-delete, .page-web-carousel-arrow",
+          ".page-web-cover-toolbar, .page-web-carousel-toolbar, .page-web-timeline-toolbar, .page-web-text-media-toolbar, .page-web-text-block-toolbar, .page-web-spacer-toolbar, .page-web-cover-delete, .page-web-carousel-arrow",
         )
       ) {
         return;
@@ -2025,7 +2071,7 @@ export default function PageEditorDetailsPage() {
   const [listStart, setListStart] = useState<number>(1);
   const [tableOpen, setTableOpen] = useState(false);
   const [addElementDialogOpen, setAddElementDialogOpen] = useState(false);
-  const [addElementDialogTab, setAddElementDialogTab] = useState<"media" | "text">("media");
+  const [addElementDialogTab, setAddElementDialogTab] = useState<"media" | "text" | "decor">("media");
   const [tableHover, setTableHover] = useState<{ rows: number; cols: number } | null>(null);
   const [isInTable, setIsInTable] = useState(false);
   const [tableBorderStyle, setTableBorderStyle] = useState<string>("solid");
@@ -2258,6 +2304,15 @@ export default function PageEditorDetailsPage() {
           closeTextBlockToolbarMenus(node as HTMLElement);
         });
       }
+      const inSpacerToolbar = eventPath.some((node) => {
+        if (!(node instanceof Element)) return false;
+        return !!node.closest?.(".page-web-spacer-toolbar");
+      }) || !!targetEl?.closest?.(".page-web-spacer-toolbar");
+      if (el && !inSpacerToolbar) {
+        el.querySelectorAll(".page-web-spacer-toolbar").forEach((node) => {
+          closeSpacerToolbarMenus(node as HTMLElement);
+        });
+      }
       const editingCell = (target as Element)?.closest?.("table.page-editor-table td[data-cell-editing]");
       if (!editingCell && !inToolbar && !inCellMenu && el) {
         let hadEditing = false;
@@ -2427,15 +2482,92 @@ export default function PageEditorDetailsPage() {
     };
   }, []);
 
+  function syncCoverElementFocusState(ed: HTMLElement, range: Range | null) {
+    ed.querySelectorAll("[data-cover-focus-target]").forEach((n) => n.removeAttribute("data-cover-focus-target"));
+    let node: Node | null = null;
+    if (range) {
+      node = range.startContainer;
+      if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+    }
+    if (!node || !(node instanceof Element)) {
+      const active = (typeof document !== "undefined" ? document.activeElement : null) as Element | null;
+      if (active && ed.contains(active)) node = active;
+    }
+    if (!node || !(node instanceof Element)) return;
+
+    const inner = node.closest(".page-web-cover-inner[data-cover-unlocked='1']") as HTMLElement | null;
+    if (!inner || !ed.contains(inner)) return;
+    const target =
+      (node.closest(".page-web-cover-el-title, .page-web-cover-el-subtitle, .page-web-cover-el-button-wrap, .page-web-cover-el-announcement-wrap") as HTMLElement | null) ??
+      (node.closest(".page-web-cover-el-learn-more, .page-web-cover-el-announcement-learn-more") as HTMLElement | null);
+    if (!target || !inner.contains(target)) return;
+    target.setAttribute("data-cover-focus-target", "1");
+  }
+
+  function syncTextBlockElementFocusState(ed: HTMLElement, range: Range | null) {
+    ed.querySelectorAll("[data-text-block-focus-target]").forEach((n) =>
+      n.removeAttribute("data-text-block-focus-target"),
+    );
+    let node: Node | null = null;
+    if (range) {
+      node = range.startContainer;
+      if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+    }
+    if (!node || !(node instanceof Element)) {
+      const active = (typeof document !== "undefined" ? document.activeElement : null) as Element | null;
+      if (active && ed.contains(active)) node = active;
+    }
+    if (!node || !(node instanceof Element)) return;
+    const content = node.closest(".page-web-text-block-content") as HTMLElement | null;
+    if (!content || !ed.contains(content)) return;
+    const target = node.closest("h2, h3, p, li, dt, dd, a, span") as HTMLElement | null;
+    if (!target || !content.contains(target)) return;
+    target.setAttribute("data-text-block-focus-target", "1");
+  }
+
+  function syncTimelineElementFocusState(ed: HTMLElement, range: Range | null) {
+    ed.querySelectorAll("[data-timeline-focus-target]").forEach((n) => n.removeAttribute("data-timeline-focus-target"));
+    let node: Node | null = null;
+    if (range) {
+      node = range.startContainer;
+      if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+    }
+    if (!node || !(node instanceof Element)) {
+      const active = (typeof document !== "undefined" ? document.activeElement : null) as Element | null;
+      if (active && ed.contains(active)) node = active;
+    }
+    if (!node || !(node instanceof Element)) return;
+    const timeline = node.closest(".page-web-timeline") as HTMLElement | null;
+    if (!timeline || !ed.contains(timeline)) return;
+    const target = node.closest(
+      ".page-web-timeline-subtitle, .page-web-timeline-heading, .page-web-timeline-description, .page-web-timeline-term, .page-web-timeline-title, .page-web-timeline-text",
+    ) as HTMLElement | null;
+    if (!target || !timeline.contains(target)) return;
+    target.setAttribute("data-timeline-focus-target", "1");
+  }
+
   function updateToolbarState() {
     const el = editorRef.current;
     if (!el || !document.contains(el)) return;
 
     const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) return;
+    if (!sel || sel.rangeCount === 0) {
+      syncCoverElementFocusState(el, null);
+      syncTextBlockElementFocusState(el, null);
+      syncTimelineElementFocusState(el, null);
+      return;
+    }
 
     const range = sel.getRangeAt(0);
-    if (!el.contains(range.commonAncestorContainer)) return;
+    if (!el.contains(range.commonAncestorContainer)) {
+      syncCoverElementFocusState(el, null);
+      syncTextBlockElementFocusState(el, null);
+      syncTimelineElementFocusState(el, null);
+      return;
+    }
+    syncCoverElementFocusState(el, range);
+    syncTextBlockElementFocusState(el, range);
+    syncTimelineElementFocusState(el, range);
 
     try {
       if (!range.collapsed) {
@@ -2996,10 +3128,33 @@ export default function PageEditorDetailsPage() {
     inputSyncTimerRef.current = window.setTimeout(() => {
       inputSyncTimerRef.current = null;
       const pending = pendingInputHtmlRef.current;
-      pendingInputHtmlRef.current = null;
-      if (typeof pending === "string") {
-        setContentHtml((prev) => (prev === pending ? prev : pending));
+      if (typeof pending !== "string") {
+        pendingInputHtmlRef.current = null;
+        return;
       }
+      const ed = editorRef.current;
+      const sel = typeof window !== "undefined" ? window.getSelection() : null;
+      const selectionInsideEditor =
+        !!ed && !!sel && sel.rangeCount > 0 && ed.contains(sel.getRangeAt(0).commonAncestorContainer);
+      // Keep typing path native: don't commit React HTML state while caret is still inside editor.
+      if (selectionInsideEditor) {
+        inputSyncTimerRef.current = window.setTimeout(() => {
+          inputSyncTimerRef.current = null;
+          const delayed = pendingInputHtmlRef.current;
+          if (typeof delayed === "string") {
+            const delayedSel = typeof window !== "undefined" ? window.getSelection() : null;
+            const delayedInside =
+              !!ed && !!delayedSel && delayedSel.rangeCount > 0 && ed.contains(delayedSel.getRangeAt(0).commonAncestorContainer);
+            if (!delayedInside) {
+              pendingInputHtmlRef.current = null;
+              setContentHtml((prev) => (prev === delayed ? prev : delayed));
+            }
+          }
+        }, 180);
+        return;
+      }
+      pendingInputHtmlRef.current = null;
+      setContentHtml((prev) => (prev === pending ? prev : pending));
     }, 120);
   }
 
@@ -3028,13 +3183,22 @@ export default function PageEditorDetailsPage() {
     // React re-renders can clear a contentEditable with no React children; the live marker then
     // disappears while contentHtml still holds the full HTML. We must re-apply innerHTML in that case.
     const markerStillInDom = !!pendingId && !!root.querySelector(`[data-editor-caret="${safeId}"]`);
-    const skipDestructiveInnerHtmlSync = !!pendingId && markerStillInDom;
+    const activeElement = typeof document !== "undefined" ? document.activeElement : null;
+    const selNow = typeof window !== "undefined" ? window.getSelection() : null;
+    const selectionInsideEditor =
+      !!selNow && selNow.rangeCount > 0 && root.contains(selNow.getRangeAt(0).commonAncestorContainer);
+    const hasLiveEditorFocus = (!!activeElement && root.contains(activeElement)) || selectionInsideEditor;
+    // While user is actively typing inside contentEditable, avoid forcing root.innerHTML from React state.
+    // This destructive write can recreate nodes and drop caret/focus after the first typed character.
+    const skipDestructiveInnerHtmlSync = (!!pendingId && markerStillInDom) || hasLiveEditorFocus;
     const innerDiffers = root.innerHTML !== effectiveContentHtml;
 
     if (caretDebugOn()) {
       logPageEditorCaret("layoutEffect[contentHtml]:start", {
         pendingId,
         markerStillInDom,
+        selectionInsideEditor,
+        hasLiveEditorFocus,
         skipDestructiveInnerHtmlSync,
         innerDiffers,
         rootChildCount: root.childNodes.length,
@@ -3061,6 +3225,10 @@ export default function PageEditorDetailsPage() {
     normalizeTableCells();
     normalizeImages();
     normalizeWebCoverInnerEditability(root);
+    normalizeWebTextBlockContentEditability(root);
+    if (normalizeWebCoverElementPlaceholders(root) && caretDebugOn()) {
+      logPageEditorCaret("layoutEffect[contentHtml]:web-cover-placeholder-normalize", {});
+    }
     normalizeWebCoverButtonAnchorsToSpans(root);
     if (ensureWebCoverToolbarInEditor(root) && caretDebugOn()) {
       logPageEditorCaret("layoutEffect[contentHtml]:web-cover-toolbar-upgrade", {});
@@ -3077,6 +3245,9 @@ export default function PageEditorDetailsPage() {
     if (ensureWebTextBlockToolbarInEditor(root) && caretDebugOn()) {
       logPageEditorCaret("layoutEffect[contentHtml]:web-text-block-toolbar-upgrade", {});
     }
+    if (ensureWebSpacerToolbarInEditor(root) && caretDebugOn()) {
+      logPageEditorCaret("layoutEffect[contentHtml]:web-spacer-toolbar-upgrade", {});
+    }
     if (normalizeFeatureGridMessageLayoutsInEditor(root) && caretDebugOn()) {
       logPageEditorCaret("layoutEffect[contentHtml]:feature-grid-message-layout-normalize", {});
     }
@@ -3090,6 +3261,7 @@ export default function PageEditorDetailsPage() {
     sanitizeLeakedNodesOutOfWebCarousels(root);
     sanitizeLeakedNodesOutOfWebTextMedia(root);
     sanitizeLeakedNodesOutOfWebTextBlocks(root);
+    sanitizeLeakedNodesOutOfWebSpacers(root);
     if (normalizeWebCarouselStripInEditor(root) && caretDebugOn()) {
       logPageEditorCaret("layoutEffect[contentHtml]:web-carousel-strip-normalize", {});
     }
@@ -3513,10 +3685,10 @@ export default function PageEditorDetailsPage() {
           : kind === "button"
             ? '<p class="page-web-cover-el-button-wrap"><span class="page-web-cover-el-button" role="button">Кнопка</span></p>'
             : kind === "announcement"
-              ? '<p class="page-web-cover-el-announcement-wrap"><span class="page-web-cover-el-announcement"><span class="page-web-cover-el-announcement-text">Announcing our next round of funding.</span><span class="page-web-cover-el-announcement-learn-more" role="button">Learn more</span></span></p>'
+              ? '<p class="page-web-cover-el-announcement-wrap"><span class="page-web-cover-el-announcement"><span class="page-web-cover-el-announcement-text">Анонс: мы запустили новый этап проекта.</span><span class="page-web-cover-el-announcement-learn-more" role="button">Подробнее</span></span></p>'
               : kind === "announcement-learn-more"
-                ? '<span class="page-web-cover-el-announcement-learn-more" role="button">Learn more</span>'
-                : '<span class="page-web-cover-el-learn-more" role="button">Learn more</span>';
+                ? '<span class="page-web-cover-el-announcement-learn-more" role="button">Подробнее</span>'
+                : '<span class="page-web-cover-el-learn-more" role="button">Подробнее</span>';
 
     const wrap = document.createElement("div");
     wrap.innerHTML = html.trim();
@@ -3537,7 +3709,7 @@ export default function PageEditorDetailsPage() {
       } else {
         const wrapWithAnnouncement = document.createElement("div");
         wrapWithAnnouncement.innerHTML =
-          '<p class="page-web-cover-el-announcement-wrap"><span class="page-web-cover-el-announcement"><span class="page-web-cover-el-announcement-text">Announcing our next round of funding.</span></span></p>';
+          '<p class="page-web-cover-el-announcement-wrap"><span class="page-web-cover-el-announcement"><span class="page-web-cover-el-announcement-text">Анонс: мы запустили новый этап проекта.</span></span></p>';
         const announcementWrap = wrapWithAnnouncement.firstElementChild as HTMLElement | null;
         const announcement = announcementWrap?.querySelector(".page-web-cover-el-announcement") as HTMLElement | null;
         if (announcement && announcementWrap) {
@@ -3671,9 +3843,9 @@ export default function PageEditorDetailsPage() {
         getWebCoverToolbarHtml() +
         getWebCoverBlobLayersHtml() +
         '<div class="page-web-cover-inner" contenteditable="false" title="Нажмите, чтобы отредактировать текст баннера">' +
-        '<h2 class="page-web-cover-el-title">Data to enrich your online business</h2>' +
-        '<p class="page-web-cover-el-subtitle">Anim aute id magna aliqua ad ad non deserunt sunt. Qui irure qui lorem cupidatat commodo.</p>' +
-        '<p class="page-web-cover-el-button-wrap"><span class="page-web-cover-el-button" role="button">Get started</span></p>' +
+        '<h2 class="page-web-cover-el-title">Надежное решение для вашего проекта</h2>' +
+        '<p class="page-web-cover-el-subtitle">Короткое описание услуги: основные преимущества, сроки и ожидаемый результат для клиента.</p>' +
+        '<p class="page-web-cover-el-button-wrap"><span class="page-web-cover-el-button" role="button">Получить консультацию</span></p>' +
         "</div>" +
         "</div>"
       );
@@ -3744,6 +3916,9 @@ export default function PageEditorDetailsPage() {
     if (kind === "work-pricing") {
       return getWorkPricingTextBlockHtml();
     }
+    if (kind === "spacer") {
+      return '<div class="page-web-spacer" data-web-element="spacer" data-spacer-size="md" contenteditable="false" aria-hidden="true"></div>';
+    }
     return "";
   }
 
@@ -3794,6 +3969,26 @@ export default function PageEditorDetailsPage() {
       '<button type="button" role="menuitem" class="page-web-timeline-menu-remove-step" contenteditable="false" tabindex="-1">Удалить последний этап</button>' +
       '<div class="page-web-timeline-menu-sep" aria-hidden="true"></div>' +
       '<button type="button" role="menuitem" class="page-web-timeline-menu-delete" contenteditable="false" tabindex="-1">Удалить таймлайн</button>' +
+      "</div></div>"
+    );
+  }
+
+  function getWebSpacerToolbarHtml(): string {
+    return (
+      '<div class="page-web-spacer-toolbar" contenteditable="false">' +
+      getWebBlockMoveButtonHtml("up") +
+      '<button type="button" class="page-web-spacer-menu-trigger" tabindex="-1" aria-label="Меню отступа" aria-haspopup="true" title="Действия с отступом">' +
+      '<span class="page-web-spacer-menu-dots" aria-hidden="true"></span></button>' +
+      getWebBlockMoveButtonHtml("down") +
+      '<div role="menu" class="page-web-spacer-menu-dropdown">' +
+      '<button type="button" role="menuitemradio" class="page-web-spacer-menu-size" contenteditable="false" tabindex="-1" data-set-spacer-size="sm" aria-checked="false">' +
+      '<span class="page-web-spacer-menu-size-radio" aria-hidden="true"></span><span class="page-web-spacer-menu-size-label">Минимальный</span></button>' +
+      '<button type="button" role="menuitemradio" class="page-web-spacer-menu-size" contenteditable="false" tabindex="-1" data-set-spacer-size="md" aria-checked="false">' +
+      '<span class="page-web-spacer-menu-size-radio" aria-hidden="true"></span><span class="page-web-spacer-menu-size-label">Средний</span></button>' +
+      '<button type="button" role="menuitemradio" class="page-web-spacer-menu-size" contenteditable="false" tabindex="-1" data-set-spacer-size="lg" aria-checked="false">' +
+      '<span class="page-web-spacer-menu-size-radio" aria-hidden="true"></span><span class="page-web-spacer-menu-size-label">Большой</span></button>' +
+      '<div class="page-web-spacer-menu-sep" aria-hidden="true"></div>' +
+      '<button type="button" role="menuitem" class="page-web-spacer-menu-delete" contenteditable="false" tabindex="-1">Удалить отступ</button>' +
       "</div></div>"
     );
   }
@@ -3957,20 +4152,64 @@ export default function PageEditorDetailsPage() {
     root.querySelectorAll(".page-web-timeline").forEach((t) => {
       const timeline = t as HTMLElement;
       const items = Array.from(timeline.querySelectorAll(".page-web-timeline-item")) as HTMLElement[];
-      const stepsCount = Math.max(1, items.length);
+      // Remove empty tail items to avoid a "line tail" after the last real step.
+      for (let i = items.length - 1; i >= 1; i -= 1) {
+        const item = items[i];
+        const titleText =
+          (item.querySelector(":scope > .page-web-timeline-content .page-web-timeline-title") as HTMLElement | null)?.textContent?.trim() ?? "";
+        const bodyText =
+          (item.querySelector(":scope > .page-web-timeline-content .page-web-timeline-text") as HTMLElement | null)?.textContent?.trim() ?? "";
+        if (titleText || bodyText) break;
+        item.remove();
+        changed = true;
+      }
+      const normalizedItems = Array.from(timeline.querySelectorAll(".page-web-timeline-item")) as HTMLElement[];
+      const stepsCount = Math.max(1, normalizedItems.length);
       if (timeline.style.getPropertyValue("--timeline-cols") !== String(stepsCount)) {
         timeline.style.setProperty("--timeline-cols", String(stepsCount));
         changed = true;
       }
-      items.forEach((item, idx) => {
-        const term = item.querySelector(":scope > .page-web-timeline-term") as HTMLElement | null;
-        if (idx === 0) {
-          if (term) {
-            term.remove();
+      timeline
+        .querySelectorAll(
+          ".page-web-timeline-subtitle, .page-web-timeline-heading, .page-web-timeline-description, .page-web-timeline-term, .page-web-timeline-title, .page-web-timeline-text",
+        )
+        .forEach((n) => {
+          const el = n as HTMLElement;
+          if (el.getAttribute("contenteditable") !== "true") {
+            el.setAttribute("contenteditable", "true");
             changed = true;
           }
-          return;
+        });
+      const cleanTimelineText = (text: string): string =>
+        text
+          .replace(/[\u200B-\u200D\uFEFF]/g, "")
+          .replace(/\s+/g, " ")
+          .trim();
+      const isRealTimelineItem = (item: HTMLElement): boolean => {
+        const titleText = cleanTimelineText(
+          (item.querySelector(":scope > .page-web-timeline-content .page-web-timeline-title") as HTMLElement | null)?.textContent ?? "",
+        );
+        const bodyText = cleanTimelineText(
+          (item.querySelector(":scope > .page-web-timeline-content .page-web-timeline-text") as HTMLElement | null)?.textContent ?? "",
+        );
+        return Boolean(titleText || bodyText);
+      };
+      normalizedItems.forEach((item, idx) => {
+        let hasNextReal = false;
+        for (let j = idx + 1; j < normalizedItems.length; j += 1) {
+          if (isRealTimelineItem(normalizedItems[j])) {
+            hasNextReal = true;
+            break;
+          }
         }
+        const nextVal = hasNextReal && isRealTimelineItem(item) ? "1" : "0";
+        if (item.getAttribute("data-timeline-has-next") !== nextVal) {
+          item.setAttribute("data-timeline-has-next", nextVal);
+          changed = true;
+        }
+      });
+      normalizedItems.forEach((item) => {
+        const term = item.querySelector(":scope > .page-web-timeline-term") as HTMLElement | null;
         if (!term) {
           const termNode = document.createElement("p");
           termNode.className = "page-web-timeline-term";
@@ -4118,6 +4357,59 @@ export default function PageEditorDetailsPage() {
     return changed;
   }
 
+  function ensureWebSpacerToolbarInEditor(root: HTMLElement): boolean {
+    let changed = false;
+    root.querySelectorAll(".page-web-spacer").forEach((n) => {
+      const block = n as HTMLElement;
+      if (block.getAttribute("contenteditable") !== "false") {
+        block.setAttribute("contenteditable", "false");
+        changed = true;
+      }
+      const sizeRaw = block.getAttribute("data-spacer-size");
+      if (sizeRaw !== "sm" && sizeRaw !== "md" && sizeRaw !== "lg") {
+        block.setAttribute("data-spacer-size", "md");
+        changed = true;
+      }
+      let toolbar = block.querySelector(":scope > .page-web-spacer-toolbar") as HTMLElement | null;
+      if (!toolbar) {
+        const tmp = document.createElement("div");
+        tmp.innerHTML = getWebSpacerToolbarHtml();
+        toolbar = tmp.firstElementChild as HTMLElement;
+        block.insertBefore(toolbar, block.firstChild);
+        changed = true;
+      } else if (toolbar.parentElement !== block || block.firstElementChild !== toolbar) {
+        block.insertBefore(toolbar, block.firstChild);
+        changed = true;
+      }
+      toolbar = block.querySelector(".page-web-spacer-toolbar") as HTMLElement | null;
+      if (
+        toolbar &&
+        (!toolbar.querySelector(".page-web-spacer-menu-trigger") ||
+          !toolbar.querySelector(".page-web-block-move-up") ||
+          !toolbar.querySelector(".page-web-block-move-down") ||
+          !toolbar.querySelector('[data-set-spacer-size="sm"]') ||
+          !toolbar.querySelector('[data-set-spacer-size="md"]') ||
+          !toolbar.querySelector('[data-set-spacer-size="lg"]') ||
+          !toolbar.querySelector(".page-web-spacer-menu-delete"))
+      ) {
+        const tmp = document.createElement("div");
+        tmp.innerHTML = getWebSpacerToolbarHtml();
+        const fresh = tmp.firstElementChild as HTMLElement;
+        toolbar.replaceWith(fresh);
+        toolbar = fresh;
+        changed = true;
+      }
+      if (toolbar) {
+        const size = (block.getAttribute("data-spacer-size") || "md") as "sm" | "md" | "lg";
+        toolbar.querySelectorAll(".page-web-spacer-menu-size[data-set-spacer-size]").forEach((btn) => {
+          const selected = (btn as HTMLElement).getAttribute("data-set-spacer-size") === size;
+          (btn as HTMLElement).setAttribute("aria-checked", selected ? "true" : "false");
+        });
+      }
+    });
+    return changed;
+  }
+
   function ensureWebInsertHandlesInEditor(root: HTMLElement): boolean {
     let changed = false;
     root.querySelectorAll(WEB_BLOCK_SHELL_SELECTOR).forEach((node) => {
@@ -4250,6 +4542,10 @@ export default function PageEditorDetailsPage() {
       });
       wrap.querySelectorAll(".page-web-text-block-toolbar").forEach((n) => n.remove());
       wrap.querySelectorAll(".page-web-text-block").forEach((n) => {
+        (n as HTMLElement).removeAttribute("contenteditable");
+      });
+      wrap.querySelectorAll(".page-web-spacer-toolbar").forEach((n) => n.remove());
+      wrap.querySelectorAll(".page-web-spacer").forEach((n) => {
         (n as HTMLElement).removeAttribute("contenteditable");
       });
       wrap.querySelectorAll(".page-web-text-block-content").forEach((n) => {
@@ -4512,6 +4808,33 @@ export default function PageEditorDetailsPage() {
     return changed;
   }
 
+  /** Посторонние узлы прямым потомком `.page-web-spacer` переносим после блока. */
+  function sanitizeLeakedNodesOutOfWebSpacers(root: HTMLElement): boolean {
+    let changed = false;
+    root.querySelectorAll(".page-web-spacer").forEach((cov) => {
+      const block = cov as HTMLElement;
+      const parent = block.parentNode;
+      if (!parent) return;
+      const movable: Node[] = [];
+      for (const ch of Array.from(block.childNodes)) {
+        if (ch.nodeType === Node.ELEMENT_NODE) {
+          const hel = ch as HTMLElement;
+          if (hel.classList.contains("page-web-spacer-toolbar")) continue;
+          if (hel.classList.contains("page-web-insert-handle")) continue;
+          movable.push(ch);
+        } else if (ch.nodeType === Node.TEXT_NODE) {
+          if ((ch.textContent || "").replace(/\u200b/g, "").trim()) movable.push(ch);
+        }
+      }
+      if (movable.length === 0) return;
+      const frag = document.createDocumentFragment();
+      for (const ch of movable) frag.appendChild(ch);
+      parent.insertBefore(frag, block.nextSibling);
+      changed = true;
+    });
+    return changed;
+  }
+
   /** Walk up from the caret: on each ancestor, scan previous element siblings for a cover (skips empty div/p). */
   function findPrecedingWebCoverFromCaret(ed: HTMLElement, range: Range): HTMLElement | null {
     let cur: Node | null = range.startContainer;
@@ -4674,6 +4997,47 @@ export default function PageEditorDetailsPage() {
         h.setAttribute("contenteditable", "false");
       }
     });
+  }
+
+  function normalizeWebTextBlockContentEditability(root: HTMLElement) {
+    root.querySelectorAll(".page-web-text-block-content").forEach((n) => {
+      const h = n as HTMLElement;
+      if (h.getAttribute("contenteditable") !== "true") {
+        h.setAttribute("contenteditable", "true");
+      }
+      if (h.hasAttribute("data-text-block-unlocked")) {
+        h.removeAttribute("data-text-block-unlocked");
+      }
+    });
+  }
+
+  function normalizeWebCoverElementPlaceholders(root: HTMLElement): boolean {
+    let changed = false;
+    root
+      .querySelectorAll(
+        ".page-web-cover .page-web-cover-el-title, .page-web-cover .page-web-cover-el-subtitle, .page-web-cover .page-web-cover-el-button-wrap",
+      )
+      .forEach((n) => {
+        const el = n as HTMLElement;
+        const isTitle = el.classList.contains("page-web-cover-el-title");
+        const isButton = el.classList.contains("page-web-cover-el-button-wrap");
+        const placeholder = isTitle
+          ? "Здесь вы можете написать заголовок"
+          : isButton
+            ? "Здесь вы можете написать текст кнопки"
+            : "Здесь вы можете написать подзаголовок и описание";
+        if (el.getAttribute("data-placeholder") !== placeholder) {
+          el.setAttribute("data-placeholder", placeholder);
+          changed = true;
+        }
+        const text = (el.textContent || "").replace(/[\u200b\s]+/g, "");
+        const visible = text.length === 0 ? "1" : "0";
+        if (el.getAttribute("data-placeholder-visible") !== visible) {
+          el.setAttribute("data-placeholder-visible", visible);
+          changed = true;
+        }
+      });
+    return changed;
   }
 
   /**
@@ -5154,6 +5518,10 @@ export default function PageEditorDetailsPage() {
     logWebMenuDebug("close-text-block:end", toolbar);
   }
 
+  function closeSpacerToolbarMenus(toolbar: HTMLElement) {
+    toolbar.removeAttribute("data-menu-open");
+  }
+
   function closeAllOpenWebBlockMenus(ed: HTMLElement) {
     if (WEB_MENU_DEBUG) {
       console.log("[web-menu-debug] close-all:start", {
@@ -5208,6 +5576,8 @@ export default function PageEditorDetailsPage() {
           ".page-web-text-block-menu-sub-trigger",
           ".page-web-text-block-menu-dropdown",
           ".page-web-text-block-menu-sub-panel",
+          ".page-web-spacer-menu-trigger",
+          ".page-web-spacer-menu-dropdown",
         ].join(", "),
       );
       if (insideMenuSurface) {
@@ -5312,6 +5682,156 @@ export default function PageEditorDetailsPage() {
       '.page-web-cover-inner[data-cover-unlocked="1"], .page-web-timeline-subtitle, .page-web-timeline-heading, .page-web-timeline-description, .page-web-timeline-term, .page-web-timeline-title, .page-web-timeline-text, .page-web-text-media-col, .page-web-text-block-content, table.page-editor-table td[data-cell-editing]',
     ) as HTMLElement | null;
     return Boolean(allowed && ed.contains(allowed));
+  }
+
+  function tryKeepCaretInsideEmptyTextBlockContent(ed: HTMLElement, range: Range): boolean {
+    if (!range.collapsed) return false;
+    let node: Node | null = range.startContainer;
+    if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+    if (!node || !(node instanceof Element)) return false;
+    const content = node.closest(".page-web-text-block-content") as HTMLElement | null;
+    if (!content || !ed.contains(content)) return false;
+
+    const hasText = (content.textContent || "").replace(/\u200b/g, "").trim().length > 0;
+    const hasStructuredPayload = !!content.querySelector(
+      "img, table.page-editor-table, .page-editor-image-wrapper, .page-web-feature-grid, .page-web-work-pricing",
+    );
+    if (hasText || hasStructuredPayload) return false;
+
+    if (content.childNodes.length === 0) {
+      content.appendChild(document.createElement("br"));
+    }
+    const sel = window.getSelection();
+    if (sel) {
+      const next = document.createRange();
+      next.selectNodeContents(content);
+      next.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(next);
+    }
+    return true;
+  }
+
+  function isRangeAtElementStart(range: Range, element: HTMLElement): boolean {
+    if (!range.collapsed) return false;
+    const atStart = document.createRange();
+    atStart.selectNodeContents(element);
+    atStart.collapse(true);
+    return range.compareBoundaryPoints(Range.START_TO_START, atStart) === 0;
+  }
+
+  function isRangeAtElementStartLenient(range: Range, element: HTMLElement): boolean {
+    if (!range.collapsed) return false;
+    if (!element.contains(range.startContainer) && range.startContainer !== element) return false;
+    try {
+      const probe = document.createRange();
+      probe.selectNodeContents(element);
+      probe.setEnd(range.startContainer, range.startOffset);
+      const text = probe.toString().replace(/[\u200b\s]+/g, "");
+      if (text.length > 0) return false;
+      const frag = probe.cloneContents();
+      const walker = document.createTreeWalker(frag, NodeFilter.SHOW_ELEMENT);
+      let n: Node | null = walker.nextNode();
+      while (n) {
+        const tag = (n as Element).tagName;
+        if (tag !== "BR" && tag !== "WBR") return false;
+        n = walker.nextNode();
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function tryPreventCoverElementBackspaceMerge(ed: HTMLElement, range: Range): boolean {
+    if (!range.collapsed) return false;
+    let node: Node | null = range.startContainer;
+    if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+    if (!node || !(node instanceof Element)) return false;
+
+    const inner = node.closest(".page-web-cover-inner[data-cover-unlocked='1']") as HTMLElement | null;
+    if (!inner || !ed.contains(inner)) return false;
+
+    let current = node.closest(
+      ".page-web-cover-el-subtitle, .page-web-cover-el-button-wrap, .page-web-cover-el-announcement-wrap, .page-web-cover-el-learn-more, .page-web-cover-el-announcement-learn-more, .page-web-cover-el-announcement-text",
+    ) as HTMLElement | null;
+    if (!current && range.startContainer === inner) {
+      const offset = Math.max(0, Math.min(range.startOffset, inner.childNodes.length));
+      for (let i = offset; i < inner.childNodes.length; i += 1) {
+        const ch = inner.childNodes[i];
+        if (ch.nodeType === Node.TEXT_NODE) {
+          if ((ch.textContent || "").replace(/[\u200b\s]+/g, "") === "") continue;
+          break;
+        }
+        if (ch.nodeType !== Node.ELEMENT_NODE) break;
+        const elCh = ch as HTMLElement;
+        if (
+          elCh.matches(
+            ".page-web-cover-el-subtitle, .page-web-cover-el-button-wrap, .page-web-cover-el-announcement-wrap, .page-web-cover-el-learn-more, .page-web-cover-el-announcement-learn-more, .page-web-cover-el-announcement-text",
+          )
+        ) {
+          current = elCh;
+        }
+        break;
+      }
+    }
+    if (!current || !inner.contains(current)) return false;
+    if (!isRangeAtElementStart(range, current) && !isRangeAtElementStartLenient(range, current)) return false;
+
+    const sel = window.getSelection();
+    if (sel) {
+      const keep = document.createRange();
+      keep.selectNodeContents(current);
+      keep.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(keep);
+      savedRangeRef.current = keep.cloneRange();
+    }
+    return true;
+  }
+
+  function tryPreventTextBlockSiblingBackspaceMerge(ed: HTMLElement, range: Range): boolean {
+    if (!range.collapsed) return false;
+    let node: Node | null = range.startContainer;
+    if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+    if (!node || !(node instanceof Element)) return false;
+
+    const content = node.closest(".page-web-text-block-content") as HTMLElement | null;
+    if (!content || !ed.contains(content)) return false;
+
+    const current = node.closest(
+      "h1, h2, h3, h4, h5, h6, p, dt, dd",
+    ) as HTMLElement | null;
+    if (!current || !content.contains(current)) return false;
+    if (current.closest("li")) return false;
+    if (!isRangeAtElementStart(range, current) && !isRangeAtElementStartLenient(range, current)) return false;
+
+    let prev: Element | null = current.previousElementSibling;
+    while (prev) {
+      const tag = prev.tagName;
+      if (tag === "BR") {
+        prev = prev.previousElementSibling;
+        continue;
+      }
+      const prevText = (prev.textContent || "").replace(/[\u200b\s]+/g, "");
+      if (prevText.length === 0 && !prev.querySelector("img, table, ul, ol")) {
+        prev = prev.previousElementSibling;
+        continue;
+      }
+      break;
+    }
+    if (!prev) return false;
+
+    const sel = window.getSelection();
+    if (sel) {
+      const keep = document.createRange();
+      keep.selectNodeContents(current);
+      keep.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(keep);
+      savedRangeRef.current = keep.cloneRange();
+    }
+    return true;
   }
 
   function getCellsToApplyBorder(): HTMLTableCellElement[] {
@@ -6643,8 +7163,23 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
     const relatedTarget = e.relatedTarget as Node | null;
     const el = editorRef.current;
     if (!el) return;
+    const active = (typeof document !== "undefined" ? document.activeElement : null) as Node | null;
+    const stillInsideEditor = !!(active && el.contains(active));
+    const editorSelectionInside = (): boolean => {
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0) return false;
+      return el.contains(sel.getRangeAt(0).commonAncestorContainer);
+    };
+    const selectionInside = (container: HTMLElement): boolean => {
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0) return false;
+      const range = sel.getRangeAt(0);
+      return container.contains(range.commonAncestorContainer);
+    };
     el.querySelectorAll(".page-editor-table td[data-cell-editing]").forEach((td) => {
       const cell = td as HTMLElement;
+      if (selectionInside(cell)) return;
+      if (!relatedTarget && stillInsideEditor && active && cell.contains(active)) return;
       if (!relatedTarget || !cell.contains(relatedTarget)) {
         cell.removeAttribute("data-cell-editing");
         cell.setAttribute("contenteditable", "false");
@@ -6652,11 +7187,28 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
     });
     el.querySelectorAll('.page-web-cover-inner[data-cover-unlocked="1"]').forEach((n) => {
       const inner = n as HTMLElement;
+      if (selectionInside(inner)) return;
+      if (!relatedTarget && stillInsideEditor && active && inner.contains(active)) return;
       if (relatedTarget && inner.contains(relatedTarget)) return;
       inner.removeAttribute("data-cover-unlocked");
       inner.setAttribute("contenteditable", "false");
     });
-    setContentHtml(el.innerHTML);
+    el.querySelectorAll(".page-web-text-block-content").forEach((n) => {
+      const content = n as HTMLElement;
+      if (selectionInside(content)) return;
+      if (!relatedTarget && stillInsideEditor && active && content.contains(active)) return;
+      if (relatedTarget && content.contains(relatedTarget)) return;
+    });
+    el.querySelectorAll("[data-cover-focus-target]").forEach((n) => n.removeAttribute("data-cover-focus-target"));
+    el.querySelectorAll("[data-text-block-focus-target]").forEach((n) =>
+      n.removeAttribute("data-text-block-focus-target"),
+    );
+    el.querySelectorAll("[data-timeline-focus-target]").forEach((n) =>
+      n.removeAttribute("data-timeline-focus-target"),
+    );
+    if (!stillInsideEditor && !editorSelectionInside()) {
+      setContentHtml(el.innerHTML);
+    }
   }
 
   function handleEditorBeforeInput(e: React.FormEvent<HTMLDivElement>) {
@@ -6682,6 +7234,18 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       return;
     }
     if (inputType === "deleteContentBackward" && range.collapsed) {
+      if (tryPreventTextBlockSiblingBackspaceMerge(ed, range)) {
+        e.preventDefault();
+        return;
+      }
+      if (tryPreventCoverElementBackspaceMerge(ed, range)) {
+        e.preventDefault();
+        return;
+      }
+      if (tryKeepCaretInsideEmptyTextBlockContent(ed, range)) {
+        e.preventDefault();
+        return;
+      }
       if (tryHandleWebCoverBackspace(ed, range)) e.preventDefault();
       return;
     }
@@ -6707,6 +7271,11 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
     const ed = editorRef.current;
     if (!inner || !ed?.contains(inner)) return;
     if (inner.getAttribute("data-cover-unlocked") === "1") return;
+    const clickX = e.clientX;
+    const clickY = e.clientY;
+    const clickedEditableElement = target.closest(
+      ".page-web-cover-el-title, .page-web-cover-el-subtitle, .page-web-cover-el-button-wrap, .page-web-cover-el-announcement-wrap, .page-web-cover-el-learn-more, .page-web-cover-el-announcement-learn-more",
+    ) as HTMLElement | null;
     e.preventDefault();
     inner.setAttribute("data-cover-unlocked", "1");
     inner.setAttribute("contenteditable", "true");
@@ -6715,11 +7284,36 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       const r = document.createRange();
       const sel = window.getSelection();
       if (!sel || !ed.contains(inner)) return;
-      const hasText = inner.innerText.replace(/\u200b/g, "").trim().length > 0;
-      if (hasText) {
-        r.selectNodeContents(inner);
-        r.collapse(false);
-      } else {
+      let positionedByPoint = false;
+      if (clickedEditableElement && inner.contains(clickedEditableElement)) {
+        const docAny = document as Document & {
+          caretRangeFromPoint?: (x: number, y: number) => Range | null;
+          caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null;
+        };
+        const byRange = docAny.caretRangeFromPoint?.(clickX, clickY) ?? null;
+        if (byRange && inner.contains(byRange.startContainer)) {
+          r.setStart(byRange.startContainer, byRange.startOffset);
+          r.collapse(true);
+          positionedByPoint = true;
+        } else {
+          const byPos = docAny.caretPositionFromPoint?.(clickX, clickY) ?? null;
+          if (byPos && inner.contains(byPos.offsetNode)) {
+            r.setStart(byPos.offsetNode, byPos.offset);
+            r.collapse(true);
+            positionedByPoint = true;
+          }
+        }
+      }
+      if (!positionedByPoint) {
+        const hasText = inner.innerText.replace(/\u200b/g, "").trim().length > 0;
+        if (hasText) {
+          if (clickedEditableElement && inner.contains(clickedEditableElement)) {
+            r.selectNodeContents(clickedEditableElement);
+          } else {
+            r.selectNodeContents(inner);
+          }
+          r.collapse(false);
+        } else {
         const first = inner.firstChild;
         if (first?.nodeName === "BR") {
           r.setStart(inner, 0);
@@ -6734,6 +7328,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
           r.setStart(inner, 0);
           r.collapse(true);
         }
+      }
       }
       sel.removeAllRanges();
       try {
@@ -6823,6 +7418,11 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
           cover.setAttribute("data-cover-halign", "center");
           cover.setAttribute("data-cover-valign", "middle");
           cover.setAttribute("data-cover-aspect", "1-8");
+          // Hero mode must not keep uploaded image background.
+          cover.classList.remove("page-web-cover-has-bg");
+          cover.style.background = "";
+          cover.style.removeProperty("--cover-bg-image");
+          cover.style.removeProperty("--cover-bg-pos");
         }
         toolbar
           .querySelectorAll(".page-web-cover-menu-type[data-set-cover-type]")
@@ -7401,11 +8001,13 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         const action = cardsDecorActionBtn.getAttribute("data-feature-grid-cards-decor-action");
         const content = block.querySelector(":scope > .page-web-text-block-content") as HTMLElement | null;
         const root = content?.querySelector(".page-web-feature-grid") as HTMLElement | null;
-        if (root && (action === "description" || action === "icons" || action === "learn-more")) {
+        if (root && (action === "description" || action === "icons" || action === "numbers" || action === "learn-more")) {
           const changed = action === "description"
             ? toggleFeatureGridCardDescriptions(root)
             : action === "icons"
               ? toggleFeatureGridCardIcons(root)
+              : action === "numbers"
+                ? toggleFeatureGridCardNumbers(root)
               : toggleFeatureGridCardLearnMore(root);
           if (changed) {
             syncFeatureGridElementsMenuState(toolbar);
@@ -7449,12 +8051,70 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       ed.querySelectorAll(".page-web-text-block-toolbar").forEach((node) => {
         closeTextBlockToolbarMenus(node as HTMLElement);
       });
+    ed.querySelectorAll(".page-web-spacer-toolbar").forEach((node) => {
+      closeSpacerToolbarMenus(node as HTMLElement);
+    });
       if (!wasOpen) {
         resetTextBlockMenuDropdownStyles(toolbar);
         toolbar.setAttribute("data-menu-open", "1");
         syncTextBlockToolbarVariantState(toolbar);
         logWebMenuDebug("text-block-trigger:opened", toolbar);
       }
+    }
+  }
+
+  function handleSpacerToolbarMouseDown(e: React.MouseEvent) {
+    const target = e.target as HTMLElement;
+    const ed = editorRef.current;
+    const toolbar = target.closest?.(".page-web-spacer-toolbar") as HTMLElement | null;
+    if (!toolbar || !ed?.contains(toolbar)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const block = toolbar.closest(".page-web-spacer") as HTMLElement | null;
+    if (!block || !ed.contains(block)) return;
+
+    const moveBtn = target.closest?.("[data-move-web-block]") as HTMLElement | null;
+    if (moveBtn && toolbar.contains(moveBtn)) {
+      const dir = moveBtn.getAttribute("data-move-web-block");
+      if ((dir === "up" || dir === "down") && moveWebBlockByToolbar(toolbar, dir, ed)) {
+        closeSpacerToolbarMenus(toolbar);
+        setContentHtml(ed.innerHTML);
+        setTimeout(() => updateToolbarState(), 0);
+      }
+      return;
+    }
+
+    const sizeBtn = target.closest?.("[data-set-spacer-size]") as HTMLElement | null;
+    if (sizeBtn && toolbar.contains(sizeBtn)) {
+      const size = sizeBtn.getAttribute("data-set-spacer-size");
+      if (size === "sm" || size === "md" || size === "lg") {
+        block.setAttribute("data-spacer-size", size);
+        toolbar.querySelectorAll(".page-web-spacer-menu-size[data-set-spacer-size]").forEach((btn) => {
+          const selected = (btn as HTMLElement).getAttribute("data-set-spacer-size") === size;
+          (btn as HTMLElement).setAttribute("aria-checked", selected ? "true" : "false");
+        });
+        closeSpacerToolbarMenus(toolbar);
+        setContentHtml(ed.innerHTML);
+        setTimeout(() => updateToolbarState(), 0);
+      }
+      return;
+    }
+
+    const delBtn = target.closest?.(".page-web-spacer-menu-delete");
+    if (delBtn) {
+      block.remove();
+      closeSpacerToolbarMenus(toolbar);
+      setContentHtml(ed.innerHTML);
+      setTimeout(() => updateToolbarState(), 0);
+      return;
+    }
+
+    if (target.closest?.(".page-web-spacer-menu-trigger")) {
+      const wasOpen = toolbar.getAttribute("data-menu-open") === "1";
+      ed.querySelectorAll(".page-web-spacer-toolbar").forEach((node) => {
+        closeSpacerToolbarMenus(node as HTMLElement);
+      });
+      if (!wasOpen) toolbar.setAttribute("data-menu-open", "1");
     }
   }
 
@@ -7520,6 +8180,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       handleTextBlockToolbarMouseDown(e);
       return;
     }
+    setTimeout(() => updateToolbarState(), 0);
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -7564,6 +8225,18 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
     const range = sel.getRangeAt(0);
 
     if (e.key === "Backspace" && range.collapsed) {
+      if (tryPreventTextBlockSiblingBackspaceMerge(el, range)) {
+        e.preventDefault();
+        return;
+      }
+      if (tryPreventCoverElementBackspaceMerge(el, range)) {
+        e.preventDefault();
+        return;
+      }
+      if (tryKeepCaretInsideEmptyTextBlockContent(el, range)) {
+        e.preventDefault();
+        return;
+      }
       if (tryHandleWebCoverBackspace(el, range)) {
         e.preventDefault();
         return;
@@ -7924,19 +8597,15 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         const file = files[0];
         const webp = await convertImageFileToWebpDataUrl(file);
         if (!webp) return;
-        const revert = buildCoverBgRevertSnapshot(cover);
-        applyCoverBackgroundImage(cover, webp, 50, 50);
+        // Prevent a transient editor resync from dropping freshly applied cover background.
         coverBgAdjustingRef.current = true;
-        setCoverBgAdjustSession({
-          mount: cover,
-          imageSrc: webp,
-          posX: 50,
-          posY: 50,
-          revert,
-        });
+        applyCoverBackgroundImage(cover, webp, 50, 50);
         const tb = cover.querySelector(".page-web-cover-toolbar") as HTMLElement | null;
         if (tb) closeCoverToolbarMenus(tb);
         setContentHtml(ed.innerHTML);
+        setTimeout(() => {
+          coverBgAdjustingRef.current = false;
+        }, 0);
         setTimeout(() => updateToolbarState(), 0);
       })();
       return;
@@ -8181,6 +8850,21 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       if (!range.collapsed) return;
       if (!ed.contains(range.commonAncestorContainer)) return;
       if (e.key === "Backspace") {
+        if (tryPreventTextBlockSiblingBackspaceMerge(ed, range)) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        if (tryPreventCoverElementBackspaceMerge(ed, range)) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        if (tryKeepCaretInsideEmptyTextBlockContent(ed, range)) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
         if (tryHandleWebCoverBackspace(ed, range)) {
           e.preventDefault();
           e.stopPropagation();
@@ -8282,6 +8966,17 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
                 onClick={() => setAddElementDialogTab("text")}
               >
                 Текст
+              </button>
+              <button
+                type="button"
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                  addElementDialogTab === "decor"
+                    ? "bg-white text-[#496db3] shadow-sm ring-1 ring-[#496db3]/20"
+                    : "text-slate-600 hover:text-slate-800"
+                }`}
+                onClick={() => setAddElementDialogTab("decor")}
+              >
+                Декоративный элемент
               </button>
             </div>
             <div className="grid grid-cols-1 gap-2">
@@ -8455,27 +9150,53 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
               <p className="text-sm font-semibold text-slate-800">Иконка карточки</p>
               <p className="mt-1 text-xs text-slate-500">Выберите иконку для выбранной карточки.</p>
             </div>
-            <div className="mt-4 grid grid-cols-3 gap-2">
-              {FEATURE_GRID_ICON_PRESETS.map((preset) => (
-                <button
-                  key={preset.id}
-                  type="button"
-                  className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-xs transition-colors ${
-                    featureGridIconPickerValue === preset.id
-                      ? "border-[#496db3]/50 bg-[#496db3]/10 text-[#496db3]"
-                      : "border-slate-200 bg-white text-slate-700 hover:border-[#496db3]/35 hover:bg-slate-50"
-                  }`}
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => setFeatureGridIconPickerValue(preset.id)}
-                >
-                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#496db3]/12 text-[#496db3]">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
-                      <path d={preset.path} strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </span>
-                  <span>{preset.label}</span>
-                </button>
-              ))}
+            <div className="mt-4">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Обычные</p>
+              <div className="grid grid-cols-3 gap-2">
+                {FEATURE_GRID_ICON_PRESETS.filter((preset) => !FEATURE_GRID_PROBLEM_ICON_IDS.has(preset.id)).map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-xs transition-colors ${
+                      featureGridIconPickerValue === preset.id
+                        ? "border-[#496db3]/50 bg-[#496db3]/10 text-[#496db3]"
+                        : "border-slate-200 bg-white text-slate-700 hover:border-[#496db3]/35 hover:bg-slate-50"
+                    }`}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => setFeatureGridIconPickerValue(preset.id)}
+                  >
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#496db3]/12 text-[#496db3]">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
+                        <path d={preset.path} strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </span>
+                    <span>{preset.label}</span>
+                  </button>
+                ))}
+              </div>
+              <p className="mb-2 mt-4 text-[11px] font-semibold uppercase tracking-wide text-rose-600">Проблемы</p>
+              <div className="grid grid-cols-3 gap-2">
+                {FEATURE_GRID_ICON_PRESETS.filter((preset) => FEATURE_GRID_PROBLEM_ICON_IDS.has(preset.id)).map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-xs transition-colors ${
+                      featureGridIconPickerValue === preset.id
+                        ? "border-rose-500/50 bg-rose-50 text-rose-700"
+                        : "border-slate-200 bg-white text-slate-700 hover:border-rose-300 hover:bg-rose-50/60"
+                    }`}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => setFeatureGridIconPickerValue(preset.id)}
+                  >
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
+                        <path d={preset.path} strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </span>
+                    <span>{preset.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="mt-5 flex items-center justify-end gap-2">
               <button
@@ -8644,31 +9365,99 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-editor-image-resize-se { bottom: -5px; right: -5px; cursor: se-resize; }
         .page-editor .page-editor-image-resize-sw { bottom: -5px; left: -5px; cursor: sw-resize; }
         ${getPageShowRenderCss(".page-editor")}
-        .page-editor .page-web-timeline { --timeline-dot-size: 0.8rem; --timeline-line-size: 2px; --timeline-term-gap: 1.35rem; --timeline-gap: 0.9rem; position: relative; width: 100%; margin: 0 0 1rem; padding-top: var(--timeline-term-gap); display: grid; grid-template-columns: repeat(var(--timeline-cols, 3), minmax(0, 1fr)); gap: var(--timeline-gap); box-sizing: border-box; }
+        .page-editor .page-web-timeline { --timeline-dot-size: 0.8rem; --timeline-line-size: 2px; --timeline-gap: 0.9rem; position: relative; width: 100%; margin: 0 0 1rem; display: grid; grid-template-columns: repeat(var(--timeline-cols, 3), minmax(0, 1fr)); gap: 0.7rem var(--timeline-gap); box-sizing: border-box; }
         .page-editor .page-web-timeline-head { grid-column: 1 / -1; margin: 0 0 0.6rem; display: grid; gap: 0; text-align: center; }
-        .page-editor .page-web-timeline-subtitle { margin: 0; color: #b91c1c; font-size: clamp(0.76rem, 1.15cqi, 0.88rem); line-height: 1; font-weight: 600; }
-        .page-editor .page-web-timeline-heading { margin: 0; color: #496db3; font-size: clamp(0.98rem, 2.7cqi, 1.75rem); line-height: 1; font-weight: 600; letter-spacing: -0.02em; }
-        .page-editor .page-web-timeline-subtitle + .page-web-timeline-heading { margin-top: -0.16rem; }
+        .page-editor .page-web-timeline-subtitle { margin: 0; color: #b91c1c; font-size: 1rem; line-height: 1; font-weight: 600; }
+        .page-editor .page-web-timeline-heading { margin: 0; color: #496db3; font-size: 2.25rem; line-height: 1; font-weight: 600; letter-spacing: -0.02em; }
+        .page-editor .page-web-timeline-subtitle + .page-web-timeline-heading { margin-top: 0.2rem; }
         .page-editor .page-web-timeline-description { margin: 0; color: #64748b; font-size: inherit; line-height: 1.5; }
         .page-editor .page-web-timeline-heading + .page-web-timeline-description { margin-top: 1rem; }
-        .page-editor .page-web-timeline-item { position: relative; min-height: 1.5rem; padding-top: calc(var(--timeline-dot-size) + 0.35rem); }
-        .page-editor .page-web-timeline-item::before { content: none; }
-        .page-editor .page-web-timeline-item ~ .page-web-timeline-item::before { content: ""; position: absolute; top: calc(var(--timeline-dot-size) / 2 - var(--timeline-line-size) / 2); left: calc(-50% - var(--timeline-gap)); width: calc(100% + var(--timeline-gap)); height: var(--timeline-line-size); background: #cbd5e1; pointer-events: none; z-index: 1; }
-        .page-editor .page-web-timeline-term { position: absolute; left: calc(0px - (var(--timeline-gap) / 2)); top: calc((var(--timeline-dot-size) / 2) - var(--timeline-term-gap)); transform: translateX(-50%); margin: 0; padding: 0 0.45rem; font-size: clamp(0.76rem, 1.15cqi, 0.88rem); font-weight: 600; color: #64748b; line-height: 1.25; white-space: nowrap; background: #fff; }
-        .page-editor .page-web-timeline-dot { position: absolute; left: 50%; top: 0; transform: translateX(-50%); width: var(--timeline-dot-size); height: var(--timeline-dot-size); border-radius: 9999px; background: #496db3; box-shadow: 0 0 0 3px #e2e8f0; z-index: 2; }
-        .page-editor .page-web-timeline-content { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; padding-left: 0; text-align: center; }
+        .page-editor .page-web-timeline-item {
+          position: relative;
+          min-height: 0;
+          display: grid;
+          grid-template-rows: minmax(8.5rem, 1fr) var(--timeline-dot-size) minmax(8.5rem, 1fr);
+          row-gap: 0.4rem;
+          align-content: stretch;
+          align-items: stretch;
+        }
+        .page-editor .page-web-timeline-item::before { content: none; display: none; }
+        .page-editor .page-web-timeline-item[data-timeline-has-next="1"]::before { content: ""; display: block; position: absolute; left: 50%; top: 50%; transform: translateY(-50%); width: calc(100% + var(--timeline-gap, 0.9rem)); height: var(--timeline-line-size); background: #cbd5e1; pointer-events: none; z-index: 1; }
+        .page-editor .page-web-timeline-item[data-timeline-has-next="0"]::before { content: none !important; display: none !important; width: 0 !important; height: 0 !important; }
+        .page-editor .page-web-timeline-term {
+          position: static;
+          margin: 0;
+          padding: 0;
+          font-size: 1rem;
+          font-weight: 600;
+          color: #64748b;
+          line-height: 1.25;
+          white-space: normal;
+          background: transparent;
+          text-align: center;
+          grid-row: 1;
+          align-self: center;
+          justify-self: center;
+          display: inline-flex;
+          align-items: flex-end;
+          justify-content: center;
+          width: fit-content;
+          max-width: 100%;
+          min-height: 0;
+          height: auto;
+        }
+        .page-editor .page-web-timeline-dot { position: relative; left: auto; top: auto; transform: none; width: var(--timeline-dot-size); height: var(--timeline-dot-size); border-radius: 9999px; background: #496db3; box-shadow: 0 0 0 3px #e2e8f0; z-index: 2; grid-row: 2; justify-self: center; align-self: center; }
+        .page-editor .page-web-timeline-content {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 0.2rem;
+          padding: 0.6rem 0.7rem;
+          margin: 0;
+          text-align: center;
+          border: 1px solid #e2e8f0;
+          border-radius: 10px;
+          background: #ffffff;
+          grid-row: 3;
+          align-self: stretch;
+          justify-self: center;
+          height: 100%;
+          box-sizing: border-box;
+        }
+        .page-editor .page-web-timeline-item:nth-of-type(odd):not(:first-of-type) > .page-web-timeline-term {
+          grid-row: 3;
+          align-self: center;
+          justify-self: center;
+          margin: 0;
+          align-items: flex-start;
+        }
+        .page-editor .page-web-timeline-item:nth-of-type(odd):not(:first-of-type) > .page-web-timeline-content {
+          grid-row: 1;
+          align-self: stretch;
+          margin: 0;
+        }
         .page-editor .page-web-timeline-title { margin: 0; font-size: inherit; font-weight: 700; color: #0f172a; line-height: 1.5; text-align: center; }
         .page-editor .page-web-timeline-text { margin: 0; font-size: inherit; color: #475569; line-height: 1.5; text-align: center; }
-        @media (max-width: 767px) {
-          .page-editor .page-web-timeline { grid-template-columns: 1fr; --timeline-gap: 1rem; }
-          .page-editor .page-web-timeline-item { min-height: 0; padding-top: 0; padding-left: 1.5rem; }
-          .page-editor .page-web-timeline-item::before { content: none; }
-          .page-editor .page-web-timeline-item ~ .page-web-timeline-item::before { content: none; }
-          .page-editor .page-web-timeline-item:not(:last-of-type)::before { content: ""; position: absolute; left: calc(var(--timeline-dot-size) / 2 - var(--timeline-line-size) / 2); top: calc(0.2rem + (var(--timeline-dot-size) / 2) - (var(--timeline-line-size) / 2)); width: var(--timeline-line-size); height: calc(100% + var(--timeline-gap)); background: #cbd5e1; pointer-events: none; z-index: 1; }
-          .page-editor .page-web-timeline-dot { left: 0; top: 0.2rem; transform: none; }
-          .page-editor .page-web-timeline-term { position: static; transform: none; margin: 0 0 0.35rem; padding: 0; background: transparent; text-align: left; }
-          .page-editor .page-web-timeline-head { text-align: left; }
-          .page-editor .page-web-timeline-content { align-items: flex-start; text-align: left; }
+        @media (max-width: 1205px) {
+          .page-editor .page-web-timeline { grid-template-columns: 1fr; --timeline-gap: 0.65rem; gap: var(--timeline-gap); }
+          .page-editor .page-web-timeline-item { min-height: 0; padding-top: 0; padding-left: 0; display: grid; grid-template-columns: minmax(0, 1fr) 1.9rem minmax(0, 1fr); column-gap: 0.65rem; grid-template-rows: none; row-gap: 0; align-items: start; }
+          .page-editor .page-web-timeline-item { align-items: center; }
+          .page-editor .page-web-timeline-item::before { content: none; display: none; }
+          .page-editor .page-web-timeline-item[data-timeline-has-next="1"]::before { content: ""; display: block; position: absolute; left: 50%; top: 50%; transform: translateX(-50%); width: var(--timeline-line-size); height: calc(100% + var(--timeline-gap, 1rem)); background: #cbd5e1; pointer-events: none; z-index: 1; }
+          .page-editor .page-web-timeline-item[data-timeline-has-next="0"]::before { content: none !important; display: none !important; width: 0 !important; height: 0 !important; }
+          .page-editor .page-web-timeline-dot { position: static; left: auto; top: auto; transform: none; grid-column: 2; grid-row: 1; justify-self: center; align-self: center; }
+          .page-editor .page-web-timeline-content { align-self: center; justify-self: center; }
+          .page-editor .page-web-timeline-term { position: static; transform: none; margin: 0; padding: 0; background: transparent; grid-row: 1; align-self: center; white-space: normal; text-align: right; display: inline-flex; align-items: center; width: fit-content; max-width: 100%; min-height: 0; height: auto; }
+          .page-editor .page-web-timeline-content { grid-row: 1; align-items: flex-start; text-align: left; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 0.6rem 0.7rem; box-sizing: border-box; grid-column: 3; }
+          .page-editor .page-web-timeline-item:nth-of-type(odd) > .page-web-timeline-term { grid-column: 1; text-align: right; padding-right: 0.35rem; justify-self: end; }
+          .page-editor .page-web-timeline-item:nth-of-type(odd) > .page-web-timeline-content { grid-column: 3; grid-row: 1; }
+          .page-editor .page-web-timeline-item:nth-of-type(odd) > .page-web-timeline-term { display: inline-flex; align-items: center; justify-content: flex-end; min-height: 0; }
+          .page-editor .page-web-timeline-item:nth-of-type(even) > .page-web-timeline-term { grid-column: 3; text-align: left; padding-left: 0.35rem; justify-self: start; display: inline-flex; align-items: center; justify-content: flex-start; min-height: 0; }
+          .page-editor .page-web-timeline-item:nth-of-type(even) > .page-web-timeline-content { grid-column: 1; grid-row: 1; }
+          .page-editor .page-web-timeline-item:first-of-type > .page-web-timeline-term { grid-column: 1; grid-row: 1; display: inline-flex; align-items: center; justify-content: flex-end; align-self: center; justify-self: end; min-height: 0; height: auto; visibility: visible; opacity: 1; }
+          .page-editor .page-web-timeline-item:nth-of-type(odd):not(:first-of-type) > .page-web-timeline-term { grid-row: 1; align-self: center; justify-self: end; align-items: center; }
+          .page-editor .page-web-timeline-item:nth-of-type(odd):not(:first-of-type) > .page-web-timeline-content { grid-row: 1; align-self: center; }
+          .page-editor .page-web-timeline-item:nth-of-type(even) > .page-web-timeline-term { grid-row: 1; align-self: center; justify-self: start; }
           .page-editor .page-web-timeline-title,
           .page-editor .page-web-timeline-text { text-align: left; }
         }
@@ -8677,12 +9466,14 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-carousel-toolbar,
         .page-editor .page-web-timeline-toolbar,
         .page-editor .page-web-text-media-toolbar,
-        .page-editor .page-web-text-block-toolbar { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+        .page-editor .page-web-text-block-toolbar,
+        .page-editor .page-web-spacer-toolbar { display: flex; flex-direction: column; align-items: center; gap: 4px; }
         .page-editor .page-web-cover,
         .page-editor .page-web-carousel,
         .page-editor .page-web-timeline,
         .page-editor .page-web-text-media,
-        .page-editor .page-web-text-block { position: relative; }
+        .page-editor .page-web-text-block,
+        .page-editor .page-web-spacer { position: relative; }
         .page-editor .page-web-insert-handle { position: absolute; left: 50%; bottom: -14px; transform: translateX(-50%); z-index: 75; opacity: 0; pointer-events: none; transition: opacity 0.15s ease; }
         .page-editor .page-web-insert-handle-btn { pointer-events: auto; display: inline-flex; align-items: center; gap: 6px; border-radius: 9999px; border: 1px solid #cbd5e1; background: rgba(255,255,255,0.98); color: #475569; font-size: 11px; font-weight: 600; line-height: 1; padding: 5px 10px; box-shadow: 0 4px 12px rgba(15,23,42,0.08); cursor: pointer; white-space: nowrap; }
         .page-editor .page-web-insert-handle-btn::before { content: "+"; font-size: 14px; font-weight: 700; line-height: 1; color: #496db3; }
@@ -8696,7 +9487,9 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-text-media:hover > .page-web-insert-handle,
         .page-editor .page-web-text-media:focus-within > .page-web-insert-handle,
         .page-editor .page-web-text-block:hover > .page-web-insert-handle,
-        .page-editor .page-web-text-block:focus-within > .page-web-insert-handle { opacity: 1; }
+        .page-editor .page-web-text-block:focus-within > .page-web-insert-handle,
+        .page-editor .page-web-spacer:hover > .page-web-insert-handle,
+        .page-editor .page-web-spacer:focus-within > .page-web-insert-handle { opacity: 1; }
         .page-editor .page-web-block-move-btn { display: flex; width: 28px; height: 28px; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid #cbd5e1; background: rgba(255,255,255,0.95); color: #64748b; cursor: pointer; padding: 0; }
         .page-editor .page-web-block-move-btn:hover { border-color: #94a3b8; color: #0f172a; background: #fff; }
         .page-editor .page-web-block-move-icon { width: 14px; height: 14px; display: block; }
@@ -8740,6 +9533,47 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-cover-toolbar[data-menu-open="1"] .page-web-cover-menu-sub[data-submenu-open="1"] > .page-web-cover-menu-sub-panel .page-web-cover-elements-panel { display: flex; }
         .page-editor .page-web-cover-menu-insert-cover-el { display: block; width: 100%; box-sizing: border-box; text-align: left; padding: 8px 12px; font-size: 13px; font-weight: 500; color: #0f172a; background: transparent; border: none; cursor: pointer; border-radius: 4px; white-space: nowrap; }
         .page-editor .page-web-cover-menu-insert-cover-el:hover { background: #f1f5f9; }
+        .page-editor .page-web-cover .page-web-cover-el-title[data-placeholder-visible="1"],
+        .page-editor .page-web-cover .page-web-cover-el-subtitle[data-placeholder-visible="1"],
+        .page-editor .page-web-cover .page-web-cover-el-button-wrap[data-placeholder-visible="1"] {
+          position: relative;
+        }
+        .page-editor .page-web-cover .page-web-cover-el-title[data-placeholder-visible="1"]::before,
+        .page-editor .page-web-cover .page-web-cover-el-subtitle[data-placeholder-visible="1"]::before,
+        .page-editor .page-web-cover .page-web-cover-el-button-wrap[data-placeholder-visible="1"]::before {
+          content: attr(data-placeholder);
+          color: #94a3b8;
+          font-weight: 500;
+          pointer-events: none;
+        }
+        .page-editor .page-web-cover-inner[data-cover-unlocked="1"] { outline: none !important; box-shadow: none !important; }
+        .page-editor .page-web-cover-inner .page-web-cover-el-title[data-cover-focus-target="1"],
+        .page-editor .page-web-cover-inner .page-web-cover-el-subtitle[data-cover-focus-target="1"],
+        .page-editor .page-web-cover-inner .page-web-cover-el-button-wrap[data-cover-focus-target="1"],
+        .page-editor .page-web-cover-inner .page-web-cover-el-announcement-wrap[data-cover-focus-target="1"],
+        .page-editor .page-web-cover-inner .page-web-cover-el-learn-more[data-cover-focus-target="1"],
+        .page-editor .page-web-cover-inner .page-web-cover-el-announcement-learn-more[data-cover-focus-target="1"] {
+          padding-inline: 0.2em;
+          margin-inline: -0.2em;
+          box-shadow: 0 0 0 7px rgba(73, 109, 179, 0.13), 0 0 18px rgba(73, 109, 179, 0.35), 0 0 30px rgba(73, 109, 179, 0.26);
+          border-radius: 10px;
+          transition: box-shadow 0.12s ease;
+        }
+        .page-editor .page-web-text-block-content { outline: none !important; }
+        .page-editor .page-web-text-block-content [data-text-block-focus-target="1"] {
+          padding-inline: 0.2em;
+          margin-inline: -0.2em;
+          box-shadow: 0 0 0 6px rgba(73, 109, 179, 0.12), 0 0 16px rgba(73, 109, 179, 0.3), 0 0 26px rgba(73, 109, 179, 0.22);
+          border-radius: 8px;
+          transition: box-shadow 0.12s ease;
+        }
+        .page-editor .page-web-timeline [data-timeline-focus-target="1"] {
+          padding-inline: 0.2em;
+          margin-inline: -0.2em;
+          box-shadow: 0 0 0 6px rgba(73, 109, 179, 0.12), 0 0 16px rgba(73, 109, 179, 0.3), 0 0 26px rgba(73, 109, 179, 0.22);
+          border-radius: 8px;
+          transition: box-shadow 0.12s ease;
+        }
         .page-editor .page-web-cover-aspect-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; width: 156px; box-sizing: border-box; }
         .page-editor .page-web-cover-menu-aspect { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; width: 100%; box-sizing: border-box; margin: 0; padding: 6px 2px; text-align: center; font-size: 10px; font-weight: 600; line-height: 1.1; color: #0f172a; background: transparent; border: none; cursor: pointer; border-radius: 6px; }
         .page-editor .page-web-cover-menu-aspect:hover { background: #f1f5f9; }
@@ -8753,7 +9587,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-cover[data-cover-aspect="1-8"] .page-web-cover-menu-aspect[data-set-cover-aspect="1-8"],
         .page-editor .page-web-cover[data-cover-aspect="1-4"] .page-web-cover-menu-aspect[data-set-cover-aspect="1-4"],
         .page-editor .page-web-cover[data-cover-aspect="3-1"] .page-web-cover-menu-aspect[data-set-cover-aspect="3-1"],
-        .page-editor .page-web-cover[data-cover-aspect="8-1"] .page-web-cover-menu-aspect[data-set-cover-aspect="8-1"] { background: #f1f5f9; box-shadow: inset 0 0 0 1px #496db3; }
+        .page-editor .page-web-cover[data-cover-aspect="6-1"] .page-web-cover-menu-aspect[data-set-cover-aspect="6-1"] { background: #f1f5f9; box-shadow: inset 0 0 0 1px #496db3; }
         .page-editor .page-web-cover[data-cover-type="hero"] .page-web-cover-menu-type[data-set-cover-type="hero"],
         .page-editor .page-web-cover[data-cover-type="image"] .page-web-cover-menu-type[data-set-cover-type="image"],
         .page-editor .page-web-cover[data-cover-type="split"] .page-web-cover-menu-type[data-set-cover-type="split"] { background: #f1f5f9; }
@@ -8808,6 +9642,24 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-text-block-menu-sub-panel .page-web-text-block-menu-sep { display: block; margin: 6px 0; }
         .page-editor .page-web-text-block-menu-delete { display: block; width: 100%; box-sizing: border-box; text-align: left; padding: 8px 12px; font-size: 13px; font-weight: 500; color: #b91c1c; background: transparent; border: none; cursor: pointer; border-radius: 4px; white-space: nowrap; }
         .page-editor .page-web-text-block-menu-delete:hover { background: #fef2f2; }
+        .page-editor .page-web-spacer { width: 100%; margin: 0.5rem 0; border: none; border-radius: 0; background: transparent; box-sizing: border-box; }
+        .page-editor .page-web-spacer[data-spacer-size="sm"] { height: 1.5rem; }
+        .page-editor .page-web-spacer[data-spacer-size="md"] { height: 2.5rem; }
+        .page-editor .page-web-spacer[data-spacer-size="lg"] { height: 4rem; }
+        .page-editor .page-web-spacer-toolbar { position: absolute; left: -8px; top: 50%; z-index: 80; width: max-content; pointer-events: auto; user-select: none; -webkit-user-select: none; transform: translateY(-50%); }
+        .page-editor .page-web-spacer-menu-trigger { display: flex; width: 28px; height: 28px; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid #cbd5e1; background: rgba(255,255,255,0.95); color: #64748b; cursor: pointer; padding: 0; }
+        .page-editor .page-web-spacer-menu-trigger:hover { border-color: #94a3b8; color: #0f172a; background: #fff; }
+        .page-editor .page-web-spacer-menu-dots::before { content: "\\22EE"; font-size: 1rem; line-height: 1; }
+        .page-editor .page-web-spacer-menu-dropdown { display: none; position: absolute; left: calc(100% + 4px); right: auto; top: 32px; min-width: 11.5rem; padding: 4px; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 10px 24px rgba(15,23,42,0.12); z-index: 90; }
+        .page-editor .page-web-spacer-toolbar[data-menu-open="1"] .page-web-spacer-menu-dropdown { display: block; }
+        .page-editor .page-web-spacer-menu-size { display: flex; width: 100%; box-sizing: border-box; align-items: center; gap: 8px; text-align: left; padding: 8px 10px; font-size: 13px; font-weight: 500; color: #0f172a; background: transparent; border: none; cursor: pointer; border-radius: 6px; white-space: nowrap; }
+        .page-editor .page-web-spacer-menu-size:hover { background: #f1f5f9; }
+        .page-editor .page-web-spacer-menu-size-radio { width: 14px; height: 14px; border-radius: 9999px; border: 1.5px solid #94a3b8; box-sizing: border-box; background: #fff; flex-shrink: 0; }
+        .page-editor .page-web-spacer-menu-size[aria-checked="true"] .page-web-spacer-menu-size-radio { border-color: #496db3; box-shadow: inset 0 0 0 3px #496db3; }
+        .page-editor .page-web-spacer-menu-size-label { flex: 1; min-width: 0; }
+        .page-editor .page-web-spacer-menu-sep { height: 1px; margin: 6px 8px; background: #e2e8f0; pointer-events: none; }
+        .page-editor .page-web-spacer-menu-delete { display: block; width: 100%; box-sizing: border-box; text-align: left; padding: 8px 10px; font-size: 13px; font-weight: 500; color: #b91c1c; background: transparent; border: none; cursor: pointer; border-radius: 6px; white-space: nowrap; }
+        .page-editor .page-web-spacer-menu-delete:hover { background: #fef2f2; }
         .page-editor .page-web-text-block-content { outline: none; }
         .page-editor .page-web-text-block-content h3 { margin: 0 0 0.55rem; font-size: 1.2rem; line-height: 1.2; color: #0f172a; }
         .page-editor .page-web-text-block-content p { margin: 0; color: #475569; line-height: 1.55; }
@@ -8817,7 +9669,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-text-media-col h3 { margin: 0 0 0.55rem; font-size: 1.2rem; line-height: 1.2; color: #0f172a; }
         .page-editor .page-web-text-media-col p { margin: 0; color: #475569; line-height: 1.55; }
         .page-editor .page-web-text-media-placeholder { color: #64748b; font-size: 0.9rem; }
-        @media (max-width: 767px) {
+        @media (max-width: 1205px) {
           .page-editor .page-web-text-media { grid-template-columns: 1fr; }
           .page-editor .page-web-text-media-col { min-height: 160px; }
         }
@@ -8885,7 +9737,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
           .page-editor .page-web-carousel[data-carousel-aspect="square"] .page-web-carousel-strip,
           .page-editor .page-web-carousel[data-carousel-aspect="a4"] .page-web-carousel-strip { grid-auto-columns: minmax(0, var(--carousel-slide-px, calc((max(0px, var(--carousel-inner-px, 100cqi)) - 16px) / 3))); }
         }
-        @media (max-width: 767px) {
+        @media (max-width: 1205px) {
           .page-editor .page-web-carousel-viewport { grid-auto-columns: 100%; }
           .page-editor .page-web-carousel-strip { grid-auto-columns: minmax(0, var(--carousel-slide-px, max(0px, var(--carousel-inner-px, 100cqi)))); }
           .page-editor .page-web-carousel[data-carousel-aspect="vertical"] .page-web-carousel-viewport,
@@ -8917,6 +9769,35 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-carousel-viewport::-webkit-scrollbar-track { background: transparent; }
         .page-editor .page-web-carousel-viewport::-webkit-scrollbar-thumb { background-color: rgba(100, 116, 139, 0.35); border-radius: 999px; }
         .page-editor .page-web-carousel-viewport::-webkit-scrollbar-thumb:hover { background-color: rgba(71, 85, 105, 0.5); }
+        .editor-ui-scale-75 { zoom: 0.8; }
+        /* Editor: larger blue headings and consistent red->blue spacing in all blocks */
+        .page-editor {
+          --site-blue-title-fs: 2.25rem;
+          --site-blue-title-lh: 2.25rem;
+          --site-red-blue-gap: -0.375rem;
+        }
+        @media (min-width: 640px) {
+          .page-editor {
+            --site-blue-title-fs: 3.5rem;
+            --site-blue-title-lh: 1;
+            --site-red-blue-gap: -0.5rem;
+          }
+        }
+        .page-editor .page-web-cover .page-web-cover-el-title,
+        .page-editor .page-web-feature-grid .page-web-feature-grid-title,
+        .page-editor .page-web-timeline .page-web-timeline-heading,
+        .page-editor .page-web-work-pricing .wsx,
+        .page-editor .page-web-work-pricing .wsy,
+        .page-editor .page-web-work-pricing .wti,
+        .page-editor .page-web-text-block h3,
+        .page-editor .page-web-text-media .page-web-text-media-col h3 {
+          font-size: var(--site-blue-title-fs) !important;
+          line-height: var(--site-blue-title-lh) !important;
+        }
+        .page-editor .page-web-feature-grid-subtitle + .page-web-feature-grid-title,
+        .page-editor .page-web-timeline-subtitle + .page-web-timeline-heading {
+          margin-top: 0.2rem !important;
+        }
       `}</style>
       <div
         className="flex min-h-screen transition-[filter] duration-150"
@@ -8958,7 +9839,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
 
               {error && <div className="shrink-0 text-xs text-red-600">{error}</div>}
 
-              <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white">
+              <div className="editor-ui-scale-75 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white">
                 <div
                   ref={toolbarRef}
                   className="relative z-30 flex shrink-0 flex-wrap items-center gap-1.5 border-b border-slate-200 bg-white p-2"
@@ -9700,10 +10581,16 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
                             closeTextBlockToolbarMenus(node as HTMLElement);
                           });
                         }
+                        if (ed && !t?.closest?.(".page-web-spacer-toolbar")) {
+                          ed.querySelectorAll(".page-web-spacer-toolbar").forEach((node) => {
+                            closeSpacerToolbarMenus(node as HTMLElement);
+                          });
+                        }
                         handleCarouselEditorMouseDown(e);
                         handleTimelineToolbarMouseDown(e);
                         handleTextMediaEditorMouseDown(e);
                         handleTextBlockEditorMouseDown(e);
+                        handleSpacerToolbarMouseDown(e);
                         handleCoverSurfaceMouseDown(e);
                         handleCoverToolbarMouseDown(e);
                         handleCoverInnerMouseDown(e);
@@ -9724,6 +10611,8 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
                         scheduleEditorHtmlStateSync(html);
                         syncMarkerBold();
                       }}
+                      onKeyUp={() => updateToolbarState()}
+                      onMouseUp={() => updateToolbarState()}
                       className="w-full"
                     />
                     {cellMenuViewport &&

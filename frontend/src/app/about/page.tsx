@@ -218,7 +218,7 @@ export default async function AboutPage() {
 
       <section className="mx-auto max-w-7xl px-6 lg:px-8">
         <div className="mx-auto max-w-2xl text-center">
-          <h1 className="text-4xl font-semibold tracking-tight text-[#496db3] sm:text-6xl">
+          <h1 className="about-template-fallback__title text-balance text-pretty">
             Мы создаем решения, которые работают в реальных процессах
           </h1>
           <p className="mt-6 text-lg leading-8 text-slate-600">
@@ -236,8 +236,10 @@ export default async function AboutPage() {
 
       <section className="mx-auto mt-16 max-w-7xl px-6 lg:px-8">
         <div className="mx-auto max-w-2xl lg:max-w-none">
-          <h2 className="text-base font-semibold text-[#b91c1c]">Наши ценности</h2>
-          <p className="mt-2 text-3xl font-semibold tracking-tight text-[#496db3] sm:text-4xl">
+          <h2 className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-base font-semibold text-[#b91c1c]">
+            Наши ценности
+          </h2>
+          <p className="about-template-fallback__title mt-0 text-balance text-pretty">
             Принципы, на которых строится работа
           </p>
           <dl className="mt-12 grid grid-cols-1 gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">

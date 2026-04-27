@@ -229,8 +229,7 @@ export function HomeServicesFolderCards({
     syncHeightsToTallest &&
     equalHeight &&
     !embedInCarousel &&
-    items.length > 1 &&
-    layout === "default";
+    items.length > 1;
 
   useEqualizeFolderCardSlots(containerRef, runEqualizeSlots, itemsKey);
 

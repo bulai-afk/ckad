@@ -79,7 +79,6 @@ function getBlockText(page: PageData | null, type: string): string {
 }
 
 const CALLBACK_FORM_LINK = "callback://open";
-const PREVIEW_BASE_WIDTH = 1120;
 
 export default function Page() {
   const params = useParams<{ slug?: string[] | string }>();
@@ -93,10 +92,6 @@ export default function Page() {
   const [page, setPage] = useState<PageData | null>(null);
   const isArticlesPage = slugParts[0] === "articles";
   const contentRootRef = useRef<HTMLElement | null>(null);
-  const previewViewportRef = useRef<HTMLDivElement | null>(null);
-  const previewCanvasRef = useRef<HTMLElement | null>(null);
-  const [previewScale, setPreviewScale] = useState(1);
-  const [previewScaledHeight, setPreviewScaledHeight] = useState<number | null>(null);
   /** Нет CMS-страницы по slug, но есть папка в /api/pages/folders — показываем тот же хаб, что на /services */
   const [serviceFolderHub, setServiceFolderHub] = useState<ServiceTreeNode | null>(null);
   const [loading, setLoading] = useState(true);
@@ -235,28 +230,7 @@ export default function Page() {
     const root = contentRootRef.current;
     if (!root) return;
     ensureCoverBgLayers(root);
-  }, [page, previewScale, isArticlesPage]);
-
-  useEffect(() => {
-    if (isArticlesPage) return;
-    const viewport = previewViewportRef.current;
-    const canvas = previewCanvasRef.current;
-    if (!viewport || !canvas) return;
-
-    const recalc = () => {
-      const vw = Math.max(1, viewport.clientWidth);
-      const nextScale = vw / PREVIEW_BASE_WIDTH;
-      const baseHeight = Math.max(canvas.scrollHeight, canvas.offsetHeight, 1);
-      setPreviewScale(nextScale);
-      setPreviewScaledHeight(baseHeight * nextScale);
-    };
-
-    recalc();
-    const observer = new ResizeObserver(recalc);
-    observer.observe(viewport);
-    observer.observe(canvas);
-    return () => observer.disconnect();
-  }, [page, loading, isArticlesPage]);
+  }, [page, isArticlesPage]);
 
   useEffect(() => {
     if (!page) return;
@@ -476,29 +450,19 @@ export default function Page() {
           )}
           </main>
           ) : (
-          <div ref={previewViewportRef} className="w-full overflow-hidden">
-            <div style={{ height: previewScaledHeight !== null ? `${previewScaledHeight}px` : undefined }}>
-              <main
-                ref={(node) => {
-                  previewCanvasRef.current = node;
-                  contentRootRef.current = node;
-                }}
-                className="page-editor goz-full-width"
-                style={{
-                  width: `${PREVIEW_BASE_WIDTH}px`,
-                  transform: `scale(${previewScale})`,
-                  transformOrigin: "top left",
-                }}
-                onClick={(e) => {
-                  const target = e.target as HTMLElement;
-                  const link = target.closest?.("a.page-web-cover-el-button") as HTMLAnchorElement | null;
-                  if (!link) return;
-                  const href = (link.getAttribute("href") || "").trim();
-                  if (href !== CALLBACK_FORM_LINK) return;
-                  e.preventDefault();
-                  setCallbackModalOpen(true);
-                }}
-              >
+          <main
+            ref={contentRootRef}
+            className="page-editor goz-full-width w-full service-page-content-root"
+            onClick={(e) => {
+              const target = e.target as HTMLElement;
+              const link = target.closest?.("a.page-web-cover-el-button") as HTMLAnchorElement | null;
+              if (!link) return;
+              const href = (link.getAttribute("href") || "").trim();
+              if (href !== CALLBACK_FORM_LINK) return;
+              e.preventDefault();
+              setCallbackModalOpen(true);
+            }}
+          >
           {page.blocks.map((block) => {
             if (
               block.type === "summary" ||
@@ -534,9 +498,7 @@ export default function Page() {
               У этой страницы пока нет контента.
             </p>
           )}
-              </main>
-            </div>
-          </div>
+          </main>
           )}
           <CallbackRequestModal
             open={callbackModalOpen}
@@ -594,6 +556,7 @@ export default function Page() {
             .page-content .page-web-text-media-col { min-height: 160px; }
           }
           ${getTimelineRenderCss(".page-content")}
+          ${getPageShowRenderCss(".page-content")}
           .page-content .page-web-carousel { position: relative; width: 100%; max-width: 100%; margin: 1.25rem 0; box-sizing: border-box; display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 10px; background: transparent; border: none; overflow: visible; }
           .page-content .page-web-carousel-arrow { position: relative; flex-shrink: 0; z-index: 2; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 9999px; border: 1px solid #cbd5e1; background: #fff; color: #334155; font-size: 1.25rem; line-height: 1; cursor: pointer; padding: 0; box-shadow: 0 1px 4px rgba(15,23,42,0.08); }
           .page-content .page-web-carousel-arrow:hover { background: #f8fafc; color: #0f172a; }
@@ -652,6 +615,151 @@ export default function Page() {
           ${getPageShowRenderCss(".page-editor .page-content")}
           ${getWorkPricingRenderCss(".page-content")}
           ${getWorkPricingRenderCss(".page-editor .page-content")}
+          /* Service pages: keep content headings same size as site blue headings */
+          .service-page-content-root .page-content h1,
+          .service-page-content-root .page-content h2,
+          .service-page-content-root .page-content h3 {
+            font-size: var(--site-blue-title-fs) !important;
+            line-height: var(--site-blue-title-lh) !important;
+          }
+          .service-page-content-root .page-content .page-web-cover-el-title,
+          .service-page-content-root .page-content .page-web-feature-grid-title,
+          .service-page-content-root .page-content .page-web-timeline-heading,
+          .service-page-content-root .page-content .page-web-work-pricing .wsx,
+          .service-page-content-root .page-content .page-web-work-pricing .wsy,
+          .service-page-content-root .page-content .page-web-work-pricing .wti,
+          .service-page-content-root .page-content .page-web-text-block h3,
+          .service-page-content-root .page-content .page-web-text-media .page-web-text-media-col h3 {
+            font-size: var(--site-blue-title-fs) !important;
+            line-height: var(--site-blue-title-lh) !important;
+          }
+          @media (max-width: 1205px) {
+            .service-page-content-root .page-content {
+              --site-blue-title-fs: 2.25rem;
+              --site-blue-title-lh: 2.25rem;
+              --site-red-blue-gap: -0.375rem;
+            }
+            .service-page-content-root .page-content .page-web-cover[data-cover-type="split"] .page-web-cover-el-title {
+              font-size: var(--site-blue-title-fs) !important;
+              line-height: var(--site-blue-title-lh) !important;
+            }
+            .service-page-content-root .page-content .page-web-cover[data-cover-type="split"] .page-web-cover-el-subtitle {
+              font-size: 1rem;
+              line-height: 1.4;
+            }
+            .service-page-content-root .page-content .page-web-cover[data-cover-type="split"] .page-web-cover-el-button {
+              font-size: 1.28rem;
+              padding: 1rem 1.6rem;
+              border-radius: 0.58rem;
+            }
+            .service-page-content-root .page-content .page-web-cover[data-cover-type="split"] .page-web-cover-inner {
+              width: 100%;
+              padding-right: clamp(1rem, 4vw, 1.5rem);
+            }
+            .service-page-content-root .page-content .page-web-cover[data-cover-type="image"].page-web-cover-has-bg::before {
+              content: "" !important;
+              position: absolute;
+              inset: 0;
+              z-index: 1;
+              pointer-events: none;
+              background: rgba(248, 250, 252, 0.36) !important;
+              -webkit-backdrop-filter: blur(3px) saturate(1.02) brightness(1.08) !important;
+              backdrop-filter: blur(3px) saturate(1.02) brightness(1.08) !important;
+              filter: none !important;
+              box-shadow: none !important;
+              opacity: 1 !important;
+            }
+            .service-page-content-root .page-content .page-web-cover[data-cover-type="split"]::before {
+              background: rgba(248, 250, 252, 0.36) !important;
+              -webkit-backdrop-filter: blur(3px) saturate(1.02) brightness(1.08);
+              backdrop-filter: blur(3px) saturate(1.02) brightness(1.08);
+              z-index: 2 !important;
+              filter: none !important;
+              box-shadow: none !important;
+            }
+            .service-page-content-root .page-content .page-web-cover[data-cover-type="split"]::after {
+              width: 100% !important;
+              border-left: none;
+              opacity: 0.35;
+              z-index: 1 !important;
+            }
+            .service-page-content-root .page-content .page-web-cover[data-cover-type="split"].page-web-cover-has-bg::after {
+              background-image: var(--cover-bg-image) !important;
+              background-size: cover !important;
+              background-position: var(--cover-bg-pos, 50% 50%) !important;
+              background-repeat: no-repeat !important;
+            }
+            .service-page-content-root .page-content .page-web-cover[data-cover-type="split"] > .page-web-cover-bg {
+              width: 100%;
+              right: 0;
+              display: block !important;
+            }
+            .service-page-content-root .page-content .page-web-cover[data-cover-aspect="1-8"],
+            .service-page-content-root .page-content .page-web-cover[data-cover-aspect="1-4"] {
+              aspect-ratio: 1 / 1 !important;
+            }
+            .service-page-content-root .page-content .page-web-cover[data-cover-type="split"][data-cover-aspect="1-8"],
+            .service-page-content-root .page-content .page-web-cover[data-cover-type="split"][data-cover-aspect="1-4"] {
+              aspect-ratio: 1 / 1 !important;
+            }
+            .service-page-content-root .page-content .page-web-cover[data-cover-type="split"][data-cover-aspect="1-4"] .page-web-cover-inner {
+              min-height: 50%;
+              max-height: 50%;
+              padding-right: clamp(1rem, 4vw, 1.5rem);
+              padding-bottom: clamp(0.9rem, 3vw, 1.2rem);
+            }
+            .service-page-content-root .page-content .page-web-cover[data-cover-type="split"][data-cover-aspect="1-4"]::before {
+              inset: 0 0 50% 0;
+              background: rgba(248, 250, 252, 0.5) !important;
+              -webkit-backdrop-filter: blur(7px) saturate(1.03) brightness(1.14);
+              backdrop-filter: blur(7px) saturate(1.03) brightness(1.14);
+            }
+            .service-page-content-root .page-content .page-web-cover[data-cover-type="split"][data-cover-aspect="1-4"]::after {
+              top: 50%;
+              right: 0;
+              bottom: 0;
+              width: 100% !important;
+              border-left: none;
+              border-top: 1px solid rgba(148, 163, 184, 0.65);
+              opacity: 1;
+            }
+            .service-page-content-root .page-content .page-web-cover[data-cover-type="split"][data-cover-aspect="1-4"].page-web-cover-has-bg::after {
+              background-image: var(--cover-bg-image) !important;
+              background-size: cover !important;
+              background-position: var(--cover-bg-pos, 50% 50%) !important;
+              background-repeat: no-repeat !important;
+            }
+            .service-page-content-root .page-content .page-web-cover[data-cover-type="split"][data-cover-aspect="1-4"] > .page-web-cover-bg {
+              display: block !important;
+            }
+            .service-page-content-root .page-content .page-web-cover[data-cover-aspect="6-1"][data-cover-type="hero"],
+            .service-page-content-root .page-content .page-web-cover[data-cover-aspect="6-1"][data-cover-type="image"],
+            .service-page-content-root .page-content .page-web-cover[data-cover-type="split"][data-cover-aspect="6-1"],
+            .service-page-content-root .page-content .page-web-cover[data-cover-aspect="8-1"][data-cover-type="hero"],
+            .service-page-content-root .page-content .page-web-cover[data-cover-aspect="8-1"][data-cover-type="image"],
+            .service-page-content-root .page-content .page-web-cover[data-cover-type="split"][data-cover-aspect="8-1"] {
+              aspect-ratio: 2 / 1;
+            }
+            .service-page-content-root .page-content .page-web-text-media {
+              grid-template-columns: 1fr;
+            }
+            .service-page-content-root .page-content .page-web-text-media-col {
+              min-height: 160px;
+            }
+            .service-page-content-root .page-content .page-web-feature-grid-list {
+              grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            .service-page-content-root .page-content .page-web-feature-grid[data-feature-grid-message-position="right"] .page-web-feature-grid-lead-row,
+            .service-page-content-root .page-content .page-web-feature-grid[data-feature-grid-message-position="left"] .page-web-feature-grid-lead-row,
+            .service-page-content-root .page-content .page-web-feature-grid-lead-row[data-feature-grid-message-position="right"],
+            .service-page-content-root .page-content .page-web-feature-grid-lead-row[data-feature-grid-message-position="left"] {
+              grid-template-columns: minmax(0, 1fr);
+            }
+            .service-page-content-root .page-content .page-web-feature-grid[data-feature-grid-image-position="right"],
+            .service-page-content-root .page-content .page-web-feature-grid[data-feature-grid-image-position="left"] {
+              grid-template-columns: minmax(0, 1fr);
+            }
+          }
           .page-content .page-web-feature-grid-image,
           .page-editor .page-content .page-web-feature-grid-image {
             border: none !important;

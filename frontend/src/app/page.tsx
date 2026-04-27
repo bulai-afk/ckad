@@ -257,6 +257,7 @@ export default async function Home() {
             <HomeServicesFolderCards
               layout="featured"
               equalHeight
+              syncHeightsToTallest
               alwaysShowPreview
               ctaLabel="Подробнее"
               gridClassName="services-home-grid"
