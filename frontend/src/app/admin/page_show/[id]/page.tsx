@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { apiGet } from "@/lib/api";
+import { ApiRequestError, apiGet, isPageByIdApiPath } from "@/lib/api";
 import { adminPageIdFromParams } from "@/lib/adminPageIdFromParams";
 import { getSharedWebBlocksCss } from "@/lib/sharedWebBlocksCss";
 import { ensureCoverBgLayers, getPageShowRenderCss, getTimelineRenderCss, getWorkPricingRenderCss } from "@/lib/pageShowRender";
@@ -28,6 +28,7 @@ export default function AdminPageShowPreview() {
   const pageId = useMemo(() => adminPageIdFromParams(params ?? null), [params]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pageMissingInDb, setPageMissingInDb] = useState(false);
   const [page, setPage] = useState<PageDetails | null>(null);
   const [previewScale, setPreviewScale] = useState(1);
   const [previewScaledHeight, setPreviewScaledHeight] = useState<number | null>(null);
@@ -46,17 +47,29 @@ export default function AdminPageShowPreview() {
       try {
         setLoading(true);
         setError(null);
+        setPageMissingInDb(false);
         const data = await apiGet<PageDetails>(`/api/pages/${pageId}`, 120_000);
         if (cancelled) return;
         setPage(data);
       } catch (e) {
         if (cancelled) return;
         console.error("[page_show] load failed", e);
-        setError(
-          e instanceof Error && e.message.trim()
-            ? e.message
-            : "Не удалось загрузить страницу предпросмотра",
-        );
+        const notFound =
+          e instanceof ApiRequestError &&
+          e.status === 404 &&
+          isPageByIdApiPath(`/api/pages/${pageId}`);
+        if (notFound) {
+          setPageMissingInDb(true);
+          setError(
+            `Страницы с id «${pageId}» в базе нет. Откройте предпросмотр из списка «Страницы» или из редактора существующей страницы.`,
+          );
+        } else {
+          setError(
+            e instanceof Error && e.message.trim()
+              ? e.message
+              : "Не удалось загрузить страницу предпросмотра",
+          );
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -126,7 +139,21 @@ export default function AdminPageShowPreview() {
           </div>
         <div className="bg-transparent">
           {loading ? <p className="px-4 text-sm text-slate-500 sm:px-6">Загрузка…</p> : null}
-          {!loading && error ? <p className="px-4 text-sm text-red-600 sm:px-6">{error}</p> : null}
+          {!loading && error ? (
+            <div className="space-y-2 px-4 text-sm text-red-600 sm:px-6">
+              <p>{error}</p>
+              {pageMissingInDb ? (
+                <p>
+                  <Link
+                    href="/admin/page"
+                    className="font-medium text-[#496db3] underline decoration-[#496db3]/40 underline-offset-2 hover:decoration-[#496db3]"
+                  >
+                    Перейти к списку страниц
+                  </Link>
+                </p>
+              ) : null}
+            </div>
+          ) : null}
           {!loading && !error ? (
             <div ref={previewViewportRef} className="w-full overflow-hidden">
               <div

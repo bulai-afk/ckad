@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
 import { useParams } from "next/navigation";
-import { apiGet, apiPut } from "@/lib/api";
+import { ApiRequestError, apiGet, apiPut, isPageByIdApiPath } from "@/lib/api";
 import { adminPageIdFromParams } from "@/lib/adminPageIdFromParams";
 import { getSharedWebBlocksCss } from "@/lib/sharedWebBlocksCss";
 import { getPageShowRenderCss, getWorkPricingRenderCss } from "@/lib/pageShowRender";
@@ -2053,6 +2054,8 @@ export default function PageEditorDetailsPage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** 404 на GET /api/pages/:id — в БД нет записи с таким id (часто открыли /page_editor/1 на пустой БД). */
+  const [pageMissingInDb, setPageMissingInDb] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
 
   const [title, setTitle] = useState("");
@@ -3091,6 +3094,7 @@ export default function PageEditorDetailsPage() {
       try {
         setLoading(true);
         setError(null);
+        setPageMissingInDb(false);
         const page = await apiGet<PageDetails>(`/api/pages/${pageId}`, 120_000);
         setTitle(page.title || "");
         setSlug(page.slug || "");
@@ -3115,11 +3119,22 @@ export default function PageEditorDetailsPage() {
         setContentHtml(normalizedInitialHtml);
       } catch (e) {
         console.error("[page-editor] load failed", e);
-        setError(
-          e instanceof Error && e.message.trim()
-            ? e.message
-            : "Не удалось загрузить страницу",
-        );
+        const notFound =
+          e instanceof ApiRequestError &&
+          e.status === 404 &&
+          isPageByIdApiPath(`/api/pages/${pageId}`);
+        if (notFound) {
+          setPageMissingInDb(true);
+          setError(
+            `Страницы с id «${pageId}» в базе нет. Откройте её из списка «Страницы» — в адресе должен быть существующий id (сейчас в БД нет записи с номером ${pageId}).`,
+          );
+        } else {
+          setError(
+            e instanceof Error && e.message.trim()
+              ? e.message
+              : "Не удалось загрузить страницу",
+          );
+        }
       } finally {
         setLoading(false);
       }
@@ -9850,7 +9865,21 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
                 </div>
               </div>
 
-              {error && <div className="shrink-0 text-xs text-red-600">{error}</div>}
+              {error ? (
+                <div className="shrink-0 space-y-2 text-xs text-red-600">
+                  <p>{error}</p>
+                  {pageMissingInDb ? (
+                    <p>
+                      <Link
+                        href="/admin/page"
+                        className="font-medium text-[#496db3] underline decoration-[#496db3]/40 underline-offset-2 hover:decoration-[#496db3]"
+                      >
+                        Перейти к списку страниц
+                      </Link>
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
 
               <div className="editor-ui-scale-75 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white">
                 <div

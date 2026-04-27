@@ -1,5 +1,38 @@
 import { apiBaseUrl } from "./apiBaseUrl";
 
+/** Ошибка HTTP при apiGet (статус и путь для UI). */
+export class ApiRequestError extends Error {
+  readonly status: number;
+  readonly path: string;
+  readonly bodyText: string;
+
+  constructor(path: string, status: number, bodyText: string) {
+    const compact = bodyText.replace(/\s+/g, " ").trim().slice(0, 220);
+    let detail = compact;
+    try {
+      const j = JSON.parse(bodyText) as { error?: unknown; message?: unknown };
+      if (typeof j?.error === "string" && j.error.trim()) detail = j.error.trim();
+      else if (typeof j?.message === "string" && j.message.trim()) detail = j.message.trim();
+    } catch {
+      /* оставляем compact */
+    }
+    super(
+      compact
+        ? `GET ${path} failed (${status}): ${detail}`
+        : `GET ${path} failed with ${status}`,
+    );
+    this.name = "ApiRequestError";
+    this.status = status;
+    this.path = path;
+    this.bodyText = bodyText;
+  }
+}
+
+/** GET `/api/pages/:id` (числовой id) — редактор и предпросмотр. */
+export function isPageByIdApiPath(path: string): boolean {
+  return /^\/api\/pages\/\d+$/.test(path);
+}
+
 function isAbortError(e: unknown): boolean {
   if (typeof e !== "object" || e === null) return false;
   return (e as { name?: string }).name === "AbortError";
@@ -40,10 +73,7 @@ export async function apiGet<T>(path: string, timeoutMs = 10_000): Promise<T> {
   );
   const text = await res.text();
   if (!res.ok) {
-    const hint = text.replace(/\s+/g, " ").trim().slice(0, 220);
-    throw new Error(
-      hint ? `GET ${path} failed (${res.status}): ${hint}` : `GET ${path} failed with ${res.status}`,
-    );
+    throw new ApiRequestError(path, res.status, text);
   }
   const trimmed = text.trim();
   if (!trimmed) {
