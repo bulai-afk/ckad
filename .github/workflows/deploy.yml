@@ -13,8 +13,42 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  ci:
-    name: Build backend & frontend
+  # Два независимых job — backend и frontend собираются параллельно (быстрее, отдельные логи).
+  build-backend:
+    name: CI — backend (install, Prisma, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Backend — npm ci
+        working-directory: backend
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+
+      - name: Backend — Prisma generate
+        working-directory: backend
+        run: |
+          set -euo pipefail
+          npm run prisma:generate
+
+      - name: Backend — TypeScript build
+        working-directory: backend
+        run: |
+          set -euo pipefail
+          npm run build
+
+  build-frontend:
+    name: CI — frontend (install, build)
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -26,30 +60,27 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: |
-            backend/package-lock.json
-            frontend/package-lock.json
+          cache-dependency-path: frontend/package-lock.json
 
-      - name: Backend — install, Prisma, build
-        working-directory: backend
-        run: |
-          set -euo pipefail
-          npm ci --no-audit --no-fund
-          npm run prisma:generate
-          npm run build
-
-      - name: Frontend — install, build
+      - name: Frontend — npm ci
         working-directory: frontend
         run: |
           set -euo pipefail
           npm ci --no-audit --no-fund
+
+      - name: Frontend — Next.js build
+        working-directory: frontend
+        run: |
+          set -euo pipefail
           npm run build
 
   deploy:
-    needs: ci
+    name: Deploy — rsync + server build + restart
+    needs: [build-backend, build-frontend]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     # Корень приложения на сервере (каталог, куда rsync кладёт репозиторий).
-    # По умолчанию /opt/ckad/current — можно переопределить: Settings → Secrets and variables → Actions → Variables → DEPLOY_APP_ROOT
+    # По умолчанию /opt/ckad/current — можно переопределить: Settings → Variables → DEPLOY_APP_ROOT
     env:
       DEPLOY_APP_ROOT: ${{ vars.DEPLOY_APP_ROOT }}
     steps:
@@ -84,7 +115,7 @@ jobs:
           ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
           printf "\nHost *\n  StrictHostKeyChecking yes\n  IdentityFile ~/.ssh/id_ed25519\n" >> ~/.ssh/config
 
-      - name: Rsync code to server
+      - name: Rsync — код на сервер
         shell: bash
         env:
           DEPLOY_APP_ROOT: ${{ vars.DEPLOY_APP_ROOT }}
@@ -92,7 +123,7 @@ jobs:
           set -euo pipefail
           APP="${DEPLOY_APP_ROOT:-/opt/ckad/current}"
           echo "::notice::Deploy path (APP)=$APP"
-          # backend/data — рабочие JSON на сервере (баннеры, папки, отзывы и т.д.); не затирать версией из git
+          # backend/data — рабочие JSON на сервере; не затирать версией из git
           rsync -az --delete \
             --exclude ".git" \
             --exclude "**/node_modules" \
@@ -102,18 +133,18 @@ jobs:
             --exclude "**/.env.*" \
             --exclude "backend/data/" \
             ./ "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${APP}/"
+          echo "::notice::Rsync finished — проверка backend на сервере:"
+          ssh "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" "set -euo pipefail; test -f \"${APP}/backend/package.json\" && head -n 5 \"${APP}/backend/package.json\" || { echo \"backend/package.json missing under ${APP}\"; exit 1; }"
 
-      - name: Build and restart services
+      - name: SSH — swap (один раз на VPS)
         shell: bash
         env:
           DEPLOY_APP_ROOT: ${{ vars.DEPLOY_APP_ROOT }}
         run: |
           set -euo pipefail
           APP="${DEPLOY_APP_ROOT:-/opt/ckad/current}"
+          echo "::notice::[deploy] swap check (APP=$APP)"
           ssh "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" "set -euo pipefail
-            ROOT=\"$APP\"
-            echo \"[deploy] ROOT=\$ROOT\"
-
             if ! swapon --show | grep -q '/swapfile'; then
               echo '[deploy] no swapfile, creating 4G swap...'
               fallocate -l 4G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=4096
@@ -122,24 +153,70 @@ jobs:
               swapon /swapfile
               grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
             fi
+            echo '[deploy] swap OK'
+          "
 
-            cd \"\$ROOT/backend\"
-            npm ci --no-audit --no-fund
-            npm run prisma:generate
-                   set -a
-                   . /opt/ckad/shared/env/backend.env
-                   set +a
-                   npx prisma migrate deploy
-            npm run build
+      - name: SSH — сборка backend и frontend (параллельно на сервере)
+        shell: bash
+        env:
+          DEPLOY_APP_ROOT: ${{ vars.DEPLOY_APP_ROOT }}
+        run: |
+          set -euo pipefail
+          APP="${DEPLOY_APP_ROOT:-/opt/ckad/current}"
+          ssh "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" "set -euo pipefail
+            ROOT=\"$APP\"
+            echo \"[deploy] ROOT=\$ROOT — parallel npm ci + build (backend + frontend)\"
+            build_backend() {
+              set -euo pipefail
+              echo '[deploy:backend] start'
+              cd \"\$ROOT/backend\"
+              npm ci --no-audit --no-fund
+              npm run prisma:generate
+              set -a
+              . /opt/ckad/shared/env/backend.env
+              set +a
+              npx prisma migrate deploy
+              npm run build
+              echo '[deploy:backend] done'
+            }
+            build_frontend() {
+              set -euo pipefail
+              echo '[deploy:frontend] start'
+              cd \"\$ROOT/frontend\"
+              npm ci --no-audit --no-fund
+              npm run build
+              echo '[deploy:frontend] done'
+            }
+            build_backend &
+            _b=\$!
+            build_frontend &
+            _f=\$!
+            wait \$_b
+            _be=\$?
+            wait \$_f
+            _fe=\$?
+            if [ \"\$_be\" -ne 0 ]; then
+              echo \"::error::Backend build failed (exit \$_be)\"
+              exit \$_be
+            fi
+            if [ \"\$_fe\" -ne 0 ]; then
+              echo \"::error::Frontend build failed (exit \$_fe)\"
+              exit \$_fe
+            fi
+            echo '[deploy] backend + frontend builds OK'
+          "
 
-            cd \"\$ROOT/frontend\"
-            npm ci --no-audit --no-fund
-            npm run build
-
+      - name: SSH — restart systemd и права на backend/data
+        shell: bash
+        env:
+          DEPLOY_APP_ROOT: ${{ vars.DEPLOY_APP_ROOT }}
+        run: |
+          set -euo pipefail
+          APP="${DEPLOY_APP_ROOT:-/opt/ckad/current}"
+          ssh "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" "set -euo pipefail
+            ROOT=\"$APP\"
             systemctl restart ckad-backend ckad-frontend
             systemctl --no-pager -l status ckad-backend ckad-frontend
-
-            # JSON-файлы (banners, partners, partners.json и т.д.) должны быть доступны процессу backend (www-data)
             mkdir -p \"\$ROOT/backend/data\"
             chown -R www-data:www-data \"\$ROOT/backend/data\"
             chmod -R u+rwX \"\$ROOT/backend/data\"
