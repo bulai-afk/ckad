@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from "react-dom";
 import { useParams } from "next/navigation";
 import { apiGet, apiPut } from "@/lib/api";
+import { adminPageIdFromParams } from "@/lib/adminPageIdFromParams";
 import { getSharedWebBlocksCss } from "@/lib/sharedWebBlocksCss";
 import { getPageShowRenderCss, getWorkPricingRenderCss } from "@/lib/pageShowRender";
 import {
@@ -2046,8 +2047,8 @@ function snapshotSelection(phase: string, root: HTMLElement | null) {
 }
 
 export default function PageEditorDetailsPage() {
-  const params = useParams<{ id: string }>();
-  const pageId = useMemo(() => Number(params?.id), [params]);
+  const params = useParams<{ id?: string | string[] }>();
+  const pageId = useMemo(() => adminPageIdFromParams(params ?? null), [params]);
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -3090,10 +3091,11 @@ export default function PageEditorDetailsPage() {
       try {
         setLoading(true);
         setError(null);
-        const page = await apiGet<PageDetails>(`/api/pages/${pageId}`);
+        const page = await apiGet<PageDetails>(`/api/pages/${pageId}`, 120_000);
         setTitle(page.title || "");
         setSlug(page.slug || "");
-        const firstText = page.blocks.find((b) => b.type === "text")?.data?.text;
+        const blocks = Array.isArray(page.blocks) ? page.blocks : [];
+        const firstText = blocks.find((b) => b.type === "text")?.data?.text;
         const rawInitialHtml = typeof firstText === "string" ? firstText : "";
         const initialHtml = isSeededTitleDescriptionTextBlock(
           rawInitialHtml,
@@ -3103,10 +3105,21 @@ export default function PageEditorDetailsPage() {
           ? ""
           : rawInitialHtml;
         const blockModeInitialHtml = normalizeToBlockEditorHtml(initialHtml);
-        const normalizedInitialHtml = await normalizeHtmlInlineImagesToWebp(blockModeInitialHtml);
+        let normalizedInitialHtml = blockModeInitialHtml;
+        try {
+          normalizedInitialHtml = await normalizeHtmlInlineImagesToWebp(blockModeInitialHtml);
+        } catch (webpErr) {
+          // Очень большие data URL / лимиты canvas — не блокируем открытие редактора.
+          console.warn("[page-editor] normalizeHtmlInlineImagesToWebp failed, using raw HTML", webpErr);
+        }
         setContentHtml(normalizedInitialHtml);
-      } catch {
-        setError("Не удалось загрузить страницу");
+      } catch (e) {
+        console.error("[page-editor] load failed", e);
+        setError(
+          e instanceof Error && e.message.trim()
+            ? e.message
+            : "Не удалось загрузить страницу",
+        );
       } finally {
         setLoading(false);
       }
@@ -9365,11 +9378,11 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-editor-image-resize-se { bottom: -5px; right: -5px; cursor: se-resize; }
         .page-editor .page-editor-image-resize-sw { bottom: -5px; left: -5px; cursor: sw-resize; }
         ${getPageShowRenderCss(".page-editor")}
-        .page-editor .page-web-timeline { --timeline-dot-size: 0.8rem; --timeline-line-size: 2px; --timeline-gap: 0.9rem; position: relative; width: 100%; margin: 0 0 1rem; display: grid; grid-template-columns: repeat(var(--timeline-cols, 3), minmax(0, 1fr)); gap: 0.7rem var(--timeline-gap); box-sizing: border-box; }
+        .page-editor .page-web-timeline { --timeline-dot-size: 0.8rem; --timeline-line-size: 2px; --timeline-gap: 0.9rem; position: relative; width: 100%; margin: 0 0 1rem; padding-top: 1rem; display: grid; grid-template-columns: repeat(var(--timeline-cols, 3), minmax(0, 1fr)); gap: 0.7rem var(--timeline-gap); box-sizing: border-box; }
         .page-editor .page-web-timeline-head { grid-column: 1 / -1; margin: 0 0 0.6rem; display: grid; gap: 0; text-align: center; }
         .page-editor .page-web-timeline-subtitle { margin: 0; color: #b91c1c; font-size: 1rem; line-height: 1; font-weight: 600; }
         .page-editor .page-web-timeline-heading { margin: 0; color: #496db3; font-size: 2.25rem; line-height: 1; font-weight: 600; letter-spacing: -0.02em; }
-        .page-editor .page-web-timeline-subtitle + .page-web-timeline-heading { margin-top: 0.2rem; }
+        .page-editor .page-web-timeline-subtitle + .page-web-timeline-heading { margin-top: var(--site-red-blue-gap, -0.375rem); }
         .page-editor .page-web-timeline-description { margin: 0; color: #64748b; font-size: inherit; line-height: 1.5; }
         .page-editor .page-web-timeline-heading + .page-web-timeline-description { margin-top: 1rem; }
         .page-editor .page-web-timeline-item {
@@ -9396,7 +9409,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
           background: transparent;
           text-align: center;
           grid-row: 1;
-          align-self: center;
+          align-self: end;
           justify-self: center;
           display: inline-flex;
           align-items: flex-end;
@@ -9426,7 +9439,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         }
         .page-editor .page-web-timeline-item:nth-of-type(odd):not(:first-of-type) > .page-web-timeline-term {
           grid-row: 3;
-          align-self: center;
+          align-self: start;
           justify-self: center;
           margin: 0;
           align-items: flex-start;
@@ -9796,7 +9809,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         }
         .page-editor .page-web-feature-grid-subtitle + .page-web-feature-grid-title,
         .page-editor .page-web-timeline-subtitle + .page-web-timeline-heading {
-          margin-top: 0.2rem !important;
+          margin-top: var(--site-red-blue-gap, -0.375rem) !important;
         }
       `}</style>
       <div

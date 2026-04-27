@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { apiGet } from "@/lib/api";
+import { adminPageIdFromParams } from "@/lib/adminPageIdFromParams";
 import { getSharedWebBlocksCss } from "@/lib/sharedWebBlocksCss";
 import { ensureCoverBgLayers, getPageShowRenderCss, getTimelineRenderCss, getWorkPricingRenderCss } from "@/lib/pageShowRender";
 
@@ -23,8 +24,8 @@ type PageDetails = {
 const PREVIEW_BASE_WIDTH = 1120;
 
 export default function AdminPageShowPreview() {
-  const params = useParams<{ id: string }>();
-  const pageId = useMemo(() => Number(params?.id), [params]);
+  const params = useParams<{ id?: string | string[] }>();
+  const pageId = useMemo(() => adminPageIdFromParams(params ?? null), [params]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState<PageDetails | null>(null);
@@ -45,12 +46,17 @@ export default function AdminPageShowPreview() {
       try {
         setLoading(true);
         setError(null);
-        const data = await apiGet<PageDetails>(`/api/pages/${pageId}`);
+        const data = await apiGet<PageDetails>(`/api/pages/${pageId}`, 120_000);
         if (cancelled) return;
         setPage(data);
-      } catch {
+      } catch (e) {
         if (cancelled) return;
-        setError("Не удалось загрузить страницу предпросмотра");
+        console.error("[page_show] load failed", e);
+        setError(
+          e instanceof Error && e.message.trim()
+            ? e.message
+            : "Не удалось загрузить страницу предпросмотра",
+        );
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -61,7 +67,8 @@ export default function AdminPageShowPreview() {
   }, [pageId]);
 
   const textHtml = useMemo(() => {
-    const block = page?.blocks.find((b) => b.type === "text");
+    const blocks = page?.blocks;
+    const block = Array.isArray(blocks) ? blocks.find((b) => b.type === "text") : undefined;
     return typeof block?.data?.text === "string" ? block.data.text : "";
   }, [page]);
 

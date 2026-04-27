@@ -38,10 +38,22 @@ export async function apiGet<T>(path: string, timeoutMs = 10_000): Promise<T> {
     { cache: "no-store" },
     timeoutMs,
   );
+  const text = await res.text();
   if (!res.ok) {
-    throw new Error(`GET ${path} failed with ${res.status}`);
+    const hint = text.replace(/\s+/g, " ").trim().slice(0, 220);
+    throw new Error(
+      hint ? `GET ${path} failed (${res.status}): ${hint}` : `GET ${path} failed with ${res.status}`,
+    );
   }
-  return (await res.json()) as T;
+  const trimmed = text.trim();
+  if (!trimmed) {
+    throw new Error(`GET ${path}: empty response`);
+  }
+  try {
+    return JSON.parse(trimmed) as T;
+  } catch {
+    throw new Error(`GET ${path}: response is not JSON`);
+  }
 }
 
 export async function apiPost<T>(
