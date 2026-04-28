@@ -2061,6 +2061,13 @@ export default function PageEditorDetailsPage() {
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [contentHtml, setContentHtml] = useState("");
+  const hasWebBlocksInCanvas = useMemo(
+    () =>
+      /page-web-(?:cover|carousel|timeline|text-media|text-block|spacer)\b/.test(
+        contentHtml,
+      ),
+    [contentHtml],
+  );
 
   const [isBold, setIsBold] = useState(false);
   const [isItalic, setIsItalic] = useState(false);
@@ -10657,6 +10664,20 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
                       onMouseUp={() => updateToolbarState()}
                       className="w-full"
                     />
+                    {!hasWebBlocksInCanvas ? (
+                      <div className="mt-3 flex items-center justify-center">
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:border-[#496db3]/40 hover:text-[#496db3]"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => openAddElementDialog(null)}
+                          aria-label="Добавить первый блок"
+                        >
+                          <PlusIcon className="h-3.5 w-3.5" />
+                          Добавить первый блок
+                        </button>
+                      </div>
+                    ) : null}
                     {cellMenuViewport &&
                       cellMenuViewport.topBtn &&
                       typeof document !== "undefined" &&
