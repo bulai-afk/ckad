@@ -298,6 +298,8 @@ ${scope} .page-web-text-media .page-web-text-media-col h3 {
   line-height: var(--wb-title-lh);
 }
 @media (max-width: 1205px) {
+${scope} .page-web-cover { height: max-content; min-height: 0; aspect-ratio: auto !important; }
+${scope} .page-web-cover .page-web-cover-inner { overflow: hidden; }
 ${scope} .page-web-cover[data-cover-type="split"][data-cover-aspect="1-4"] { aspect-ratio: 1 / 1; }
 ${scope} .page-web-timeline { --timeline-gap: 0.65rem; gap: var(--timeline-gap); }
 ${scope} .page-web-timeline-item { min-height: 0; padding-top: 0; padding-left: 0; display: grid; grid-template-columns: minmax(0, 1fr) 1.9rem minmax(0, 1fr); column-gap: 0.35rem; grid-template-rows: none; row-gap: 0; align-items: start; }
