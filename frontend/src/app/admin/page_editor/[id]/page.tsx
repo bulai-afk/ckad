@@ -1214,8 +1214,6 @@ function getWebTextBlockToolbarHtml(): string {
     "</div></div>" +
     "</div></div>" +
     '<div class="page-web-text-block-menu-sep page-web-text-block-menu-sep--feature-grid" aria-hidden="true"></div>' +
-    '<button type="button" role="menuitem" class="page-web-text-block-menu-element page-web-text-block-menu-element--work-pricing" contenteditable="false" tabindex="-1" data-work-pricing-action="add-item">Добавить пункт</button>' +
-    '<button type="button" role="menuitem" class="page-web-text-block-menu-element page-web-text-block-menu-element--work-pricing" contenteditable="false" tabindex="-1" data-work-pricing-action="remove-item">Убрать пункт</button>' +
     '<button type="button" role="menuitem" class="page-web-text-block-menu-delete" contenteditable="false" tabindex="-1">Удалить блок</button>' +
     "</div></div>"
   );
@@ -4364,8 +4362,6 @@ export default function PageEditorDetailsPage() {
           !toolbar.querySelector(".page-web-block-move-up") ||
           !toolbar.querySelector(".page-web-block-move-down") ||
           !toolbar.querySelector(".page-web-text-block-menu-delete") ||
-          !toolbar.querySelector('[data-work-pricing-action="add-item"]') ||
-          !toolbar.querySelector('[data-work-pricing-action="remove-item"]') ||
           !toolbar.querySelector(".page-web-text-block-menu-sub-trigger") ||
           !toolbar.querySelector('[data-toggle-feature-grid-element="title"]') ||
           !toolbar.querySelector('[data-feature-grid-set-cols="4"]') ||
@@ -8055,24 +8051,6 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       return;
     }
 
-    const workPricingActionBtn = target.closest?.("[data-work-pricing-action]") as HTMLElement | null;
-    if (workPricingActionBtn) {
-      if (block.getAttribute("data-text-block-variant") === "work-pricing") {
-        const action = workPricingActionBtn.getAttribute("data-work-pricing-action");
-        if (action === "add-item" || action === "remove-item") {
-          const changed = action === "add-item"
-            ? addOneWorkPricingItem(block)
-            : removeOneWorkPricingItem(block);
-          if (changed) {
-            setContentHtml(ed.innerHTML);
-            setTimeout(() => updateToolbarState(), 0);
-          }
-        }
-      }
-      closeTextBlockToolbarMenus(toolbar);
-      return;
-    }
-
     const delBtn = target.closest?.(".page-web-text-block-menu-delete");
     if (delBtn) {
       closeTextBlockToolbarMenus(toolbar);
@@ -9651,8 +9629,6 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-text-block-menu-sub { position: relative; display: none; }
         .page-editor .page-web-text-block-toolbar[data-text-block-variant="feature-grid"] .page-web-text-block-menu-sub--feature-grid-elements { display: block; }
         .page-editor .page-web-text-block-toolbar[data-text-block-variant="feature-grid"] .page-web-text-block-menu-sub--feature-grid-extra { display: block; }
-        .page-editor .page-web-text-block-menu-element--work-pricing { display: none; }
-        .page-editor .page-web-text-block-toolbar[data-text-block-variant="work-pricing"] .page-web-text-block-menu-element--work-pricing { display: block; }
         .page-editor .page-web-text-block-menu-sub-panel .page-web-text-block-menu-sub { display: block; }
         .page-editor .page-web-text-block-menu-sub-trigger { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; font-size: 13px; font-weight: 500; color: #0f172a; background: transparent; border: none; cursor: pointer; border-radius: 4px; text-align: left; }
         .page-editor .page-web-text-block-menu-sub-trigger:hover { background: #f1f5f9; }
