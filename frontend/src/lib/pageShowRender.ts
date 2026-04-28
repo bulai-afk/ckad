@@ -103,11 +103,11 @@ export function ensureCoverBgLayers(root: ParentNode): void {
 
 export function getTimelineRenderCss(scope: string): string {
   return `
-${scope} .page-web-timeline { --timeline-dot-size: 0.8rem; --timeline-line-size: 2px; --timeline-gap: 1rem; position: relative; width: 100%; margin: 0 0 1.25rem; display: grid; grid-template-columns: repeat(var(--timeline-cols, 3), minmax(0, 1fr)); gap: 0.7rem var(--timeline-gap); box-sizing: border-box; }
+${scope} .page-web-timeline { --timeline-dot-size: 0.8rem; --timeline-line-size: 2px; --timeline-gap: 1rem; position: relative; width: 100%; margin: 0 0 1.25rem; padding-top: 1rem; display: grid; grid-template-columns: repeat(var(--timeline-cols, 3), minmax(0, 1fr)); gap: 0.7rem var(--timeline-gap); box-sizing: border-box; }
 ${scope} .page-web-timeline-head { grid-column: 1 / -1; margin: 0 0 0.6rem; display: grid; gap: 0; text-align: center; }
 ${scope} .page-web-timeline-subtitle { margin: 0; color: #b91c1c; font-size: 1rem; line-height: 1; font-weight: 600; }
 ${scope} .page-web-timeline-heading { margin: 0; color: #496db3; font-size: var(--site-blue-title-fs, 2.25rem); line-height: var(--site-blue-title-lh, 2.25rem); letter-spacing: -0.02em; font-weight: 600; }
-${scope} .page-web-timeline-subtitle + .page-web-timeline-heading { margin-top: 0.2rem; }
+${scope} .page-web-timeline-subtitle + .page-web-timeline-heading { margin-top: var(--site-red-blue-gap, -0.375rem); }
 ${scope} .page-web-timeline-description { margin: 0; color: #64748b; font-size: inherit; line-height: 1.5; }
 ${scope} .page-web-timeline-heading + .page-web-timeline-description { margin-top: 1rem; }
 ${scope} .page-web-timeline-item {
@@ -134,10 +134,14 @@ ${scope} .page-web-timeline-term {
   background: #fff;
   text-align: center;
   grid-row: 1;
-  align-self: center;
-  display: flex;
+  align-self: end;
+  display: inline-flex;
   align-items: flex-end;
   justify-content: center;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 0;
+  height: auto;
 }
 ${scope} .page-web-timeline-dot { position: relative; left: auto; top: auto; transform: none; width: var(--timeline-dot-size); height: var(--timeline-dot-size); border-radius: 9999px; background: #496db3; box-shadow: 0 0 0 3px #e2e8f0; z-index: 2; grid-row: 2; justify-self: center; align-self: center; }
 ${scope} .page-web-timeline-content {
@@ -161,7 +165,7 @@ ${scope} .page-web-timeline-content {
 }
 ${scope} .page-web-timeline-item:nth-of-type(odd):not(:first-of-type) > .page-web-timeline-term {
   grid-row: 3;
-  align-self: center;
+  align-self: start;
   margin: 0;
   align-items: flex-start;
 }
@@ -191,7 +195,7 @@ ${scope} .page-web-timeline-term {
   grid-row: 1;
   align-self: center;
   white-space: normal;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   min-height: 0;
   height: auto;
@@ -203,7 +207,7 @@ ${scope} .page-web-timeline-item:nth-of-type(odd) > .page-web-timeline-term { gr
 ${scope} .page-web-timeline-item:nth-of-type(odd) > .page-web-timeline-content { grid-column: 3; grid-row: 1; }
 ${scope} .page-web-timeline-item:nth-of-type(even) > .page-web-timeline-term { grid-column: 3; text-align: left; padding-left: 0.35rem; justify-content: flex-start; }
 ${scope} .page-web-timeline-item:nth-of-type(even) > .page-web-timeline-content { grid-column: 1; grid-row: 1; }
-${scope} .page-web-timeline-item:first-of-type > .page-web-timeline-term { grid-column: 1; grid-row: 1; display: flex; align-items: center; justify-content: flex-end; align-self: center; min-height: 0; height: auto; visibility: visible; opacity: 1; }
+${scope} .page-web-timeline-item:first-of-type > .page-web-timeline-term { grid-column: 1; grid-row: 1; display: inline-flex; align-items: center; justify-content: flex-end; align-self: center; min-height: 0; height: auto; visibility: visible; opacity: 1; }
 ${scope} .page-web-timeline-item:nth-of-type(odd):not(:first-of-type) > .page-web-timeline-term { grid-row: 1; align-self: center; align-items: center; }
 ${scope} .page-web-timeline-item:nth-of-type(odd):not(:first-of-type) > .page-web-timeline-content { grid-row: 1; align-self: center; }
 ${scope} .page-web-timeline-item:nth-of-type(even) > .page-web-timeline-term { grid-row: 1; align-self: center; }
