@@ -4017,9 +4017,33 @@ export default function PageEditorDetailsPage() {
       '<button type="button" role="menuitem" class="page-web-timeline-menu-add-step" contenteditable="false" tabindex="-1">Добавить этап</button>' +
       '<button type="button" role="menuitem" class="page-web-timeline-menu-remove-step" contenteditable="false" tabindex="-1">Удалить последний этап</button>' +
       '<div class="page-web-timeline-menu-sep" aria-hidden="true"></div>' +
+      '<button type="button" role="menuitem" class="page-web-timeline-menu-toggle-element" contenteditable="false" tabindex="-1" data-toggle-timeline-element="term">Убрать сроки</button>' +
+      '<button type="button" role="menuitem" class="page-web-timeline-menu-toggle-element" contenteditable="false" tabindex="-1" data-toggle-timeline-element="title">Убрать заголовки</button>' +
+      '<button type="button" role="menuitem" class="page-web-timeline-menu-toggle-element" contenteditable="false" tabindex="-1" data-toggle-timeline-element="text">Убрать описания</button>' +
+      '<div class="page-web-timeline-menu-sep" aria-hidden="true"></div>' +
       '<button type="button" role="menuitem" class="page-web-timeline-menu-delete" contenteditable="false" tabindex="-1">Удалить таймлайн</button>' +
       "</div></div>"
     );
+  }
+
+  function syncTimelineToolbarMenuState(toolbar: HTMLElement) {
+    const timeline = toolbar.closest(".page-web-timeline") as HTMLElement | null;
+    if (!timeline) return;
+    const showTerm = timeline.getAttribute("data-timeline-show-term") !== "0";
+    const showTitle = timeline.getAttribute("data-timeline-show-title") !== "0";
+    const showText = timeline.getAttribute("data-timeline-show-text") !== "0";
+    const labels: Record<"term" | "title" | "text", string> = {
+      term: showTerm ? "Убрать сроки" : "Показать сроки",
+      title: showTitle ? "Убрать заголовки" : "Показать заголовки",
+      text: showText ? "Убрать описания" : "Показать описания",
+    };
+    toolbar.querySelectorAll("[data-toggle-timeline-element]").forEach((node) => {
+      const btn = node as HTMLElement;
+      const kind = btn.getAttribute("data-toggle-timeline-element");
+      if (kind === "term" || kind === "title" || kind === "text") {
+        btn.textContent = labels[kind];
+      }
+    });
   }
 
   function getWebSpacerToolbarHtml(): string {
@@ -4267,6 +4291,25 @@ export default function PageEditorDetailsPage() {
           changed = true;
         }
       });
+      const dots = Array.from(timeline.querySelectorAll(":scope > .page-web-timeline-item > .page-web-timeline-dot")) as HTMLElement[];
+      if (dots.length >= 2) {
+        const timelineRect = timeline.getBoundingClientRect();
+        const firstRect = dots[0].getBoundingClientRect();
+        const lastRect = dots[dots.length - 1].getBoundingClientRect();
+        const leftPx = Math.max(0, firstRect.left + firstRect.width / 2 - timelineRect.left);
+        const rightPx = Math.max(0, timelineRect.right - (lastRect.left + lastRect.width / 2));
+        const topPx = Math.max(0, firstRect.top + firstRect.height / 2 - timelineRect.top);
+        const bottomPx = Math.max(0, timelineRect.bottom - (lastRect.top + lastRect.height / 2));
+        timeline.style.setProperty("--timeline-line-left", `${leftPx}px`);
+        timeline.style.setProperty("--timeline-line-right", `${rightPx}px`);
+        timeline.style.setProperty("--timeline-line-top", `${topPx}px`);
+        timeline.style.setProperty("--timeline-line-bottom", `${bottomPx}px`);
+      } else {
+        timeline.style.removeProperty("--timeline-line-left");
+        timeline.style.removeProperty("--timeline-line-right");
+        timeline.style.removeProperty("--timeline-line-top");
+        timeline.style.removeProperty("--timeline-line-bottom");
+      }
       let toolbar = timeline.querySelector(":scope > .page-web-timeline-toolbar") as HTMLElement | null;
       if (!toolbar) {
         const tmp = document.createElement("div");
@@ -4284,6 +4327,9 @@ export default function PageEditorDetailsPage() {
         (!toolbar.querySelector(".page-web-timeline-menu-add-step") ||
           !toolbar.querySelector(".page-web-block-move-up") ||
           !toolbar.querySelector(".page-web-block-move-down") ||
+          !toolbar.querySelector('[data-toggle-timeline-element="term"]') ||
+          !toolbar.querySelector('[data-toggle-timeline-element="title"]') ||
+          !toolbar.querySelector('[data-toggle-timeline-element="text"]') ||
           !toolbar.querySelector(".page-web-timeline-menu-remove-step") ||
           !toolbar.querySelector(".page-web-timeline-menu-delete"))
       ) {
@@ -4293,6 +4339,8 @@ export default function PageEditorDetailsPage() {
         toolbar.replaceWith(fresh);
         changed = true;
       }
+      toolbar = timeline.querySelector(".page-web-timeline-toolbar") as HTMLElement | null;
+      if (toolbar) syncTimelineToolbarMenuState(toolbar);
     });
     return changed;
   }
@@ -7820,6 +7868,22 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       return;
     }
 
+    const toggleElementBtn = target.closest?.("[data-toggle-timeline-element]") as HTMLElement | null;
+    if (toggleElementBtn) {
+      const kind = toggleElementBtn.getAttribute("data-toggle-timeline-element");
+      if (kind === "term" || kind === "title" || kind === "text") {
+        const attrName =
+          kind === "term" ? "data-timeline-show-term" : kind === "title" ? "data-timeline-show-title" : "data-timeline-show-text";
+        const currentlyShown = timeline.getAttribute(attrName) !== "0";
+        timeline.setAttribute(attrName, currentlyShown ? "0" : "1");
+        syncTimelineToolbarMenuState(toolbar);
+        closeTimelineToolbarMenus(toolbar);
+        setContentHtml(ed.innerHTML);
+        setTimeout(() => updateToolbarState(), 0);
+      }
+      return;
+    }
+
     const delBtn = target.closest?.(".page-web-timeline-menu-delete");
     if (delBtn) {
       closeTimelineToolbarMenus(toolbar);
@@ -7832,7 +7896,10 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       ed.querySelectorAll(".page-web-timeline-toolbar").forEach((node) => {
         closeTimelineToolbarMenus(node as HTMLElement);
       });
-      if (!wasOpen) toolbar.setAttribute("data-menu-open", "1");
+      if (!wasOpen) {
+        toolbar.setAttribute("data-menu-open", "1");
+        syncTimelineToolbarMenuState(toolbar);
+      }
     }
   }
 
@@ -9413,6 +9480,9 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-editor-image-resize-se { bottom: -5px; right: -5px; cursor: se-resize; }
         .page-editor .page-editor-image-resize-sw { bottom: -5px; left: -5px; cursor: sw-resize; }
         ${getPageShowRenderCss(".page-editor")}
+        .page-editor .page-web-timeline[data-timeline-show-term="0"] .page-web-timeline-term { display: none !important; }
+        .page-editor .page-web-timeline[data-timeline-show-title="0"] .page-web-timeline-title { display: none !important; }
+        .page-editor .page-web-timeline[data-timeline-show-text="0"] .page-web-timeline-text { display: none !important; }
         .page-editor .page-web-timeline { --timeline-dot-size: 0.8rem; --timeline-line-size: 2px; --timeline-gap: 0.9rem; position: relative; width: 100%; margin: 0 0 1rem; padding-top: 1rem; display: grid; grid-template-columns: repeat(var(--timeline-cols, 3), minmax(0, 1fr)); gap: 0.7rem var(--timeline-gap); box-sizing: border-box; }
         .page-editor .page-web-timeline-head { grid-column: 1 / -1; margin: 0 0 0.6rem; display: grid; gap: 0; text-align: center; }
         .page-editor .page-web-timeline-subtitle { margin: 0; color: #b91c1c; font-size: 1rem; line-height: 1; font-weight: 600; }
@@ -9487,25 +9557,32 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-timeline-title { margin: 0; font-size: inherit; font-weight: 700; color: #0f172a; line-height: 1.5; text-align: center; }
         .page-editor .page-web-timeline-text { margin: 0; font-size: inherit; color: #475569; line-height: 1.5; text-align: center; }
         @media (max-width: 1205px) {
-          .page-editor .page-web-timeline { grid-template-columns: 1fr; --timeline-gap: 0.65rem; gap: var(--timeline-gap); }
-          .page-editor .page-web-timeline-item { min-height: 0; padding-top: 0; padding-left: 0; display: grid; grid-template-columns: minmax(0, 1fr) 1.9rem minmax(0, 1fr); column-gap: 0.65rem; grid-template-rows: none; row-gap: 0; align-items: start; }
-          .page-editor .page-web-timeline-item { align-items: center; }
-          .page-editor .page-web-timeline-item::before { content: none; display: none; }
-          .page-editor .page-web-timeline-item[data-timeline-has-next="1"]::before { content: ""; display: block; position: absolute; left: 50%; top: 50%; transform: translateX(-50%); width: var(--timeline-line-size); height: calc(100% + var(--timeline-gap, 1rem)); background: #cbd5e1; pointer-events: none; z-index: 1; }
-          .page-editor .page-web-timeline-item[data-timeline-has-next="0"]::before { content: none !important; display: none !important; width: 0 !important; height: 0 !important; }
-          .page-editor .page-web-timeline-dot { position: static; left: auto; top: auto; transform: none; grid-column: 2; grid-row: 1; justify-self: center; align-self: center; }
-          .page-editor .page-web-timeline-content { align-self: center; justify-self: center; }
-          .page-editor .page-web-timeline-term { position: static; transform: none; margin: 0; padding: 0; background: transparent; grid-row: 1; align-self: center; white-space: normal; text-align: right; display: inline-flex; align-items: center; width: fit-content; max-width: 100%; min-height: 0; height: auto; }
-          .page-editor .page-web-timeline-content { grid-row: 1; align-items: flex-start; text-align: left; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 0.6rem 0.7rem; box-sizing: border-box; grid-column: 3; }
-          .page-editor .page-web-timeline-item:nth-of-type(odd) > .page-web-timeline-term { grid-column: 1; text-align: right; padding-right: 0.35rem; justify-self: end; }
-          .page-editor .page-web-timeline-item:nth-of-type(odd) > .page-web-timeline-content { grid-column: 3; grid-row: 1; }
-          .page-editor .page-web-timeline-item:nth-of-type(odd) > .page-web-timeline-term { display: inline-flex; align-items: center; justify-content: flex-end; min-height: 0; }
-          .page-editor .page-web-timeline-item:nth-of-type(even) > .page-web-timeline-term { grid-column: 3; text-align: left; padding-left: 0.35rem; justify-self: start; display: inline-flex; align-items: center; justify-content: flex-start; min-height: 0; }
-          .page-editor .page-web-timeline-item:nth-of-type(even) > .page-web-timeline-content { grid-column: 1; grid-row: 1; }
-          .page-editor .page-web-timeline-item:first-of-type > .page-web-timeline-term { grid-column: 1; grid-row: 1; display: inline-flex; align-items: center; justify-content: flex-end; align-self: center; justify-self: end; min-height: 0; height: auto; visibility: visible; opacity: 1; }
-          .page-editor .page-web-timeline-item:nth-of-type(odd):not(:first-of-type) > .page-web-timeline-term { grid-row: 1; align-self: center; justify-self: end; align-items: center; }
-          .page-editor .page-web-timeline-item:nth-of-type(odd):not(:first-of-type) > .page-web-timeline-content { grid-row: 1; align-self: center; }
-          .page-editor .page-web-timeline-item:nth-of-type(even) > .page-web-timeline-term { grid-row: 1; align-self: center; justify-self: start; }
+          .page-editor .page-web-timeline { grid-template-columns: 1fr; --timeline-gap: 0.65rem; --timeline-term-col: 4.6rem; gap: var(--timeline-gap); position: relative; }
+          .page-editor .page-web-timeline::before {
+            content: "";
+            position: absolute;
+            left: var(--timeline-line-left, calc(var(--timeline-term-col) + 0.35rem + 0.95rem));
+            top: var(--timeline-line-top, 3.1rem);
+            bottom: var(--timeline-line-bottom, 0.8rem);
+            right: auto;
+            transform: translateX(-50%);
+            width: var(--timeline-line-size);
+            height: auto;
+            background: #cbd5e1;
+            pointer-events: none;
+            z-index: 1;
+          }
+          .page-editor .page-web-timeline-item { min-height: 0; padding-top: 0; padding-left: 0; display: grid; grid-template-columns: var(--timeline-term-col) 1.9rem minmax(0, 1fr); column-gap: 0.35rem; grid-template-rows: none; row-gap: 0; align-items: center; position: relative; z-index: 2; }
+          .page-editor .page-web-timeline[data-timeline-show-term="0"] .page-web-timeline-item { grid-template-columns: 0 1.9rem minmax(0, 1fr); }
+          .page-editor .page-web-timeline-item::before,
+          .page-editor .page-web-timeline-item::after { content: none; display: none; }
+          .page-editor .page-web-timeline-item:not(:last-of-type)::before,
+          .page-editor .page-web-timeline-item:not(:first-of-type)::after { content: none !important; display: none !important; width: 0 !important; height: 0 !important; }
+          .page-editor .page-web-timeline-dot { position: static; left: auto; top: auto; transform: none; grid-column: 2; grid-row: 1; justify-self: center; align-self: center; z-index: 3; }
+          .page-editor .page-web-timeline-term { position: static; transform: none; margin: 0; padding: 0 0.1rem 0 0; background: transparent; grid-column: 1; grid-row: 1; align-self: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right; display: inline-flex; align-items: center; justify-content: flex-end; justify-self: end; min-height: 0; height: auto; width: 100%; max-width: var(--timeline-term-col); }
+          .page-editor .page-web-timeline-content { grid-column: 3; grid-row: 1; align-self: center; align-items: flex-start; text-align: left; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 0.6rem 0.7rem; box-sizing: border-box; }
+          .page-editor .page-web-timeline-item:nth-of-type(odd):not(:first-of-type) > .page-web-timeline-term { grid-row: 1; align-self: center; margin: 0; align-items: center; }
+          .page-editor .page-web-timeline-item:nth-of-type(odd):not(:first-of-type) > .page-web-timeline-content { grid-row: 1; align-self: center; justify-self: stretch; margin: 0; }
           .page-editor .page-web-timeline-title,
           .page-editor .page-web-timeline-text { text-align: left; }
         }
@@ -9547,9 +9624,11 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-timeline-menu-dropdown { display: none; position: absolute; left: calc(100% + 4px); right: auto; top: 32px; min-width: 14rem; padding: 4px 0; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 10px 24px rgba(15,23,42,0.12); z-index: 90; }
         .page-editor .page-web-timeline-toolbar[data-menu-open="1"] .page-web-timeline-menu-dropdown { display: block; }
         .page-editor .page-web-timeline-menu-add-step,
-        .page-editor .page-web-timeline-menu-remove-step { display: block; width: 100%; box-sizing: border-box; text-align: left; padding: 8px 12px; font-size: 13px; font-weight: 500; color: #0f172a; background: transparent; border: none; cursor: pointer; border-radius: 4px; white-space: nowrap; }
+        .page-editor .page-web-timeline-menu-remove-step,
+        .page-editor .page-web-timeline-menu-toggle-element { display: block; width: 100%; box-sizing: border-box; text-align: left; padding: 8px 12px; font-size: 13px; font-weight: 500; color: #0f172a; background: transparent; border: none; cursor: pointer; border-radius: 4px; white-space: nowrap; }
         .page-editor .page-web-timeline-menu-add-step:hover,
-        .page-editor .page-web-timeline-menu-remove-step:hover { background: #f1f5f9; }
+        .page-editor .page-web-timeline-menu-remove-step:hover,
+        .page-editor .page-web-timeline-menu-toggle-element:hover { background: #f1f5f9; }
         .page-editor .page-web-timeline-menu-sep { height: 1px; margin: 6px 8px; background: #e2e8f0; pointer-events: none; }
         .page-editor .page-web-timeline-menu-delete { display: block; width: 100%; box-sizing: border-box; text-align: left; padding: 8px 12px; font-size: 13px; font-weight: 500; color: #b91c1c; background: transparent; border: none; cursor: pointer; border-radius: 4px; white-space: nowrap; }
         .page-editor .page-web-timeline-menu-delete:hover { background: #fef2f2; }

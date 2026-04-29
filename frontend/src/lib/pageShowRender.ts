@@ -216,6 +216,9 @@ ${scope} .page-web-timeline-item:nth-of-type(odd):not(:first-of-type) > .page-we
 }
 ${scope} .page-web-timeline-title { margin: 0; font-size: 1.75rem; font-weight: 700; color: #0f172a; line-height: 1.45; text-align: center; }
 ${scope} .page-web-timeline-text { margin: 0; font-size: 1.75rem; color: #475569; line-height: 1.5; text-align: center; }
+${scope} .page-web-timeline[data-timeline-show-term="0"] .page-web-timeline-term { display: none !important; }
+${scope} .page-web-timeline[data-timeline-show-title="0"] .page-web-timeline-title { display: none !important; }
+${scope} .page-web-timeline[data-timeline-show-text="0"] .page-web-timeline-text { display: none !important; }
 @media (max-width: 1205px) {
 ${scope} .page-web-timeline { grid-template-columns: 1fr; --timeline-gap: 0.65rem; --timeline-term-col: 4.6rem; gap: var(--timeline-gap); position: relative; }
 ${scope} .page-web-timeline::before {
@@ -236,6 +239,7 @@ ${scope} .page-web-timeline-subtitle { font-size: 1rem; line-height: 1; }
 ${scope} .page-web-timeline-heading { font-size: var(--site-blue-title-fs, 2.25rem); line-height: var(--site-blue-title-lh, 2.25rem); }
 ${scope} .page-web-timeline-description { font-size: inherit; line-height: inherit; }
 ${scope} .page-web-timeline-item { min-height: 0; padding-top: 0; padding-left: 0; display: grid; grid-template-columns: var(--timeline-term-col) 1.9rem minmax(0, 1fr); column-gap: 0.35rem; grid-template-rows: none; row-gap: 0; align-items: center; position: relative; z-index: 2; }
+${scope} .page-web-timeline[data-timeline-show-term="0"] .page-web-timeline-item { grid-template-columns: 0 1.9rem minmax(0, 1fr); }
 ${scope} .page-web-timeline-item::before,
 ${scope} .page-web-timeline-item::after { content: none; display: none; }
 ${scope} .page-web-timeline-item:not(:last-of-type)::before,
