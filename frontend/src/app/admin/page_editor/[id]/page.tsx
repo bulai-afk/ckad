@@ -954,7 +954,6 @@ function getWorkPricingTextBlockHtml(): string {
               '<p class="wsz wtg wtn">Pay once, own it forever</p>' +
               '<p class="wre wrj wrw wry wsa">' +
                 '<span class="wsy wtg wth wto">70 000 ₽</span>' +
-                '<span class="wtd wtg wti wtn">руб</span>' +
               "</p>" +
               '<a href="#" class="wrg wri wro wsf wsl wsq wst wsw wtc wtg wtr wts wua wub wuc wue">Get access</a>' +
               '<p class="wre wte wtn">Invoices and receipts available for easy company reimbursement</p>' +
@@ -2571,6 +2570,9 @@ export default function PageEditorDetailsPage() {
 
   function syncTimelineElementFocusState(ed: HTMLElement, range: Range | null) {
     ed.querySelectorAll("[data-timeline-focus-target]").forEach((n) => n.removeAttribute("data-timeline-focus-target"));
+    ed.querySelectorAll(".page-web-timeline [data-text-block-focus-target]").forEach((n) =>
+      n.removeAttribute("data-text-block-focus-target"),
+    );
     let node: Node | null = null;
     if (range) {
       node = range.startContainer;
@@ -2588,6 +2590,7 @@ export default function PageEditorDetailsPage() {
     ) as HTMLElement | null;
     if (!target || !timeline.contains(target)) return;
     target.setAttribute("data-timeline-focus-target", "1");
+    target.setAttribute("data-text-block-focus-target", "1");
   }
 
   function updateToolbarState() {
@@ -5478,6 +5481,59 @@ export default function PageEditorDetailsPage() {
     }
   }
 
+  function clearToolbarDropdownVerticalPlacement(toolbar: HTMLElement) {
+    toolbar.removeAttribute("data-menu-drop");
+  }
+
+  function positionToolbarDropdownVerticalPlacement(toolbar: HTMLElement) {
+    const dropdown = toolbar.querySelector(":scope > [role='menu']") as HTMLElement | null;
+    if (!dropdown) return;
+    const apply = () => {
+      clearToolbarDropdownVerticalPlacement(toolbar);
+      toolbar.setAttribute("data-menu-drop", "down");
+      const viewportGap = 8;
+      const ddRect = dropdown.getBoundingClientRect();
+      if (ddRect.bottom <= window.innerHeight - viewportGap) return;
+      const trigger = toolbar.querySelector(
+        ".page-web-cover-menu-trigger, .page-web-carousel-menu-trigger, .page-web-timeline-menu-trigger, .page-web-text-media-menu-trigger, .page-web-text-block-menu-trigger, .page-web-spacer-menu-trigger",
+      ) as HTMLElement | null;
+      if (!trigger) {
+        toolbar.setAttribute("data-menu-drop", "up");
+        return;
+      }
+      const triggerRect = trigger.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - triggerRect.bottom - viewportGap;
+      const spaceAbove = triggerRect.top - viewportGap;
+      toolbar.setAttribute("data-menu-drop", spaceAbove > spaceBelow ? "up" : "down");
+    };
+    requestAnimationFrame(() => requestAnimationFrame(apply));
+  }
+
+  function positionToolbarSubmenuVerticalPlacement(toolbar: HTMLElement) {
+    const apply = () => {
+      const openSubs = Array.from(
+        toolbar.querySelectorAll(
+          ".page-web-cover-menu-sub[data-submenu-open='1'], .page-web-carousel-menu-sub[data-submenu-open='1'], .page-web-text-block-menu-sub[data-submenu-open='1']",
+        ),
+      ) as HTMLElement[];
+      const viewportGap = 8;
+      openSubs.forEach((sub) => {
+        sub.removeAttribute("data-submenu-drop");
+        const trigger = sub.querySelector(":scope > .page-web-cover-menu-sub-trigger, :scope > .page-web-carousel-menu-sub-trigger, :scope > .page-web-text-block-menu-sub-trigger") as HTMLElement | null;
+        const panel = sub.querySelector(":scope > .page-web-cover-menu-sub-panel, :scope > .page-web-carousel-menu-sub-panel, :scope > .page-web-text-block-menu-sub-panel") as HTMLElement | null;
+        if (!trigger || !panel) return;
+        sub.setAttribute("data-submenu-drop", "down");
+        const panelRect = panel.getBoundingClientRect();
+        if (panelRect.bottom <= window.innerHeight - viewportGap) return;
+        const triggerRect = trigger.getBoundingClientRect();
+        const spaceBelow = window.innerHeight - triggerRect.top - viewportGap;
+        const spaceAbove = triggerRect.bottom - viewportGap;
+        sub.setAttribute("data-submenu-drop", spaceAbove > spaceBelow ? "up" : "down");
+      });
+    };
+    requestAnimationFrame(() => requestAnimationFrame(apply));
+  }
+
   function resetCarouselMenuDropdownStyles(toolbar: HTMLElement) {
     const dd = toolbar.querySelector(".page-web-carousel-menu-dropdown") as HTMLElement | null;
     if (!dd) return;
@@ -5510,6 +5566,9 @@ export default function PageEditorDetailsPage() {
       panel.style.removeProperty("transform");
       panel.style.removeProperty("z-index");
     });
+    toolbar.querySelectorAll(".page-web-cover-menu-sub").forEach((node) => {
+      (node as HTMLElement).removeAttribute("data-submenu-drop");
+    });
   }
 
   function resetTextBlockMenuDropdownStyles(toolbar: HTMLElement) {
@@ -5528,6 +5587,9 @@ export default function PageEditorDetailsPage() {
       panel.style.removeProperty("opacity");
       panel.style.removeProperty("pointer-events");
       panel.removeAttribute("data-force-hidden");
+    });
+    toolbar.querySelectorAll(".page-web-text-block-menu-sub").forEach((node) => {
+      (node as HTMLElement).removeAttribute("data-submenu-drop");
     });
   }
 
@@ -5584,21 +5646,27 @@ export default function PageEditorDetailsPage() {
     toolbar.querySelectorAll('.page-web-carousel-menu-sub[data-submenu-open="1"]').forEach((s) => {
       (s as HTMLElement).removeAttribute("data-submenu-open");
     });
+    toolbar.querySelectorAll(".page-web-carousel-menu-sub").forEach((s) => {
+      (s as HTMLElement).removeAttribute("data-submenu-drop");
+    });
     toolbar.querySelectorAll(".page-web-carousel-menu-sub-trigger").forEach((tr) => {
       (tr as HTMLElement).setAttribute("aria-expanded", "false");
     });
     toolbar.removeAttribute("data-menu-open");
+    clearToolbarDropdownVerticalPlacement(toolbar);
     resetCarouselMenuDropdownStyles(toolbar);
     logWebMenuDebug("close-carousel:end", toolbar);
   }
 
   function closeTimelineToolbarMenus(toolbar: HTMLElement) {
     toolbar.removeAttribute("data-menu-open");
+    clearToolbarDropdownVerticalPlacement(toolbar);
   }
 
   function closeTextMediaToolbarMenus(toolbar: HTMLElement) {
     logWebMenuDebug("close-text-media:start", toolbar);
     toolbar.removeAttribute("data-menu-open");
+    clearToolbarDropdownVerticalPlacement(toolbar);
     logWebMenuDebug("close-text-media:end", toolbar);
   }
 
@@ -5627,6 +5695,7 @@ export default function PageEditorDetailsPage() {
       (tr as HTMLElement).setAttribute("aria-expanded", "false");
     });
     toolbar.removeAttribute("data-menu-open");
+    clearToolbarDropdownVerticalPlacement(toolbar);
     // Safari repaint workaround: force synchronous layout after hiding overlay layers.
     void toolbar.offsetHeight;
     logWebMenuDebug("close-text-block:end", toolbar);
@@ -5634,6 +5703,7 @@ export default function PageEditorDetailsPage() {
 
   function closeSpacerToolbarMenus(toolbar: HTMLElement) {
     toolbar.removeAttribute("data-menu-open");
+    clearToolbarDropdownVerticalPlacement(toolbar);
   }
 
   function closeAllOpenWebBlockMenus(ed: HTMLElement) {
@@ -5897,7 +5967,7 @@ export default function PageEditorDetailsPage() {
     if (!inner || !ed.contains(inner)) return false;
 
     let current = node.closest(
-      ".page-web-cover-el-subtitle, .page-web-cover-el-button-wrap, .page-web-cover-el-announcement-wrap, .page-web-cover-el-learn-more, .page-web-cover-el-announcement-learn-more, .page-web-cover-el-announcement-text",
+      ".page-web-cover-el-subtitle, .page-web-cover-el-button-wrap, .page-web-cover-el-button, .page-web-cover-el-announcement-wrap, .page-web-cover-el-learn-more, .page-web-cover-el-announcement-learn-more, .page-web-cover-el-announcement-text",
     ) as HTMLElement | null;
     if (!current && range.startContainer === inner) {
       const offset = Math.max(0, Math.min(range.startOffset, inner.childNodes.length));
@@ -5920,12 +5990,20 @@ export default function PageEditorDetailsPage() {
       }
     }
     if (!current || !inner.contains(current)) return false;
-    if (!isRangeAtElementStart(range, current) && !isRangeAtElementStartLenient(range, current)) return false;
+    const buttonInCurrent = current.matches(".page-web-cover-el-button")
+      ? current
+      : (current.querySelector(".page-web-cover-el-button") as HTMLElement | null);
+    const atCurrentStart = isRangeAtElementStart(range, current) || isRangeAtElementStartLenient(range, current);
+    const atButtonStart = !!buttonInCurrent && (
+      isRangeAtElementStart(range, buttonInCurrent) || isRangeAtElementStartLenient(range, buttonInCurrent)
+    );
+    if (!atCurrentStart && !atButtonStart) return false;
+    const keepTarget = atButtonStart ? (buttonInCurrent as HTMLElement) : current;
 
     const sel = window.getSelection();
     if (sel) {
       const keep = document.createRange();
-      keep.selectNodeContents(current);
+      keep.selectNodeContents(keepTarget);
       keep.collapse(true);
       sel.removeAllRanges();
       sel.addRange(keep);
@@ -5942,6 +6020,112 @@ export default function PageEditorDetailsPage() {
 
     const content = node.closest(".page-web-text-block-content") as HTMLElement | null;
     if (!content || !ed.contains(content)) return false;
+    const keepCaretAtStart = (target: HTMLElement): boolean => {
+      const sel = window.getSelection();
+      if (sel) {
+        const keep = document.createRange();
+        keep.selectNodeContents(target);
+        keep.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(keep);
+        savedRangeRef.current = keep.cloneRange();
+      }
+      return true;
+    };
+    const isAtElementTextStart = (target: HTMLElement): boolean => {
+      if (!target.contains(range.startContainer)) return false;
+      if (isRangeAtElementStart(range, target) || isRangeAtElementStartLenient(range, target)) return true;
+      try {
+        const before = document.createRange();
+        before.selectNodeContents(target);
+        before.setEnd(range.startContainer, range.startOffset);
+        const textBefore = (before.toString() || "").replace(/[\u200b\u00a0\s]+/g, "");
+        return textBefore.length === 0;
+      } catch {
+        return false;
+      }
+    };
+
+    const currentLi = node.closest("li") as HTMLElement | null;
+    if (currentLi && content.contains(currentLi)) {
+      if (isRangeAtElementStart(range, currentLi) || isRangeAtElementStartLenient(range, currentLi)) {
+        const list = currentLi.parentElement;
+        const isFirstItem = !currentLi.previousElementSibling;
+        const immediatePrev = (list?.previousElementSibling as HTMLElement | null) ?? null;
+        const prevIsHeading =
+          !!immediatePrev &&
+          (/^H[1-6]$/.test(immediatePrev.tagName) || immediatePrev.classList.contains("page-web-feature-grid-item-title"));
+        if (isFirstItem && prevIsHeading) return keepCaretAtStart(currentLi);
+      }
+    }
+
+    const currentParagraph = node.closest("p") as HTMLElement | null;
+    if (currentParagraph && content.contains(currentParagraph)) {
+      const parentDd = currentParagraph.closest("dd") as HTMLElement | null;
+      if (parentDd && content.contains(parentDd)) {
+        const atParagraphStart =
+          isRangeAtElementStart(range, currentParagraph) || isRangeAtElementStartLenient(range, currentParagraph);
+        const firstMeaningfulInDd = (() => {
+          let ch: Element | null = parentDd.firstElementChild;
+          while (ch) {
+            if (ch.tagName === "BR") {
+              ch = ch.nextElementSibling;
+              continue;
+            }
+            return ch;
+          }
+          return null;
+        })();
+        if (atParagraphStart && firstMeaningfulInDd === currentParagraph) {
+          const immediatePrev = parentDd.previousElementSibling as HTMLElement | null;
+          const prevIsHeading =
+            !!immediatePrev &&
+            (/^H[1-6]$/.test(immediatePrev.tagName) || immediatePrev.classList.contains("page-web-feature-grid-item-title"));
+          if (prevIsHeading) return keepCaretAtStart(currentParagraph);
+        }
+      }
+    }
+
+    const featureGridTitle = node.closest(".page-web-feature-grid-item-title") as HTMLElement | null;
+    if (featureGridTitle && content.contains(featureGridTitle)) {
+      if (isAtElementTextStart(featureGridTitle)) return keepCaretAtStart(featureGridTitle);
+    }
+
+    const featureGridBody = node.closest(".page-web-feature-grid-item-body") as HTMLElement | null;
+    if (featureGridBody && content.contains(featureGridBody)) {
+      const featureGridLearnMoreLink = node.closest(".page-web-feature-grid-link") as HTMLElement | null;
+      if (featureGridLearnMoreLink) {
+        if (isAtElementTextStart(featureGridLearnMoreLink)) return keepCaretAtStart(featureGridLearnMoreLink);
+      }
+
+      const bodyParagraph = node.closest("p") as HTMLElement | null;
+      if (
+        bodyParagraph &&
+        bodyParagraph.parentElement === featureGridBody &&
+        !bodyParagraph.classList.contains("page-web-feature-grid-item-link-wrap")
+      ) {
+        if (isAtElementTextStart(bodyParagraph)) return keepCaretAtStart(bodyParagraph);
+      }
+    }
+
+    const timelineLockedTarget = (
+      node.closest(
+        ".page-web-timeline-heading, .page-web-timeline-subtitle, .page-web-timeline-description, .page-web-timeline-title, .page-web-timeline-term, .page-web-timeline-text",
+      ) as HTMLElement | null
+    );
+    if (timelineLockedTarget && content.contains(timelineLockedTarget)) {
+      if (isAtElementTextStart(timelineLockedTarget)) return keepCaretAtStart(timelineLockedTarget);
+    }
+
+    const workPricingRoot = node.closest(".page-web-work-pricing") as HTMLElement | null;
+    if (workPricingRoot && content.contains(workPricingRoot)) {
+      const workPricingTarget = node.closest(
+        ".page-web-work-pricing h1, .page-web-work-pricing h2, .page-web-work-pricing h3, .page-web-work-pricing h4, .page-web-work-pricing h5, .page-web-work-pricing h6, .page-web-work-pricing p, .page-web-work-pricing li, .page-web-work-pricing a, .page-web-work-pricing span",
+      ) as HTMLElement | null;
+      if (workPricingTarget && workPricingRoot.contains(workPricingTarget) && isAtElementTextStart(workPricingTarget)) {
+        return keepCaretAtStart(workPricingTarget);
+      }
+    }
 
     const current = node.closest(
       "h1, h2, h3, h4, h5, h6, p, dt, dd",
@@ -5955,21 +6139,7 @@ export default function PageEditorDetailsPage() {
       const isHeadingShell =
         /^H[1-6]$/.test(immediatePrev.tagName) || immediatePrev.classList.contains("page-web-feature-grid-item-title");
       if (isHeadingShell) {
-        const prevText = (immediatePrev.textContent || "").replace(/[\u200b\u00a0\s]+/g, "");
-        const hasStructuredPayload = !!immediatePrev.querySelector("img, table, ul, ol, iframe, video");
-        const isFeatureGridCardTitle = immediatePrev.classList.contains("page-web-feature-grid-item-title");
-        if (prevText.length === 0 && (isFeatureGridCardTitle || !hasStructuredPayload)) {
-          const sel = window.getSelection();
-          if (sel) {
-            const keep = document.createRange();
-            keep.selectNodeContents(current);
-            keep.collapse(true);
-            sel.removeAllRanges();
-            sel.addRange(keep);
-            savedRangeRef.current = keep.cloneRange();
-          }
-          return true;
-        }
+        return keepCaretAtStart(current);
       }
     }
 
@@ -5989,16 +6159,7 @@ export default function PageEditorDetailsPage() {
     }
     if (!prev) return false;
 
-    const sel = window.getSelection();
-    if (sel) {
-      const keep = document.createRange();
-      keep.selectNodeContents(current);
-      keep.collapse(true);
-      sel.removeAllRanges();
-      sel.addRange(keep);
-      savedRangeRef.current = keep.cloneRange();
-    }
-    return true;
+    return keepCaretAtStart(current);
   }
 
   function getCellsToApplyBorder(): HTMLTableCellElement[] {
@@ -7644,6 +7805,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
           (tr as HTMLElement).setAttribute("aria-expanded", open ? "true" : "false");
         });
         positionCoverSubmenuPanelsFixed(toolbar);
+        positionToolbarSubmenuVerticalPlacement(toolbar);
       }
       return;
     }
@@ -7682,6 +7844,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         syncCoverTypeMenuState(toolbar);
         toolbar.setAttribute("data-menu-open", "1");
         positionCoverMenuDropdownFixed(toolbar);
+        positionToolbarDropdownVerticalPlacement(toolbar);
         logWebMenuDebug("cover-trigger:opened", toolbar);
       }
     }
@@ -7744,6 +7907,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
           const open = parent?.getAttribute("data-submenu-open") === "1";
           (tr as HTMLElement).setAttribute("aria-expanded", open ? "true" : "false");
         });
+        positionToolbarSubmenuVerticalPlacement(toolbar);
       }
       return;
     }
@@ -7968,6 +8132,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       if (!wasOpen) {
         toolbar.setAttribute("data-menu-open", "1");
         syncTimelineToolbarMenuState(toolbar);
+        positionToolbarDropdownVerticalPlacement(toolbar);
       }
     }
   }
@@ -8005,7 +8170,10 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       ed.querySelectorAll(".page-web-text-media-toolbar").forEach((node) => {
         closeTextMediaToolbarMenus(node as HTMLElement);
       });
-      if (!wasOpen) toolbar.setAttribute("data-menu-open", "1");
+      if (!wasOpen) {
+        toolbar.setAttribute("data-menu-open", "1");
+        positionToolbarDropdownVerticalPlacement(toolbar);
+      }
     }
   }
 
@@ -8058,6 +8226,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
           const open = parent?.getAttribute("data-submenu-open") === "1";
           (tr as HTMLElement).setAttribute("aria-expanded", open ? "true" : "false");
         });
+        positionToolbarSubmenuVerticalPlacement(toolbar);
         logWebMenuDebug("text-block-sub-trigger:after", toolbar, {
           subIsOpenNow: sub.getAttribute("data-submenu-open") === "1",
         });
@@ -8260,6 +8429,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         resetTextBlockMenuDropdownStyles(toolbar);
         toolbar.setAttribute("data-menu-open", "1");
         syncTextBlockToolbarVariantState(toolbar);
+        positionToolbarDropdownVerticalPlacement(toolbar);
         logWebMenuDebug("text-block-trigger:opened", toolbar);
       }
     }
@@ -8316,7 +8486,10 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       ed.querySelectorAll(".page-web-spacer-toolbar").forEach((node) => {
         closeSpacerToolbarMenus(node as HTMLElement);
       });
-      if (!wasOpen) toolbar.setAttribute("data-menu-open", "1");
+      if (!wasOpen) {
+        toolbar.setAttribute("data-menu-open", "1");
+        positionToolbarDropdownVerticalPlacement(toolbar);
+      }
     }
   }
 
@@ -8427,6 +8600,10 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
     const range = sel.getRangeAt(0);
 
     if (e.key === "Backspace" && range.collapsed) {
+      if (tryKeepEmptyTextBlockHeading(el, range)) {
+        e.preventDefault();
+        return;
+      }
       if (tryPreventTextBlockSiblingBackspaceMerge(el, range)) {
         e.preventDefault();
         return;
@@ -8668,6 +8845,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       (tr as HTMLElement).setAttribute("aria-expanded", "false");
     });
     toolbar.removeAttribute("data-menu-open");
+    clearToolbarDropdownVerticalPlacement(toolbar);
     resetCoverMenuDropdownStyles(toolbar);
     logWebMenuDebug("close-cover:end", toolbar);
   }
@@ -9715,6 +9893,22 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-timeline-menu-dots::before { content: "\\22EE"; font-size: 1rem; line-height: 1; }
         .page-editor .page-web-timeline-menu-dropdown { display: none; position: absolute; left: calc(100% + 4px); right: auto; top: 32px; min-width: 14rem; padding: 4px 0; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 10px 24px rgba(15,23,42,0.12); z-index: 90; }
         .page-editor .page-web-timeline-toolbar[data-menu-open="1"] .page-web-timeline-menu-dropdown { display: block; }
+        .page-editor .page-web-cover-toolbar[data-menu-drop="up"] > .page-web-cover-menu-dropdown,
+        .page-editor .page-web-timeline-toolbar[data-menu-drop="up"] > .page-web-timeline-menu-dropdown,
+        .page-editor .page-web-text-media-toolbar[data-menu-drop="up"] > .page-web-text-media-menu-dropdown,
+        .page-editor .page-web-text-block-toolbar[data-menu-drop="up"] > .page-web-text-block-menu-dropdown,
+        .page-editor .page-web-spacer-toolbar[data-menu-drop="up"] > .page-web-spacer-menu-dropdown {
+          top: auto !important;
+          bottom: 32px !important;
+        }
+        .page-editor .page-web-cover-toolbar[data-menu-drop="down"] > .page-web-cover-menu-dropdown,
+        .page-editor .page-web-timeline-toolbar[data-menu-drop="down"] > .page-web-timeline-menu-dropdown,
+        .page-editor .page-web-text-media-toolbar[data-menu-drop="down"] > .page-web-text-media-menu-dropdown,
+        .page-editor .page-web-text-block-toolbar[data-menu-drop="down"] > .page-web-text-block-menu-dropdown,
+        .page-editor .page-web-spacer-toolbar[data-menu-drop="down"] > .page-web-spacer-menu-dropdown {
+          top: 32px;
+          bottom: auto;
+        }
         .page-editor .page-web-timeline-menu-add-step,
         .page-editor .page-web-timeline-menu-remove-step,
         .page-editor .page-web-timeline-menu-toggle-element { display: block; width: 100%; box-sizing: border-box; text-align: left; padding: 8px 12px; font-size: 13px; font-weight: 500; color: #0f172a; background: transparent; border: none; cursor: pointer; border-radius: 4px; white-space: nowrap; }
@@ -9741,6 +9935,8 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-cover-toolbar[data-menu-open="1"] .page-web-cover-menu-sub[data-submenu-open="1"] > .page-web-cover-menu-sub-trigger .page-web-cover-menu-chevron { transform: rotate(90deg); }
         .page-editor .page-web-cover-menu-sub-panel { display: none; position: absolute; left: calc(100% + 4px); top: 0; padding: 10px; min-width: 0; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 10px 24px rgba(15,23,42,0.12); z-index: 10060; }
         .page-editor .page-web-cover-toolbar[data-menu-open="1"] .page-web-cover-menu-sub[data-submenu-open="1"] > .page-web-cover-menu-sub-panel { display: block; }
+        .page-editor .page-web-cover-menu-sub[data-submenu-drop="up"] > .page-web-cover-menu-sub-panel { top: auto; bottom: 0; }
+        .page-editor .page-web-cover-menu-sub[data-submenu-drop="down"] > .page-web-cover-menu-sub-panel { top: 0; bottom: auto; }
         .page-editor .page-web-cover-type-panel { display: none; flex-direction: column; gap: 2px; padding: 6px; min-width: 14.5rem; box-sizing: border-box; }
         .page-editor .page-web-cover-toolbar[data-menu-open="1"] .page-web-cover-menu-sub[data-submenu-open="1"] > .page-web-cover-menu-sub-panel .page-web-cover-type-panel { display: flex; }
         .page-editor .page-web-cover-menu-type { display: flex; width: 100%; box-sizing: border-box; align-items: center; gap: 8px; text-align: left; padding: 8px 10px; font-size: 13px; font-weight: 500; color: #0f172a; background: transparent; border: none; cursor: pointer; border-radius: 6px; white-space: nowrap; }
@@ -9766,6 +9962,33 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
           pointer-events: none;
         }
         .page-editor .page-web-cover-inner[data-cover-unlocked="1"] { outline: none !important; box-shadow: none !important; }
+        .page-editor .page-web-cover-inner[data-cover-unlocked="1"],
+        .page-editor .page-web-text-block-content,
+        .page-editor .page-web-text-media-col,
+        .page-editor .page-web-timeline-subtitle,
+        .page-editor .page-web-timeline-heading,
+        .page-editor .page-web-timeline-description,
+        .page-editor .page-web-timeline-term,
+        .page-editor .page-web-timeline-title,
+        .page-editor .page-web-timeline-text {
+          min-width: 0;
+          max-width: 100%;
+          box-sizing: border-box;
+          overflow-wrap: anywhere;
+          word-break: break-word;
+        }
+        .page-editor .page-web-cover-inner[data-cover-unlocked="1"] > *,
+        .page-editor .page-web-text-block-content > *,
+        .page-editor .page-web-text-media-col > *,
+        .page-editor .page-web-timeline-subtitle > *,
+        .page-editor .page-web-timeline-heading > *,
+        .page-editor .page-web-timeline-description > *,
+        .page-editor .page-web-timeline-term > *,
+        .page-editor .page-web-timeline-title > *,
+        .page-editor .page-web-timeline-text > * {
+          max-width: 100%;
+          box-sizing: border-box;
+        }
         .page-editor .page-web-cover-inner .page-web-cover-el-title[data-cover-focus-target="1"],
         .page-editor .page-web-cover-inner .page-web-cover-el-subtitle[data-cover-focus-target="1"],
         .page-editor .page-web-cover-inner .page-web-cover-el-button-wrap[data-cover-focus-target="1"],
@@ -9792,6 +10015,14 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
           box-shadow: 0 0 0 6px rgba(73, 109, 179, 0.12), 0 0 16px rgba(73, 109, 179, 0.3), 0 0 26px rgba(73, 109, 179, 0.22);
           border-radius: 8px;
           transition: box-shadow 0.12s ease;
+          outline: none !important;
+          text-decoration: none !important;
+          box-decoration-break: clone;
+          -webkit-box-decoration-break: clone;
+        }
+        .page-editor .page-web-timeline .page-web-timeline-subtitle[data-timeline-focus-target="1"],
+        .page-editor .page-web-timeline .page-web-timeline-heading[data-timeline-focus-target="1"] {
+          display: inline-block;
         }
         .page-editor .page-web-cover-aspect-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; width: 156px; box-sizing: border-box; }
         .page-editor .page-web-cover-menu-aspect { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; width: 100%; box-sizing: border-box; margin: 0; padding: 6px 2px; text-align: center; font-size: 10px; font-weight: 600; line-height: 1.1; color: #0f172a; background: transparent; border: none; cursor: pointer; border-radius: 6px; }
@@ -9845,6 +10076,8 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-text-block-menu-sub-panel { display: none; position: absolute; left: calc(100% + 4px); top: 0; padding: 6px; min-width: 12rem; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 10px 24px rgba(15,23,42,0.12); z-index: 120; transform: translateZ(0); -webkit-transform: translateZ(0); backface-visibility: hidden; -webkit-backface-visibility: hidden; }
         .page-editor .page-web-text-block-menu-sub-panel[data-force-hidden="1"] { display: none !important; visibility: hidden !important; opacity: 0 !important; pointer-events: none !important; }
         .page-editor .page-web-text-block-toolbar[data-menu-open="1"] .page-web-text-block-menu-sub[data-submenu-open="1"] > .page-web-text-block-menu-sub-panel { display: block; }
+        .page-editor .page-web-text-block-menu-sub[data-submenu-drop="up"] > .page-web-text-block-menu-sub-panel { top: auto; bottom: 0; }
+        .page-editor .page-web-text-block-menu-sub[data-submenu-drop="down"] > .page-web-text-block-menu-sub-panel { top: 0; bottom: auto; }
         .page-editor .page-web-text-block-menu-element { display: block; width: 100%; box-sizing: border-box; text-align: left; padding: 8px 10px; font-size: 13px; font-weight: 500; color: #0f172a; background: transparent; border: none; cursor: pointer; border-radius: 6px; white-space: nowrap; }
         .page-editor .page-web-text-block-menu-element:hover { background: #f1f5f9; }
         .page-editor .page-web-text-block-menu-element[disabled] { opacity: 0.45; cursor: not-allowed; }
@@ -9915,6 +10148,8 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-carousel-toolbar[data-menu-open="1"] .page-web-carousel-menu-sub[data-submenu-open="1"] > .page-web-carousel-menu-sub-trigger .page-web-carousel-menu-chevron { transform: rotate(90deg); }
         .page-editor .page-web-carousel-menu-sub-panel { display: none; position: absolute; left: calc(100% + 4px); top: 0; padding: 6px; min-width: 12rem; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 10px 24px rgba(15,23,42,0.12); z-index: 120; }
         .page-editor .page-web-carousel-toolbar[data-menu-open="1"] .page-web-carousel-menu-sub[data-submenu-open="1"] > .page-web-carousel-menu-sub-panel { display: block; }
+        .page-editor .page-web-carousel-menu-sub[data-submenu-drop="up"] > .page-web-carousel-menu-sub-panel { top: auto; bottom: 0; }
+        .page-editor .page-web-carousel-menu-sub[data-submenu-drop="down"] > .page-web-carousel-menu-sub-panel { top: 0; bottom: auto; }
         .page-editor .page-web-carousel-menu-image-type { display: flex; width: 100%; box-sizing: border-box; align-items: center; gap: 8px; text-align: left; padding: 8px 10px; font-size: 13px; font-weight: 500; color: #0f172a; background: transparent; border: none; cursor: pointer; border-radius: 6px; white-space: nowrap; }
         .page-editor .page-web-carousel-menu-image-type:hover { background: #f1f5f9; }
         .page-editor .page-web-carousel-menu-image-type-radio { width: 14px; height: 14px; border-radius: 9999px; border: 1.5px solid #94a3b8; box-sizing: border-box; background: #fff; flex-shrink: 0; }
@@ -10008,7 +10243,6 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-timeline .page-web-timeline-heading,
         .page-editor .page-web-work-pricing .wsx,
         .page-editor .page-web-work-pricing .wsy,
-        .page-editor .page-web-work-pricing .wti,
         .page-editor .page-web-text-block h3,
         .page-editor .page-web-text-media .page-web-text-media-col h3 {
           font-size: var(--site-blue-title-fs) !important;
