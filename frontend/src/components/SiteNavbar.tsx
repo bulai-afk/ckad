@@ -229,7 +229,7 @@ export function SiteNavbar({ siteSettings }: SiteNavbarProps) {
         >
           <div className="flex min-w-0 shrink-0 items-center">
             <Link href="/" className="-m-1 flex w-full max-w-full cursor-pointer select-none items-center p-1">
-              <span className="sr-only">На главную — Центр каталогизации и анализа данных</span>
+              <span className="sr-only">На главную — Центр каталогизации анализа данных</span>
               <img src="/logo.svg" alt="" className="h-7 w-auto max-w-[100%] select-none object-contain" draggable={false} />
             </Link>
             </div>
@@ -341,7 +341,7 @@ export function SiteNavbar({ siteSettings }: SiteNavbarProps) {
                     onClick={closeMobileMenu}
                     className="-m-1.5 cursor-pointer select-none p-1.5"
                   >
-                    <span className="sr-only">На главную — Центр каталогизации и анализа данных</span>
+                    <span className="sr-only">На главную — Центр каталогизации анализа данных</span>
                     <img src="/logo.svg" alt="" className="h-7 w-auto select-none" draggable={false} />
                   </Link>
                   <button type="button" command="close" commandfor="mobile-menu" className="-m-2.5 rounded-md p-2.5 text-[#496db3]">

@@ -5826,6 +5826,36 @@ export default function PageEditorDetailsPage() {
     return true;
   }
 
+  function tryKeepEmptyTextBlockHeading(ed: HTMLElement, range: Range): boolean {
+    if (!range.collapsed) return false;
+    let node: Node | null = range.startContainer;
+    if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+    if (!node || !(node instanceof Element)) return false;
+    const heading = node.closest("h1, h2, h3, h4, h5, h6") as HTMLElement | null;
+    const featureGridCardTitle = node.closest(".page-web-feature-grid-item-title") as HTMLElement | null;
+    const target = heading ?? featureGridCardTitle;
+    if (!target) return false;
+    const content = target.closest(".page-web-text-block-content") as HTMLElement | null;
+    if (!content || !ed.contains(content) || !content.contains(target)) return false;
+    if (!isRangeAtElementStart(range, target) && !isRangeAtElementStartLenient(range, target)) return false;
+    const text = (target.textContent || "").replace(/[\u200b\u00a0\s]+/g, "");
+    const hasStructuredPayload = !!target.querySelector("img, table, ul, ol, iframe, video");
+    const isFeatureGridCardTitle = target.classList.contains("page-web-feature-grid-item-title");
+    if (text.length > 0 || (!isFeatureGridCardTitle && hasStructuredPayload)) return false;
+    if (target.childNodes.length === 0) {
+      target.appendChild(document.createElement("br"));
+    }
+    const sel = window.getSelection();
+    if (sel) {
+      const keep = document.createRange();
+      keep.selectNodeContents(target);
+      keep.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(keep);
+    }
+    return true;
+  }
+
   function isRangeAtElementStart(range: Range, element: HTMLElement): boolean {
     if (!range.collapsed) return false;
     const atStart = document.createRange();
@@ -5919,6 +5949,29 @@ export default function PageEditorDetailsPage() {
     if (!current || !content.contains(current)) return false;
     if (current.closest("li")) return false;
     if (!isRangeAtElementStart(range, current) && !isRangeAtElementStartLenient(range, current)) return false;
+
+    const immediatePrev = current.previousElementSibling as HTMLElement | null;
+    if (immediatePrev && immediatePrev.tagName !== "BR") {
+      const isHeadingShell =
+        /^H[1-6]$/.test(immediatePrev.tagName) || immediatePrev.classList.contains("page-web-feature-grid-item-title");
+      if (isHeadingShell) {
+        const prevText = (immediatePrev.textContent || "").replace(/[\u200b\u00a0\s]+/g, "");
+        const hasStructuredPayload = !!immediatePrev.querySelector("img, table, ul, ol, iframe, video");
+        const isFeatureGridCardTitle = immediatePrev.classList.contains("page-web-feature-grid-item-title");
+        if (prevText.length === 0 && (isFeatureGridCardTitle || !hasStructuredPayload)) {
+          const sel = window.getSelection();
+          if (sel) {
+            const keep = document.createRange();
+            keep.selectNodeContents(current);
+            keep.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(keep);
+            savedRangeRef.current = keep.cloneRange();
+          }
+          return true;
+        }
+      }
+    }
 
     let prev: Element | null = current.previousElementSibling;
     while (prev) {
@@ -7341,6 +7394,10 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       return;
     }
     if (inputType === "deleteContentBackward" && range.collapsed) {
+      if (tryKeepEmptyTextBlockHeading(ed, range)) {
+        e.preventDefault();
+        return;
+      }
       if (tryPreventTextBlockSiblingBackspaceMerge(ed, range)) {
         e.preventDefault();
         return;
@@ -8995,6 +9052,11 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       if (!range.collapsed) return;
       if (!ed.contains(range.commonAncestorContainer)) return;
       if (e.key === "Backspace") {
+        if (tryKeepEmptyTextBlockHeading(ed, range)) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
         if (tryPreventTextBlockSiblingBackspaceMerge(ed, range)) {
           e.preventDefault();
           e.stopPropagation();
