@@ -111,12 +111,35 @@ export function ensureCoverBgLayers(root: ParentNode): void {
         item.setAttribute("data-timeline-has-next", nextVal);
       }
     });
+
+    // Общая линия таймлайна должна идти строго от первой точки до последней
+    // (горизонтально на desktop, вертикально на mobile — через CSS).
+    const dots = Array.from(timeline.querySelectorAll(":scope .page-web-timeline-dot")) as HTMLElement[];
+    if (dots.length >= 2) {
+      const timelineRect = timeline.getBoundingClientRect();
+      const firstRect = dots[0].getBoundingClientRect();
+      const lastRect = dots[dots.length - 1].getBoundingClientRect();
+      const leftPx = Math.max(0, firstRect.left + firstRect.width / 2 - timelineRect.left);
+      const rightPx = Math.max(0, timelineRect.right - (lastRect.left + lastRect.width / 2));
+      const topPx = Math.max(0, firstRect.top + firstRect.height / 2 - timelineRect.top);
+      const bottomPx = Math.max(0, timelineRect.bottom - (lastRect.top + lastRect.height / 2));
+      timeline.style.setProperty("--timeline-line-left", `${leftPx}px`);
+      timeline.style.setProperty("--timeline-line-right", `${rightPx}px`);
+      timeline.style.setProperty("--timeline-line-top", `${topPx}px`);
+      timeline.style.setProperty("--timeline-line-bottom", `${bottomPx}px`);
+    } else {
+      timeline.style.removeProperty("--timeline-line-left");
+      timeline.style.removeProperty("--timeline-line-right");
+      timeline.style.removeProperty("--timeline-line-top");
+      timeline.style.removeProperty("--timeline-line-bottom");
+    }
   });
 }
 
 export function getTimelineRenderCss(scope: string): string {
   return `
 ${scope} .page-web-timeline { --timeline-dot-size: 0.8rem; --timeline-line-size: 2px; --timeline-gap: 1rem; position: relative; width: 100%; margin: 0 0 1.25rem; padding-top: 1rem; display: grid; grid-template-columns: repeat(var(--timeline-cols, 3), minmax(0, 1fr)); gap: 0.7rem var(--timeline-gap); box-sizing: border-box; }
+${scope} .page-web-timeline::before { content: ""; position: absolute; left: var(--timeline-line-left, 0); right: var(--timeline-line-right, 0); top: var(--timeline-line-top, 50%); height: var(--timeline-line-size); transform: translateY(-50%); background: #cbd5e1; pointer-events: none; z-index: 1; }
 ${scope} .page-web-timeline-head { grid-column: 1 / -1; margin: 0 0 0.6rem; display: grid; gap: 0; text-align: center; }
 ${scope} .page-web-timeline-subtitle { margin: 0; color: #b91c1c; font-size: 1rem; line-height: 1; font-weight: 600; }
 ${scope} .page-web-timeline-heading { margin: 0; color: #496db3; font-size: var(--site-blue-title-fs, 2.25rem); line-height: var(--site-blue-title-lh, 2.25rem); letter-spacing: -0.02em; font-weight: 600; }
@@ -133,8 +156,8 @@ ${scope} .page-web-timeline-item {
   align-items: stretch;
 }
 ${scope} .page-web-timeline-item::before { content: none; display: none; }
-${scope} .page-web-timeline-item[data-timeline-has-next="1"]::before { content: ""; display: block; position: absolute; left: 50%; top: 50%; transform: translateY(-50%); width: calc(100% + var(--timeline-gap, 0.9rem)); height: var(--timeline-line-size); background: #cbd5e1; pointer-events: none; z-index: 1; }
-${scope} .page-web-timeline-item:not([data-timeline-has-next="0"]):not(:last-of-type)::before { content: ""; display: block; position: absolute; left: 50%; top: 50%; transform: translateY(-50%); width: calc(100% + var(--timeline-gap, 0.9rem)); height: var(--timeline-line-size); background: #cbd5e1; pointer-events: none; z-index: 1; }
+${scope} .page-web-timeline-item[data-timeline-has-next="1"]::before,
+${scope} .page-web-timeline-item:not([data-timeline-has-next="0"]):not(:last-of-type)::before,
 ${scope} .page-web-timeline-item[data-timeline-has-next="0"]::before { content: none !important; display: none !important; width: 0 !important; height: 0 !important; }
 ${scope} .page-web-timeline-term {
   position: relative;
@@ -194,42 +217,55 @@ ${scope} .page-web-timeline-item:nth-of-type(odd):not(:first-of-type) > .page-we
 ${scope} .page-web-timeline-title { margin: 0; font-size: 1.75rem; font-weight: 700; color: #0f172a; line-height: 1.45; text-align: center; }
 ${scope} .page-web-timeline-text { margin: 0; font-size: 1.75rem; color: #475569; line-height: 1.5; text-align: center; }
 @media (max-width: 1205px) {
-${scope} .page-web-timeline { grid-template-columns: 1fr; --timeline-gap: 0.65rem; gap: var(--timeline-gap); }
+${scope} .page-web-timeline { grid-template-columns: 1fr; --timeline-gap: 0.65rem; --timeline-term-col: 4.6rem; gap: var(--timeline-gap); position: relative; }
+${scope} .page-web-timeline::before {
+  content: "";
+  position: absolute;
+  left: var(--timeline-line-left, calc(var(--timeline-term-col) + 0.35rem + 0.95rem));
+  top: var(--timeline-line-top, 3.1rem);
+  bottom: var(--timeline-line-bottom, 0.8rem);
+  right: auto;
+  transform: translateX(-50%);
+  width: var(--timeline-line-size);
+  height: auto;
+  background: #cbd5e1;
+  pointer-events: none;
+  z-index: 1;
+}
 ${scope} .page-web-timeline-subtitle { font-size: 1rem; line-height: 1; }
 ${scope} .page-web-timeline-heading { font-size: var(--site-blue-title-fs, 2.25rem); line-height: var(--site-blue-title-lh, 2.25rem); }
 ${scope} .page-web-timeline-description { font-size: inherit; line-height: inherit; }
-${scope} .page-web-timeline-item { min-height: 0; padding-top: 0; padding-left: 0; display: grid; grid-template-columns: minmax(0, 1fr) 1.9rem minmax(0, 1fr); column-gap: 0.35rem; grid-template-rows: none; row-gap: 0; align-items: center; }
-${scope} .page-web-timeline-item::before { content: none; display: none; }
-${scope} .page-web-timeline-item[data-timeline-has-next="1"]::before { content: ""; display: block; position: absolute; left: 50%; top: 50%; transform: translateX(-50%); width: var(--timeline-line-size); height: calc(100% + var(--timeline-gap, 1rem)); background: #cbd5e1; pointer-events: none; z-index: 1; }
-${scope} .page-web-timeline-item:not([data-timeline-has-next="0"]):not(:last-of-type)::before { content: ""; display: block; position: absolute; left: 50%; top: 50%; transform: translateX(-50%); width: var(--timeline-line-size); height: calc(100% + var(--timeline-gap, 1rem)); background: #cbd5e1; pointer-events: none; z-index: 1; }
-${scope} .page-web-timeline-item[data-timeline-has-next="0"]::before { content: none !important; display: none !important; width: 0 !important; height: 0 !important; }
-${scope} .page-web-timeline-dot { position: static; left: auto; top: auto; transform: none; grid-column: 2; grid-row: 1; justify-self: center; align-self: center; }
+${scope} .page-web-timeline-item { min-height: 0; padding-top: 0; padding-left: 0; display: grid; grid-template-columns: var(--timeline-term-col) 1.9rem minmax(0, 1fr); column-gap: 0.35rem; grid-template-rows: none; row-gap: 0; align-items: center; position: relative; z-index: 2; }
+${scope} .page-web-timeline-item::before,
+${scope} .page-web-timeline-item::after { content: none; display: none; }
+${scope} .page-web-timeline-item:not(:last-of-type)::before,
+${scope} .page-web-timeline-item:not(:first-of-type)::after { content: none !important; display: none !important; width: 0 !important; height: 0 !important; }
+${scope} .page-web-timeline-dot { position: static; left: auto; top: auto; transform: none; grid-column: 2; grid-row: 1; justify-self: center; align-self: center; z-index: 3; }
 ${scope} .page-web-timeline-term {
   position: static;
   transform: none;
   margin: 0;
-  padding: 0;
+  padding: 0 0.1rem 0 0;
   background: transparent;
+  grid-column: 1;
   grid-row: 1;
   align-self: center;
-  white-space: normal;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   text-align: right;
   display: inline-flex;
   align-items: center;
+  justify-content: flex-end;
+  justify-self: end;
   min-height: 0;
   height: auto;
-  width: fit-content;
-  max-width: 100%;
+  width: 100%;
+  max-width: var(--timeline-term-col);
 }
-${scope} .page-web-timeline-content { grid-row: 1; align-self: center; align-items: flex-start; text-align: left; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 0.6rem 0.7rem; box-sizing: border-box; }
-${scope} .page-web-timeline-item:nth-of-type(odd) > .page-web-timeline-term { grid-column: 1; text-align: right; padding-right: 0.1rem; justify-content: flex-end; justify-self: end; display: inline-flex; align-items: center; min-height: 0; }
-${scope} .page-web-timeline-item:nth-of-type(odd) > .page-web-timeline-content { grid-column: 3; grid-row: 1; }
-${scope} .page-web-timeline-item:nth-of-type(even) > .page-web-timeline-term { grid-column: 3; text-align: left; padding-left: 0.1rem; justify-content: flex-start; justify-self: start; display: inline-flex; align-items: center; min-height: 0; }
-${scope} .page-web-timeline-item:nth-of-type(even) > .page-web-timeline-content { grid-column: 1; grid-row: 1; }
-${scope} .page-web-timeline-item:first-of-type > .page-web-timeline-term { grid-column: 1; grid-row: 1; display: inline-flex; align-items: center; justify-content: flex-end; align-self: center; justify-self: end; min-height: 0; height: auto; visibility: visible; opacity: 1; }
-${scope} .page-web-timeline-item:nth-of-type(odd):not(:first-of-type) > .page-web-timeline-term { grid-row: 1; align-self: center; justify-self: end; align-items: center; }
-${scope} .page-web-timeline-item:nth-of-type(odd):not(:first-of-type) > .page-web-timeline-content { grid-row: 1; align-self: center; }
-${scope} .page-web-timeline-item:nth-of-type(even) > .page-web-timeline-term { grid-row: 1; align-self: center; justify-self: start; }
+${scope} .page-web-timeline-content { grid-column: 3; grid-row: 1; align-self: center; align-items: flex-start; text-align: left; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 0.6rem 0.7rem; box-sizing: border-box; }
+${scope} .page-web-timeline-item:nth-of-type(odd):not(:first-of-type) > .page-web-timeline-term { grid-row: 1; align-self: center; margin: 0; align-items: center; }
+${scope} .page-web-timeline-item:nth-of-type(odd):not(:first-of-type) > .page-web-timeline-content { grid-row: 1; align-self: center; justify-self: stretch; margin: 0; }
 ${scope} .page-web-timeline-title,
 ${scope} .page-web-timeline-text { text-align: left; }
 ${scope} .page-web-timeline-title { font-size: 1.28rem; line-height: 1.35; }

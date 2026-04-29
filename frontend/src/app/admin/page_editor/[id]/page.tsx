@@ -1214,6 +1214,9 @@ function getWebTextBlockToolbarHtml(): string {
     "</div></div>" +
     "</div></div>" +
     '<div class="page-web-text-block-menu-sep page-web-text-block-menu-sep--feature-grid" aria-hidden="true"></div>' +
+    '<div class="page-web-text-block-menu-sep page-web-text-block-menu-sep--work-pricing" aria-hidden="true"></div>' +
+    '<button type="button" role="menuitem" class="page-web-text-block-menu-element page-web-text-block-menu-element--work-pricing" contenteditable="false" tabindex="-1" data-work-pricing-items-action="add">Добавить пункт</button>' +
+    '<button type="button" role="menuitem" class="page-web-text-block-menu-element page-web-text-block-menu-element--work-pricing" contenteditable="false" tabindex="-1" data-work-pricing-items-action="remove">Убрать пункт</button>' +
     '<button type="button" role="menuitem" class="page-web-text-block-menu-delete" contenteditable="false" tabindex="-1">Удалить блок</button>' +
     "</div></div>"
   );
@@ -1808,6 +1811,19 @@ function syncTextBlockToolbarVariantState(toolbar: HTMLElement) {
   }
   if (variant === "feature-grid") {
     syncFeatureGridElementsMenuState(toolbar);
+    return;
+  }
+  if (variant === "work-pricing") {
+    const block = toolbar.closest(".page-web-text-block") as HTMLElement | null;
+    const content = block?.querySelector(":scope > .page-web-text-block-content") as HTMLElement | null;
+    const list = content?.querySelector(".page-web-work-pricing .wrf") as HTMLElement | null;
+    const count = list ? list.querySelectorAll(":scope > li").length : 0;
+    toolbar.querySelectorAll("[data-work-pricing-items-action='remove']").forEach((node) => {
+      const btn = node as HTMLButtonElement;
+      const canRemove = count > 1;
+      btn.disabled = !canRemove;
+      btn.setAttribute("aria-disabled", canRemove ? "false" : "true");
+    });
   }
 }
 
@@ -2529,7 +2545,7 @@ export default function PageEditorDetailsPage() {
     if (!node || !(node instanceof Element)) return;
     const content = node.closest(".page-web-text-block-content") as HTMLElement | null;
     if (!content || !ed.contains(content)) return;
-    const target = node.closest("h2, h3, p, li, dt, dd, a, span") as HTMLElement | null;
+    const target = node.closest("h1, h2, h3, h4, h5, h6, p, li, dt, dd, a, span") as HTMLElement | null;
     if (!target || !content.contains(target)) return;
     target.setAttribute("data-text-block-focus-target", "1");
   }
@@ -8051,6 +8067,25 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       return;
     }
 
+    const workPricingItemsActionBtn = target.closest?.("[data-work-pricing-items-action]") as HTMLElement | null;
+    if (workPricingItemsActionBtn) {
+      if (block.getAttribute("data-text-block-variant") === "work-pricing") {
+        const action = workPricingItemsActionBtn.getAttribute("data-work-pricing-items-action");
+        const changed = action === "add"
+          ? addOneWorkPricingItem(block)
+          : action === "remove"
+            ? removeOneWorkPricingItem(block)
+            : false;
+        syncTextBlockToolbarVariantState(toolbar);
+        if (changed) {
+          setContentHtml(ed.innerHTML);
+          setTimeout(() => updateToolbarState(), 0);
+        }
+      }
+      closeTextBlockToolbarMenus(toolbar);
+      return;
+    }
+
     const delBtn = target.closest?.(".page-web-text-block-menu-delete");
     if (delBtn) {
       closeTextBlockToolbarMenus(toolbar);
@@ -9650,6 +9685,9 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-text-block-menu-grid-option-label { flex: 1; min-width: 0; }
         .page-editor .page-web-text-block-menu-sep { height: 1px; margin: 6px 8px; background: #e2e8f0; pointer-events: none; display: none; }
         .page-editor .page-web-text-block-toolbar[data-text-block-variant="feature-grid"] .page-web-text-block-menu-sep--feature-grid { display: block; }
+        .page-editor .page-web-text-block-toolbar[data-text-block-variant="work-pricing"] .page-web-text-block-menu-sep--work-pricing { display: block; }
+        .page-editor .page-web-text-block-menu-element--work-pricing { display: none; }
+        .page-editor .page-web-text-block-toolbar[data-text-block-variant="work-pricing"] .page-web-text-block-menu-element--work-pricing { display: block; }
         .page-editor .page-web-text-block-menu-sub-panel .page-web-text-block-menu-sep { display: block; margin: 6px 0; }
         .page-editor .page-web-text-block-menu-delete { display: block; width: 100%; box-sizing: border-box; text-align: left; padding: 8px 12px; font-size: 13px; font-weight: 500; color: #b91c1c; background: transparent; border: none; cursor: pointer; border-radius: 4px; white-space: nowrap; }
         .page-editor .page-web-text-block-menu-delete:hover { background: #fef2f2; }
