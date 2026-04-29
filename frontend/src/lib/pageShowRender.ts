@@ -499,7 +499,7 @@ ${scope} .page-web-text-media-col h3 { margin: 0 0 0.55rem; font-size: 1.2rem; l
 ${scope} .page-web-text-media-col p { margin: 0; color: #475569; line-height: 1.55; }
 ${scope} .page-web-text-media-placeholder { color: #64748b; font-size: 0.9rem; }
 @media (max-width: 1205px) {
-${scope} .page-web-cover { height: max-content; min-height: 0; aspect-ratio: auto !important; }
+${scope} .page-web-cover { height: auto; min-height: max-content; }
 ${scope} .page-web-cover .page-web-cover-inner { overflow: hidden; }
 ${scope} .page-web-cover[data-cover-aspect="1-8"][data-cover-type="hero"],
 ${scope} .page-web-cover[data-cover-aspect="1-8"][data-cover-type="image"] { aspect-ratio: 1 / 1; }

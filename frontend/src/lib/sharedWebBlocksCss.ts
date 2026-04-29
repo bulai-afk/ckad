@@ -302,7 +302,7 @@ ${scope} .page-web-text-media .page-web-text-media-col h3 {
   line-height: var(--wb-title-lh);
 }
 @media (max-width: 1205px) {
-${scope} .page-web-cover { height: max-content; min-height: 0; aspect-ratio: auto !important; }
+${scope} .page-web-cover { height: auto; min-height: max-content; }
 ${scope} .page-web-cover .page-web-cover-inner { overflow: hidden; }
 ${scope} .page-web-cover[data-cover-type="split"][data-cover-aspect="1-4"] { aspect-ratio: 1 / 1; }
 ${scope} .page-web-timeline { --timeline-gap: 0.65rem; --timeline-term-col: 4.6rem; gap: var(--timeline-gap); position: relative; }
