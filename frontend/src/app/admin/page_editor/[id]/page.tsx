@@ -5858,16 +5858,134 @@ export default function PageEditorDetailsPage() {
     setAddElementDialogOpen(false);
   }
 
+  const STRUCTURED_EDITABLE_SELECTOR =
+    '.page-web-cover-inner[data-cover-unlocked="1"], .page-web-timeline-subtitle, .page-web-timeline-heading, .page-web-timeline-description, .page-web-timeline-term, .page-web-timeline-title, .page-web-timeline-text, .page-web-text-media-col, .page-web-text-block-content, table.page-editor-table td[data-cell-editing]';
+
+  function getStructuredEditableContainer(ed: HTMLElement, node: Node | null): HTMLElement | null {
+    if (!node) return null;
+    let probe: Node | null = node;
+    if (probe.nodeType === Node.TEXT_NODE) probe = probe.parentElement;
+    if (!(probe instanceof Element)) return null;
+    const container = probe.closest(STRUCTURED_EDITABLE_SELECTOR) as HTMLElement | null;
+    return container && ed.contains(container) ? container : null;
+  }
+
+  function getCoverEditableLeaf(node: Node | null): HTMLElement | null {
+    if (!node) return null;
+    let probe: Node | null = node;
+    if (probe.nodeType === Node.TEXT_NODE) probe = probe.parentElement;
+    if (!(probe instanceof Element)) return null;
+    return probe.closest(
+      ".page-web-cover-el-title, .page-web-cover-el-subtitle, .page-web-cover-el-button-wrap, .page-web-cover-el-announcement-wrap, .page-web-cover-el-learn-more, .page-web-cover-el-announcement-learn-more",
+    ) as HTMLElement | null;
+  }
+
+  function resolveBoundaryCoverLeaf(range: Range, atStart: boolean): HTMLElement | null {
+    const container = atStart ? range.startContainer : range.endContainer;
+    const offset = atStart ? range.startOffset : range.endOffset;
+    const direct = getCoverEditableLeaf(container);
+    if (direct) return direct;
+
+    if (container.nodeType === Node.ELEMENT_NODE) {
+      const el = container as Element;
+      const childCount = el.childNodes.length;
+      const idx = Math.max(0, Math.min(offset, childCount));
+      const preferred =
+        atStart
+          ? el.childNodes[idx] ?? el.childNodes[idx - 1] ?? null
+          : el.childNodes[idx - 1] ?? el.childNodes[idx] ?? null;
+      const byChild = getCoverEditableLeaf(preferred);
+      if (byChild) return byChild;
+    }
+
+    return null;
+  }
+
+  function getGenericEditableLeaf(node: Node | null): HTMLElement | null {
+    if (!node) return null;
+    let probe: Node | null = node;
+    if (probe.nodeType === Node.TEXT_NODE) probe = probe.parentElement;
+    if (!(probe instanceof Element)) return null;
+    return probe.closest(
+      "h1, h2, h3, h4, h5, h6, p, li, dt, dd, blockquote, .page-web-feature-grid-item-title, .page-web-timeline-term, .page-web-timeline-title, .page-web-timeline-text, .wti, .wty, .wsx, .wsy, .wue",
+    ) as HTMLElement | null;
+  }
+
+  function resolveBoundaryGenericLeaf(range: Range, atStart: boolean, root: HTMLElement): HTMLElement | null {
+    const container = atStart ? range.startContainer : range.endContainer;
+    const offset = atStart ? range.startOffset : range.endOffset;
+    const direct = getGenericEditableLeaf(container);
+    if (direct && root.contains(direct)) return direct;
+
+    if (container.nodeType === Node.ELEMENT_NODE) {
+      const el = container as Element;
+      const childCount = el.childNodes.length;
+      const idx = Math.max(0, Math.min(offset, childCount));
+      const preferred =
+        atStart
+          ? el.childNodes[idx] ?? el.childNodes[idx - 1] ?? null
+          : el.childNodes[idx - 1] ?? el.childNodes[idx] ?? null;
+      const byChild = getGenericEditableLeaf(preferred);
+      if (byChild && root.contains(byChild)) return byChild;
+    }
+
+    return null;
+  }
+
+  function getRangeEditScope(ed: HTMLElement, range: Range, atStart: boolean): HTMLElement | null {
+    const container = atStart ? range.startContainer : range.endContainer;
+    const structured = getStructuredEditableContainer(ed, container);
+    if (!structured) return null;
+    if (structured.classList.contains("page-web-cover-inner")) {
+      return resolveBoundaryCoverLeaf(range, atStart) ?? null;
+    }
+    if (
+      structured.classList.contains("page-web-text-block-content") ||
+      structured.classList.contains("page-web-text-media-col")
+    ) {
+      return resolveBoundaryGenericLeaf(range, atStart, structured) ?? structured;
+    }
+    return structured;
+  }
+
+  function isRangeWithinSingleEditScope(ed: HTMLElement, range: Range): boolean {
+    const startScope = getRangeEditScope(ed, range, true);
+    const endScope = getRangeEditScope(ed, range, false);
+    return !!startScope && !!endScope && startScope === endScope;
+  }
+
+  function clampRangeInsideScopeContents(range: Range, scope: HTMLElement): Range {
+    const next = range.cloneRange();
+    const scopeStart = document.createRange();
+    scopeStart.selectNodeContents(scope);
+    scopeStart.collapse(true);
+    const scopeEnd = document.createRange();
+    scopeEnd.selectNodeContents(scope);
+    scopeEnd.collapse(false);
+
+    try {
+      if (!scope.contains(next.startContainer) && next.startContainer !== scope) {
+        next.setStart(scopeStart.startContainer, scopeStart.startOffset);
+      }
+      if (!scope.contains(next.endContainer) && next.endContainer !== scope) {
+        next.setEnd(scopeEnd.endContainer, scopeEnd.endOffset);
+      }
+      if (next.compareBoundaryPoints(Range.START_TO_START, scopeStart) < 0) {
+        next.setStart(scopeStart.startContainer, scopeStart.startOffset);
+      }
+      if (next.compareBoundaryPoints(Range.END_TO_END, scopeEnd) > 0) {
+        next.setEnd(scopeEnd.endContainer, scopeEnd.endOffset);
+      }
+    } catch {
+      return scopeStart;
+    }
+
+    return next;
+  }
+
   function isRangeInsideStructuredTextBlock(ed: HTMLElement, range: Range): boolean {
     if (!ed.contains(range.commonAncestorContainer)) return false;
-    let node: Node | null = range.startContainer;
-    if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
-    if (!node || !(node instanceof Element)) return false;
-
-    const allowed = node.closest(
-      '.page-web-cover-inner[data-cover-unlocked="1"], .page-web-timeline-subtitle, .page-web-timeline-heading, .page-web-timeline-description, .page-web-timeline-term, .page-web-timeline-title, .page-web-timeline-text, .page-web-text-media-col, .page-web-text-block-content, table.page-editor-table td[data-cell-editing]',
-    ) as HTMLElement | null;
-    return Boolean(allowed && ed.contains(allowed));
+    return Boolean(getStructuredEditableContainer(ed, range.startContainer));
   }
 
   function tryKeepCaretInsideEmptyTextBlockContent(ed: HTMLElement, range: Range): boolean {
@@ -7556,6 +7674,14 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       e.preventDefault();
       return;
     }
+    if (
+      (inputType === "deleteContentBackward" || inputType === "deleteContentForward") &&
+      !range.collapsed &&
+      !isRangeWithinSingleEditScope(ed, range)
+    ) {
+      e.preventDefault();
+      return;
+    }
     if (inputType === "deleteContentBackward" && range.collapsed) {
       if (tryKeepEmptyTextBlockHeading(ed, range)) {
         e.preventDefault();
@@ -8601,6 +8727,11 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
     if (!sel || sel.rangeCount === 0) return;
     const range = sel.getRangeAt(0);
 
+    if ((e.key === "Backspace" || e.key === "Delete") && !range.collapsed && !isRangeWithinSingleEditScope(el, range)) {
+      e.preventDefault();
+      return;
+    }
+
     if (e.key === "Backspace" && range.collapsed) {
       if (tryKeepEmptyTextBlockHeading(el, range)) {
         e.preventDefault();
@@ -9069,6 +9200,10 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
     const el = editorRef.current;
     if (!el) return;
     const selPaste = window.getSelection();
+    const currentPasteRangeRaw =
+      selPaste && selPaste.rangeCount > 0 ? selPaste.getRangeAt(0).cloneRange() : null;
+    const fallbackRangeRaw = savedRangeRef.current ? savedRangeRef.current.cloneRange() : null;
+    const currentPasteRange = currentPasteRangeRaw ?? fallbackRangeRaw;
     if (selPaste && selPaste.rangeCount > 0 && selectionInsideNonEditableWebShell(el, selPaste.getRangeAt(0))) {
       e.preventDefault();
       return;
@@ -9105,18 +9240,27 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       .replace(/[\u200B-\u200D\uFEFF]/g, "")
       .replace(/\u2028|\u2029/g, "\n");
 
-    el.focus();
     const selection = window.getSelection();
     if (!selection) return;
-    if (savedRangeRef.current) {
+    if (
+      currentPasteRange &&
+      el.contains(currentPasteRange.commonAncestorContainer) &&
+      isRangeInsideStructuredTextBlock(el, currentPasteRange) &&
+      isRangeWithinSingleEditScope(el, currentPasteRange)
+    ) {
       try {
-        if (el.contains(savedRangeRef.current.commonAncestorContainer)) {
-          selection.removeAllRanges();
-          selection.addRange(savedRangeRef.current);
-        }
+        const scope = getRangeEditScope(el, currentPasteRange, true);
+        const safeRange = scope
+          ? clampRangeInsideScopeContents(currentPasteRange, scope)
+          : currentPasteRange;
+        selection.removeAllRanges();
+        selection.addRange(safeRange);
       } catch {
         // ignore
       }
+    } else {
+      // Never paste into a stale saved range: this can move insertion into another block.
+      return;
     }
     if (selection.rangeCount === 0) return;
     const range = selection.getRangeAt(0);
@@ -11081,8 +11225,14 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
                         scheduleEditorHtmlStateSync(html);
                         syncMarkerBold();
                       }}
-                      onKeyUp={() => updateToolbarState()}
-                      onMouseUp={() => updateToolbarState()}
+                      onKeyUp={() => {
+                        saveSelectionFromEditor();
+                        updateToolbarState();
+                      }}
+                      onMouseUp={() => {
+                        saveSelectionFromEditor();
+                        updateToolbarState();
+                      }}
                       className="w-full"
                     />
                     {!hasWebBlocksInCanvas ? (
