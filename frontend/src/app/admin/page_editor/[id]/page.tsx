@@ -1211,6 +1211,8 @@ function getWebTextBlockToolbarHtml(): string {
     '<span class="page-web-text-block-menu-grid-option-radio" aria-hidden="true"></span><span class="page-web-text-block-menu-grid-option-label">Слева</span></button>' +
     '<button type="button" role="menuitemradio" class="page-web-text-block-menu-grid-option" contenteditable="false" tabindex="-1" data-feature-grid-image-position="bottom" aria-checked="false">' +
     '<span class="page-web-text-block-menu-grid-option-radio" aria-hidden="true"></span><span class="page-web-text-block-menu-grid-option-label">Снизу</span></button>' +
+    '<div class="page-web-text-block-menu-sep" aria-hidden="true"></div>' +
+    '<button type="button" role="menuitem" class="page-web-text-block-menu-element page-web-text-block-menu-element--feature-grid-image-upload" contenteditable="false" tabindex="-1" data-feature-grid-upload-image>Загрузить изображение</button>' +
     "</div></div>" +
     "</div></div>" +
     '<div class="page-web-text-block-menu-sep page-web-text-block-menu-sep--feature-grid" aria-hidden="true"></div>' +
@@ -1799,6 +1801,16 @@ function syncFeatureGridElementsMenuState(toolbar: HTMLElement) {
     const btn = node as HTMLButtonElement;
     const pos = btn.getAttribute("data-feature-grid-image-position");
     btn.setAttribute("aria-checked", pos && pos === currentImagePosition ? "true" : "false");
+  });
+  toolbar.querySelectorAll("[data-feature-grid-upload-image]").forEach((node) => {
+    const btn = node as HTMLButtonElement;
+    const canUpload = currentImagePosition !== "none";
+    btn.style.display = canUpload ? "block" : "none";
+    btn.disabled = !canUpload;
+    btn.setAttribute("aria-disabled", canUpload ? "false" : "true");
+    btn.textContent = root?.querySelector(":scope > .page-web-feature-grid-image[data-feature-grid-image-has-src='1']")
+      ? "Заменить изображение"
+      : "Загрузить изображение";
   });
 }
 
@@ -7190,16 +7202,9 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
     return true;
   }
 
-  function handleFeatureGridImageDoubleClick(e: React.MouseEvent): boolean {
-    const target = (e.target as HTMLElement).closest?.(".page-web-feature-grid-image") as HTMLElement | null;
-    const ed = editorRef.current;
-    if (!target || !ed || !ed.contains(target)) return false;
-    if (!target.closest(".page-web-feature-grid")) return false;
-    e.preventDefault();
-    e.stopPropagation();
-    webShellImageUploadPendingRef.current = { kind: "feature-grid-image", imageBox: target };
-    webShellImageInputRef.current?.click();
-    return true;
+  function handleFeatureGridImageDoubleClick(_e: React.MouseEvent): boolean {
+    // Загрузка изображений feature-grid только через кнопку в меню блока.
+    return false;
   }
 
   function closeFeatureGridIconPicker() {
@@ -8063,6 +8068,24 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
             setContentHtml(ed.innerHTML);
             setTimeout(() => updateToolbarState(), 0);
           }
+        }
+      }
+      closeTextBlockToolbarMenus(toolbar);
+      return;
+    }
+
+    const uploadFeatureGridImageBtn = target.closest?.("[data-feature-grid-upload-image]") as HTMLElement | null;
+    if (uploadFeatureGridImageBtn) {
+      if (block.getAttribute("data-text-block-variant") === "feature-grid") {
+        const content = block.querySelector(":scope > .page-web-text-block-content") as HTMLElement | null;
+        const root = content?.querySelector(".page-web-feature-grid") as HTMLElement | null;
+        const imageBox = root?.querySelector(":scope > .page-web-feature-grid-image") as HTMLElement | null;
+        const imagePosition = root ? getFeatureGridImagePosition(root) : "none";
+        if (imageBox && imagePosition !== "none") {
+          webShellImageUploadPendingRef.current = { kind: "feature-grid-image", imageBox };
+          closeTextBlockToolbarMenus(toolbar);
+          webShellImageInputRef.current?.click();
+          return;
         }
       }
       closeTextBlockToolbarMenus(toolbar);
