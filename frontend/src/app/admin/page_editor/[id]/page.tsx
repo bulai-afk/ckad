@@ -1100,6 +1100,13 @@ function syncCoverTypeMenuState(toolbar: HTMLElement) {
     const preset = btn.getAttribute("data-set-cover-type");
     btn.setAttribute("aria-checked", preset === active ? "true" : "false");
   });
+  const uploadBtn = toolbar.querySelector(".page-web-cover-menu-upload") as HTMLButtonElement | null;
+  if (uploadBtn) {
+    const canUploadImage = active === "image" || active === "split";
+    uploadBtn.style.display = canUploadImage ? "block" : "none";
+    uploadBtn.disabled = !canUploadImage;
+    uploadBtn.setAttribute("aria-disabled", canUploadImage ? "false" : "true");
+  }
 }
 
 function getWebBlockMoveButtonHtml(direction: "up" | "down"): string {
