@@ -1194,6 +1194,8 @@ function getWebTextBlockToolbarHtml(): string {
     '<span class="page-web-text-block-menu-grid-option-radio" aria-hidden="true"></span><span class="page-web-text-block-menu-grid-option-label">Справа</span></button>' +
     '<button type="button" role="menuitemradio" class="page-web-text-block-menu-grid-option" contenteditable="false" tabindex="-1" data-feature-grid-message-position="left" aria-checked="false">' +
     '<span class="page-web-text-block-menu-grid-option-radio" aria-hidden="true"></span><span class="page-web-text-block-menu-grid-option-label">Слева</span></button>' +
+    '<button type="button" role="menuitemradio" class="page-web-text-block-menu-grid-option" contenteditable="false" tabindex="-1" data-feature-grid-message-position="top" aria-checked="false">' +
+    '<span class="page-web-text-block-menu-grid-option-radio" aria-hidden="true"></span><span class="page-web-text-block-menu-grid-option-label">Сверху</span></button>' +
     '<button type="button" role="menuitemradio" class="page-web-text-block-menu-grid-option" contenteditable="false" tabindex="-1" data-feature-grid-message-position="bottom" aria-checked="false">' +
     '<span class="page-web-text-block-menu-grid-option-radio" aria-hidden="true"></span><span class="page-web-text-block-menu-grid-option-label">Снизу</span></button>' +
     '<div class="page-web-text-block-menu-sep" aria-hidden="true"></div>' +
@@ -1231,7 +1233,7 @@ function getWebTextBlockToolbarHtml(): string {
 }
 
 type FeatureGridElementKind = "subtitle" | "title" | "lead";
-type FeatureGridMessagePosition = "none" | "left" | "right" | "bottom";
+type FeatureGridMessagePosition = "none" | "left" | "right" | "top" | "bottom";
 type FeatureGridMessageColor = "red" | "yellow" | "green";
 type FeatureGridImagePosition = "none" | "left" | "right" | "bottom";
 
@@ -1240,7 +1242,7 @@ function isFeatureGridElementKind(value: string | null): value is FeatureGridEle
 }
 
 function isFeatureGridMessagePosition(value: string | null): value is FeatureGridMessagePosition {
-  return value === "none" || value === "left" || value === "right" || value === "bottom";
+  return value === "none" || value === "left" || value === "right" || value === "top" || value === "bottom";
 }
 
 function isFeatureGridMessageColor(value: string | null): value is FeatureGridMessageColor {

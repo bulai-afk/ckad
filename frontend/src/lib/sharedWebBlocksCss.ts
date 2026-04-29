@@ -106,6 +106,7 @@ ${scope} .page-web-feature-grid[data-feature-grid-message-color="yellow"] { --fe
 ${scope} .page-web-feature-grid[data-feature-grid-message-color="green"] { --feature-grid-message-bg: #f0fdf4; --feature-grid-message-border: #86efac; --feature-grid-message-text: #166534; }
 ${scope} .page-web-feature-grid[data-feature-grid-message-position="right"] .page-web-feature-grid-message,
 ${scope} .page-web-feature-grid[data-feature-grid-message-position="left"] .page-web-feature-grid-message,
+${scope} .page-web-feature-grid[data-feature-grid-message-position="top"] .page-web-feature-grid-message,
 ${scope} .page-web-feature-grid[data-feature-grid-message-position="bottom"] .page-web-feature-grid-message { display: block; }
 ${scope} .page-web-feature-grid[data-feature-grid-message-position="right"] .page-web-feature-grid-lead-row,
 ${scope} .page-web-feature-grid-lead-row[data-feature-grid-message-position="right"] { grid-template-columns: minmax(0, 1fr) minmax(220px, 0.85fr); align-items: start; column-gap: 1rem; }
@@ -119,6 +120,8 @@ ${scope} .page-web-feature-grid[data-feature-grid-message-position="left"] .page
 ${scope} .page-web-feature-grid-lead-row[data-feature-grid-message-position="left"] > .page-web-feature-grid-message { flex: 0 1 45%; min-width: 220px; margin-top: 0; align-self: center; }
 ${scope} .page-web-feature-grid[data-feature-grid-message-position="left"] .page-web-feature-grid-lead-row > .page-web-feature-grid-lead,
 ${scope} .page-web-feature-grid-lead-row[data-feature-grid-message-position="left"] > .page-web-feature-grid-lead { flex: 1 1 0; min-width: 0; }
+${scope} .page-web-feature-grid[data-feature-grid-message-position="top"] .page-web-feature-grid-lead-row > .page-web-feature-grid-message,
+${scope} .page-web-feature-grid-lead-row[data-feature-grid-message-position="top"] > .page-web-feature-grid-message { margin-top: 0; order: -1; }
 ${scope} .page-web-feature-grid[data-feature-grid-message-position="bottom"] .page-web-feature-grid-lead-row > .page-web-feature-grid-message,
 ${scope} .page-web-feature-grid-lead-row[data-feature-grid-message-position="bottom"] > .page-web-feature-grid-message { margin-top: 0.2rem; }
 ${scope} .page-web-feature-grid-image { display: none; position: relative; min-height: 220px; border-radius: 12px; border: 1px dashed #cbd5e1; background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%); color: #64748b; box-sizing: border-box; padding: 1rem; text-align: center; align-items: center; justify-content: center; overflow: hidden; }
