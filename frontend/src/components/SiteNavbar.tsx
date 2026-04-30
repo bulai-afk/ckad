@@ -250,7 +250,7 @@ export function SiteNavbar({ siteSettings }: SiteNavbarProps) {
             <el-popover-group className="block w-full min-w-0 max-w-4xl">
             <div className="flex w-full flex-wrap items-center justify-center gap-x-6 gap-y-2 xl:gap-x-8">
             <div className="relative">
-              <button popoverTarget="desktop-menu-catalog" className="flex items-center gap-x-1 whitespace-nowrap py-1 text-sm/6 font-semibold text-[#496db3]">
+              <button popoverTarget="desktop-menu-catalog" className="flex items-center gap-x-1 whitespace-nowrap py-1 text-sm/6 font-semibold text-[#496db3] transition hover:text-red-600">
                 Каталогизация
                 <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className="size-5 flex-none text-gray-400">
                   <path d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" fillRule="evenodd" />
@@ -272,7 +272,7 @@ export function SiteNavbar({ siteSettings }: SiteNavbarProps) {
         </div>
 
             <div className="relative">
-              <button popoverTarget="desktop-menu-study" className="flex items-center gap-x-1 whitespace-nowrap py-1 text-sm/6 font-semibold text-[#496db3]">
+              <button popoverTarget="desktop-menu-study" className="flex items-center gap-x-1 whitespace-nowrap py-1 text-sm/6 font-semibold text-[#496db3] transition hover:text-red-600">
                 Учебный центр
                 <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className="size-5 flex-none text-gray-400">
                   <path d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" fillRule="evenodd" />
