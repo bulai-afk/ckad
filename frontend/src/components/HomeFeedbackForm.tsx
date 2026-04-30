@@ -113,7 +113,7 @@ export function HomeFeedbackForm() {
           />
         </div>
 
-        <div className="relative z-10 max-h-[calc(100dvh-var(--site-header-offset)-env(safe-area-inset-bottom,0px)-0.5rem)] overflow-y-auto overscroll-y-contain">
+        <div className="relative z-10">
           <div className="about-template-fallback mx-auto w-full max-w-2xl px-6 py-6 sm:py-8 lg:px-8">
             <div className="text-center">
               <h2 className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-base font-semibold text-[#b91c1c]">
