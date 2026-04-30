@@ -22,7 +22,7 @@ export function BannerCarouselFrame<TSlide extends SlideWithId>({
   onSelectSlide,
   swipeProps,
   roundedClassName = "rounded-xl",
-  aspectClassName = "h-[200vw] sm:h-[50vw]",
+  aspectClassName = "h-[100vw] sm:h-[50vw]",
   renderSlide,
 }: BannerCarouselFrameProps<TSlide>) {
   const aspectRef = useRef<HTMLDivElement>(null);

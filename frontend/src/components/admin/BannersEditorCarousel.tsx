@@ -798,7 +798,7 @@ export function BannersEditorCarousel() {
   return (
     <section className="relative overflow-visible rounded-2xl border border-slate-200 bg-white p-4">
       <div className="relative z-[10020] mb-4 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-slate-900">Большой банер главной страницы</h2>
+        <h2 className="text-sm font-semibold text-slate-900">Большой баннер главной страницы</h2>
         <button
           type="button"
           className="rounded-full bg-[#496db3] px-3 py-1.5 text-xs font-semibold text-white hover:brightness-105"
@@ -834,7 +834,7 @@ export function BannersEditorCarousel() {
                         setActionsMenuOpen(false);
                       }}
                     >
-                      Загрузить в активный
+                      Загрузить изображение
                     </button>
                     <button
                       type="button"
@@ -915,8 +915,8 @@ export function BannersEditorCarousel() {
                       }}
                     >
                       {activeSlide?.showAnnouncementLearnMore
-                        ? "Убрать Learn more (в плашке)"
-                        : "Добавить Learn more (в плашке)"}
+                        ? "Убрать ссылку в плашке"
+                        : "Добавить ссылку в плашке"}
                     </button>
                     <button
                       type="button"
@@ -931,8 +931,8 @@ export function BannersEditorCarousel() {
                       }}
                     >
                       {activeSlide?.showBottomLearnMore
-                        ? "Убрать Learn more (внизу)"
-                        : "Добавить Learn more (внизу)"}
+                        ? "Убрать нижнюю ссылку"
+                        : "Добавить нижнюю ссылку"}
                     </button>
                     <button
                       type="button"
@@ -981,10 +981,8 @@ export function BannersEditorCarousel() {
                   className="min-w-[11.5rem] appearance-none rounded-md border border-slate-200 bg-white px-3 py-1.5 pr-7 text-xs font-semibold text-slate-700 outline-none transition focus:border-[#496db3] focus:ring-2 focus:ring-[#496db3]/20"
                 >
                   <option value="hero">Банер с градиентом</option>
-                  <option value="image">Банер с изображением (2:1)</option>
-                  <option value="split">
-                    Градиент + текст слева + фото справа (1:1)
-                  </option>
+                  <option value="image">Текст на фоне изображения</option>
+                  <option value="split">Изображение справа + градиент</option>
                 </select>
                 <svg
                   viewBox="0 0 20 20"
@@ -1185,7 +1183,7 @@ export function BannersEditorCarousel() {
           onSelectSlide={setActiveIndex}
           swipeProps={bannerEditorSwipe}
           roundedClassName="rounded-xl"
-          aspectClassName="aspect-[2/1]"
+          aspectClassName="h-[100vw] sm:h-[50vw]"
           renderSlide={(slide, idx) => {
             return (() => {
                     const useSplitBanner =
@@ -1240,9 +1238,9 @@ export function BannersEditorCarousel() {
                               imageAlignMode && activeIndex === idx ? "pointer-events-none" : ""
                             }`}
                             style={{
-                              backgroundColor: "rgba(248, 250, 252, 0.58)",
-                              backdropFilter: "blur(2px)",
-                              WebkitBackdropFilter: "blur(2px)",
+                              backgroundColor: "rgba(248, 250, 252, 0.46)",
+                              backdropFilter: "blur(6px) saturate(1.02) brightness(1.04)",
+                              WebkitBackdropFilter: "blur(6px) saturate(1.02) brightness(1.04)",
                             }}
                           />
                         ) : null}
@@ -1335,7 +1333,11 @@ export function BannersEditorCarousel() {
                                     ),
                                   );
                                 }}
-                                className="text-balance text-3xl font-semibold tracking-tight text-[#496db3] sm:text-5xl outline-none"
+                                className="text-balance font-semibold tracking-tight text-[#496db3] outline-none"
+                                style={{
+                                  fontSize: "var(--site-blue-title-fs, 2.25rem)",
+                                  lineHeight: "var(--site-blue-title-lh, 2.25rem)",
+                                }}
                               >
                                 {singleLineImageTitle}
                               </h1>
@@ -1352,7 +1354,7 @@ export function BannersEditorCarousel() {
                                     ),
                                   );
                                 }}
-                                className="mt-6 text-pretty text-sm font-medium text-slate-600 sm:text-base outline-none"
+                                className="mt-6 text-pretty text-base leading-[1.4] font-medium text-slate-600 outline-none"
                               >
                                 {slide.subtitle || "Подзаголовок"}
                               </p>
@@ -1361,7 +1363,7 @@ export function BannersEditorCarousel() {
                               {slide.showButton ? (
                                 <button
                                   type="button"
-                                  className="rounded-md bg-[#496db3] px-3.5 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-[#3f5f9d] sm:text-sm"
+                                  className="rounded-md bg-[#496db3] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#3f5f9d]"
                                   onDoubleClick={() => {
                                     setLinkModalValue(slide.buttonHref || "");
                                     setLinkModalButtonText(slide.buttonText || "Get started");
@@ -1411,7 +1413,7 @@ export function BannersEditorCarousel() {
                                     setLinkModalTarget("secondary");
                                     setLinkModalOpen(true);
                                   }}
-                                  className="text-xs font-semibold text-[#496db3] outline-none sm:text-sm"
+                                  className="text-sm font-semibold text-[#496db3] outline-none"
                                 >
                                   {normalizeLearnMoreText(slide.learnMoreText)}
                                 </span>
@@ -1451,9 +1453,39 @@ export function BannersEditorCarousel() {
                           />
                         </div>
                         <div
+                          className={`absolute inset-0 z-0 md:hidden ${useSplitBanner ? "" : "hidden"}`}
+                        >
+                          {slide.image ? (
+                            <>
+                              <img
+                                src={slide.image}
+                                alt={slide.title}
+                                className="absolute inset-0 h-full w-full object-cover"
+                                style={{ objectPosition: `50% ${slide.imagePosY}%` }}
+                              />
+                              {slide.showOverlay ? (
+                                <div
+                                  className="absolute inset-0"
+                                  style={{
+                                    backgroundColor: "rgba(248, 250, 252, 0.46)",
+                                    backdropFilter: "blur(6px) saturate(1.02) brightness(1.04)",
+                                    WebkitBackdropFilter: "blur(6px) saturate(1.02) brightness(1.04)",
+                                  }}
+                                />
+                              ) : null}
+                            </>
+                          ) : (
+                            <div className="absolute inset-0 flex items-center justify-center bg-slate-300">
+                              <span className="rounded-md border border-slate-500/40 bg-slate-900/35 px-3 py-1.5 text-xs font-medium text-white/90">
+                                Выберите изображение для правого блока
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <div
                           className={`relative z-20 min-w-0 ${
                             useSplitBanner
-                              ? "flex h-full w-1/2 shrink-0 flex-col justify-center px-6 py-10 text-left md:px-10"
+                              ? "flex h-full w-full shrink-0 flex-col justify-center px-6 py-10 text-left md:w-1/2 md:px-10"
                               : "mx-auto w-full max-w-3xl text-center"
                           }`}
                         >
@@ -1529,7 +1561,11 @@ export function BannersEditorCarousel() {
                                   ),
                                 );
                               }}
-                              className="text-balance text-3xl font-semibold tracking-tight text-[#496db3] sm:text-5xl outline-none"
+                              className="text-balance font-semibold tracking-tight text-[#496db3] outline-none"
+                              style={{
+                                fontSize: "var(--site-blue-title-fs, 2.25rem)",
+                                lineHeight: "var(--site-blue-title-lh, 2.25rem)",
+                              }}
                             >
                               {slide.title}
                             </h1>
@@ -1546,7 +1582,7 @@ export function BannersEditorCarousel() {
                                   ),
                                 );
                               }}
-                              className="mt-6 text-pretty text-sm font-medium text-slate-600 sm:text-base outline-none"
+                              className="mt-6 text-pretty text-base leading-[1.4] font-medium text-slate-600 outline-none"
                             >
                               {slide.subtitle || "Подзаголовок"}
                             </p>
@@ -1555,7 +1591,7 @@ export function BannersEditorCarousel() {
                             {slide.showButton ? (
                               <button
                                 type="button"
-                                className="rounded-md bg-[#496db3] px-3.5 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-[#3f5f9d] sm:text-sm"
+                                className="rounded-md bg-[#496db3] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#3f5f9d]"
                                 onDoubleClick={() => {
                                   setLinkModalValue(slide.buttonHref || "");
                                   setLinkModalButtonText(slide.buttonText || "Get started");
@@ -1605,7 +1641,7 @@ export function BannersEditorCarousel() {
                                   setLinkModalTarget("secondary");
                                   setLinkModalOpen(true);
                                 }}
-                                className="text-xs font-semibold text-[#496db3] outline-none sm:text-sm"
+                                className="text-sm font-semibold text-[#496db3] outline-none"
                               >
                                 {normalizeLearnMoreText(slide.learnMoreText)}
                               </span>
@@ -1613,7 +1649,7 @@ export function BannersEditorCarousel() {
                           </div>
                         </div>
                         {useSplitBanner ? (
-                          <div className="relative z-10 h-full w-1/2 shrink-0 overflow-hidden border-l border-slate-300/70 bg-slate-200/60">
+                          <div className="relative z-10 hidden h-full w-1/2 shrink-0 overflow-hidden border-l border-slate-300/70 bg-slate-200/60 md:block">
                             {slide.image ? (
                               <img
                                 src={slide.image}

@@ -205,7 +205,7 @@ export default async function AboutPage() {
   })();
 
   return (
-    <main className="relative isolate overflow-hidden bg-slate-100 pt-16 pb-8 sm:pt-24 sm:pb-10">
+    <main className="relative isolate overflow-hidden bg-slate-100 pb-8 sm:pb-10">
       <div aria-hidden className="absolute inset-x-0 top-0 -z-10 transform-gpu overflow-hidden blur-3xl">
         <div
           className="relative left-1/2 aspect-[1155/678] w-[72rem] -translate-x-1/2 rotate-[18deg] bg-gradient-to-tr from-[#496db3] via-[#5f7ebe] to-[#8aa9db] opacity-30"
@@ -216,41 +216,60 @@ export default async function AboutPage() {
         />
       </div>
 
-      <section className="mx-auto max-w-7xl px-6 lg:px-8">
-        <div className="mx-auto max-w-2xl text-center">
-          <h1 className="about-template-fallback__title text-balance text-pretty">
-            Мы создаем решения, которые работают в реальных процессах
-          </h1>
-          <p className="mt-6 text-lg leading-8 text-slate-600">
-            Центр каталогизации и анализа данных помогает компаниям выстроить прозрачную работу с
-            информацией, ускорить согласования и снизить операционные риски.
-          </p>
-        </div>
-      </section>
+      <section className="relative isolate left-1/2 w-screen -translate-x-1/2 overflow-hidden bg-slate-100">
+          <div aria-hidden className="pointer-events-none absolute inset-x-0 -top-24 -z-10 transform-gpu blur-3xl">
+            <div
+              className="hero-police-blob relative left-1/2 aspect-[1155/678] w-[36rem] -translate-x-1/2 rotate-[20deg] bg-gradient-to-tr from-[#496db3] via-[#5f7ebe] to-[#8aa9db] sm:w-[72rem]"
+              style={{
+                clipPath:
+                  "polygon(74.1% 44.1%,100% 61.6%,97.5% 26.9%,85.5% 0.1%,80.7% 2%,72.5% 32.5%,60.2% 62.4%,52.4% 68.1%,47.5% 58.3%,45.2% 34.5%,27.5% 76.7%,0.1% 64.9%,17.9% 100%,27.6% 76.8%,76.1% 97.7%,74.1% 44.1%)",
+              }}
+            />
+          </div>
+          <div aria-hidden className="pointer-events-none absolute inset-x-0 -top-24 -z-10 transform-gpu blur-3xl">
+            <div
+              className="hero-police-blob hero-police-blob--alt relative left-[calc(50%+3rem)] aspect-[1155/678] w-[36rem] -translate-x-1/2 bg-gradient-to-tr from-[#b91c1c] via-[#dc2626] to-[#f87171] sm:left-[calc(50%+24rem)] sm:w-[72rem]"
+              style={{
+                clipPath:
+                  "polygon(74.1% 44.1%,100% 61.6%,97.5% 26.9%,85.5% 0.1%,80.7% 2%,72.5% 32.5%,60.2% 62.4%,52.4% 68.1%,47.5% 58.3%,45.2% 34.5%,27.5% 76.7%,0.1% 64.9%,17.9% 100%,27.6% 76.8%,76.1% 97.7%,74.1% 44.1%)",
+              }}
+            />
+          </div>
+          <div className="pointer-events-none absolute inset-0 -z-10 bg-[rgba(248,250,252,0.32)] backdrop-blur-[1px]" />
 
-      <section className="mx-auto mt-16 max-w-7xl px-6 lg:px-8">
-        <div className="flex justify-center">
-          <img src="/logo.svg" alt="Логотип ЦКиАД" className="h-16 w-auto max-w-full object-contain sm:h-20" />
-        </div>
+          <div className="mx-auto grid w-full max-w-7xl grid-cols-1 items-center gap-8 px-6 py-8 sm:py-10 lg:px-8">
+            <div className="mx-auto max-w-4xl text-center">
+              <h1 className="about-template-fallback__title text-balance text-pretty">
+                Мы создаем решения, которые работают в реальных процессах
+              </h1>
+              <p className="mt-4 text-base/[1.4] text-slate-600">
+                Центр каталогизации и анализа данных помогает компаниям выстроить прозрачную работу с
+                информацией, ускорить согласования и снизить операционные риски.
+              </p>
+            </div>
+          </div>
       </section>
 
       <section className="mx-auto mt-16 max-w-7xl px-6 lg:px-8">
         <div className="mx-auto max-w-2xl lg:max-w-none">
-          <h2 className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-base font-semibold text-[#b91c1c]">
+          <h2 className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-center text-base font-semibold text-[#b91c1c]">
             Наши ценности
           </h2>
-          <p className="about-template-fallback__title mt-0 text-balance text-pretty">
+          <p className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-center text-pretty sm:-mt-2">
             Принципы, на которых строится работа
           </p>
-          <dl className="mt-12 grid grid-cols-1 gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
+          <dl className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {values.map((item) => (
-              <div key={item.title} className="flex items-start gap-4">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#496db3]/12">
-                  <item.icon aria-hidden="true" className="h-6 w-6 shrink-0 text-[#496db3]" />
+              <div
+                key={item.title}
+                className="flex min-h-full items-start gap-3 rounded-[10px] border border-slate-200 bg-white p-[0.9rem]"
+              >
+                <div className="flex h-[1.8rem] w-[1.8rem] shrink-0 items-center justify-center rounded-full bg-indigo-100 text-[#496db3]">
+                  <item.icon aria-hidden="true" className="h-[1.12rem] w-[1.12rem] shrink-0" />
                 </div>
                 <div className="min-w-0">
-                  <dt className="text-lg font-semibold text-slate-900">{item.title}</dt>
-                  <dd className="mt-1 text-sm leading-7 text-slate-600">{item.text}</dd>
+                  <dt className="text-[0.82rem] font-semibold leading-[1.35] text-slate-900">{item.title}</dt>
+                  <dd className="mt-1 text-sm leading-[1.5] text-slate-600">{item.text}</dd>
                 </div>
               </div>
             ))}
@@ -259,38 +278,28 @@ export default async function AboutPage() {
       </section>
 
       <section className="mx-auto mt-16 max-w-7xl px-6 lg:px-8">
-        <div className="px-6 py-8 sm:px-10 sm:py-10">
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[220px_1fr] lg:items-center">
-            <div className="mx-auto w-full max-w-[220px] lg:mx-0">
-              <img
-                src={
-                  director.photo ||
-                  "https://images.unsplash.com/photo-1519244703995-f4e0f30006d5?auto=format&fit=facearea&facepad=8&w=900&h=1125&q=80"
-                }
-                alt={director.name}
-                className="aspect-[4/5] w-full rounded-2xl object-cover"
-              />
-              <p className="mt-4 text-lg font-semibold tracking-tight text-slate-900">{director.name}</p>
-              <p className="mt-1 text-sm text-slate-600">{director.role}</p>
-            </div>
-            <blockquote className="text-base italic leading-8 text-slate-700 sm:text-lg">
-              {director.message}
-            </blockquote>
-          </div>
-        </div>
-      </section>
-
-      <section className="mx-auto mt-16 max-w-7xl px-6 lg:px-8">
         <div className="overflow-hidden rounded-3xl bg-white px-6 py-10 sm:px-10 sm:py-14 lg:px-14">
           <div className="grid grid-cols-1 gap-10 lg:grid-cols-2 lg:items-center">
-            <div className="h-72 overflow-hidden rounded-2xl border border-slate-200/80 bg-white lg:h-80">
-              <iframe
-                title="Карта офиса на Яндекс.Картах"
-                src="https://yandex.ru/map-widget/v1/?ll=37.617644%2C55.755819&z=11"
-                width="100%"
-                loading="lazy"
-                className="block h-full w-full"
-              />
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5">
+              <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-[180px_1fr] sm:gap-5">
+                <div className="mx-auto w-full max-w-[180px] sm:mx-0">
+                  <img
+                    src={
+                      director.photo ||
+                      "https://images.unsplash.com/photo-1519244703995-f4e0f30006d5?auto=format&fit=facearea&facepad=8&w=900&h=1125&q=80"
+                    }
+                    alt={director.name}
+                    className="aspect-[4/5] w-full rounded-xl object-cover"
+                  />
+                </div>
+                <div>
+                  <p className="text-base font-semibold tracking-tight text-slate-900">{director.name}</p>
+                  <p className="mt-0.5 text-sm text-slate-600">{director.role}</p>
+                  <blockquote className="mt-3 text-sm italic leading-6 text-slate-700 sm:text-[15px]">
+                    {director.message}
+                  </blockquote>
+                </div>
+              </div>
             </div>
             <div className="text-slate-700">
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">

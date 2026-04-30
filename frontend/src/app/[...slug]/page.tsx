@@ -647,10 +647,10 @@ export default function Page() {
               font-size: 1rem;
               line-height: 1.4;
             }
-            .service-page-content-root .page-content .page-web-cover[data-cover-type="split"] .page-web-cover-el-button {
-              font-size: 1.28rem;
-              padding: 1rem 1.6rem;
-              border-radius: 0.58rem;
+            .service-page-content-root .page-content .page-web-cover .page-web-cover-el-button {
+              font-size: 0.875rem;
+              padding: 0.625rem 1rem;
+              border-radius: 0.375rem;
             }
             .service-page-content-root .page-content .page-web-cover[data-cover-type="split"] .page-web-cover-inner {
               width: 100%;
@@ -734,7 +734,9 @@ export default function Page() {
             }
             .service-page-content-root .page-content .page-web-cover[data-cover-aspect="6-1"][data-cover-type="hero"],
             .service-page-content-root .page-content .page-web-cover[data-cover-aspect="6-1"][data-cover-type="image"],
-            .service-page-content-root .page-content .page-web-cover[data-cover-type="split"][data-cover-aspect="6-1"],
+            .service-page-content-root .page-content .page-web-cover[data-cover-type="split"][data-cover-aspect="6-1"] {
+              aspect-ratio: auto;
+            }
             .service-page-content-root .page-content .page-web-cover[data-cover-aspect="8-1"][data-cover-type="hero"],
             .service-page-content-root .page-content .page-web-cover[data-cover-aspect="8-1"][data-cover-type="image"],
             .service-page-content-root .page-content .page-web-cover[data-cover-type="split"][data-cover-aspect="8-1"] {

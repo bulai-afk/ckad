@@ -98,7 +98,13 @@ export function BannerPreviewReadonly({
           </div>
         ) : null}
         {slide.showTitle !== false ? (
-          <h1 className="text-balance text-3xl font-semibold tracking-tight text-[#496db3] sm:text-5xl">
+          <h1
+            className="text-balance font-semibold tracking-tight text-[#496db3]"
+            style={{
+              fontSize: "var(--site-blue-title-fs, 2.25rem)",
+              lineHeight: "var(--site-blue-title-lh, 2.25rem)",
+            }}
+          >
             {preserveBannerTitleLineBreaks
               ? bannerTitleToNodes(singleLineImageTitle)
               : singleLineImageTitle}
@@ -118,7 +124,7 @@ export function BannerPreviewReadonly({
                 e.preventDefault();
                 onPrimaryClick?.();
               }}
-              className="rounded-md bg-[#496db3] px-3.5 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-[#3f5f9d] sm:text-sm"
+              className="rounded-md bg-[#496db3] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#3f5f9d]"
             >
               {slide.buttonText || "Get started"}
             </a>
@@ -126,7 +132,7 @@ export function BannerPreviewReadonly({
           {slide.showBottomLearnMore !== false ? (
             <a
               href={slide.buttonHref || "#"}
-              className="text-xs font-semibold text-[#496db3] no-underline hover:text-[#3f5f9d] sm:text-sm"
+              className="text-sm font-semibold text-[#496db3] no-underline hover:text-[#3f5f9d]"
             >
               {slide.learnMoreText || DEFAULT_LEARN_MORE_TEXT}
             </a>
@@ -167,9 +173,9 @@ export function BannerPreviewReadonly({
           <div
             className="absolute inset-0"
             style={{
-              backgroundColor: "rgba(248, 250, 252, 0.58)",
-              backdropFilter: "blur(2px)",
-              WebkitBackdropFilter: "blur(2px)",
+              backgroundColor: "rgba(248, 250, 252, 0.46)",
+              backdropFilter: "blur(6px) saturate(1.02) brightness(1.04)",
+              WebkitBackdropFilter: "blur(6px) saturate(1.02) brightness(1.04)",
             }}
           />
         ) : null}
@@ -213,8 +219,36 @@ export function BannerPreviewReadonly({
       </div>
       {useSplitBanner ? (
         <div className="relative z-20 flex h-full min-h-0 w-full flex-col md:flex-row">
-          <div className="flex min-h-0 w-full shrink-0 items-center px-6 py-8 md:h-full md:w-1/2 md:min-w-0 md:py-10">
-            <div className="w-full min-w-0 text-left">
+          <div className="absolute inset-0 z-0 md:hidden">
+            {imageSrc ? (
+              <>
+                <img
+                  src={imageSrc}
+                  alt={bannerTitleForAlt(slide.title)}
+                  className="absolute inset-0 box-border h-full w-full min-h-0 min-w-0 max-w-full object-cover"
+                  style={{ objectPosition: `50% ${slide.imagePosY ?? 50}%` }}
+                />
+                {slide.showOverlay !== false ? (
+                  <div
+                    className="absolute inset-0"
+                    style={{
+                      backgroundColor: "rgba(248, 250, 252, 0.46)",
+                      backdropFilter: "blur(6px) saturate(1.02) brightness(1.04)",
+                      WebkitBackdropFilter: "blur(6px) saturate(1.02) brightness(1.04)",
+                    }}
+                  />
+                ) : null}
+              </>
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center bg-slate-300">
+                <span className="rounded-md border border-slate-500/40 bg-slate-900/35 px-3 py-1.5 text-xs font-medium text-white/90">
+                  Выберите изображение для правого блока
+                </span>
+              </div>
+            )}
+          </div>
+          <div className="relative z-20 flex h-full min-h-0 w-full shrink-0 items-center px-6 py-8 md:w-1/2 md:min-w-0 md:py-10">
+            <div className="flex h-full w-full min-w-0 flex-col justify-center text-left">
               {slide.showAnnouncement !== false ? (
                 <div className="hidden sm:mb-6 sm:flex sm:justify-start">
                   <div className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs text-slate-600 ring-1 ring-slate-900/10 sm:text-sm">
@@ -231,12 +265,18 @@ export function BannerPreviewReadonly({
                 </div>
               ) : null}
               {slide.showTitle !== false ? (
-                <h1 className="text-balance text-3xl font-semibold tracking-tight text-[#496db3] sm:text-5xl">
+                <h1
+                  className="text-balance font-semibold tracking-tight text-[#496db3]"
+                  style={{
+                    fontSize: "var(--site-blue-title-fs, 2.25rem)",
+                    lineHeight: "var(--site-blue-title-lh, 2.25rem)",
+                  }}
+                >
                   {preserveBannerTitleLineBreaks ? bannerTitleToNodes(slide.title) : slide.title}
                 </h1>
               ) : null}
               {slide.showSubtitle ? (
-                <p className="mt-6 text-pretty text-sm font-medium text-slate-600 sm:text-base">
+                <p className="mt-6 text-pretty text-base leading-[1.4] font-medium text-slate-600">
                   {slide.subtitle || "Подзаголовок"}
                 </p>
               ) : null}
@@ -249,7 +289,7 @@ export function BannerPreviewReadonly({
                       e.preventDefault();
                       onPrimaryClick?.();
                     }}
-                    className="rounded-md bg-[#496db3] px-3.5 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-[#3f5f9d] sm:text-sm"
+                    className="rounded-md bg-[#496db3] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#3f5f9d]"
                   >
                     {slide.buttonText || "Get started"}
                   </a>
@@ -257,7 +297,7 @@ export function BannerPreviewReadonly({
                 {slide.showBottomLearnMore !== false ? (
                   <a
                     href={slide.buttonHref || "#"}
-                    className="text-xs font-semibold text-[#496db3] no-underline hover:text-[#3f5f9d] sm:text-sm"
+                    className="text-sm font-semibold text-[#496db3] no-underline hover:text-[#3f5f9d]"
                   >
                     {slide.learnMoreText || DEFAULT_LEARN_MORE_TEXT}
                   </a>
@@ -265,7 +305,7 @@ export function BannerPreviewReadonly({
               </div>
             </div>
           </div>
-          <div className="relative min-h-[12rem] w-full flex-1 overflow-hidden border-t border-slate-300/70 bg-slate-200/60 md:h-full md:min-h-0 md:w-1/2 md:flex-none md:border-l md:border-t-0">
+          <div className="relative hidden min-h-[12rem] w-full flex-1 overflow-hidden border-t border-slate-300/70 bg-slate-200/60 md:block md:h-full md:min-h-0 md:w-1/2 md:flex-none md:border-l md:border-t-0">
             {imageSrc ? (
               <img
                 src={imageSrc}
@@ -300,12 +340,18 @@ export function BannerPreviewReadonly({
             </div>
           ) : null}
           {slide.showTitle !== false ? (
-            <h1 className="text-balance text-3xl font-semibold tracking-tight text-[#496db3] sm:text-5xl">
+            <h1
+              className="text-balance font-semibold tracking-tight text-[#496db3]"
+              style={{
+                fontSize: "var(--site-blue-title-fs, 2.25rem)",
+                lineHeight: "var(--site-blue-title-lh, 2.25rem)",
+              }}
+            >
               {preserveBannerTitleLineBreaks ? bannerTitleToNodes(slide.title) : slide.title}
             </h1>
           ) : null}
           {slide.showSubtitle ? (
-            <p className="mt-6 text-pretty text-sm font-medium text-slate-600 sm:text-base">
+            <p className="mt-6 text-pretty text-base leading-[1.4] font-medium text-slate-600">
               {slide.subtitle || "Подзаголовок"}
             </p>
           ) : null}
@@ -318,7 +364,7 @@ export function BannerPreviewReadonly({
                   e.preventDefault();
                   onPrimaryClick?.();
                 }}
-                className="rounded-md bg-[#496db3] px-3.5 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-[#3f5f9d] sm:text-sm"
+                className="rounded-md bg-[#496db3] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#3f5f9d]"
               >
                 {slide.buttonText || "Get started"}
               </a>
@@ -326,7 +372,7 @@ export function BannerPreviewReadonly({
             {slide.showBottomLearnMore !== false ? (
               <a
                 href={slide.buttonHref || "#"}
-                className="text-xs font-semibold text-[#496db3] no-underline hover:text-[#3f5f9d] sm:text-sm"
+                className="text-sm font-semibold text-[#496db3] no-underline hover:text-[#3f5f9d]"
               >
                 {slide.learnMoreText || DEFAULT_LEARN_MORE_TEXT}
               </a>

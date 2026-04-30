@@ -71,7 +71,9 @@ function buildFooterSectionLinks(
 }
 
 const footerLinkClass =
-  "text-sm leading-snug text-gray-600 transition hover:text-gray-900 min-h-10 inline-flex items-center rounded-md py-0.5 sm:min-h-0 sm:py-0";
+  "text-sm leading-[1.2] text-gray-600 transition hover:text-red-600 min-h-0 inline-flex items-center rounded-md py-0 sm:min-h-0 sm:py-0";
+const footerDocumentLinkClass =
+  "text-sm font-semibold leading-[1.2] text-[#496db3] transition hover:text-red-600 min-h-0 inline-flex items-center rounded-md py-0 sm:min-h-0 sm:py-0";
 const PDF_WORKER_SRC = new URL(
   "pdfjs-dist/build/pdf.worker.min.mjs",
   import.meta.url,
@@ -168,7 +170,7 @@ function FooterSocialList({
 }) {
   if (items.length === 0) return null;
   return (
-    <ul className="flex flex-wrap gap-x-2 gap-y-1" aria-label="Социальные сети">
+    <ul className="flex flex-wrap gap-x-2 gap-y-0.5" aria-label="Социальные сети">
       {items.map((item) => (
         <li key={item.label}>
           <a
@@ -176,12 +178,12 @@ function FooterSocialList({
             target="_blank"
             rel="noopener noreferrer"
             aria-label={item.label}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-gray-500 transition hover:bg-gray-100 hover:text-gray-700"
+            className="inline-flex h-6 w-6 items-center justify-center text-[#496db3] transition duration-200 hover:-translate-y-0.5 hover:text-red-600 hover:drop-shadow-[0_4px_10px_rgba(220,38,38,0.35)]"
           >
             {item.externalSvgSrc ? (
-              <img src={item.externalSvgSrc} alt="" aria-hidden className="h-5 w-5 object-contain" />
+              <img src={item.externalSvgSrc} alt="" aria-hidden className="h-4.5 w-4.5 object-contain" />
             ) : (
-              <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0" fill="currentColor" aria-hidden>
+              <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 shrink-0" fill="currentColor" aria-hidden>
                 {item.svg}
               </svg>
             )}
@@ -388,19 +390,22 @@ export function SiteFooter({ siteSettings }: { siteSettings?: SiteSettings | nul
 
   return (
     <footer className="mt-auto w-full shrink-0 border-t border-gray-900/10 bg-white pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-      <div className="mx-auto max-w-7xl px-6 py-4 sm:py-8 lg:px-8">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-x-8 sm:gap-y-6 lg:grid-cols-4 lg:gap-6">
+      <div className="mx-auto max-w-7xl px-6 py-3 sm:py-8 lg:px-8">
+        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 sm:gap-x-8 sm:gap-y-6 lg:grid-cols-4 lg:gap-6">
           <div className="min-w-0 text-center sm:text-left">
             <FooterBrandLink />
-            <div className="mt-2 sm:mt-3">
+            <div className="mt-1 flex justify-center sm:hidden">
+              <FooterSocialList items={socialItems} />
+            </div>
+            <div className="mt-1 sm:mt-3">
               <p className={`hidden sm:block ${colHeadingClass}`}>Документы</p>
-              <ul className="mt-1.5 space-y-0.5" role="list">
+              <ul className="mt-1 space-y-0" role="list">
                 {footerDocuments.map((doc, i) => (
                   <li key={`${doc.name}-${doc.size}`}>
                     <button
                       type="button"
                       onClick={() => setPreviewIndex(i)}
-                      className={`${footerLinkClass} cursor-pointer border-0 bg-transparent p-0 text-left`}
+                      className={`${footerDocumentLinkClass} cursor-pointer border-0 bg-transparent p-0 text-left`}
                     >
                       {filenameWithoutExtension(doc.name)}
                     </button>
@@ -450,24 +455,26 @@ export function SiteFooter({ siteSettings }: { siteSettings?: SiteSettings | nul
 
           <div className="min-w-0 text-center sm:text-left">
             <p className={colHeadingClass}>Контакты</p>
-            <div className="mt-1 flex flex-col items-center gap-1.5 sm:mt-1.5 sm:items-start">
+            <div className="mt-0.5 flex flex-col items-center gap-0.5 sm:mt-1.5 sm:items-start sm:gap-1.5">
               <a
                 href={phoneHref}
-                className="text-sm font-semibold leading-tight text-gray-900 transition hover:text-[#496db3]"
+                className="text-sm font-semibold leading-[1.2] text-[#496db3] transition hover:text-red-600"
               >
                 {phoneLabel}
               </a>
               <a
                 href={mailtoHref}
-                className="text-sm font-semibold leading-tight text-gray-900 transition hover:text-[#496db3]"
+                className="text-sm font-semibold leading-[1.2] text-[#496db3] transition hover:text-red-600"
               >
                 {email}
               </a>
-              <p className="max-w-xs text-sm leading-snug text-gray-600">{address}</p>
+              <p className="max-w-xs text-sm leading-[1.2] text-gray-600">{address}</p>
               <Link href="/about" className={`${footerLinkClass} !hidden min-h-0 py-0 font-semibold sm:!inline-flex`}>
                 О компании
               </Link>
-              <FooterSocialList items={socialItems} />
+              <div className="hidden sm:block">
+                <FooterSocialList items={socialItems} />
+              </div>
             </div>
           </div>
         </div>
