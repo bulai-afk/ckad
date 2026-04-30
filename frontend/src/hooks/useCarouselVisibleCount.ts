@@ -5,22 +5,29 @@ import { useLayoutEffect, useState } from "react";
  * Брейкпоинты как у Tailwind: sm 640px, lg 1024px.
  *
  * Новости (`articles`): **1 / 2 / 3** (узкий / средний / широкий).
- * Отзывы и партнёры: **2 / 4 / 6**.
+ * Отзывы: **2 / 4 / 6**. Партнёры (логотипы): **3 / 4 / 6** — на мобилке три в ряд.
  *
- * Начальное состояние **2** без чтения window — SSR и первый клиентский кадр совпадают;
- * фактическое число ставит useLayoutEffect (до первого paint).
+ * Начальное значение без `window` подобрано под тип карусели, чтобы реже мигать до layout;
+ * точное число ставит `useLayoutEffect` (до первого paint).
  */
 function computeFromWidth(kind: "reviews" | "articles" | "partners", w: number): number {
   if (kind === "articles") {
     return w < 640 ? 1 : w < 1024 ? 2 : 3;
   }
+  if (kind === "partners") {
+    return w < 640 ? 3 : w < 1024 ? 4 : 6;
+  }
   return w < 640 ? 2 : w < 1024 ? 4 : 6;
 }
 
-const INITIAL_VISIBLE = 2;
+function initialVisibleCount(kind: "reviews" | "articles" | "partners"): number {
+  if (kind === "articles") return 1;
+  if (kind === "partners") return 3;
+  return 2;
+}
 
 export function useCarouselVisibleCount(kind: "reviews" | "articles" | "partners"): number {
-  const [n, setN] = useState(INITIAL_VISIBLE);
+  const [n, setN] = useState(() => initialVisibleCount(kind));
 
   useLayoutEffect(() => {
     const apply = () => {

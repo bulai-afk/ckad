@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
+import { HomePartnersCarousel } from "@/components/HomePartnersCarousel";
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
 
 const errorMessages: Record<string, string> = {
@@ -12,28 +14,43 @@ const errorMessages: Record<string, string> = {
   contact_required: "Укажите телефон или e-mail для связи.",
 };
 
-const inputClass =
-  "block w-full rounded-md border-0 bg-white px-3 py-2 text-base text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#496db3] sm:text-sm sm:leading-6";
+/** То же поле `message` в API, что и в модалке — в админке заявок не показывается, только имя/фамилия/телефон/e-mail. */
+const DEFAULT_FEEDBACK_MESSAGE = "Заявка с сайта. Просьба связаться.";
+
+const inputOutlineClass =
+  "block w-full rounded-md bg-white px-3.5 py-2 text-sm/[1.45] text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-[#496db3] sm:text-sm/[1.4]";
 
 export function HomeFeedbackForm() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [agreed, setAgreed] = useState(false);
   const [status, setStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
   const [errorText, setErrorText] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErrorText("");
+    if (!agreed) {
+      setErrorText("Нужно согласие с политикой конфиденциальности.");
+      setStatus("error");
+      return;
+    }
     setStatus("sending");
+    const name = `${firstName} ${lastName}`.trim();
+    const phoneForApi = phone.trim();
+
     try {
-      const name = `${firstName} ${lastName}`.trim();
-      const message = "Заявка с сайта. Просьба связаться.";
       const res = await fetch(`${apiBaseUrl()}/api/feedback`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, phone, email, message }),
+        body: JSON.stringify({
+          name,
+          phone: phoneForApi,
+          email,
+          message: DEFAULT_FEEDBACK_MESSAGE,
+        }),
       });
       const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
       if (!res.ok) {
@@ -46,8 +63,9 @@ export function HomeFeedbackForm() {
         setStatus("success");
         setFirstName("");
         setLastName("");
-        setPhone("");
         setEmail("");
+        setPhone("");
+        setAgreed(false);
         return;
       }
       setErrorText("Не удалось отправить. Попробуйте позже.");
@@ -59,13 +77,44 @@ export function HomeFeedbackForm() {
   }
 
   return (
-    <section
-      className="bg-transparent py-8 sm:py-10 about-template-fallback"
-      aria-labelledby="feedback-contact-heading"
-    >
-      <div className="mx-auto max-w-7xl px-6 lg:px-8">
-        <div className="mx-auto max-w-2xl">
-          <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-900/5 sm:p-8">
+    <>
+      <div className="w-full bg-slate-100">
+        <div className="mx-auto w-[80%] border-t border-slate-200/80" aria-hidden="true" />
+        <div className="mx-auto max-w-7xl px-6 py-4 sm:py-5 lg:px-8">
+          <HomePartnersCarousel slides={[]} title="Наши клиенты" compact />
+        </div>
+      </div>
+      <section
+        className="relative isolate w-full min-w-0 overflow-hidden bg-white"
+        aria-labelledby="feedback-contact-heading"
+      >
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 -top-24 -z-10 transform-gpu overflow-hidden blur-3xl"
+        >
+          <div
+            className="hero-police-blob relative left-1/2 aspect-[1155/678] w-[36rem] max-w-none -translate-x-1/2 rotate-[20deg] bg-gradient-to-tr from-[#496db3] via-[#5f7ebe] to-[#8aa9db] sm:w-[72rem]"
+            style={{
+              clipPath:
+                "polygon(74.1% 44.1%,100% 61.6%,97.5% 26.9%,85.5% 0.1%,80.7% 2%,72.5% 32.5%,60.2% 62.4%,52.4% 68.1%,47.5% 58.3%,45.2% 34.5%,27.5% 76.7%,0.1% 64.9%,17.9% 100%,27.6% 76.8%,76.1% 97.7%,74.1% 44.1%)",
+            }}
+          />
+        </div>
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 -top-24 -z-10 transform-gpu overflow-hidden blur-3xl"
+        >
+          <div
+            className="hero-police-blob hero-police-blob--alt relative left-[calc(50%+3rem)] aspect-[1155/678] w-[36rem] max-w-none -translate-x-1/2 bg-gradient-to-tr from-[#b91c1c] via-[#dc2626] to-[#f87171] sm:left-[calc(50%+24rem)] sm:w-[72rem]"
+            style={{
+              clipPath:
+                "polygon(74.1% 44.1%,100% 61.6%,97.5% 26.9%,85.5% 0.1%,80.7% 2%,72.5% 32.5%,60.2% 62.4%,52.4% 68.1%,47.5% 58.3%,45.2% 34.5%,27.5% 76.7%,0.1% 64.9%,17.9% 100%,27.6% 76.8%,76.1% 97.7%,74.1% 44.1%)",
+            }}
+          />
+        </div>
+
+        <div className="relative z-10 max-h-[calc(100dvh-var(--site-header-offset)-env(safe-area-inset-bottom,0px)-0.5rem)] overflow-y-auto overscroll-y-contain">
+          <div className="about-template-fallback mx-auto w-full max-w-2xl px-6 py-6 sm:py-8 lg:px-8">
             <div className="text-center">
               <h2 className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-base font-semibold text-[#b91c1c]">
                 Обратная связь
@@ -74,37 +123,42 @@ export function HomeFeedbackForm() {
                 id="feedback-contact-heading"
                 className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-pretty sm:-mt-2"
               >
-                Свяжитесь с нами
+                Связаться с нами
               </p>
-              <p className="mt-4 text-pretty text-sm font-medium text-slate-600 sm:text-base">
-                Если нужна консультация по вашему вопросу, оставьте заявку в форме — мы свяжемся с вами.
+              <p className="mt-3 text-pretty text-sm/[1.35] font-medium text-slate-600 sm:mt-4 sm:text-sm/[1.35]">
+                Оставьте заявку — ответим по телефону или e-mail и подскажем по каталогизации и анализу данных.
               </p>
             </div>
 
-            <div className="mt-8">
-              {status === "success" ? (
-                <div className="space-y-4 text-center sm:text-left">
-                  <p
-                    className="rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-sm font-semibold text-emerald-800"
-                    role="status"
-                  >
-                    Спасибо! Сообщение отправлено. Мы скоро с вами свяжемся.
-                  </p>
-                  <button
-                    type="button"
-                    className="text-sm font-semibold text-[#496db3] underline decoration-[#496db3]/40 underline-offset-2 hover:text-[#e53935]"
-                    onClick={() => setStatus("idle")}
-                  >
-                    Отправить ещё одно сообщение
-                  </button>
-                </div>
-              ) : (
-                <form className="space-y-6" onSubmit={handleSubmit} noValidate aria-label="Форма обратной связи">
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div>
-                      <label htmlFor="feedback-first-name" className="sr-only">
-                        Имя
-                      </label>
+            {status === "success" ? (
+              <div className="mx-auto mt-5 w-full max-w-xl text-center sm:mt-6">
+                <p
+                  className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm/[1.35] font-semibold text-emerald-800"
+                  role="status"
+                >
+                  Спасибо! Сообщение отправлено. Мы скоро с вами свяжемся.
+                </p>
+                <button
+                  type="button"
+                  className="mt-4 text-sm/[1.35] font-semibold text-[#496db3] underline decoration-[#496db3]/40 underline-offset-2 hover:text-[#3d5ca0]"
+                  onClick={() => setStatus("idle")}
+                >
+                  Отправить ещё одно сообщение
+                </button>
+              </div>
+            ) : (
+              <form
+                className="mx-auto mt-5 w-full max-w-xl sm:mt-6"
+                onSubmit={handleSubmit}
+                noValidate
+                aria-label="Форма обратной связи"
+              >
+                <div className="grid grid-cols-1 gap-x-6 gap-y-3.5 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="feedback-first-name" className="block text-sm/[1.3] font-semibold text-gray-900">
+                      Имя <span className="text-red-600">*</span>
+                    </label>
+                    <div className="mt-1.5">
                       <input
                         id="feedback-first-name"
                         name="firstName"
@@ -114,14 +168,15 @@ export function HomeFeedbackForm() {
                         maxLength={200}
                         value={firstName}
                         onChange={(e) => setFirstName(e.target.value)}
-                        className={inputClass}
-                        placeholder="Имя *"
+                        className={inputOutlineClass}
                       />
                     </div>
-                    <div>
-                      <label htmlFor="feedback-last-name" className="sr-only">
-                        Фамилия
-                      </label>
+                  </div>
+                  <div>
+                    <label htmlFor="feedback-last-name" className="block text-sm/[1.3] font-semibold text-gray-900">
+                      Фамилия
+                    </label>
+                    <div className="mt-1.5">
                       <input
                         id="feedback-last-name"
                         name="lastName"
@@ -130,30 +185,33 @@ export function HomeFeedbackForm() {
                         maxLength={200}
                         value={lastName}
                         onChange={(e) => setLastName(e.target.value)}
-                        className={inputClass}
-                        placeholder="Фамилия"
+                        className={inputOutlineClass}
                       />
                     </div>
-                    <div>
-                      <label htmlFor="feedback-phone" className="sr-only">
-                        Телефон
-                      </label>
+                  </div>
+                  <div>
+                    <label htmlFor="feedback-phone" className="block text-sm/[1.3] font-semibold text-gray-900">
+                      Телефон
+                    </label>
+                    <div className="mt-1.5">
                       <input
                         id="feedback-phone"
                         name="phone"
                         type="tel"
                         autoComplete="tel"
+                        placeholder="Телефон"
                         maxLength={60}
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
-                        className={inputClass}
-                        placeholder="Телефон"
+                        className={inputOutlineClass}
                       />
                     </div>
-                    <div>
-                      <label htmlFor="feedback-email" className="sr-only">
-                        E-mail
-                      </label>
+                  </div>
+                  <div>
+                    <label htmlFor="feedback-email" className="block text-sm/[1.3] font-semibold text-gray-900">
+                      E-mail
+                    </label>
+                    <div className="mt-1.5">
                       <input
                         id="feedback-email"
                         name="email"
@@ -162,36 +220,64 @@ export function HomeFeedbackForm() {
                         maxLength={200}
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className={inputClass}
-                        placeholder="E-mail"
+                        className={inputOutlineClass}
                       />
                     </div>
                   </div>
-
-                  {status === "error" && errorText ? (
-                    <p
-                      className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm leading-snug text-red-800"
-                      role="alert"
-                    >
-                      {errorText}
-                    </p>
-                  ) : null}
-
-                  <div className="flex justify-center">
+                  <div className="flex items-center gap-x-3 sm:col-span-2">
                     <button
-                      type="submit"
-                      disabled={status === "sending"}
-                      className="inline-flex min-w-[10rem] items-center justify-center rounded-md bg-[#496db3] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#3d5ca0] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#496db3] disabled:cursor-not-allowed disabled:opacity-60"
+                      type="button"
+                      role="switch"
+                      aria-checked={agreed}
+                      aria-labelledby="feedback-agree-text"
+                      onClick={() => setAgreed((v) => !v)}
+                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full p-0.5 shadow-[inset_0_0_0_1px] shadow-gray-900/5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#496db3] ${
+                        agreed ? "bg-[#496db3]" : "bg-gray-200"
+                      }`}
                     >
-                      {status === "sending" ? "Отправка…" : "Отправить"}
+                      <span
+                        aria-hidden
+                        className={`pointer-events-none block size-5 rounded-full bg-white shadow-sm ring-1 ring-gray-900/5 transition-transform duration-200 ease-out ${
+                          agreed ? "translate-x-5" : "translate-x-0"
+                        }`}
+                      />
                     </button>
+                    <span id="feedback-agree-text" className="text-sm/[1.35] text-gray-600">
+                      Отмечая пункт, вы соглашаетесь с нашей{" "}
+                      <Link
+                        href="/privacy"
+                        className="font-semibold whitespace-nowrap text-[#496db3] underline decoration-[#496db3]/35 underline-offset-2 hover:text-[#3d5ca0]"
+                      >
+                        политикой конфиденциальности
+                      </Link>
+                      .
+                    </span>
                   </div>
-                </form>
-              )}
-            </div>
+                </div>
+
+                {status === "error" && errorText ? (
+                  <p
+                    className="mt-3.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-sm/[1.35] text-red-800"
+                    role="alert"
+                  >
+                    {errorText}
+                  </p>
+                ) : null}
+
+                <div className="mt-5 flex justify-center">
+                  <button
+                    type="submit"
+                    disabled={status === "sending"}
+                    className="inline-flex min-w-[10.5rem] items-center justify-center rounded-md bg-[#496db3] px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#3d5ca0] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#496db3] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {status === "sending" ? "Отправка…" : "Отправить"}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
-      </div>
-    </section>
+      </section>
+    </>
   );
 }

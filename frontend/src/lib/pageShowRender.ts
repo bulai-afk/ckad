@@ -434,6 +434,7 @@ ${scope} .page-web-cover[data-cover-type="split"]::after { content: ""; position
 ${scope} .page-web-cover[data-cover-type="split"].page-web-cover-has-bg::after { background-image: var(--cover-bg-image); background-size: cover; background-position: var(--cover-bg-pos, 50% 50%); background-repeat: no-repeat; }
 ${scope} .page-web-cover-bg { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; border-radius: inherit; }
 ${scope} .page-web-cover[data-cover-type="image"] .page-web-cover-bg { display: none; }
+${scope} .page-web-cover[data-cover-type="image"] { overflow: hidden; }
 ${scope} .page-web-cover[data-cover-type="split"] > .page-web-cover-bg {
   display: block;
   width: 50%;
@@ -461,7 +462,7 @@ ${scope} .page-web-cover[data-cover-type="image"]::before {
   background-repeat: no-repeat;
   transform: scale(1.03);
   transform-origin: center;
-  filter: blur(4px) saturate(1.02);
+  filter: blur(5px) saturate(1.02);
 }
 ${scope} .page-web-cover[data-cover-type="image"]::after {
   content: "";
@@ -469,7 +470,9 @@ ${scope} .page-web-cover[data-cover-type="image"]::after {
   inset: 0;
   z-index: 1;
   pointer-events: none;
-  background: linear-gradient(180deg, rgba(248, 250, 252, 0.26) 0%, rgba(248, 250, 252, 0.18) 100%);
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.34) 0%, rgba(248, 250, 252, 0.24) 100%);
+  -webkit-backdrop-filter: blur(6px) saturate(1.02) brightness(1.04);
+  backdrop-filter: blur(6px) saturate(1.02) brightness(1.04);
 }
 ${scope} .page-web-cover-el-title { font-size: var(--site-blue-title-fs, 2.25rem); line-height: var(--site-blue-title-lh, 2.25rem); }
 ${scope} .page-web-cover-el-subtitle { font-size: 1rem; }
@@ -525,18 +528,10 @@ ${scope} .page-web-cover[data-cover-type="split"]::before {
   backdrop-filter: blur(3px) saturate(1.02) brightness(1.08);
   z-index: 2 !important;
 }
-${scope} .page-web-cover[data-cover-type="image"].page-web-cover-has-bg::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  background: rgba(248, 250, 252, 0.36) !important;
-  -webkit-backdrop-filter: blur(3px) saturate(1.02) brightness(1.08) !important;
-  backdrop-filter: blur(3px) saturate(1.02) brightness(1.08) !important;
-  filter: none !important;
-  box-shadow: none !important;
-  opacity: 1 !important;
+${scope} .page-web-cover[data-cover-type="image"].page-web-cover-has-bg::after {
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.48) 0%, rgba(248, 250, 252, 0.34) 100%) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(1.02) brightness(1.05);
+  backdrop-filter: blur(8px) saturate(1.02) brightness(1.05);
 }
 ${scope} .page-web-cover[data-cover-type="split"]::after {
   width: 100% !important;

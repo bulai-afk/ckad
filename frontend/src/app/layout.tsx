@@ -3,7 +3,6 @@ import { Exo_2 } from "next/font/google";
 import { cookies } from "next/headers";
 import { Suspense } from "react";
 import { GlobalFeedbackForm } from "@/components/GlobalFeedbackForm";
-import { GlobalPartnersSection } from "@/components/GlobalPartnersSection";
 import { PreventHorizontalPageScroll } from "@/components/PreventHorizontalPageScroll";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteNavbar } from "@/components/SiteNavbar";
@@ -100,7 +99,6 @@ export default async function RootLayout({
         <SiteMainColumn>
           <div className="flex w-full min-h-0 flex-col">{children}</div>
           <GlobalFeedbackForm />
-          <GlobalPartnersSection />
           <SiteFooter siteSettings={siteSettings} />
         </SiteMainColumn>
       </body>
