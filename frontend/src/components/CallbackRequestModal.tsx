@@ -7,8 +7,8 @@ import {
   DialogTitle,
 } from "@headlessui/react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
-import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
+import { PrivacyPolicyDialogLink } from "@/components/PrivacyPolicyDialogLink";
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
 
 export type CallbackRequestModalProps = {
@@ -125,7 +125,7 @@ export function CallbackRequestModal({
               </p>
               <button
                 type="button"
-                className="mt-4 text-sm/[1.35] font-semibold text-[#496db3] underline decoration-[#496db3]/40 underline-offset-2 hover:text-[#3d5ca0]"
+                className="mt-4 text-sm/[1.35] font-semibold text-[#496db3] underline decoration-[#496db3]/40 underline-offset-2 hover:text-red-600"
                 onClick={() => setStatus("idle")}
               >
                 Отправить ещё одно сообщение
@@ -224,12 +224,9 @@ export function CallbackRequestModal({
                   </button>
                   <span id="callback-agree-text" className="text-sm/[1.35] text-gray-600">
                     Отмечая пункт, вы соглашаетесь с нашей{" "}
-                    <Link
-                      href="/privacy"
-                      className="font-semibold whitespace-nowrap text-[#496db3] underline decoration-[#496db3]/35 underline-offset-2 hover:text-[#3d5ca0]"
-                    >
-                      политикой конфиденциальности
-                    </Link>
+                    <PrivacyPolicyDialogLink
+                      className="font-semibold whitespace-nowrap text-[#496db3] underline decoration-[#496db3]/35 underline-offset-2 hover:text-red-600"
+                    />
                     .
                   </span>
                 </div>

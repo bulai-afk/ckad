@@ -271,6 +271,7 @@ type SiteSettings = {
     size: number;
     dataUrl: string;
   }[];
+  privacyPolicyHtml: string;
   topRibbonMessages: string[];
   director: {
     name: string;
@@ -312,6 +313,7 @@ const DEFAULT_SITE_SETTINGS: SiteSettings = {
     ogrn: "0000000000000",
   },
   documents: [],
+  privacyPolicyHtml: "",
   topRibbonMessages: [
     "Получите консультацию по каталогизации и обучению.",
     "Сопровождаем проекты от заявки до финального согласования.",
@@ -349,6 +351,15 @@ function sanitizeSiteDocuments(value: unknown): SiteSettings["documents"] {
     });
   }
   return out;
+}
+
+function sanitizePrivacyPolicyHtml(value: unknown): SiteSettings["privacyPolicyHtml"] {
+  if (typeof value !== "string") return "";
+  return value
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
+    .replace(/\son\w+\s*=\s*"[^"]*"/gi, "")
+    .replace(/\son\w+\s*=\s*'[^']*'/gi, "")
+    .trim();
 }
 
 function sanitizeTopRibbonMessages(value: unknown): string[] {
@@ -994,6 +1005,9 @@ async function readSiteSettingsFromFile(): Promise<SiteSettings> {
     const social = (parsed?.social ?? {}) as Partial<SiteSettings["social"]>;
     const requisites = (parsed?.requisites ?? {}) as Partial<SiteSettings["requisites"]>;
     const documents = sanitizeSiteDocuments((parsed as { documents?: unknown })?.documents);
+    const privacyPolicyHtml = sanitizePrivacyPolicyHtml(
+      (parsed as { privacyPolicyHtml?: unknown })?.privacyPolicyHtml,
+    );
     const topRibbonMessages = sanitizeTopRibbonMessages(
       (parsed as { topRibbonMessages?: unknown })?.topRibbonMessages,
     );
@@ -1029,6 +1043,7 @@ async function readSiteSettingsFromFile(): Promise<SiteSettings> {
         ogrn: typeof requisites.ogrn === "string" ? requisites.ogrn.trim() : DEFAULT_SITE_SETTINGS.requisites.ogrn,
       },
       documents,
+      privacyPolicyHtml,
       topRibbonMessages,
       director,
       teamMembers,
@@ -1276,6 +1291,9 @@ pagesRouter.put("/site-settings", async (req, res) => {
   const social = (s.social ?? {}) as Partial<SiteSettings["social"]>;
   const requisites = (s.requisites ?? {}) as Partial<SiteSettings["requisites"]>;
   const documents = sanitizeSiteDocuments((s as { documents?: unknown })?.documents);
+  const privacyPolicyHtml = sanitizePrivacyPolicyHtml(
+    (s as { privacyPolicyHtml?: unknown })?.privacyPolicyHtml,
+  );
   const topRibbonMessages = sanitizeTopRibbonMessages(
     (s as { topRibbonMessages?: unknown })?.topRibbonMessages,
   );
@@ -1306,6 +1324,7 @@ pagesRouter.put("/site-settings", async (req, res) => {
       ogrn: typeof requisites.ogrn === "string" ? requisites.ogrn.trim() : DEFAULT_SITE_SETTINGS.requisites.ogrn,
     },
     documents,
+    privacyPolicyHtml,
     topRibbonMessages,
     director,
     teamMembers,

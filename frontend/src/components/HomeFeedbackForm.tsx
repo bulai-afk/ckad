@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { HomePartnersCarousel } from "@/components/HomePartnersCarousel";
+import { PrivacyPolicyDialogLink } from "@/components/PrivacyPolicyDialogLink";
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
 
 const errorMessages: Record<string, string> = {
@@ -140,7 +140,7 @@ export function HomeFeedbackForm() {
                 </p>
                 <button
                   type="button"
-                  className="mt-4 text-sm/[1.35] font-semibold text-[#496db3] underline decoration-[#496db3]/40 underline-offset-2 hover:text-[#3d5ca0]"
+                  className="mt-4 text-sm/[1.35] font-semibold text-[#496db3] underline decoration-[#496db3]/40 underline-offset-2 hover:text-red-600"
                   onClick={() => setStatus("idle")}
                 >
                   Отправить ещё одно сообщение
@@ -244,12 +244,9 @@ export function HomeFeedbackForm() {
                     </button>
                     <span id="feedback-agree-text" className="text-sm/[1.35] text-gray-600">
                       Отмечая пункт, вы соглашаетесь с нашей{" "}
-                      <Link
-                        href="/privacy"
-                        className="font-semibold whitespace-nowrap text-[#496db3] underline decoration-[#496db3]/35 underline-offset-2 hover:text-[#3d5ca0]"
-                      >
-                        политикой конфиденциальности
-                      </Link>
+                      <PrivacyPolicyDialogLink
+                        className="font-semibold whitespace-nowrap text-[#496db3] underline decoration-[#496db3]/35 underline-offset-2 hover:text-red-600"
+                      />
                       .
                     </span>
                   </div>

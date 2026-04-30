@@ -6,7 +6,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 const ACCEPT = ".pdf,application/pdf";
 
 const MAX_BYTES = 20 * 1024 * 1024;
-const MAX_FILES = 3;
+const DEFAULT_MAX_FILES = 3;
 const PDF_WORKER_SRC = new URL(
   "pdfjs-dist/build/pdf.worker.min.mjs",
   import.meta.url,
@@ -21,10 +21,6 @@ function formatBytes(n: number): string {
   if (n < 1024) return `${n} Б`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} КБ`;
   return `${(n / (1024 * 1024)).toFixed(1)} МБ`;
-}
-
-function filenameWithoutExtension(name: string): string {
-  return name.replace(/\.[^/.]+$/, "");
 }
 
 function readPdfAsDataUrl(file: File): Promise<string> {
@@ -57,11 +53,17 @@ export type AdminDocumentItem = {
 type AdminDocumentsUploadCardProps = {
   documents: AdminDocumentItem[];
   onDocumentsChange: (next: AdminDocumentItem[]) => void;
+  title?: string;
+  helperText?: string;
+  maxFiles?: number;
 };
 
 export function AdminDocumentsUploadCard({
   documents,
   onDocumentsChange,
+  title = "Документы",
+  helperText,
+  maxFiles = DEFAULT_MAX_FILES,
 }: AdminDocumentsUploadCardProps) {
   const inputId = useId();
   const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([]);
@@ -71,7 +73,7 @@ export function AdminDocumentsUploadCard({
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [pdfLoadState, setPdfLoadState] = useState<"idle" | "loading" | "error" | "ready">("idle");
   const [pageCount, setPageCount] = useState(0);
-  const reachedLimit = documents.length >= MAX_FILES;
+  const reachedLimit = documents.length >= maxFiles;
   const previewFile = previewIndex !== null ? documents[previewIndex] ?? null : null;
 
   useEffect(() => {
@@ -188,8 +190,8 @@ export function AdminDocumentsUploadCard({
       setRejectMsg(`Файл «${tooBig.name}» больше 20 МБ`);
       return;
     }
-    if (documents.length >= MAX_FILES) {
-      setRejectMsg(`Можно добавить максимум ${MAX_FILES} документа`);
+    if (documents.length >= maxFiles) {
+      setRejectMsg(`Можно добавить максимум ${maxFiles} документа`);
       return;
     }
 
@@ -205,10 +207,10 @@ export function AdminDocumentsUploadCard({
       incomingUnique.push(f);
     }
 
-    const freeSlots = Math.max(0, MAX_FILES - documents.length);
+    const freeSlots = Math.max(0, maxFiles - documents.length);
     const toAdd = incomingUnique.slice(0, freeSlots);
     if (incomingUnique.length > toAdd.length) {
-      setRejectMsg(`Можно добавить максимум ${MAX_FILES} документа`);
+      setRejectMsg(`Можно добавить максимум ${maxFiles} документа`);
     }
 
     if (toAdd.length > 0) {
@@ -221,7 +223,7 @@ export function AdminDocumentsUploadCard({
       );
       onDocumentsChange([...documents, ...loaded]);
     }
-  }, [documents, onDocumentsChange]);
+  }, [documents, maxFiles, onDocumentsChange]);
 
   const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const list = e.target.files;
@@ -233,7 +235,7 @@ export function AdminDocumentsUploadCard({
     e.preventDefault();
     setDragOver(false);
     if (reachedLimit) {
-      setRejectMsg(`Можно добавить максимум ${MAX_FILES} документа`);
+      setRejectMsg(`Можно добавить максимум ${maxFiles} документа`);
       return;
     }
     if (e.dataTransfer.files?.length) void mergeFiles(e.dataTransfer.files);
@@ -256,9 +258,9 @@ export function AdminDocumentsUploadCard({
           <DocumentArrowUpIcon className="h-5 w-5" aria-hidden />
         </div>
         <div className="min-w-0 flex-1">
-          <h2 className="text-sm font-semibold text-slate-900">Документы</h2>
+          <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
           <p className="mt-0.5 text-xs leading-snug text-slate-500">
-            Только PDF — до 20 МБ за файл, максимум 3
+            {helperText ?? `Только PDF — до 20 МБ за файл, максимум ${maxFiles}`}
           </p>
         </div>
       </div>
@@ -268,7 +270,7 @@ export function AdminDocumentsUploadCard({
         onClick={(e) => {
           if (!reachedLimit) return;
           e.preventDefault();
-          setRejectMsg(`Можно добавить максимум ${MAX_FILES} документа`);
+          setRejectMsg(`Можно добавить максимум ${maxFiles} документа`);
         }}
         onDragEnter={(e) => {
           e.preventDefault();
@@ -350,12 +352,7 @@ export function AdminDocumentsUploadCard({
             className="flex h-[min(86vh,820px)] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-4 py-3">
-              <div className="min-w-0 pr-3">
-                <p className="truncate text-sm font-semibold text-slate-900">
-                  {filenameWithoutExtension(previewFile.name)}
-                </p>
-              </div>
+            <div className="flex items-center justify-end px-4 py-3">
               <button
                 type="button"
                 onClick={() => {

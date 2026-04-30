@@ -500,12 +500,7 @@ export function SiteFooter({ siteSettings }: { siteSettings?: SiteSettings | nul
             className="flex h-[min(86vh,820px)] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-4 py-3">
-              <div className="min-w-0 pr-3">
-                <p className="truncate text-sm font-semibold text-slate-900">
-                  {filenameWithoutExtension(previewFile.name)}
-                </p>
-              </div>
+            <div className="flex items-center justify-end px-4 py-3">
               <button
                 type="button"
                 onClick={() => setPreviewIndex(null)}
