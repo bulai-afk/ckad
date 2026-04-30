@@ -351,7 +351,7 @@ body::-webkit-scrollbar:horizontal {
 .services-home-grid {
   display: grid;
   gap: 1.5rem;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
 }
 
 /* Две колонки с md: на узких экранах карточка-баннер слишком узкая для левой панели */
