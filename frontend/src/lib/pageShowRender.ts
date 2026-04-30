@@ -217,7 +217,9 @@ ${scope} .page-web-timeline-item:nth-of-type(odd):not(:first-of-type) > .page-we
 ${scope} .page-web-timeline-title { margin: 0; font-size: 1.75rem; font-weight: 700; color: #0f172a; line-height: 1.45; text-align: center; }
 ${scope} .page-web-timeline-text { margin: 0; font-size: 1.75rem; color: #475569; line-height: 1.5; text-align: center; }
 ${scope} .page-web-timeline[data-timeline-show-term="0"] .page-web-timeline-term,
-${scope} .page-web-timeline-item[data-timeline-show-term="0"] .page-web-timeline-term { display: none !important; }
+${scope} .page-web-timeline[data-timeline-show-term="false"] .page-web-timeline-term,
+${scope} .page-web-timeline-item[data-timeline-show-term="0"] .page-web-timeline-term,
+${scope} .page-web-timeline-item[data-timeline-show-term="false"] .page-web-timeline-term { display: none !important; }
 ${scope} .page-web-timeline[data-timeline-show-title="0"] .page-web-timeline-title { display: none !important; }
 ${scope} .page-web-timeline[data-timeline-show-text="0"] .page-web-timeline-text { display: none !important; }
 @media (max-width: 1205px) {
@@ -241,7 +243,9 @@ ${scope} .page-web-timeline-heading { font-size: var(--site-blue-title-fs, 2.25r
 ${scope} .page-web-timeline-description { font-size: inherit; line-height: inherit; }
 ${scope} .page-web-timeline-item { min-height: 0; padding-top: 0; padding-left: 0; display: grid; grid-template-columns: var(--timeline-term-col) 1.9rem minmax(0, 1fr); column-gap: 0.35rem; grid-template-rows: none; row-gap: 0; align-items: center; position: relative; z-index: 2; }
 ${scope} .page-web-timeline[data-timeline-show-term="0"] .page-web-timeline-item,
-${scope} .page-web-timeline-item[data-timeline-show-term="0"] { grid-template-columns: 0 1.9rem minmax(0, 1fr); }
+${scope} .page-web-timeline[data-timeline-show-term="false"] .page-web-timeline-item,
+${scope} .page-web-timeline-item[data-timeline-show-term="0"],
+${scope} .page-web-timeline-item[data-timeline-show-term="false"] { grid-template-columns: 0 1.9rem minmax(0, 1fr); }
 ${scope} .page-web-timeline-item::before,
 ${scope} .page-web-timeline-item::after { content: none; display: none; }
 ${scope} .page-web-timeline-item:not(:last-of-type)::before,

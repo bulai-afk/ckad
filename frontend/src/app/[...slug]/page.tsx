@@ -233,6 +233,20 @@ export default function Page() {
   }, [page, isArticlesPage]);
 
   useEffect(() => {
+    if (isArticlesPage) return;
+    const root = contentRootRef.current;
+    if (!root) return;
+
+    // Public page must stay readonly even if saved HTML contains editor attributes.
+    const editableNodes = Array.from(root.querySelectorAll("[contenteditable]")) as HTMLElement[];
+    editableNodes.forEach((node) => {
+      if (node.getAttribute("contenteditable") !== "false") {
+        node.setAttribute("contenteditable", "false");
+      }
+    });
+  }, [page, isArticlesPage]);
+
+  useEffect(() => {
     if (!page) return;
     const extractBgUrl = (value: string): string | null => {
       if (!value.includes("url(")) return null;
@@ -691,6 +705,10 @@ export default function Page() {
               border-left: none;
               opacity: 0.35;
               z-index: 1 !important;
+              background-image: var(--cover-bg-image) !important;
+              background-size: cover !important;
+              background-position: var(--cover-bg-pos, 50% 50%) !important;
+              background-repeat: no-repeat !important;
             }
             .service-page-content-root .page-content .page-web-cover[data-cover-type="split"].page-web-cover-has-bg::after {
               background-image: var(--cover-bg-image) !important;
@@ -719,36 +737,6 @@ export default function Page() {
             }
             .service-page-content-root .page-content .page-web-cover .page-web-cover-inner {
               overflow: visible;
-            }
-            .service-page-content-root .page-content .page-web-cover[data-cover-type="split"][data-cover-aspect="1-4"] .page-web-cover-inner {
-              min-height: 50%;
-              max-height: 50%;
-              padding-right: clamp(1rem, 4vw, 1.5rem);
-              padding-bottom: clamp(0.9rem, 3vw, 1.2rem);
-            }
-            .service-page-content-root .page-content .page-web-cover[data-cover-type="split"][data-cover-aspect="1-4"]::before {
-              inset: 0 0 50% 0;
-              background: rgba(248, 250, 252, 0.5) !important;
-              -webkit-backdrop-filter: blur(7px) saturate(1.03) brightness(1.14);
-              backdrop-filter: blur(7px) saturate(1.03) brightness(1.14);
-            }
-            .service-page-content-root .page-content .page-web-cover[data-cover-type="split"][data-cover-aspect="1-4"]::after {
-              top: 50%;
-              right: 0;
-              bottom: 0;
-              width: 100% !important;
-              border-left: none;
-              border-top: 1px solid rgba(148, 163, 184, 0.65);
-              opacity: 1;
-            }
-            .service-page-content-root .page-content .page-web-cover[data-cover-type="split"][data-cover-aspect="1-4"].page-web-cover-has-bg::after {
-              background-image: var(--cover-bg-image) !important;
-              background-size: cover !important;
-              background-position: var(--cover-bg-pos, 50% 50%) !important;
-              background-repeat: no-repeat !important;
-            }
-            .service-page-content-root .page-content .page-web-cover[data-cover-type="split"][data-cover-aspect="1-4"] > .page-web-cover-bg {
-              display: block !important;
             }
             .service-page-content-root .page-content .page-web-cover[data-cover-aspect="6-1"][data-cover-type="hero"],
             .service-page-content-root .page-content .page-web-cover[data-cover-aspect="6-1"][data-cover-type="image"],
