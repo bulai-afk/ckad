@@ -252,7 +252,7 @@ export function AdminDocumentsUploadCard({
   };
 
   return (
-    <div className="w-full max-w-[17rem] rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ring-slate-900/5">
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ring-slate-900/5">
       <div className="flex items-start gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#496db3]/10 text-[#496db3]">
           <DocumentArrowUpIcon className="h-5 w-5" aria-hidden />

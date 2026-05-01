@@ -314,132 +314,138 @@ export default function AdminSettingsPage() {
                     </section>
 
                     <div className="my-6 h-px w-full bg-slate-100" aria-hidden="true" />
-                    <section>
-                      <div className="grid grid-cols-1 gap-3 items-start md:grid-cols-[minmax(0,17rem)_minmax(0,1fr)] md:gap-4">
-                        <AdminDocumentsUploadCard
-                          documents={settings.documents}
-                          onDocumentsChange={(documents) =>
-                            setSettings((s) => ({
-                              ...s,
-                              documents,
-                            }))
-                          }
-                        />
-                        <div className="grid w-full min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:items-start sm:gap-4">
-                          <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ring-slate-900/5">
-                            <div className="text-sm font-semibold text-slate-900">Политика конфиденциальности</div>
-                            <p className="mt-0.5 text-xs leading-snug text-slate-500">
-                              Загрузка файла .html/.htm (до 2 МБ)
-                            </p>
-                            <label
-                              htmlFor="privacy-policy-html-upload"
-                              className="mt-3 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/80 px-3 py-4 text-center transition hover:border-[#496db3]/40 hover:bg-slate-50"
-                            >
-                              <span className="text-xs font-medium text-slate-600">Перетащите HTML сюда</span>
-                              <span className="mt-1 text-[11px] text-slate-400">или нажмите, чтобы выбрать файл</span>
-                            </label>
-                            <input
-                              id="privacy-policy-html-upload"
-                              type="file"
-                              accept=".html,.htm,text/html,application/xhtml+xml"
-                              className="sr-only"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0] ?? null;
-                                void handleSiteHtmlDocumentUpload(file, "privacy");
-                                e.currentTarget.value = "";
-                              }}
-                            />
-                            {settings.privacyPolicyHtml.trim() ? (
-                              <div className="mt-3 rounded-lg bg-slate-50 px-2 py-1.5 text-[11px]">
-                                <div className="flex items-center justify-between gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => setPrivacyPreviewOpen(true)}
-                                    className="flex min-w-0 items-center gap-1 rounded p-0.5 text-left font-medium text-[#496db3] hover:bg-slate-200/70"
-                                    title="Открыть предпросмотр политики"
-                                  >
-                                    <EyeIcon className="h-3.5 w-3.5 shrink-0" />
-                                    <span className="min-w-0 truncate">privacy-policy.html</span>
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setSettings((s) => ({
-                                        ...s,
-                                        privacyPolicyHtml: "",
-                                      }))
-                                    }
-                                    className="shrink-0 rounded p-0.5 text-slate-400 hover:bg-slate-200 hover:text-slate-700"
-                                    aria-label="Удалить файл политики"
-                                  >
-                                    <XMarkIcon className="h-3.5 w-3.5" />
-                                  </button>
-                                </div>
+                    <section className="space-y-3" aria-labelledby="admin-site-documents-heading">
+                      <div
+                        id="admin-site-documents-heading"
+                        className="text-xs font-semibold uppercase tracking-wide text-slate-500"
+                      >
+                        Документы и правовые тексты
+                      </div>
+                      <div className="grid w-full grid-cols-1 items-stretch gap-4 md:grid-cols-3">
+                        <div className="flex min-h-0 min-w-0 w-full">
+                          <AdminDocumentsUploadCard
+                            documents={settings.documents}
+                            onDocumentsChange={(documents) =>
+                              setSettings((s) => ({
+                                ...s,
+                                documents,
+                              }))
+                            }
+                          />
+                        </div>
+                        <div className="flex min-h-0 min-w-0 flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ring-slate-900/5">
+                          <div className="text-sm font-semibold text-slate-900">Политика конфиденциальности</div>
+                          <p className="mt-0.5 text-xs leading-snug text-slate-500">
+                            Загрузка файла .html/.htm (до 2 МБ)
+                          </p>
+                          <label
+                            htmlFor="privacy-policy-html-upload"
+                            className="mt-3 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/80 px-3 py-4 text-center transition hover:border-[#496db3]/40 hover:bg-slate-50"
+                          >
+                            <span className="text-xs font-medium text-slate-600">Перетащите HTML сюда</span>
+                            <span className="mt-1 text-[11px] text-slate-400">или нажмите, чтобы выбрать файл</span>
+                          </label>
+                          <input
+                            id="privacy-policy-html-upload"
+                            type="file"
+                            accept=".html,.htm,text/html,application/xhtml+xml"
+                            className="sr-only"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0] ?? null;
+                              void handleSiteHtmlDocumentUpload(file, "privacy");
+                              e.currentTarget.value = "";
+                            }}
+                          />
+                          {settings.privacyPolicyHtml.trim() ? (
+                            <div className="mt-3 rounded-lg bg-slate-50 px-2 py-1.5 text-[11px]">
+                              <div className="flex items-center justify-between gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setPrivacyPreviewOpen(true)}
+                                  className="flex min-w-0 items-center gap-1 rounded p-0.5 text-left font-medium text-[#496db3] hover:bg-slate-200/70"
+                                  title="Открыть предпросмотр политики"
+                                >
+                                  <EyeIcon className="h-3.5 w-3.5 shrink-0" />
+                                  <span className="min-w-0 truncate">privacy-policy.html</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setSettings((s) => ({
+                                      ...s,
+                                      privacyPolicyHtml: "",
+                                    }))
+                                  }
+                                  className="shrink-0 rounded p-0.5 text-slate-400 hover:bg-slate-200 hover:text-slate-700"
+                                  aria-label="Удалить файл политики"
+                                >
+                                  <XMarkIcon className="h-3.5 w-3.5" />
+                                </button>
                               </div>
-                            ) : (
-                              <div className="mt-3 rounded-lg bg-slate-50 px-2.5 py-2 text-[11px] text-slate-600">
-                                Файл пока не загружен.
-                              </div>
-                            )}
-                          </div>
-                          <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ring-slate-900/5">
-                            <div className="text-sm font-semibold text-slate-900">
-                              Согласие на обработку персональных данных
                             </div>
-                            <p className="mt-0.5 text-xs leading-snug text-slate-500">
-                              Отдельный документ, .html/.htm (до 2 МБ)
-                            </p>
-                            <label
-                              htmlFor="personal-data-consent-html-upload"
-                              className="mt-3 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/80 px-3 py-4 text-center transition hover:border-[#496db3]/40 hover:bg-slate-50"
-                            >
-                              <span className="text-xs font-medium text-slate-600">Перетащите HTML сюда</span>
-                              <span className="mt-1 text-[11px] text-slate-400">или нажмите, чтобы выбрать файл</span>
-                            </label>
-                            <input
-                              id="personal-data-consent-html-upload"
-                              type="file"
-                              accept=".html,.htm,text/html,application/xhtml+xml"
-                              className="sr-only"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0] ?? null;
-                                void handleSiteHtmlDocumentUpload(file, "personalDataConsent");
-                                e.currentTarget.value = "";
-                              }}
-                            />
-                            {settings.personalDataConsentHtml.trim() ? (
-                              <div className="mt-3 rounded-lg bg-slate-50 px-2 py-1.5 text-[11px]">
-                                <div className="flex items-center justify-between gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => setConsentPreviewOpen(true)}
-                                    className="flex min-w-0 items-center gap-1 rounded p-0.5 text-left font-medium text-[#496db3] hover:bg-slate-200/70"
-                                    title="Открыть предпросмотр согласия на обработку персональных данных"
-                                  >
-                                    <EyeIcon className="h-3.5 w-3.5 shrink-0" />
-                                    <span className="min-w-0 truncate">personal-data-consent.html</span>
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setSettings((s) => ({
-                                        ...s,
-                                        personalDataConsentHtml: "",
-                                      }))
-                                    }
-                                    className="shrink-0 rounded p-0.5 text-slate-400 hover:bg-slate-200 hover:text-slate-700"
-                                    aria-label="Удалить файл согласия на обработку персональных данных"
-                                  >
-                                    <XMarkIcon className="h-3.5 w-3.5" />
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="mt-3 rounded-lg bg-slate-50 px-2.5 py-2 text-[11px] text-slate-600">
-                                Файл пока не загружен.
-                              </div>
-                            )}
+                          ) : (
+                            <div className="mt-3 rounded-lg bg-slate-50 px-2.5 py-2 text-[11px] text-slate-600">
+                              Файл пока не загружен.
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex min-h-0 min-w-0 flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ring-slate-900/5">
+                          <div className="text-sm font-semibold text-slate-900">
+                            Согласие на обработку персональных данных
                           </div>
+                          <p className="mt-0.5 text-xs leading-snug text-slate-500">
+                            Отдельный документ, .html/.htm (до 2 МБ)
+                          </p>
+                          <label
+                            htmlFor="personal-data-consent-html-upload"
+                            className="mt-3 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/80 px-3 py-4 text-center transition hover:border-[#496db3]/40 hover:bg-slate-50"
+                          >
+                            <span className="text-xs font-medium text-slate-600">Перетащите HTML сюда</span>
+                            <span className="mt-1 text-[11px] text-slate-400">или нажмите, чтобы выбрать файл</span>
+                          </label>
+                          <input
+                            id="personal-data-consent-html-upload"
+                            type="file"
+                            accept=".html,.htm,text/html,application/xhtml+xml"
+                            className="sr-only"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0] ?? null;
+                              void handleSiteHtmlDocumentUpload(file, "personalDataConsent");
+                              e.currentTarget.value = "";
+                            }}
+                          />
+                          {settings.personalDataConsentHtml.trim() ? (
+                            <div className="mt-3 rounded-lg bg-slate-50 px-2 py-1.5 text-[11px]">
+                              <div className="flex items-center justify-between gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setConsentPreviewOpen(true)}
+                                  className="flex min-w-0 items-center gap-1 rounded p-0.5 text-left font-medium text-[#496db3] hover:bg-slate-200/70"
+                                  title="Открыть предпросмотр согласия на обработку персональных данных"
+                                >
+                                  <EyeIcon className="h-3.5 w-3.5 shrink-0" />
+                                  <span className="min-w-0 truncate">personal-data-consent.html</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setSettings((s) => ({
+                                      ...s,
+                                      personalDataConsentHtml: "",
+                                    }))
+                                  }
+                                  className="shrink-0 rounded p-0.5 text-slate-400 hover:bg-slate-200 hover:text-slate-700"
+                                  aria-label="Удалить файл согласия на обработку персональных данных"
+                                >
+                                  <XMarkIcon className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="mt-3 rounded-lg bg-slate-50 px-2.5 py-2 text-[11px] text-slate-600">
+                              Файл пока не загружен.
+                            </div>
+                          )}
                         </div>
                       </div>
                     </section>
