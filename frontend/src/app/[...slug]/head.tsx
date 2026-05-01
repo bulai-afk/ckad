@@ -42,8 +42,8 @@ function toAbsoluteUrl(url: string, origin: string): string {
   return `${origin}${url.startsWith("/") ? url : `/${url}`}`;
 }
 
-function getSiteOrigin(): string {
-  const h = headers();
+async function getSiteOrigin(): Promise<string> {
+  const h = await headers();
   const host = h.get("x-forwarded-host") || h.get("host") || "";
   const proto = h.get("x-forwarded-proto") || "https";
   if (!host) return "";
@@ -81,7 +81,7 @@ export default async function Head({
     (page.seoDescription || "").trim() ||
     getBlockText(page, "summary");
   const seoKeywords = getBlockText(page, "keywords") || (page.keywords || "").trim();
-  const origin = getSiteOrigin();
+  const origin = await getSiteOrigin();
   const canonicalPath = `/${page.slug.replace(/^\/+/, "")}`;
   const canonicalUrl = toAbsoluteUrl(canonicalPath, origin);
   const imageUrl = toAbsoluteUrl(getPreviewImage(page), origin);
