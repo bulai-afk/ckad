@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { HomePartnersCarousel } from "@/components/HomePartnersCarousel";
+import { PersonalDataConsentDialogLink } from "@/components/PersonalDataConsentDialogLink";
 import { PrivacyPolicyDialogLink } from "@/components/PrivacyPolicyDialogLink";
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
 
@@ -12,6 +13,8 @@ const errorMessages: Record<string, string> = {
   invalid_email: "E-mail слишком длинный.",
   invalid_email_format: "Некорректный формат e-mail.",
   contact_required: "Укажите телефон или e-mail для связи.",
+  privacy_required: "Нужно согласие с политикой конфиденциальности.",
+  personal_data_required: "Нужно подтверждение согласия на обработку персональных данных.",
 };
 
 /** То же поле `message` в API, что и в модалке — в админке заявок не показывается, только имя/фамилия/телефон/e-mail. */
@@ -25,15 +28,21 @@ export function HomeFeedbackForm() {
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [agreed, setAgreed] = useState(false);
+  const [agreedPrivacy, setAgreedPrivacy] = useState(false);
+  const [agreedPersonalData, setAgreedPersonalData] = useState(false);
   const [status, setStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
   const [errorText, setErrorText] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErrorText("");
-    if (!agreed) {
-      setErrorText("Нужно согласие с политикой конфиденциальности.");
+    if (!agreedPrivacy) {
+      setErrorText(errorMessages.privacy_required);
+      setStatus("error");
+      return;
+    }
+    if (!agreedPersonalData) {
+      setErrorText(errorMessages.personal_data_required);
       setStatus("error");
       return;
     }
@@ -65,7 +74,8 @@ export function HomeFeedbackForm() {
         setLastName("");
         setEmail("");
         setPhone("");
-        setAgreed(false);
+        setAgreedPrivacy(false);
+        setAgreedPersonalData(false);
         return;
       }
       setErrorText("Не удалось отправить. Попробуйте позже.");
@@ -224,29 +234,54 @@ export function HomeFeedbackForm() {
                       />
                     </div>
                   </div>
-                  <div className="flex items-center gap-x-3 sm:col-span-2">
+                  <div className="flex items-start gap-x-3 sm:col-span-2">
                     <button
                       type="button"
                       role="switch"
-                      aria-checked={agreed}
+                      aria-checked={agreedPrivacy}
                       aria-labelledby="feedback-agree-text"
-                      onClick={() => setAgreed((v) => !v)}
-                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full p-0.5 shadow-[inset_0_0_0_1px] shadow-gray-900/5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#496db3] ${
-                        agreed ? "bg-[#496db3]" : "bg-gray-200"
+                      onClick={() => setAgreedPrivacy((v) => !v)}
+                      className={`relative mt-0.5 inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full p-0.5 shadow-[inset_0_0_0_1px] shadow-gray-900/5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#496db3] ${
+                        agreedPrivacy ? "bg-[#496db3]" : "bg-gray-200"
                       }`}
                     >
                       <span
                         aria-hidden
                         className={`pointer-events-none block size-5 rounded-full bg-white shadow-sm ring-1 ring-gray-900/5 transition-transform duration-200 ease-out ${
-                          agreed ? "translate-x-5" : "translate-x-0"
+                          agreedPrivacy ? "translate-x-5" : "translate-x-0"
                         }`}
                       />
                     </button>
                     <span id="feedback-agree-text" className="text-sm/[1.35] text-gray-600">
-                      Отмечая пункт, вы соглашаетесь с нашей{" "}
+                      Соглашаюсь с{" "}
                       <PrivacyPolicyDialogLink
                         className="font-semibold whitespace-nowrap text-[#496db3] underline decoration-[#496db3]/35 underline-offset-2 hover:text-red-600"
                       />
+                      .
+                    </span>
+                  </div>
+                  <div className="flex items-start gap-x-3 sm:col-span-2">
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={agreedPersonalData}
+                      aria-labelledby="feedback-pd-text"
+                      onClick={() => setAgreedPersonalData((v) => !v)}
+                      className={`relative mt-0.5 inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full p-0.5 shadow-[inset_0_0_0_1px] shadow-gray-900/5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#496db3] ${
+                        agreedPersonalData ? "bg-[#496db3]" : "bg-gray-200"
+                      }`}
+                    >
+                      <span
+                        aria-hidden
+                        className={`pointer-events-none block size-5 rounded-full bg-white shadow-sm ring-1 ring-gray-900/5 transition-transform duration-200 ease-out ${
+                          agreedPersonalData ? "translate-x-5" : "translate-x-0"
+                        }`}
+                      />
+                    </button>
+                    <span id="feedback-pd-text" className="text-sm/[1.35] text-gray-600">
+                      Подтверждаю согласие на обработку персональных данных в целях рассмотрения обращения и связи со мной.
+                      Условия и цели обработки указаны в{" "}
+                      <PersonalDataConsentDialogLink className="font-semibold whitespace-nowrap text-[#496db3] underline decoration-[#496db3]/35 underline-offset-2 hover:text-red-600" />
                       .
                     </span>
                   </div>

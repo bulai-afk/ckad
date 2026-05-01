@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Exo_2 } from "next/font/google";
 import { cookies } from "next/headers";
 import { Suspense } from "react";
+import { CookieConsentBanner } from "@/components/CookieConsentBanner";
 import { GlobalFeedbackForm } from "@/components/GlobalFeedbackForm";
 import { PreventHorizontalPageScroll } from "@/components/PreventHorizontalPageScroll";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -101,6 +102,7 @@ export default async function RootLayout({
           <GlobalFeedbackForm />
           <SiteFooter siteSettings={siteSettings} />
         </SiteMainColumn>
+        <CookieConsentBanner />
       </body>
     </html>
   );

@@ -8,6 +8,7 @@ import {
 } from "@headlessui/react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { useEffect, useState, type FormEvent } from "react";
+import { PersonalDataConsentDialogLink } from "@/components/PersonalDataConsentDialogLink";
 import { PrivacyPolicyDialogLink } from "@/components/PrivacyPolicyDialogLink";
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
 
@@ -30,7 +31,8 @@ export function CallbackRequestModal({
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [agreed, setAgreed] = useState(false);
+  const [agreedPrivacy, setAgreedPrivacy] = useState(false);
+  const [agreedPersonalData, setAgreedPersonalData] = useState(false);
   const [status, setStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
   const [errorText, setErrorText] = useState("");
 
@@ -40,7 +42,8 @@ export function CallbackRequestModal({
     setLastName("");
     setPhone("");
     setEmail("");
-    setAgreed(false);
+    setAgreedPrivacy(false);
+    setAgreedPersonalData(false);
     setStatus("idle");
     setErrorText("");
   }, [open]);
@@ -48,9 +51,14 @@ export function CallbackRequestModal({
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setErrorText("");
-    if (!agreed) {
+    if (!agreedPrivacy) {
       setStatus("error");
       setErrorText("Нужно согласие с политикой конфиденциальности.");
+      return;
+    }
+    if (!agreedPersonalData) {
+      setStatus("error");
+      setErrorText("Нужно подтверждение согласия на обработку персональных данных.");
       return;
     }
     setStatus("sending");
@@ -72,6 +80,8 @@ export function CallbackRequestModal({
       setLastName("");
       setPhone("");
       setEmail("");
+      setAgreedPrivacy(false);
+      setAgreedPersonalData(false);
     } catch {
       setStatus("error");
       setErrorText("Нет связи с сервером. Попробуйте позже.");
@@ -204,29 +214,54 @@ export function CallbackRequestModal({
                     />
                   </div>
                 </div>
-                <div className="flex items-center gap-x-3 sm:col-span-2">
+                <div className="flex items-start gap-x-3 sm:col-span-2">
                   <button
                     type="button"
                     role="switch"
-                    aria-checked={agreed}
+                    aria-checked={agreedPrivacy}
                     aria-labelledby="callback-agree-text"
-                    onClick={() => setAgreed((v) => !v)}
-                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full p-0.5 shadow-[inset_0_0_0_1px] shadow-gray-900/5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#496db3] ${
-                      agreed ? "bg-[#496db3]" : "bg-gray-200"
+                    onClick={() => setAgreedPrivacy((v) => !v)}
+                    className={`relative mt-0.5 inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full p-0.5 shadow-[inset_0_0_0_1px] shadow-gray-900/5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#496db3] ${
+                      agreedPrivacy ? "bg-[#496db3]" : "bg-gray-200"
                     }`}
                   >
                     <span
                       aria-hidden
                       className={`pointer-events-none block size-5 rounded-full bg-white shadow-sm ring-1 ring-gray-900/5 transition-transform duration-200 ease-out ${
-                        agreed ? "translate-x-5" : "translate-x-0"
+                        agreedPrivacy ? "translate-x-5" : "translate-x-0"
                       }`}
                     />
                   </button>
                   <span id="callback-agree-text" className="text-sm/[1.35] text-gray-600">
-                    Отмечая пункт, вы соглашаетесь с нашей{" "}
+                    Соглашаюсь с{" "}
                     <PrivacyPolicyDialogLink
                       className="font-semibold whitespace-nowrap text-[#496db3] underline decoration-[#496db3]/35 underline-offset-2 hover:text-red-600"
                     />
+                    .
+                  </span>
+                </div>
+                <div className="flex items-start gap-x-3 sm:col-span-2">
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={agreedPersonalData}
+                    aria-labelledby="callback-pd-text"
+                    onClick={() => setAgreedPersonalData((v) => !v)}
+                    className={`relative mt-0.5 inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full p-0.5 shadow-[inset_0_0_0_1px] shadow-gray-900/5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#496db3] ${
+                      agreedPersonalData ? "bg-[#496db3]" : "bg-gray-200"
+                    }`}
+                  >
+                    <span
+                      aria-hidden
+                      className={`pointer-events-none block size-5 rounded-full bg-white shadow-sm ring-1 ring-gray-900/5 transition-transform duration-200 ease-out ${
+                        agreedPersonalData ? "translate-x-5" : "translate-x-0"
+                      }`}
+                    />
+                  </button>
+                  <span id="callback-pd-text" className="text-sm/[1.35] text-gray-600">
+                    Подтверждаю согласие на обработку персональных данных в целях рассмотрения обращения и связи со мной.
+                    Условия и цели обработки указаны в{" "}
+                    <PersonalDataConsentDialogLink className="font-semibold whitespace-nowrap text-[#496db3] underline decoration-[#496db3]/35 underline-offset-2 hover:text-red-600" />
                     .
                   </span>
                 </div>

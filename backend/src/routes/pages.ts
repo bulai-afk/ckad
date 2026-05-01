@@ -272,6 +272,8 @@ type SiteSettings = {
     dataUrl: string;
   }[];
   privacyPolicyHtml: string;
+  /** Отдельный HTML-документ: согласие на обработку персональных данных (загрузка в админке, как политика). */
+  personalDataConsentHtml: string;
   topRibbonMessages: string[];
   director: {
     name: string;
@@ -314,6 +316,7 @@ const DEFAULT_SITE_SETTINGS: SiteSettings = {
   },
   documents: [],
   privacyPolicyHtml: "",
+  personalDataConsentHtml: "",
   topRibbonMessages: [
     "Получите консультацию по каталогизации и обучению.",
     "Сопровождаем проекты от заявки до финального согласования.",
@@ -1008,6 +1011,9 @@ async function readSiteSettingsFromFile(): Promise<SiteSettings> {
     const privacyPolicyHtml = sanitizePrivacyPolicyHtml(
       (parsed as { privacyPolicyHtml?: unknown })?.privacyPolicyHtml,
     );
+    const personalDataConsentHtml = sanitizePrivacyPolicyHtml(
+      (parsed as { personalDataConsentHtml?: unknown })?.personalDataConsentHtml,
+    );
     const topRibbonMessages = sanitizeTopRibbonMessages(
       (parsed as { topRibbonMessages?: unknown })?.topRibbonMessages,
     );
@@ -1044,6 +1050,7 @@ async function readSiteSettingsFromFile(): Promise<SiteSettings> {
       },
       documents,
       privacyPolicyHtml,
+      personalDataConsentHtml,
       topRibbonMessages,
       director,
       teamMembers,
@@ -1294,6 +1301,9 @@ pagesRouter.put("/site-settings", async (req, res) => {
   const privacyPolicyHtml = sanitizePrivacyPolicyHtml(
     (s as { privacyPolicyHtml?: unknown })?.privacyPolicyHtml,
   );
+  const personalDataConsentHtml = sanitizePrivacyPolicyHtml(
+    (s as { personalDataConsentHtml?: unknown })?.personalDataConsentHtml,
+  );
   const topRibbonMessages = sanitizeTopRibbonMessages(
     (s as { topRibbonMessages?: unknown })?.topRibbonMessages,
   );
@@ -1325,6 +1335,7 @@ pagesRouter.put("/site-settings", async (req, res) => {
     },
     documents,
     privacyPolicyHtml,
+    personalDataConsentHtml,
     topRibbonMessages,
     director,
     teamMembers,
