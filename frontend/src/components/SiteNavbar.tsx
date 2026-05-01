@@ -228,9 +228,18 @@ export function SiteNavbar({ siteSettings }: SiteNavbarProps) {
           className="relative mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 min-[1206px]:justify-start min-[1206px]:gap-4 min-[1206px]:px-8 min-[1206px]:py-3.5"
         >
           <div className="flex min-w-0 shrink-0 items-center">
-            <Link href="/" className="-m-1 flex w-full max-w-full cursor-pointer select-none items-center p-1">
+            <Link
+              href="/"
+              className="-m-1 flex w-full max-w-full cursor-pointer touch-manipulation select-none items-center p-1"
+              style={{ WebkitTapHighlightColor: "transparent" }}
+            >
               <span className="sr-only">На главную — Центр каталогизации анализа данных</span>
-              <img src="/logo.svg" alt="" className="h-7 w-auto max-w-[100%] select-none object-contain" draggable={false} />
+              <img
+                src="/logo.svg"
+                alt=""
+                className="pointer-events-none h-7 w-auto max-w-[100%] select-none object-contain"
+                draggable={false}
+              />
             </Link>
             </div>
           <div className="flex min-[1206px]:hidden">
@@ -259,13 +268,14 @@ export function SiteNavbar({ siteSettings }: SiteNavbarProps) {
               <el-popover id="desktop-menu-catalog" anchor="bottom" popover="" className="w-72 overflow-hidden rounded-2xl bg-white shadow-lg outline-1 outline-gray-900/5 transition transition-discrete [--anchor-gap:--spacing(3)] backdrop:bg-transparent open:block data-closed:translate-y-1 data-closed:opacity-0 data-enter:duration-200 data-enter:ease-out data-leave:duration-150 data-leave:ease-in">
                 <div className="p-2">
                   {catalogLinks.map((item) => (
-                    <a
+                    <Link
                       key={`desktop-catalog-${item.href}-${item.label}`}
                       href={item.href}
+                      prefetch
                       className="block rounded-lg px-3 py-2 text-sm font-semibold text-[#496db3] hover:bg-gray-50"
                     >
-                          {item.label}
-                    </a>
+                      {item.label}
+                    </Link>
                   ))}
             </div>
               </el-popover>
@@ -281,14 +291,15 @@ export function SiteNavbar({ siteSettings }: SiteNavbarProps) {
               <el-popover id="desktop-menu-study" anchor="bottom" popover="" className="w-72 overflow-hidden rounded-2xl bg-white shadow-lg outline-1 outline-gray-900/5 transition transition-discrete [--anchor-gap:--spacing(3)] backdrop:bg-transparent open:block data-closed:translate-y-1 data-closed:opacity-0 data-enter:duration-200 data-enter:ease-out data-leave:duration-150 data-leave:ease-in">
                 <div className="p-2">
                   {trainingLinks.map((item) => (
-                    <a
+                    <Link
                       key={`desktop-study-${item.href}-${item.label}`}
                       href={item.href}
+                      prefetch
                       className="block rounded-lg px-3 py-2 text-sm font-semibold text-[#496db3] hover:bg-gray-50"
                     >
-                  {item.label}
-                    </a>
-            ))}
+                      {item.label}
+                    </Link>
+                  ))}
                   </div>
               </el-popover>
             </div>
@@ -339,10 +350,11 @@ export function SiteNavbar({ siteSettings }: SiteNavbarProps) {
                   <Link
                     href="/"
                     onClick={closeMobileMenu}
-                    className="-m-1.5 cursor-pointer select-none p-1.5"
+                    className="-m-1.5 cursor-pointer touch-manipulation select-none p-1.5"
+                    style={{ WebkitTapHighlightColor: "transparent" }}
                   >
                     <span className="sr-only">На главную — Центр каталогизации анализа данных</span>
-                    <img src="/logo.svg" alt="" className="h-7 w-auto select-none" draggable={false} />
+                    <img src="/logo.svg" alt="" className="pointer-events-none h-7 w-auto select-none" draggable={false} />
                   </Link>
                   <button type="button" command="close" commandfor="mobile-menu" className="-m-2.5 rounded-md p-2.5 text-[#496db3]">
                     <span className="sr-only">Close menu</span>
@@ -362,13 +374,15 @@ export function SiteNavbar({ siteSettings }: SiteNavbarProps) {
                       </button>
                       <el-disclosure id="mobile-catalog" hidden className="mt-2 block space-y-2">
                         {catalogLinks.map((item) => (
-                          <a
+                          <Link
                             key={`mobile-catalog-${item.href}-${item.label}`}
                             href={item.href}
+                            prefetch
+                            onClick={closeMobileMenu}
                             className="block rounded-lg py-2 pr-3 pl-6 text-sm/7 font-semibold text-[#496db3] hover:bg-gray-50"
                           >
                             {item.label}
-                          </a>
+                          </Link>
                         ))}
                       </el-disclosure>
                     </div>
@@ -381,13 +395,15 @@ export function SiteNavbar({ siteSettings }: SiteNavbarProps) {
                       </button>
                       <el-disclosure id="mobile-study" hidden className="mt-2 block space-y-2">
                         {trainingLinks.map((item) => (
-                          <a
+                          <Link
                             key={`mobile-study-${item.href}-${item.label}`}
                             href={item.href}
+                            prefetch
+                            onClick={closeMobileMenu}
                             className="block rounded-lg py-2 pr-3 pl-6 text-sm/7 font-semibold text-[#496db3] hover:bg-gray-50"
                           >
                             {item.label}
-                          </a>
+                          </Link>
                         ))}
                       </el-disclosure>
                     </div>

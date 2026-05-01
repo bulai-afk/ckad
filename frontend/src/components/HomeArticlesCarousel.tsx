@@ -111,7 +111,7 @@ export function HomeArticlesCarousel({ slides }: Props) {
           <p className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-pretty sm:-mt-2">
             Актуальная информация
           </p>
-          <p className="mt-6 text-pretty text-sm font-medium text-slate-600 sm:text-base">
+          <p className="mt-6 text-pretty text-base leading-[1.4] font-medium text-slate-600">
             Полезные материалы по каталогизации и анализу данных — советы и разборы кейсов, которые помогут
             быстрее пройти согласования и избежать ошибок.
           </p>

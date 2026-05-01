@@ -84,7 +84,7 @@ export default async function OtherServicesPage() {
             <p className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-pretty sm:-mt-2">
               Дополнительные направления
             </p>
-            <p className="mt-6 text-pretty text-sm font-medium text-slate-600 sm:text-base">
+            <p className="mt-6 text-pretty text-base leading-[1.4] font-medium text-slate-600">
               {rootDescription ??
                 "Дополнительные услуги и направления работы: описания, практические материалы и полезные рекомендации."}
             </p>

@@ -268,8 +268,8 @@ export default async function AboutPage() {
                   <item.icon aria-hidden="true" className="h-[1.12rem] w-[1.12rem] shrink-0" />
                 </div>
                 <div className="min-w-0">
-                  <dt className="text-[0.82rem] font-semibold leading-[1.35] text-slate-900">{item.title}</dt>
-                  <dd className="mt-1 text-sm leading-[1.5] text-slate-600">{item.text}</dd>
+                  <dt className="text-base font-semibold leading-[1.4] text-slate-900">{item.title}</dt>
+                  <dd className="mt-1 text-base leading-[1.4] text-slate-600">{item.text}</dd>
                 </div>
               </div>
             ))}
@@ -294,8 +294,8 @@ export default async function AboutPage() {
                 </div>
                 <div>
                   <p className="text-base font-semibold tracking-tight text-slate-900">{director.name}</p>
-                  <p className="mt-0.5 text-sm text-slate-600">{director.role}</p>
-                  <blockquote className="mt-3 text-sm italic leading-6 text-slate-700 sm:text-[15px]">
+                  <p className="mt-0.5 text-base leading-[1.4] text-slate-600">{director.role}</p>
+                  <blockquote className="mt-3 text-base italic leading-[1.4] text-slate-700">
                     {director.message}
                   </blockquote>
                 </div>
@@ -305,16 +305,16 @@ export default async function AboutPage() {
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                 <div>
                   <h2 className="text-lg font-semibold text-slate-900">Контакты</h2>
-                  <div className="mt-4 space-y-2 text-sm sm:text-base">
+                  <div className="mt-4 space-y-2 text-base leading-[1.4]">
                     <a
                       href={phoneHref}
-                      className="block text-base/6 font-extrabold text-[#496db3] transition-colors hover:text-red-600"
+                      className="block text-base leading-[1.4] font-extrabold text-[#496db3] transition-colors hover:text-red-600"
                     >
                       {phone}
                     </a>
                     <a
                       href={`mailto:${email}`}
-                      className="block break-all text-base/6 font-extrabold text-[#496db3] transition-colors hover:text-red-600"
+                      className="block break-all text-base leading-[1.4] font-extrabold text-[#496db3] transition-colors hover:text-red-600"
                     >
                       {email}
                     </a>
@@ -323,7 +323,7 @@ export default async function AboutPage() {
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-slate-900 sm:mt-1">Социальные сети</h3>
-                  <ul className="mt-2 flex flex-wrap items-center gap-4 text-sm sm:text-base">
+                  <ul className="mt-2 flex flex-wrap items-center gap-4 text-base leading-[1.4]">
                     {socials.length > 0 ? (
                       socials.map((social) => (
                         <li key={social.label}>
@@ -357,7 +357,7 @@ export default async function AboutPage() {
                 </div>
               </div>
               <h3 className="mt-6 text-lg font-semibold text-slate-900">Реквизиты</h3>
-              <div className="mt-2 space-y-1 text-sm sm:text-base">
+              <div className="mt-2 space-y-1 text-base leading-[1.4]">
                 <p>{reqCompany}</p>
                 <p>ИНН: {reqInn}</p>
                 <p>КПП: {reqKpp}</p>

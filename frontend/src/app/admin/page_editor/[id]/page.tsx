@@ -62,6 +62,48 @@ const WEB_PAGE_ELEMENTS = [
 const WEB_BLOCK_SHELL_SELECTOR =
   ".page-web-cover, .page-web-carousel, .page-web-timeline, .page-web-text-media, .page-web-text-block, .page-web-spacer";
 
+/** Панель форматирования над полотном: скрыть расширенные инструменты (размер и цвет шрифта, жирный/курсив/подчёрк, вертикальное выравнивание, списки и маркеры, таблица, картинка). */
+const PAGE_EDITOR_FORMAT_TOOLBAR_MINIMAL = true;
+
+/** Единый маркер активного редактируемого фрагмента на полотне (подсветка области фокуса). Настраивается в CSS через переменные на `.page-editor`. */
+const PAGE_EDITOR_FOCUS_TARGET_ATTR = "data-editor-focus-target";
+
+/** Редактируемые листья внутри блока «Стоимость работ» (как в tryKeepCaret… для каретки). */
+const WORK_PRICING_EDITABLE_LEAF_SELECTOR =
+  ".page-web-work-pricing h1, .page-web-work-pricing h2, .page-web-work-pricing h3, .page-web-work-pricing h4, .page-web-work-pricing h5, .page-web-work-pricing h6, .page-web-work-pricing p, .page-web-work-pricing li, .page-web-work-pricing a, .page-web-work-pricing span, .page-web-work-pricing blockquote";
+
+/** Иконка-галочка в пункте списка стоимости работ: не редактируется и при потере восстанавливается в начале `li`. */
+const WORK_PRICING_LI_CHECK_SVG_HTML =
+  '<svg viewBox="0 0 20 20" fill="currentColor" data-slot="icon" aria-hidden="true" class="wrl wrn wru wtq" contenteditable="false">' +
+  '<path d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd" fill-rule="evenodd"></path>' +
+  "</svg>";
+
+function ensureWorkPricingListItemCheckmarks(root: HTMLElement): boolean {
+  let changed = false;
+  root.querySelectorAll(".page-web-work-pricing ul.wrf").forEach((ul) => {
+    ul.querySelectorAll(":scope > li").forEach((liNode) => {
+      const li = liNode as HTMLElement;
+      let svg = li.querySelector(":scope > svg.wrl.wrn") as SVGElement | null;
+      if (!svg) {
+        const wrap = document.createElement("div");
+        wrap.innerHTML = WORK_PRICING_LI_CHECK_SVG_HTML;
+        svg = wrap.firstElementChild as SVGElement | null;
+        if (!svg) return;
+        li.insertBefore(svg, li.firstChild);
+        changed = true;
+      } else if (svg !== li.firstElementChild) {
+        li.insertBefore(svg, li.firstChild);
+        changed = true;
+      }
+      if (svg.getAttribute("contenteditable") !== "false") {
+        svg.setAttribute("contenteditable", "false");
+        changed = true;
+      }
+    });
+  });
+  return changed;
+}
+
 /** Соотношение сторон обложки (сохраняется в data-cover-aspect на .page-web-cover). arW/arH — как в CSS редактора (превью в меню). */
 const COVER_ASPECT_PRESETS = [
   { id: "1-8", label: "2∶1", arW: 2, arH: 1 },
@@ -923,27 +965,19 @@ function getWorkPricingTextBlockHtml(): string {
           "</div>" +
           '<ul role="list" class="wrf wrk wrv wrz wtd wtn wug wuh">' +
             '<li class="wrj wsb">' +
-              '<svg viewBox="0 0 20 20" fill="currentColor" data-slot="icon" aria-hidden="true" class="wrl wrn wru wtq">' +
-                '<path d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd" fill-rule="evenodd"></path>' +
-              "</svg>" +
+              WORK_PRICING_LI_CHECK_SVG_HTML +
               "Private forum access" +
             "</li>" +
             '<li class="wrj wsb">' +
-              '<svg viewBox="0 0 20 20" fill="currentColor" data-slot="icon" aria-hidden="true" class="wrl wrn wru wtq">' +
-                '<path d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd" fill-rule="evenodd"></path>' +
-              "</svg>" +
+              WORK_PRICING_LI_CHECK_SVG_HTML +
               "Member resources" +
             "</li>" +
             '<li class="wrj wsb">' +
-              '<svg viewBox="0 0 20 20" fill="currentColor" data-slot="icon" aria-hidden="true" class="wrl wrn wru wtq">' +
-                '<path d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd" fill-rule="evenodd"></path>' +
-              "</svg>" +
+              WORK_PRICING_LI_CHECK_SVG_HTML +
               "Entry to annual conference" +
             "</li>" +
             '<li class="wrj wsb">' +
-              '<svg viewBox="0 0 20 20" fill="currentColor" data-slot="icon" aria-hidden="true" class="wrl wrn wru wtq">' +
-                '<path d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd" fill-rule="evenodd"></path>' +
-              "</svg>" +
+              WORK_PRICING_LI_CHECK_SVG_HTML +
               "Official member t-shirt" +
             "</li>" +
           "</ul>" +
@@ -972,12 +1006,7 @@ function addOneWorkPricingItem(block: HTMLElement): boolean {
   const nextIndex = list.querySelectorAll(":scope > li").length + 1;
   const li = document.createElement("li");
   li.className = "wrj wsb";
-  li.innerHTML =
-    '<svg viewBox="0 0 20 20" fill="currentColor" data-slot="icon" aria-hidden="true" class="wrl wrn wru wtq">' +
-    '<path d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd" fill-rule="evenodd"></path>' +
-    "</svg>" +
-    "Новый пункт " +
-    String(nextIndex);
+  li.innerHTML = WORK_PRICING_LI_CHECK_SVG_HTML + "Новый пункт " + String(nextIndex);
   list.appendChild(li);
   return true;
 }
@@ -2527,32 +2556,15 @@ export default function PageEditorDetailsPage() {
     };
   }, []);
 
-  function syncCoverElementFocusState(ed: HTMLElement, range: Range | null) {
-    ed.querySelectorAll("[data-cover-focus-target]").forEach((n) => n.removeAttribute("data-cover-focus-target"));
-    let node: Node | null = null;
-    if (range) {
-      node = range.startContainer;
-      if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
-    }
-    if (!node || !(node instanceof Element)) {
-      const active = (typeof document !== "undefined" ? document.activeElement : null) as Element | null;
-      if (active && ed.contains(active)) node = active;
-    }
-    if (!node || !(node instanceof Element)) return;
-
-    const inner = node.closest(".page-web-cover-inner[data-cover-unlocked='1']") as HTMLElement | null;
-    if (!inner || !ed.contains(inner)) return;
-    const target =
-      (node.closest(".page-web-cover-el-title, .page-web-cover-el-subtitle, .page-web-cover-el-button-wrap, .page-web-cover-el-announcement-wrap") as HTMLElement | null) ??
-      (node.closest(".page-web-cover-el-learn-more, .page-web-cover-el-announcement-learn-more") as HTMLElement | null);
-    if (!target || !inner.contains(target)) return;
-    target.setAttribute("data-cover-focus-target", "1");
+  function clearPageEditorFocusTargets(root: HTMLElement) {
+    root.querySelectorAll(`[${PAGE_EDITOR_FOCUS_TARGET_ATTR}]`).forEach((n) =>
+      n.removeAttribute(PAGE_EDITOR_FOCUS_TARGET_ATTR),
+    );
   }
 
-  function syncTextBlockElementFocusState(ed: HTMLElement, range: Range | null) {
-    ed.querySelectorAll("[data-text-block-focus-target]").forEach((n) =>
-      n.removeAttribute("data-text-block-focus-target"),
-    );
+  /** Подсветка текущего редактируемого узла: один атрибут и один набор правил в `<style>` (см. переменные `--page-editor-focus-*` на `.page-editor`). */
+  function syncPageEditorFocusTarget(ed: HTMLElement, range: Range | null) {
+    clearPageEditorFocusTargets(ed);
     let node: Node | null = null;
     if (range) {
       node = range.startContainer;
@@ -2563,36 +2575,53 @@ export default function PageEditorDetailsPage() {
       if (active && ed.contains(active)) node = active;
     }
     if (!node || !(node instanceof Element)) return;
-    const content = node.closest(".page-web-text-block-content") as HTMLElement | null;
-    if (!content || !ed.contains(content)) return;
-    const target = node.closest("h1, h2, h3, h4, h5, h6, p, li, dt, dd, a, span") as HTMLElement | null;
-    if (!target || !content.contains(target)) return;
-    target.setAttribute("data-text-block-focus-target", "1");
-  }
 
-  function syncTimelineElementFocusState(ed: HTMLElement, range: Range | null) {
-    ed.querySelectorAll("[data-timeline-focus-target]").forEach((n) => n.removeAttribute("data-timeline-focus-target"));
-    ed.querySelectorAll(".page-web-timeline [data-text-block-focus-target]").forEach((n) =>
-      n.removeAttribute("data-text-block-focus-target"),
-    );
-    let node: Node | null = null;
-    if (range) {
-      node = range.startContainer;
-      if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+    const mark = (el: HTMLElement) => {
+      el.setAttribute(PAGE_EDITOR_FOCUS_TARGET_ATTR, "1");
+    };
+
+    const coverInner = node.closest(".page-web-cover-inner[data-cover-unlocked='1']") as HTMLElement | null;
+    if (coverInner && ed.contains(coverInner)) {
+      const target =
+        (node.closest(
+          ".page-web-cover-el-title, .page-web-cover-el-subtitle, .page-web-cover-el-button-wrap, .page-web-cover-el-announcement-wrap",
+        ) as HTMLElement | null) ??
+        (node.closest(".page-web-cover-el-learn-more, .page-web-cover-el-announcement-learn-more") as HTMLElement | null);
+      if (target && coverInner.contains(target)) mark(target);
+      return;
     }
-    if (!node || !(node instanceof Element)) {
-      const active = (typeof document !== "undefined" ? document.activeElement : null) as Element | null;
-      if (active && ed.contains(active)) node = active;
-    }
-    if (!node || !(node instanceof Element)) return;
+
     const timeline = node.closest(".page-web-timeline") as HTMLElement | null;
-    if (!timeline || !ed.contains(timeline)) return;
-    const target = node.closest(
-      ".page-web-timeline-subtitle, .page-web-timeline-heading, .page-web-timeline-description, .page-web-timeline-term, .page-web-timeline-title, .page-web-timeline-text",
-    ) as HTMLElement | null;
-    if (!target || !timeline.contains(target)) return;
-    target.setAttribute("data-timeline-focus-target", "1");
-    target.setAttribute("data-text-block-focus-target", "1");
+    if (timeline && ed.contains(timeline)) {
+      const target = node.closest(
+        ".page-web-timeline-subtitle, .page-web-timeline-heading, .page-web-timeline-description, .page-web-timeline-term, .page-web-timeline-title, .page-web-timeline-text",
+      ) as HTMLElement | null;
+      if (target && timeline.contains(target)) mark(target);
+      return;
+    }
+
+    const workPricingRoot = node.closest(".page-web-work-pricing") as HTMLElement | null;
+    if (workPricingRoot && ed.contains(workPricingRoot)) {
+      const target = node.closest(WORK_PRICING_EDITABLE_LEAF_SELECTOR) as HTMLElement | null;
+      if (target && workPricingRoot.contains(target)) mark(target);
+      return;
+    }
+
+    const textBlockContent = node.closest(".page-web-text-block-content") as HTMLElement | null;
+    if (textBlockContent && ed.contains(textBlockContent)) {
+      const target = node.closest("h1, h2, h3, h4, h5, h6, p, li, dt, dd, a, span") as HTMLElement | null;
+      if (target && textBlockContent.contains(target)) mark(target);
+      return;
+    }
+
+    const textMediaCol = node.closest(".page-web-text-media-col") as HTMLElement | null;
+    if (textMediaCol && ed.contains(textMediaCol)) {
+      const target = node.closest(
+        "h1, h2, h3, h4, h5, h6, p, li, dt, dd, a, span, img, figure, figcaption",
+      ) as HTMLElement | null;
+      if (target && textMediaCol.contains(target)) mark(target);
+      else mark(textMediaCol);
+    }
   }
 
   function updateToolbarState() {
@@ -2601,22 +2630,16 @@ export default function PageEditorDetailsPage() {
 
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) {
-      syncCoverElementFocusState(el, null);
-      syncTextBlockElementFocusState(el, null);
-      syncTimelineElementFocusState(el, null);
+      syncPageEditorFocusTarget(el, null);
       return;
     }
 
     const range = sel.getRangeAt(0);
     if (!el.contains(range.commonAncestorContainer)) {
-      syncCoverElementFocusState(el, null);
-      syncTextBlockElementFocusState(el, null);
-      syncTimelineElementFocusState(el, null);
+      syncPageEditorFocusTarget(el, null);
       return;
     }
-    syncCoverElementFocusState(el, range);
-    syncTextBlockElementFocusState(el, range);
-    syncTimelineElementFocusState(el, range);
+    syncPageEditorFocusTarget(el, range);
 
     try {
       if (!range.collapsed) {
@@ -3299,6 +3322,7 @@ export default function PageEditorDetailsPage() {
     normalizeImages();
     normalizeWebCoverInnerEditability(root);
     normalizeWebTextBlockContentEditability(root);
+    ensureWorkPricingListItemCheckmarks(root);
     if (normalizeWebCoverElementPlaceholders(root) && caretDebugOn()) {
       logPageEditorCaret("layoutEffect[contentHtml]:web-cover-placeholder-normalize", {});
     }
@@ -4632,6 +4656,9 @@ export default function PageEditorDetailsPage() {
     try {
       const wrap = document.createElement("div");
       wrap.innerHTML = html;
+      wrap.querySelectorAll(`[${PAGE_EDITOR_FOCUS_TARGET_ATTR}]`).forEach((n) =>
+        (n as HTMLElement).removeAttribute(PAGE_EDITOR_FOCUS_TARGET_ATTR),
+      );
       wrap.querySelectorAll(".page-web-cover-toolbar").forEach((n) => n.remove());
       wrap.querySelectorAll(".page-web-insert-handle").forEach((n) => n.remove());
       wrap.querySelectorAll(".page-web-cover-delete").forEach((n) => n.remove());
@@ -6239,9 +6266,7 @@ export default function PageEditorDetailsPage() {
 
     const workPricingRoot = node.closest(".page-web-work-pricing") as HTMLElement | null;
     if (workPricingRoot && content.contains(workPricingRoot)) {
-      const workPricingTarget = node.closest(
-        ".page-web-work-pricing h1, .page-web-work-pricing h2, .page-web-work-pricing h3, .page-web-work-pricing h4, .page-web-work-pricing h5, .page-web-work-pricing h6, .page-web-work-pricing p, .page-web-work-pricing li, .page-web-work-pricing a, .page-web-work-pricing span",
-      ) as HTMLElement | null;
+      const workPricingTarget = node.closest(WORK_PRICING_EDITABLE_LEAF_SELECTOR) as HTMLElement | null;
       if (workPricingTarget && workPricingRoot.contains(workPricingTarget) && isAtElementTextStart(workPricingTarget)) {
         return keepCaretAtStart(workPricingTarget);
       }
@@ -7640,12 +7665,8 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       if (!relatedTarget && stillInsideEditor && active && content.contains(active)) return;
       if (relatedTarget && content.contains(relatedTarget)) return;
     });
-    el.querySelectorAll("[data-cover-focus-target]").forEach((n) => n.removeAttribute("data-cover-focus-target"));
-    el.querySelectorAll("[data-text-block-focus-target]").forEach((n) =>
-      n.removeAttribute("data-text-block-focus-target"),
-    );
-    el.querySelectorAll("[data-timeline-focus-target]").forEach((n) =>
-      n.removeAttribute("data-timeline-focus-target"),
+    el.querySelectorAll(`[${PAGE_EDITOR_FOCUS_TARGET_ATTR}]`).forEach((n) =>
+      n.removeAttribute(PAGE_EDITOR_FOCUS_TARGET_ATTR),
     );
     if (!stillInsideEditor && !editorSelectionInside()) {
       setContentHtml(el.innerHTML);
@@ -9901,8 +9922,31 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-timeline[data-timeline-show-text="0"] .page-web-timeline-text { display: none !important; }
         .page-editor .page-web-timeline { --timeline-dot-size: 0.8rem; --timeline-line-size: 2px; --timeline-gap: 0.9rem; position: relative; width: 100%; margin: 0 0 1rem; padding-top: 1rem; display: grid; grid-template-columns: repeat(var(--timeline-cols, 3), minmax(0, 1fr)); gap: 0.7rem var(--timeline-gap); box-sizing: border-box; }
         .page-editor .page-web-timeline-head { grid-column: 1 / -1; margin: 0 0 0.6rem; display: grid; gap: 0; text-align: center; }
-        .page-editor .page-web-timeline-subtitle { margin: 0; color: #b91c1c; font-size: 1rem; line-height: 1; font-weight: 600; }
-        .page-editor .page-web-timeline-heading { margin: 0; color: #496db3; font-size: 2.25rem; line-height: 1; font-weight: 600; letter-spacing: -0.02em; }
+        /* Красный подзаголовок: чуть выше + больше зона клика; z-index выше синего — иначе отрицательный margin у заголовка перехватывает нажатия */
+        .page-editor .page-web-timeline-subtitle {
+          margin: 0;
+          margin-top: -0.2rem;
+          padding: 0.15em 0 0.55em;
+          color: #b91c1c;
+          font-size: 1rem;
+          line-height: 1;
+          font-weight: 600;
+          position: relative;
+          z-index: 2;
+          display: inline-block;
+          max-width: 100%;
+          box-sizing: border-box;
+        }
+        .page-editor .page-web-feature-grid-subtitle {
+          position: relative;
+          z-index: 2;
+          display: inline-block;
+          max-width: 100%;
+          margin-top: -0.2rem;
+          padding: 0.15em 0 0.55em;
+          box-sizing: border-box;
+        }
+        .page-editor .page-web-timeline-heading { margin: 0; color: #496db3; font-size: 2.25rem; line-height: 1; font-weight: 600; letter-spacing: -0.02em; position: relative; z-index: 1; }
         .page-editor .page-web-timeline-subtitle + .page-web-timeline-heading { margin-top: var(--site-red-blue-gap, -0.375rem); }
         .page-editor .page-web-timeline-description { margin: 0; color: #64748b; font-size: inherit; line-height: 1.5; }
         .page-editor .page-web-timeline-heading + .page-web-timeline-description { margin-top: 1rem; }
@@ -10135,39 +10179,28 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
           max-width: 100%;
           box-sizing: border-box;
         }
-        .page-editor .page-web-cover-inner .page-web-cover-el-title[data-cover-focus-target="1"],
-        .page-editor .page-web-cover-inner .page-web-cover-el-subtitle[data-cover-focus-target="1"],
-        .page-editor .page-web-cover-inner .page-web-cover-el-button-wrap[data-cover-focus-target="1"],
-        .page-editor .page-web-cover-inner .page-web-cover-el-announcement-wrap[data-cover-focus-target="1"],
-        .page-editor .page-web-cover-inner .page-web-cover-el-learn-more[data-cover-focus-target="1"],
-        .page-editor .page-web-cover-inner .page-web-cover-el-announcement-learn-more[data-cover-focus-target="1"] {
-          padding-inline: 0.2em;
-          margin-inline: -0.2em;
-          box-shadow: 0 0 0 7px rgba(73, 109, 179, 0.13), 0 0 18px rgba(73, 109, 179, 0.35), 0 0 30px rgba(73, 109, 179, 0.26);
-          border-radius: 10px;
+        /* Активная область редактирования: один атрибут data-editor-focus-target + переменные на .page-editor */
+        .page-editor .page-web-cover-inner [data-editor-focus-target="1"],
+        .page-editor .page-web-text-block-content [data-editor-focus-target="1"],
+        .page-editor .page-web-work-pricing [data-editor-focus-target="1"],
+        .page-editor .page-web-text-media-col[data-editor-focus-target="1"],
+        .page-editor .page-web-text-media-col [data-editor-focus-target="1"],
+        .page-editor .page-web-timeline [data-editor-focus-target="1"] {
+          padding-inline: var(--page-editor-focus-pad-inline);
+          margin-inline: var(--page-editor-focus-margin-inline);
+          box-shadow: var(--page-editor-focus-shadow);
+          border-radius: var(--page-editor-focus-radius);
           transition: box-shadow 0.12s ease;
         }
         .page-editor .page-web-text-block-content { outline: none !important; }
-        .page-editor .page-web-text-block-content [data-text-block-focus-target="1"] {
-          padding-inline: 0.2em;
-          margin-inline: -0.2em;
-          box-shadow: 0 0 0 6px rgba(73, 109, 179, 0.12), 0 0 16px rgba(73, 109, 179, 0.3), 0 0 26px rgba(73, 109, 179, 0.22);
-          border-radius: 8px;
-          transition: box-shadow 0.12s ease;
-        }
-        .page-editor .page-web-timeline [data-timeline-focus-target="1"] {
-          padding-inline: 0.2em;
-          margin-inline: -0.2em;
-          box-shadow: 0 0 0 6px rgba(73, 109, 179, 0.12), 0 0 16px rgba(73, 109, 179, 0.3), 0 0 26px rgba(73, 109, 179, 0.22);
-          border-radius: 8px;
-          transition: box-shadow 0.12s ease;
+        .page-editor .page-web-timeline [data-editor-focus-target="1"] {
           outline: none !important;
           text-decoration: none !important;
           box-decoration-break: clone;
           -webkit-box-decoration-break: clone;
         }
-        .page-editor .page-web-timeline .page-web-timeline-subtitle[data-timeline-focus-target="1"],
-        .page-editor .page-web-timeline .page-web-timeline-heading[data-timeline-focus-target="1"] {
+        .page-editor .page-web-timeline .page-web-timeline-subtitle[data-editor-focus-target="1"],
+        .page-editor .page-web-timeline .page-web-timeline-heading[data-editor-focus-target="1"] {
           display: inline-block;
         }
         .page-editor .page-web-cover-aspect-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; width: 156px; box-sizing: border-box; }
@@ -10263,6 +10296,8 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-text-block-content h3 { margin: 0 0 0.55rem; font-size: 1.2rem; line-height: 1.2; color: #0f172a; }
         .page-editor .page-web-text-block-content p { margin: 0; color: #475569; line-height: 1.55; }
         ${getWorkPricingRenderCss(".page-editor")}
+        /* Иначе box-shadow подсветки фокуса обрезается у полей внутри карточки (.wtt задаёт overflow: hidden в getWorkPricingRenderCss). */
+        .page-editor .page-web-work-pricing .wtt { overflow: visible; }
         .page-editor .page-web-text-media-col { min-height: 210px; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; padding: 1rem; box-sizing: border-box; outline: none; }
         .page-editor .page-web-text-media-col--media { background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%); display: flex; align-items: center; justify-content: center; text-align: center; color: #64748b; }
         .page-editor .page-web-text-media-col h3 { margin: 0 0 0.55rem; font-size: 1.2rem; line-height: 1.2; color: #0f172a; }
@@ -10376,6 +10411,13 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
           --site-blue-title-fs: 2.25rem;
           --site-blue-title-lh: 2.25rem;
           --site-red-blue-gap: -0.375rem;
+          --page-editor-focus-pad-inline: 0.2em;
+          --page-editor-focus-margin-inline: -0.2em;
+          --page-editor-focus-radius: 9px;
+          --page-editor-focus-shadow:
+            0 0 0 6px rgba(73, 109, 179, 0.12),
+            0 0 16px rgba(73, 109, 179, 0.3),
+            0 0 26px rgba(73, 109, 179, 0.22);
         }
         @media (min-width: 640px) {
           .page-editor {
@@ -10397,6 +10439,10 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-feature-grid-subtitle + .page-web-feature-grid-title,
         .page-editor .page-web-timeline-subtitle + .page-web-timeline-heading {
           margin-top: var(--site-red-blue-gap, -0.375rem) !important;
+        }
+        .page-editor .page-web-feature-grid .page-web-feature-grid-title {
+          position: relative;
+          z-index: 1;
         }
       `}</style>
       <div
@@ -10458,153 +10504,170 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
                   ref={toolbarRef}
                   className="relative z-30 flex shrink-0 flex-wrap items-center gap-1.5 border-b border-slate-200 bg-white p-2"
                 >
-                  <button
-                    type="button"
-                    className={`inline-flex h-8 w-8 items-center justify-center rounded transition-colors hover:text-[#496db3] ${
-                      isBold ? "bg-slate-200 text-[#496db3]" : "text-slate-600"
-                    }`}
-                    onMouseDown={(e) => { saveSelectionFromEditor(); e.preventDefault(); }}
-                    onClick={() => runCommand("bold")}
-                    aria-label="Жирный"
-                  >
-                    <BoldIcon className={ICON_SIZE} />
-                  </button>
-                  <button
-                    type="button"
-                    className={`inline-flex h-8 w-8 items-center justify-center rounded transition-colors hover:text-[#496db3] ${
-                      isItalic ? "bg-slate-200 text-[#496db3]" : "text-slate-600"
-                    }`}
-                    onMouseDown={(e) => { saveSelectionFromEditor(); e.preventDefault(); }}
-                    onClick={() => runCommand("italic")}
-                    aria-label="Курсив"
-                  >
-                    <ItalicIcon className={ICON_SIZE} />
-                  </button>
-                  <button
-                    type="button"
-                    className={`inline-flex h-8 w-8 items-center justify-center rounded transition-colors hover:text-[#496db3] ${
-                      isUnderline ? "bg-slate-200 text-[#496db3]" : "text-slate-600"
-                    }`}
-                    onMouseDown={(e) => { saveSelectionFromEditor(); e.preventDefault(); }}
-                    onClick={() => runCommand("underline")}
-                    aria-label="Подчеркнутый"
-                  >
-                    <UnderlineIcon className={ICON_SIZE} />
-                  </button>
-
-                  <div className="h-6 w-px shrink-0 bg-slate-200" aria-hidden="true" />
-
-                  <div ref={fontSizeDropdownRef} className="relative">
-                    <button
-                      type="button"
-                      className="flex h-8 min-w-[4rem] items-center justify-between gap-1 rounded border border-slate-200 bg-white px-2 text-xs text-slate-700 transition-colors hover:border-slate-300"
-                      onMouseDown={(e) => {
-                        saveSelectionFromEditor();
-                        e.preventDefault();
-                      }}
-                      onClick={() => setFontSizeOpen((v) => !v)}
-                      aria-label="Размер шрифта"
-                      aria-expanded={fontSizeOpen}
-                    >
-                      <span className="truncate">
-                        {FONT_SIZES.find((s) => s.value === fontSize)?.label ?? "16px"}
-                      </span>
-                      <ChevronDownIcon
-                        className={`${ICON_SIZE} shrink-0 text-slate-500 transition-transform ${fontSizeOpen ? "rotate-180" : ""}`}
-                      />
-                    </button>
-                    {fontSizeOpen && (
-                      <div
-                        className="absolute left-0 top-full z-10 mt-1 min-w-full rounded border border-slate-200 bg-white py-1 shadow-lg"
-                        role="listbox"
+                  {!PAGE_EDITOR_FORMAT_TOOLBAR_MINIMAL && (
+                    <>
+                      <button
+                        type="button"
+                        className={`inline-flex h-8 w-8 items-center justify-center rounded transition-colors hover:text-[#496db3] ${
+                          isBold ? "bg-slate-200 text-[#496db3]" : "text-slate-600"
+                        }`}
+                        onMouseDown={(e) => {
+                          saveSelectionFromEditor();
+                          e.preventDefault();
+                        }}
+                        onClick={() => runCommand("bold")}
+                        aria-label="Жирный"
                       >
-                        {FONT_SIZES.map(({ value, label }) => (
-                          <button
-                            key={value}
-                            type="button"
-                            role="option"
-                            aria-selected={fontSize === value}
-                            className={`w-full px-3 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-100 ${
-                              fontSize === value ? "bg-slate-100 text-[#496db3]" : ""
-                            }`}
-                            onMouseDown={(e) => {
-                              saveSelectionFromEditor();
-                              e.preventDefault();
-                            }}
-                            onClick={() => {
-                              runCommand("fontSize", value);
-                              setFontSizeOpen(false);
-                            }}
+                        <BoldIcon className={ICON_SIZE} />
+                      </button>
+                      <button
+                        type="button"
+                        className={`inline-flex h-8 w-8 items-center justify-center rounded transition-colors hover:text-[#496db3] ${
+                          isItalic ? "bg-slate-200 text-[#496db3]" : "text-slate-600"
+                        }`}
+                        onMouseDown={(e) => {
+                          saveSelectionFromEditor();
+                          e.preventDefault();
+                        }}
+                        onClick={() => runCommand("italic")}
+                        aria-label="Курсив"
+                      >
+                        <ItalicIcon className={ICON_SIZE} />
+                      </button>
+                      <button
+                        type="button"
+                        className={`inline-flex h-8 w-8 items-center justify-center rounded transition-colors hover:text-[#496db3] ${
+                          isUnderline ? "bg-slate-200 text-[#496db3]" : "text-slate-600"
+                        }`}
+                        onMouseDown={(e) => {
+                          saveSelectionFromEditor();
+                          e.preventDefault();
+                        }}
+                        onClick={() => runCommand("underline")}
+                        aria-label="Подчеркнутый"
+                      >
+                        <UnderlineIcon className={ICON_SIZE} />
+                      </button>
+
+                      <div className="h-6 w-px shrink-0 bg-slate-200" aria-hidden="true" />
+                    </>
+                  )}
+
+                  {!PAGE_EDITOR_FORMAT_TOOLBAR_MINIMAL && (
+                    <>
+                      <div ref={fontSizeDropdownRef} className="relative">
+                        <button
+                          type="button"
+                          className="flex h-8 min-w-[4rem] items-center justify-between gap-1 rounded border border-slate-200 bg-white px-2 text-xs text-slate-700 transition-colors hover:border-slate-300"
+                          onMouseDown={(e) => {
+                            saveSelectionFromEditor();
+                            e.preventDefault();
+                          }}
+                          onClick={() => setFontSizeOpen((v) => !v)}
+                          aria-label="Размер шрифта"
+                          aria-expanded={fontSizeOpen}
+                        >
+                          <span className="truncate">
+                            {FONT_SIZES.find((s) => s.value === fontSize)?.label ?? "16px"}
+                          </span>
+                          <ChevronDownIcon
+                            className={`${ICON_SIZE} shrink-0 text-slate-500 transition-transform ${fontSizeOpen ? "rotate-180" : ""}`}
+                          />
+                        </button>
+                        {fontSizeOpen && (
+                          <div
+                            className="absolute left-0 top-full z-10 mt-1 min-w-full rounded border border-slate-200 bg-white py-1 shadow-lg"
+                            role="listbox"
                           >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div ref={fontColorDropdownRef} className="relative">
-                    <button
-                      type="button"
-                      className="inline-flex h-8 w-8 items-center justify-center rounded border border-slate-200 bg-white transition-colors hover:border-slate-300"
-                      onMouseDown={(e) => {
-                        saveSelectionFromEditor();
-                        e.preventDefault();
-                      }}
-                      onClick={() => setFontColorOpen((v) => !v)}
-                      aria-label="Цвет шрифта"
-                      aria-expanded={fontColorOpen}
-                    >
-                      <span className="h-4 w-4 rounded border border-slate-200" style={{ backgroundColor: fontColor }} />
-                    </button>
-                    {fontColorOpen && (
-                      <div
-                        className="absolute left-0 top-full z-10 mt-1 rounded border border-slate-200 bg-white p-2 shadow-lg"
-                        style={{ width: 112, minWidth: 112 }}
-                        role="listbox"
-                      >
-                        <div className="grid grid-cols-4 gap-1.5">
-                          {BANNERS_FONT_COLOR_PRESETS.map((hex) => {
-                            const isSelected = fontColor.toLowerCase() === hex.toLowerCase();
-                            const luminance = (() => {
-                              const r = parseInt(hex.slice(1, 3), 16);
-                              const g = parseInt(hex.slice(3, 5), 16);
-                              const b = parseInt(hex.slice(5, 7), 16);
-                              return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-                            })();
-                            const iconLight = luminance < 0.6;
-                            return (
+                            {FONT_SIZES.map(({ value, label }) => (
                               <button
-                                key={`font-color-${hex}`}
+                                key={value}
                                 type="button"
                                 role="option"
-                                aria-selected={isSelected}
-                                title={hex}
-                                className={`flex aspect-square w-full items-center justify-center rounded border border-slate-200 transition-colors hover:ring-2 hover:ring-[#496db3] hover:ring-offset-1 ${
-                                  isSelected ? "ring-2 ring-[#496db3] ring-offset-1" : ""
+                                aria-selected={fontSize === value}
+                                className={`w-full px-3 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-100 ${
+                                  fontSize === value ? "bg-slate-100 text-[#496db3]" : ""
                                 }`}
-                                style={{ backgroundColor: hex }}
                                 onMouseDown={(e) => {
                                   saveSelectionFromEditor();
                                   e.preventDefault();
                                 }}
                                 onClick={() => {
-                                  runCommand("foreColor", hex);
-                                  setFontColor(hex);
-                                  setFontColorOpen(false);
+                                  runCommand("fontSize", value);
+                                  setFontSizeOpen(false);
                                 }}
                               >
-                                {isSelected && (
-                                  <CheckIcon className={`h-3 w-3 ${iconLight ? "text-white drop-shadow-[0_0_1px_rgba(0,0,0,0.5)]" : "text-slate-800"}`} />
-                                )}
+                                {label}
                               </button>
-                            );
-                          })}
-                        </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
+                      <div ref={fontColorDropdownRef} className="relative">
+                        <button
+                          type="button"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded border border-slate-200 bg-white transition-colors hover:border-slate-300"
+                          onMouseDown={(e) => {
+                            saveSelectionFromEditor();
+                            e.preventDefault();
+                          }}
+                          onClick={() => setFontColorOpen((v) => !v)}
+                          aria-label="Цвет шрифта"
+                          aria-expanded={fontColorOpen}
+                        >
+                          <span className="h-4 w-4 rounded border border-slate-200" style={{ backgroundColor: fontColor }} />
+                        </button>
+                        {fontColorOpen && (
+                          <div
+                            className="absolute left-0 top-full z-10 mt-1 rounded border border-slate-200 bg-white p-2 shadow-lg"
+                            style={{ width: 112, minWidth: 112 }}
+                            role="listbox"
+                          >
+                            <div className="grid grid-cols-4 gap-1.5">
+                              {BANNERS_FONT_COLOR_PRESETS.map((hex) => {
+                                const isSelected = fontColor.toLowerCase() === hex.toLowerCase();
+                                const luminance = (() => {
+                                  const r = parseInt(hex.slice(1, 3), 16);
+                                  const g = parseInt(hex.slice(3, 5), 16);
+                                  const b = parseInt(hex.slice(5, 7), 16);
+                                  return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+                                })();
+                                const iconLight = luminance < 0.6;
+                                return (
+                                  <button
+                                    key={`font-color-${hex}`}
+                                    type="button"
+                                    role="option"
+                                    aria-selected={isSelected}
+                                    title={hex}
+                                    className={`flex aspect-square w-full items-center justify-center rounded border border-slate-200 transition-colors hover:ring-2 hover:ring-[#496db3] hover:ring-offset-1 ${
+                                      isSelected ? "ring-2 ring-[#496db3] ring-offset-1" : ""
+                                    }`}
+                                    style={{ backgroundColor: hex }}
+                                    onMouseDown={(e) => {
+                                      saveSelectionFromEditor();
+                                      e.preventDefault();
+                                    }}
+                                    onClick={() => {
+                                      runCommand("foreColor", hex);
+                                      setFontColor(hex);
+                                      setFontColorOpen(false);
+                                    }}
+                                  >
+                                    {isSelected && (
+                                      <CheckIcon className={`h-3 w-3 ${iconLight ? "text-white drop-shadow-[0_0_1px_rgba(0,0,0,0.5)]" : "text-slate-800"}`} />
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
 
-                  <div className="h-6 w-px shrink-0 bg-slate-200" aria-hidden="true" />
+                      <div className="h-6 w-px shrink-0 bg-slate-200" aria-hidden="true" />
+                    </>
+                  )}
 
                   <button
                     type="button"
@@ -10639,96 +10702,109 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
                   >
                     <Bars3BottomRightIcon className={ICON_SIZE} />
                   </button>
-                  <button
-                    type="button"
-                    className={`inline-flex h-8 w-8 items-center justify-center rounded transition-colors ${
-                      !isInTable && !isInWebCoverContent
-                        ? "cursor-not-allowed text-slate-300"
-                        : (isInTable ? tableVerticalAlign : coverVerticalAlign) === "top"
-                          ? "bg-slate-200 text-[#496db3]"
-                          : "text-slate-600 hover:text-[#496db3]"
-                    }`}
-                    onMouseDown={(e) => { saveSelectionFromEditor(); e.preventDefault(); }}
-                    onClick={() => {
-                      if (isInTable) applyTableVerticalAlign("top");
-                      else if (isInWebCoverContent) applyCoverVerticalAlign("top");
-                    }}
-                    aria-label="Выравнивание по верху"
-                    disabled={!isInTable && !isInWebCoverContent}
-                  >
-                    <AlignVerticalTopIcon className={ICON_SIZE} />
-                  </button>
-                  <button
-                    type="button"
-                    className={`inline-flex h-8 w-8 items-center justify-center rounded transition-colors ${
-                      !isInTable && !isInWebCoverContent
-                        ? "cursor-not-allowed text-slate-300"
-                        : (isInTable ? tableVerticalAlign : coverVerticalAlign) === "middle"
-                          ? "bg-slate-200 text-[#496db3]"
-                          : "text-slate-600 hover:text-[#496db3]"
-                    }`}
-                    onMouseDown={(e) => { saveSelectionFromEditor(); e.preventDefault(); }}
-                    onClick={() => {
-                      if (isInTable) applyTableVerticalAlign("middle");
-                      else if (isInWebCoverContent) applyCoverVerticalAlign("middle");
-                    }}
-                    aria-label="Выравнивание по центру по высоте"
-                    disabled={!isInTable && !isInWebCoverContent}
-                  >
-                    <AlignVerticalMiddleIcon className={ICON_SIZE} />
-                  </button>
-                  <button
-                    type="button"
-                    className={`inline-flex h-8 w-8 items-center justify-center rounded transition-colors ${
-                      !isInTable && !isInWebCoverContent
-                        ? "cursor-not-allowed text-slate-300"
-                        : (isInTable ? tableVerticalAlign : coverVerticalAlign) === "bottom"
-                          ? "bg-slate-200 text-[#496db3]"
-                          : "text-slate-600 hover:text-[#496db3]"
-                    }`}
-                    onMouseDown={(e) => { saveSelectionFromEditor(); e.preventDefault(); }}
-                    onClick={() => {
-                      if (isInTable) applyTableVerticalAlign("bottom");
-                      else if (isInWebCoverContent) applyCoverVerticalAlign("bottom");
-                    }}
-                    aria-label="Выравнивание по низу"
-                    disabled={!isInTable && !isInWebCoverContent}
-                  >
-                    <AlignVerticalBottomIcon className={ICON_SIZE} />
-                  </button>
+                  {!PAGE_EDITOR_FORMAT_TOOLBAR_MINIMAL && (
+                    <>
+                      <button
+                        type="button"
+                        className={`inline-flex h-8 w-8 items-center justify-center rounded transition-colors ${
+                          !isInTable && !isInWebCoverContent
+                            ? "cursor-not-allowed text-slate-300"
+                            : (isInTable ? tableVerticalAlign : coverVerticalAlign) === "top"
+                              ? "bg-slate-200 text-[#496db3]"
+                              : "text-slate-600 hover:text-[#496db3]"
+                        }`}
+                        onMouseDown={(e) => {
+                          saveSelectionFromEditor();
+                          e.preventDefault();
+                        }}
+                        onClick={() => {
+                          if (isInTable) applyTableVerticalAlign("top");
+                          else if (isInWebCoverContent) applyCoverVerticalAlign("top");
+                        }}
+                        aria-label="Выравнивание по верху"
+                        disabled={!isInTable && !isInWebCoverContent}
+                      >
+                        <AlignVerticalTopIcon className={ICON_SIZE} />
+                      </button>
+                      <button
+                        type="button"
+                        className={`inline-flex h-8 w-8 items-center justify-center rounded transition-colors ${
+                          !isInTable && !isInWebCoverContent
+                            ? "cursor-not-allowed text-slate-300"
+                            : (isInTable ? tableVerticalAlign : coverVerticalAlign) === "middle"
+                              ? "bg-slate-200 text-[#496db3]"
+                              : "text-slate-600 hover:text-[#496db3]"
+                        }`}
+                        onMouseDown={(e) => {
+                          saveSelectionFromEditor();
+                          e.preventDefault();
+                        }}
+                        onClick={() => {
+                          if (isInTable) applyTableVerticalAlign("middle");
+                          else if (isInWebCoverContent) applyCoverVerticalAlign("middle");
+                        }}
+                        aria-label="Выравнивание по центру по высоте"
+                        disabled={!isInTable && !isInWebCoverContent}
+                      >
+                        <AlignVerticalMiddleIcon className={ICON_SIZE} />
+                      </button>
+                      <button
+                        type="button"
+                        className={`inline-flex h-8 w-8 items-center justify-center rounded transition-colors ${
+                          !isInTable && !isInWebCoverContent
+                            ? "cursor-not-allowed text-slate-300"
+                            : (isInTable ? tableVerticalAlign : coverVerticalAlign) === "bottom"
+                              ? "bg-slate-200 text-[#496db3]"
+                              : "text-slate-600 hover:text-[#496db3]"
+                        }`}
+                        onMouseDown={(e) => {
+                          saveSelectionFromEditor();
+                          e.preventDefault();
+                        }}
+                        onClick={() => {
+                          if (isInTable) applyTableVerticalAlign("bottom");
+                          else if (isInWebCoverContent) applyCoverVerticalAlign("bottom");
+                        }}
+                        aria-label="Выравнивание по низу"
+                        disabled={!isInTable && !isInWebCoverContent}
+                      >
+                        <AlignVerticalBottomIcon className={ICON_SIZE} />
+                      </button>
 
-                  <div className="h-6 w-px shrink-0 bg-slate-200" aria-hidden="true" />
+                      <div className="h-6 w-px shrink-0 bg-slate-200" aria-hidden="true" />
 
-                  <button
-                    type="button"
-                    className={`inline-flex h-8 w-8 items-center justify-center rounded transition-colors hover:text-[#496db3] ${
-                      isUnorderedList ? "bg-slate-200 text-[#496db3]" : "text-slate-600"
-                    }`}
-                    onMouseDown={(e) => {
-                      saveSelectionFromEditor();
-                      e.preventDefault();
-                    }}
-                    onClick={() => runCommand("insertUnorderedList")}
-                    aria-label="Маркированный список"
-                  >
-                    <ListBulletIcon className={ICON_SIZE} />
-                  </button>
-                  <button
-                    type="button"
-                    className={`inline-flex h-8 w-8 items-center justify-center rounded transition-colors hover:text-[#496db3] ${
-                      isOrderedList ? "bg-slate-200 text-[#496db3]" : "text-slate-600"
-                    }`}
-                    onMouseDown={(e) => {
-                      saveSelectionFromEditor();
-                      e.preventDefault();
-                    }}
-                    onClick={() => runCommand("insertOrderedList")}
-                    aria-label="Нумерованный список"
-                  >
-                    <NumberedListIcon className={ICON_SIZE} />
-                  </button>
+                      <button
+                        type="button"
+                        className={`inline-flex h-8 w-8 items-center justify-center rounded transition-colors hover:text-[#496db3] ${
+                          isUnorderedList ? "bg-slate-200 text-[#496db3]" : "text-slate-600"
+                        }`}
+                        onMouseDown={(e) => {
+                          saveSelectionFromEditor();
+                          e.preventDefault();
+                        }}
+                        onClick={() => runCommand("insertUnorderedList")}
+                        aria-label="Маркированный список"
+                      >
+                        <ListBulletIcon className={ICON_SIZE} />
+                      </button>
+                      <button
+                        type="button"
+                        className={`inline-flex h-8 w-8 items-center justify-center rounded transition-colors hover:text-[#496db3] ${
+                          isOrderedList ? "bg-slate-200 text-[#496db3]" : "text-slate-600"
+                        }`}
+                        onMouseDown={(e) => {
+                          saveSelectionFromEditor();
+                          e.preventDefault();
+                        }}
+                        onClick={() => runCommand("insertOrderedList")}
+                        aria-label="Нумерованный список"
+                      >
+                        <NumberedListIcon className={ICON_SIZE} />
+                      </button>
+                    </>
+                  )}
 
-                  {(isUnorderedList || isOrderedList) && (
+                  {!PAGE_EDITOR_FORMAT_TOOLBAR_MINIMAL && (isUnorderedList || isOrderedList) && (
                     <div ref={listStyleDropdownRef} className="relative">
                       <button
                         type="button"
@@ -10893,25 +10969,27 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
                     </div>
                   )}
 
-                  <div className="h-6 w-px shrink-0 bg-slate-200" aria-hidden="true" />
+                  {!PAGE_EDITOR_FORMAT_TOOLBAR_MINIMAL && (
+                    <>
+                      <div className="h-6 w-px shrink-0 bg-slate-200" aria-hidden="true" />
 
-                  <div ref={tableDropdownRef} className="relative">
-                    <button
-                      type="button"
-                      className="inline-flex h-8 w-8 items-center justify-center rounded text-slate-600 transition-colors hover:text-[#496db3]"
-                      onMouseDown={(e) => {
-                        saveSelectionFromEditor();
-                        e.preventDefault();
-                      }}
-                      onClick={() => {
-                        setTableOpen((v) => !v);
-                        closeAddElementDialog();
-                      }}
-                      aria-label="Вставить таблицу"
-                      aria-expanded={tableOpen}
-                    >
-                      <TableCellsIcon className={ICON_SIZE} />
-                    </button>
+                      <div ref={tableDropdownRef} className="relative">
+                        <button
+                          type="button"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded text-slate-600 transition-colors hover:text-[#496db3]"
+                          onMouseDown={(e) => {
+                            saveSelectionFromEditor();
+                            e.preventDefault();
+                          }}
+                          onClick={() => {
+                            setTableOpen((v) => !v);
+                            closeAddElementDialog();
+                          }}
+                          aria-label="Вставить таблицу"
+                          aria-expanded={tableOpen}
+                        >
+                          <TableCellsIcon className={ICON_SIZE} />
+                        </button>
                     {isInTable && (
                       <>
                       <div ref={tableBorderDropdownRef} className="relative ml-0.5 inline-block">
@@ -11107,8 +11185,8 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
                       </div>
                     )}
                   </div>
-
-                  <div className="h-6 w-px shrink-0 bg-slate-200" aria-hidden="true" />
+                    </>
+                  )}
 
                   <input
                     ref={imageInputRef}
@@ -11126,20 +11204,27 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
                     onChange={handleWebShellImageInputChange}
                     aria-hidden="true"
                   />
-                  <button
-                    type="button"
-                    className="inline-flex h-8 w-8 items-center justify-center rounded text-slate-600 transition-colors hover:text-[#496db3]"
-                    onMouseDown={(e) => {
-                      saveSelectionFromEditor();
-                      e.preventDefault();
-                    }}
-                    onClick={() => imageInputRef.current?.click()}
-                    aria-label="Вставить картинку"
-                  >
-                    <PhotoIcon className={ICON_SIZE} />
-                  </button>
 
-                  <div className="h-6 w-px shrink-0 bg-slate-200" aria-hidden="true" />
+                  {!PAGE_EDITOR_FORMAT_TOOLBAR_MINIMAL && (
+                    <>
+                      <div className="h-6 w-px shrink-0 bg-slate-200" aria-hidden="true" />
+
+                      <button
+                        type="button"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded text-slate-600 transition-colors hover:text-[#496db3]"
+                        onMouseDown={(e) => {
+                          saveSelectionFromEditor();
+                          e.preventDefault();
+                        }}
+                        onClick={() => imageInputRef.current?.click()}
+                        aria-label="Вставить картинку"
+                      >
+                        <PhotoIcon className={ICON_SIZE} />
+                      </button>
+
+                      <div className="h-6 w-px shrink-0 bg-slate-200" aria-hidden="true" />
+                    </>
+                  )}
 
                 </div>
 
@@ -11221,8 +11306,9 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
                       onKeyDown={handleKeyDown}
                       onPaste={handlePaste}
                       onInput={(e) => {
-                        const html = e.currentTarget.innerHTML;
-                        scheduleEditorHtmlStateSync(html);
+                        const ed = e.currentTarget;
+                        ensureWorkPricingListItemCheckmarks(ed);
+                        scheduleEditorHtmlStateSync(ed.innerHTML);
                         syncMarkerBold();
                       }}
                       onKeyUp={() => {

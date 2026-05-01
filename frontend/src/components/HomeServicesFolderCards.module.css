@@ -297,8 +297,8 @@
   min-width: 0;
   max-height: none;
   overflow: visible;
-  font-size: 112%;
-  line-height: 1.35;
+  font-size: 1rem;
+  line-height: 1.4;
   letter-spacing: 0.02em;
   text-transform: uppercase;
   color: #496db3;
@@ -313,8 +313,8 @@
   min-width: 0;
   max-height: none;
   overflow: visible;
-  font-size: 112%;
-  line-height: 1.35;
+  font-size: 1rem;
+  line-height: 1.4;
   color: #496db3;
   font-weight: 500;
   overflow-wrap: anywhere;
@@ -588,7 +588,7 @@
 .cardFeaturedTitle {
   margin: 0;
   font-size: 1rem;
-  line-height: 1.28;
+  line-height: 1.4;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: #fff;
@@ -597,14 +597,14 @@
 
 @media (min-width: 640px) {
   .cardFeaturedTitle {
-    font-size: 1.08rem;
+    font-size: 1rem;
   }
 }
 
 .cardFeaturedDesc {
   margin: 0;
-  font-size: 0.78rem;
-  line-height: 1.45;
+  font-size: 1rem;
+  line-height: 1.4;
   font-weight: 500;
   color: rgb(255 255 255 / 0.94);
   text-shadow: 0 1px 2px rgb(0 0 0 / 0.3);
@@ -615,7 +615,7 @@
 
 @media (min-width: 640px) {
   .cardFeaturedDesc {
-    font-size: 0.82rem;
+    font-size: 1rem;
   }
 }
 

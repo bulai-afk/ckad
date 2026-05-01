@@ -125,7 +125,7 @@ export function HomeFeedbackForm() {
               >
                 Связаться с нами
               </p>
-              <p className="mt-3 text-pretty text-sm/[1.35] font-medium text-slate-600 sm:mt-4 sm:text-sm/[1.35]">
+              <p className="mt-3 text-pretty text-base leading-[1.4] font-medium text-slate-600 sm:mt-4">
                 Оставьте заявку — ответим по телефону или e-mail и подскажем по каталогизации и анализу данных.
               </p>
             </div>

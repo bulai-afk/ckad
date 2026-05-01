@@ -202,7 +202,7 @@ export default async function Home() {
             <p className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-pretty sm:-mt-2">
               Центр каталогизации и анализа данных
             </p>
-            <p className="mt-6 text-pretty text-sm font-medium text-slate-600 sm:text-base">
+            <p className="mt-6 text-pretty text-base leading-[1.4] font-medium text-slate-600">
               Помогаем заказчикам систематизировать сведения о продукции, вести номенклатуру в
               актуальном состоянии и проходить процедуры согласования без лишних срывов сроков.
             </p>
@@ -243,7 +243,7 @@ export default async function Home() {
             <p className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-pretty sm:-mt-2">
               Услуги по каталогизации
             </p>
-            <p className="mt-6 text-pretty text-sm font-medium text-slate-600 sm:text-base">
+            <p className="mt-6 text-pretty text-base leading-[1.4] font-medium text-slate-600">
               {servicesRootFolderDescription ?? (
                 <>
                   Закрываем задачи «под ключ» в области каталогизации и анализа данных: от методики до

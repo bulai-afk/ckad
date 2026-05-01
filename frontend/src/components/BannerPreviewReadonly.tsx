@@ -101,8 +101,9 @@ export function BannerPreviewReadonly({
           <h1
             className="text-balance font-semibold tracking-tight text-[#496db3]"
             style={{
-              fontSize: "var(--site-blue-title-fs, 2.25rem)",
-              lineHeight: "var(--site-blue-title-lh, 2.25rem)",
+              // Image banners looked visually smaller than hero/split blocks; add a slight boost.
+              fontSize: "calc(var(--site-blue-title-fs, 2.25rem) * 1.12)",
+              lineHeight: "calc(var(--site-blue-title-lh, 2.25rem) * 1.12)",
             }}
           >
             {preserveBannerTitleLineBreaks
@@ -111,7 +112,7 @@ export function BannerPreviewReadonly({
           </h1>
         ) : null}
         {slide.showSubtitle ? (
-          <p className="mt-6 text-pretty text-sm font-medium text-slate-600 sm:text-base">
+          <p className="mt-6 text-pretty text-base leading-[1.4] font-medium text-slate-600">
             {slide.subtitle || "Подзаголовок"}
           </p>
         ) : null}

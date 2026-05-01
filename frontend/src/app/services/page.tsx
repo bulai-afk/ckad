@@ -96,11 +96,8 @@ export default async function ServicesPage() {
               </h1>
             </div>
 
-            <div className="mb-4" style={{ fontSize: "clamp(13px, 0.7vw, 14px)" }}>
-              <p
-                className="whitespace-pre-wrap text-center font-semibold text-[#496db3]"
-                style={{ fontSize: "112%", lineHeight: 1.35 }}
-              >
+            <div className="mb-4">
+              <p className="whitespace-pre-wrap text-center text-base leading-[1.4] font-semibold text-[#496db3]">
                 {servicesRootFolderDescription ?? (
                   <>
                     Закрываем задачи «под ключ» в области каталогизации и анализа данных: от методики до

@@ -68,6 +68,10 @@ type Block = {
 type PageData = {
   title: string;
   slug: string;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
+  keywords?: string | null;
+  preview?: string | null;
   blocks: Block[];
 };
 
@@ -78,7 +82,23 @@ function getBlockText(page: PageData | null, type: string): string {
   return typeof block.data?.text === "string" ? block.data.text.trim() : "";
 }
 
+function getPreviewImage(page: PageData | null): string {
+  if (!page) return "";
+  const previewBlock = page.blocks.find((b) => b.type === "preview");
+  const fromBlock =
+    previewBlock && typeof (previewBlock.data as { src?: unknown })?.src === "string"
+      ? String((previewBlock.data as { src?: string }).src).trim()
+      : "";
+  const fromPage = typeof page.preview === "string" ? page.preview.trim() : "";
+  const raw = fromBlock || fromPage;
+  if (!raw) return "";
+  if (/^https?:\/\//i.test(raw)) return raw;
+  if (raw.startsWith("/")) return raw;
+  return `/${raw.replace(/^\/+/, "")}`;
+}
+
 const CALLBACK_FORM_LINK = "callback://open";
+const PAGE_CACHE = new Map<string, PageData>();
 
 export default function Page() {
   const params = useParams<{ slug?: string[] | string }>();
@@ -105,24 +125,33 @@ export default function Page() {
       return;
     }
     let cancelled = false;
+    const pathSegments = slugParts;
+    const path = pathSegments.join("/");
+    const cached = PAGE_CACHE.get(path);
 
     void (async () => {
-      setLoading(true);
       setServiceFolderHub(null);
-      setPage(null);
+      if (cached) {
+        setPage(cached);
+        setLoading(false);
+      } else {
+        setPage(null);
+        setLoading(true);
+      }
 
       try {
         try {
-          const data = await apiGet<PageData>(apiPagesSlugRequestPath(slugParts));
+          const data = await apiGet<PageData>(apiPagesSlugRequestPath(pathSegments));
           if (!cancelled) {
             setPage(data);
+            PAGE_CACHE.set(path, data);
           }
         } catch {
           if (!cancelled) {
-            setPage(null);
-            const pathSegments = slugParts;
-            const path = pathSegments.join("/");
-            if (pathSegments[0] === "services" && pathSegments.length >= 2) {
+            if (!cached) {
+              setPage(null);
+            }
+            if (!cached && pathSegments[0] === "services" && pathSegments.length >= 2) {
               try {
                 const [pages, foldersPayload] = await Promise.all([
                   apiGet<ServiceListItem[]>("/api/pages", 20000),
@@ -172,16 +201,32 @@ export default function Page() {
   useEffect(() => {
     if (!page) return;
 
-    const seoTitle = getBlockText(page, "seo_title") || page.title;
+    const seoTitle =
+      getBlockText(page, "seo_title") ||
+      (typeof page.seoTitle === "string" ? page.seoTitle.trim() : "") ||
+      page.title;
     const seoDescription =
-      getBlockText(page, "seo_description") || getBlockText(page, "summary");
-    const seoKeywords = getBlockText(page, "keywords");
+      getBlockText(page, "seo_description") ||
+      (typeof page.seoDescription === "string" ? page.seoDescription.trim() : "") ||
+      getBlockText(page, "summary");
+    const seoKeywords =
+      getBlockText(page, "keywords") ||
+      (typeof page.keywords === "string" ? page.keywords.trim() : "");
+    const seoImage = getPreviewImage(page);
     const previousTitle = document.title;
     const ensureMeta = (name: string): HTMLMetaElement => {
       const existing = document.querySelector(`meta[name="${name}"]`) as HTMLMetaElement | null;
       if (existing) return existing;
       const created = document.createElement("meta");
       created.setAttribute("name", name);
+      document.head.appendChild(created);
+      return created;
+    };
+    const ensurePropertyMeta = (property: string): HTMLMetaElement => {
+      const existing = document.querySelector(`meta[property="${property}"]`) as HTMLMetaElement | null;
+      if (existing) return existing;
+      const created = document.createElement("meta");
+      created.setAttribute("property", property);
       document.head.appendChild(created);
       return created;
     };
@@ -196,10 +241,33 @@ export default function Page() {
     const canonicalHref = `${window.location.origin}/${page.slug.replace(/^\/+/, "")}`;
     const descriptionMeta = ensureMeta("description");
     const keywordsMeta = ensureMeta("keywords");
+    const twitterCardMeta = ensureMeta("twitter:card");
+    const twitterTitleMeta = ensureMeta("twitter:title");
+    const twitterDescriptionMeta = ensureMeta("twitter:description");
+    const twitterImageMeta = ensureMeta("twitter:image");
+    const ogTitleMeta = ensurePropertyMeta("og:title");
+    const ogDescriptionMeta = ensurePropertyMeta("og:description");
+    const ogImageMeta = ensurePropertyMeta("og:image");
+    const ogUrlMeta = ensurePropertyMeta("og:url");
+    const ogTypeMeta = ensurePropertyMeta("og:type");
     const canonicalLink = ensureCanonical();
     const previousDescription = descriptionMeta.getAttribute("content");
     const previousKeywords = keywordsMeta.getAttribute("content");
+    const previousTwitterCard = twitterCardMeta.getAttribute("content");
+    const previousTwitterTitle = twitterTitleMeta.getAttribute("content");
+    const previousTwitterDescription = twitterDescriptionMeta.getAttribute("content");
+    const previousTwitterImage = twitterImageMeta.getAttribute("content");
+    const previousOgTitle = ogTitleMeta.getAttribute("content");
+    const previousOgDescription = ogDescriptionMeta.getAttribute("content");
+    const previousOgImage = ogImageMeta.getAttribute("content");
+    const previousOgUrl = ogUrlMeta.getAttribute("content");
+    const previousOgType = ogTypeMeta.getAttribute("content");
     const previousCanonical = canonicalLink.getAttribute("href");
+    const resolvedSeoImage = seoImage
+      ? (seoImage.startsWith("http://") || seoImage.startsWith("https://")
+          ? seoImage
+          : `${window.location.origin}${seoImage.startsWith("/") ? seoImage : `/${seoImage}`}`)
+      : "";
 
     document.title = seoTitle || page.title || previousTitle;
     canonicalLink.setAttribute("href", canonicalHref);
@@ -209,6 +277,17 @@ export default function Page() {
     if (keywordsMeta && seoKeywords) {
       keywordsMeta.setAttribute("content", seoKeywords);
     }
+    ogTypeMeta.setAttribute("content", "website");
+    ogUrlMeta.setAttribute("content", canonicalHref);
+    ogTitleMeta.setAttribute("content", seoTitle || page.title || "");
+    ogDescriptionMeta.setAttribute("content", seoDescription || "");
+    if (resolvedSeoImage) ogImageMeta.setAttribute("content", resolvedSeoImage);
+    else ogImageMeta.removeAttribute("content");
+    twitterCardMeta.setAttribute("content", resolvedSeoImage ? "summary_large_image" : "summary");
+    twitterTitleMeta.setAttribute("content", seoTitle || page.title || "");
+    twitterDescriptionMeta.setAttribute("content", seoDescription || "");
+    if (resolvedSeoImage) twitterImageMeta.setAttribute("content", resolvedSeoImage);
+    else twitterImageMeta.removeAttribute("content");
 
     return () => {
       document.title = previousTitle;
@@ -217,6 +296,42 @@ export default function Page() {
       }
       if (keywordsMeta) {
         keywordsMeta.setAttribute("content", previousKeywords ?? "");
+      }
+      if (twitterCardMeta) {
+        if (previousTwitterCard) twitterCardMeta.setAttribute("content", previousTwitterCard);
+        else twitterCardMeta.removeAttribute("content");
+      }
+      if (twitterTitleMeta) {
+        if (previousTwitterTitle) twitterTitleMeta.setAttribute("content", previousTwitterTitle);
+        else twitterTitleMeta.removeAttribute("content");
+      }
+      if (twitterDescriptionMeta) {
+        if (previousTwitterDescription) twitterDescriptionMeta.setAttribute("content", previousTwitterDescription);
+        else twitterDescriptionMeta.removeAttribute("content");
+      }
+      if (twitterImageMeta) {
+        if (previousTwitterImage) twitterImageMeta.setAttribute("content", previousTwitterImage);
+        else twitterImageMeta.removeAttribute("content");
+      }
+      if (ogTitleMeta) {
+        if (previousOgTitle) ogTitleMeta.setAttribute("content", previousOgTitle);
+        else ogTitleMeta.removeAttribute("content");
+      }
+      if (ogDescriptionMeta) {
+        if (previousOgDescription) ogDescriptionMeta.setAttribute("content", previousOgDescription);
+        else ogDescriptionMeta.removeAttribute("content");
+      }
+      if (ogImageMeta) {
+        if (previousOgImage) ogImageMeta.setAttribute("content", previousOgImage);
+        else ogImageMeta.removeAttribute("content");
+      }
+      if (ogUrlMeta) {
+        if (previousOgUrl) ogUrlMeta.setAttribute("content", previousOgUrl);
+        else ogUrlMeta.removeAttribute("content");
+      }
+      if (ogTypeMeta) {
+        if (previousOgType) ogTypeMeta.setAttribute("content", previousOgType);
+        else ogTypeMeta.removeAttribute("content");
       }
       if (canonicalLink) {
         if (previousCanonical) canonicalLink.setAttribute("href", previousCanonical);
@@ -286,15 +401,7 @@ export default function Page() {
     if (root) ensureCoverBgLayers(root);
   }, [page]);
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100 text-slate-900">
-        <p className="text-sm text-slate-500">Загрузка страницы...</p>
-      </div>
-    );
-  }
-
-  if (!page && serviceFolderHub) {
+  if (!loading && !page && serviceFolderHub) {
     const sectionDescription =
       serviceFolderHub.description?.trim() ||
       "Закрываем задачи «под ключ» в области каталогизации и анализа данных: от методики до сопровождения согласований — чтобы вы получали понятный результат в срок и без лишних рисков.";
@@ -398,7 +505,7 @@ export default function Page() {
     );
   }
 
-  if (!page) {
+  if (!loading && !page) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100 text-slate-900">
         <p className="text-sm text-slate-500">
@@ -406,6 +513,10 @@ export default function Page() {
         </p>
       </div>
     );
+  }
+
+  if (!page) {
+    return <div className="min-h-screen bg-slate-100 text-slate-900" />;
   }
 
   return (

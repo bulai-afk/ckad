@@ -88,10 +88,10 @@ export function ArticleTeaserCard({
         </div>
 
         <div className="min-h-0 flex-1">
-          <h3 className="mt-2 text-base font-semibold leading-snug text-slate-900 group-hover:text-[#496db3] sm:mt-3 sm:text-lg sm:leading-6">
+          <h3 className="mt-2 text-base font-semibold leading-[1.4] text-slate-900 group-hover:text-[#496db3] sm:mt-3">
             {title}
           </h3>
-          <p className="mt-3 line-clamp-3 text-sm leading-6 text-slate-600 sm:mt-4">{excerpt}</p>
+          <p className="mt-3 line-clamp-3 text-base leading-[1.4] text-slate-600 sm:mt-4">{excerpt}</p>
         </div>
 
         <div className="relative mt-4 flex items-center gap-x-3 sm:mt-5">
@@ -100,7 +100,7 @@ export function ArticleTeaserCard({
             alt=""
             className="h-9 w-9 shrink-0 rounded-full bg-white object-cover ring-1 ring-slate-200 sm:h-10 sm:w-10"
           />
-          <div className="min-w-0 text-sm leading-6">
+          <div className="min-w-0 text-base leading-[1.4]">
             <p className="font-semibold text-[#496db3]">Центр каталогизации и анализа данных</p>
             <p className="text-slate-600">Редакция</p>
           </div>

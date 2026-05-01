@@ -46,7 +46,7 @@ function ServiceHubCard({
             {title}
           </h2>
           {description?.trim() ? (
-            <p className="mt-3 max-w-none text-[14px] font-semibold leading-[1.65] text-[#496db3] whitespace-pre-wrap">
+            <p className="mt-3 max-w-none text-base font-semibold leading-[1.4] text-[#496db3] whitespace-pre-wrap">
               {description}
             </p>
           ) : null}
