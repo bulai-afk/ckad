@@ -49,6 +49,21 @@ const TOP_BANNER_MESSAGES = [
   "Поможем подобрать формат обучения для вашей команды.",
 ];
 
+const DESKTOP_NAV_POPOVER_IDS = ["desktop-menu-catalog", "desktop-menu-study"] as const;
+
+function hideDesktopNavPopovers() {
+  if (typeof document === "undefined") return;
+  for (const id of DESKTOP_NAV_POPOVER_IDS) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    try {
+      (el as HTMLElement).hidePopover();
+    } catch {
+      // not open or popover API unavailable
+    }
+  }
+}
+
 function normalizeSlugPath(slug: string): string {
   return slug
     .trim()
@@ -176,6 +191,10 @@ export function SiteNavbar({ siteSettings }: SiteNavbarProps) {
     };
   }, [topRibbonMessages.length]);
 
+  useEffect(() => {
+    hideDesktopNavPopovers();
+  }, [pathname]);
+
   const catalogLinks = useMemo(() => {
     if (!pages) return FALLBACK_CATALOG_LINKS;
     const dynamic = buildSectionLinks(pages, CATALOG_ROOT, orderBySection);
@@ -272,6 +291,7 @@ export function SiteNavbar({ siteSettings }: SiteNavbarProps) {
                       key={`desktop-catalog-${item.href}-${item.label}`}
                       href={item.href}
                       prefetch
+                      onClick={() => hideDesktopNavPopovers()}
                       className="block rounded-lg px-3 py-2 text-sm font-semibold text-[#496db3] hover:bg-gray-50"
                     >
                       {item.label}
@@ -295,6 +315,7 @@ export function SiteNavbar({ siteSettings }: SiteNavbarProps) {
                       key={`desktop-study-${item.href}-${item.label}`}
                       href={item.href}
                       prefetch
+                      onClick={() => hideDesktopNavPopovers()}
                       className="block rounded-lg px-3 py-2 text-sm font-semibold text-[#496db3] hover:bg-gray-50"
                     >
                       {item.label}
