@@ -11,6 +11,7 @@ import {
   type PageDisplayOrderMap,
 } from "@/lib/pageDisplayOrder";
 import { CallbackRequestModal } from "@/components/CallbackRequestModal";
+import type { FolderNavItem } from "@/lib/navFoldersCookie";
 
 type PageSummary = {
   title: string;
@@ -97,7 +98,7 @@ function buildSectionLinks(
 }
 
 type SiteNavbarProps = {
-  initialFolderNavItems?: unknown[];
+  initialFolderNavItems?: FolderNavItem[];
   siteSettings?: {
     phone?: string;
     email?: string;
@@ -105,7 +106,26 @@ type SiteNavbarProps = {
   } | null;
 };
 
-export function SiteNavbar({ siteSettings }: SiteNavbarProps) {
+function buildFallbackSectionLinks(items: FolderNavItem[], rootSlug: string): NavLinkItem[] {
+  const root = normalizeSlugPath(rootSlug);
+  const seen = new Set<string>();
+  const links: NavLinkItem[] = [];
+  for (const item of items) {
+    const normalized = normalizeSlugPath(String(item.href || "").replace(/^\/+/, ""));
+    if (!normalized.startsWith(`${root}/`)) continue;
+    const href = `/${normalized}`;
+    const key = href.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    links.push({
+      href,
+      label: String(item.label || "").trim() || normalized.split("/").pop() || "Раздел",
+    });
+  }
+  return links;
+}
+
+export function SiteNavbar({ siteSettings, initialFolderNavItems = [] }: SiteNavbarProps) {
   const pathname = usePathname();
   const [pages, setPages] = useState<PageSummary[] | null>(null);
   const [isNavPagesLoaded, setIsNavPagesLoaded] = useState(false);
@@ -188,16 +208,18 @@ export function SiteNavbar({ siteSettings }: SiteNavbarProps) {
   }, [pathname]);
 
   const catalogLinks = useMemo(() => {
-    if (!isNavPagesLoaded || !pages) return [];
+    const fallback = buildFallbackSectionLinks(initialFolderNavItems, CATALOG_ROOT);
+    if (!isNavPagesLoaded || !pages || pages.length === 0) return fallback;
     const dynamic = buildSectionLinks(pages, CATALOG_ROOT, orderBySection);
-    return dynamic;
-  }, [isNavPagesLoaded, pages, orderBySection]);
+    return dynamic.length > 0 ? dynamic : fallback;
+  }, [initialFolderNavItems, isNavPagesLoaded, pages, orderBySection]);
 
   const trainingLinks = useMemo(() => {
-    if (!isNavPagesLoaded || !pages) return [];
+    const fallback = buildFallbackSectionLinks(initialFolderNavItems, TRAINING_ROOT);
+    if (!isNavPagesLoaded || !pages || pages.length === 0) return fallback;
     const dynamic = buildSectionLinks(pages, TRAINING_ROOT, orderBySection);
-    return dynamic;
-  }, [isNavPagesLoaded, pages, orderBySection]);
+    return dynamic.length > 0 ? dynamic : fallback;
+  }, [initialFolderNavItems, isNavPagesLoaded, pages, orderBySection]);
 
   function closeMobileMenu() {
     if (typeof document === "undefined") return;

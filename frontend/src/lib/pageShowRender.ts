@@ -104,6 +104,13 @@ export function ensureCoverBgLayers(root: ParentNode): void {
   // поэтому выставляем data-timeline-has-next здесь, чтобы CSS линий работал 1:1 как в админке.
   const timelines = Array.from(root.querySelectorAll(".page-web-timeline")) as HTMLElement[];
   timelines.forEach((timeline) => {
+    const rawShowTerm = (timeline.getAttribute("data-timeline-show-term") || "").trim().toLowerCase();
+    if (rawShowTerm === "false" || rawShowTerm === "off" || rawShowTerm === "no") {
+      timeline.setAttribute("data-timeline-show-term", "0");
+    } else if (rawShowTerm === "true" || rawShowTerm === "on" || rawShowTerm === "yes") {
+      timeline.setAttribute("data-timeline-show-term", "1");
+    }
+
     const items = Array.from(timeline.querySelectorAll(":scope > .page-web-timeline-item")) as HTMLElement[];
     items.forEach((item, idx) => {
       const nextVal = idx + 1 < items.length ? "1" : "0";
@@ -217,15 +224,18 @@ ${scope} .page-web-timeline-item:nth-of-type(odd):not(:first-of-type) > .page-we
 ${scope} .page-web-timeline-title { margin: 0; font-size: 1.75rem; font-weight: 700; color: #0f172a; line-height: 1.45; text-align: center; }
 ${scope} .page-web-timeline-text { margin: 0; font-size: 1.75rem; color: #475569; line-height: 1.5; text-align: center; }
 ${scope} .page-web-timeline[data-timeline-show-term="0"] .page-web-timeline-term,
-${scope} .page-web-timeline[data-timeline-show-term="false"] .page-web-timeline-term,
+${scope} .page-web-timeline[data-timeline-show-term="false" i] .page-web-timeline-term,
+${scope} .page-web-timeline[data-timeline-show-term="off" i] .page-web-timeline-term,
 ${scope} .page-web-timeline-item[data-timeline-show-term="0"] .page-web-timeline-term,
-${scope} .page-web-timeline-item[data-timeline-show-term="false"] .page-web-timeline-term { display: none !important; }
+${scope} .page-web-timeline-item[data-timeline-show-term="false" i] .page-web-timeline-term,
+${scope} .page-web-timeline-item[data-timeline-show-term="off" i] .page-web-timeline-term { display: none !important; }
 ${scope} .page-web-timeline[data-timeline-show-title="0"] .page-web-timeline-title { display: none !important; }
 ${scope} .page-web-timeline[data-timeline-show-text="0"] .page-web-timeline-text { display: none !important; }
 @media (max-width: 1205px) {
 ${scope} .page-web-timeline { grid-template-columns: 1fr; --timeline-gap: 0.65rem; --timeline-term-col: 4.6rem; gap: var(--timeline-gap); position: relative; }
 ${scope} .page-web-timeline[data-timeline-show-term="0"],
-${scope} .page-web-timeline[data-timeline-show-term="false"] { --timeline-term-col: 0rem; }
+${scope} .page-web-timeline[data-timeline-show-term="false" i],
+${scope} .page-web-timeline[data-timeline-show-term="off" i] { --timeline-term-col: 0rem; }
 ${scope} .page-web-timeline::before {
   content: "";
   position: absolute;
@@ -245,9 +255,11 @@ ${scope} .page-web-timeline-heading { font-size: var(--site-blue-title-fs, 2.25r
 ${scope} .page-web-timeline-description { font-size: inherit; line-height: inherit; }
 ${scope} .page-web-timeline-item { min-height: 0; padding-top: 0; padding-left: 0; display: grid; grid-template-columns: var(--timeline-term-col) 1.9rem minmax(0, 1fr); column-gap: 0.35rem; grid-template-rows: none; row-gap: 0; align-items: center; position: relative; z-index: 2; }
 ${scope} .page-web-timeline[data-timeline-show-term="0"] .page-web-timeline-item,
-${scope} .page-web-timeline[data-timeline-show-term="false"] .page-web-timeline-item,
+${scope} .page-web-timeline[data-timeline-show-term="false" i] .page-web-timeline-item,
+${scope} .page-web-timeline[data-timeline-show-term="off" i] .page-web-timeline-item,
 ${scope} .page-web-timeline-item[data-timeline-show-term="0"],
-${scope} .page-web-timeline-item[data-timeline-show-term="false"] { grid-template-columns: 0 1.9rem minmax(0, 1fr); }
+${scope} .page-web-timeline-item[data-timeline-show-term="false" i],
+${scope} .page-web-timeline-item[data-timeline-show-term="off" i] { grid-template-columns: 0 1.9rem minmax(0, 1fr); }
 ${scope} .page-web-timeline-item::before,
 ${scope} .page-web-timeline-item::after { content: none; display: none; }
 ${scope} .page-web-timeline-item:not(:last-of-type)::before,
@@ -282,6 +294,20 @@ ${scope} .page-web-timeline-title,
 ${scope} .page-web-timeline-text { text-align: left; }
 ${scope} .page-web-timeline-title { font-size: 1.28rem; line-height: 1.35; }
 ${scope} .page-web-timeline-text { font-size: 1.3rem; line-height: 1.5; }
+}
+@media (max-width: 639px) {
+${scope} .page-web-timeline { --timeline-term-col: 3.2rem; }
+${scope} .page-web-timeline[data-timeline-show-term="0"],
+${scope} .page-web-timeline[data-timeline-show-term="false" i],
+${scope} .page-web-timeline[data-timeline-show-term="off" i] { --timeline-term-col: 0rem; }
+${scope} .page-web-timeline::before { left: var(--timeline-line-left, calc(var(--timeline-term-col) + 0.35rem + 0.75rem)); }
+${scope} .page-web-timeline-item { grid-template-columns: var(--timeline-term-col) 1.5rem minmax(0, 1fr); }
+${scope} .page-web-timeline[data-timeline-show-term="0"] .page-web-timeline-item,
+${scope} .page-web-timeline[data-timeline-show-term="false" i] .page-web-timeline-item,
+${scope} .page-web-timeline[data-timeline-show-term="off" i] .page-web-timeline-item,
+${scope} .page-web-timeline-item[data-timeline-show-term="0"],
+${scope} .page-web-timeline-item[data-timeline-show-term="false" i],
+${scope} .page-web-timeline-item[data-timeline-show-term="off" i] { grid-template-columns: 0 1.5rem minmax(0, 1fr); }
 }
 `;
 }

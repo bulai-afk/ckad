@@ -74,8 +74,6 @@ function isVisibleArticlePage(p: ArticleListItem): boolean {
 }
 
 export default async function Home() {
-  let reviews: ReviewSlide[] = [];
-  let bannerSlides: BannerSlide[] = [];
   const base = apiBaseUrl();
   const fetchNoStoreJson = async <T,>(path: string, timeoutMs: number): Promise<T> => {
     const controller = new AbortController();
@@ -97,41 +95,41 @@ export default async function Home() {
       clearTimeout(timeoutId);
     }
   };
-  try {
-    const data = await fetchNoStoreJson<{ slides?: ReviewSlide[] }>("/api/pages/reviews", 10_000);
-    reviews = Array.isArray(data.slides) ? data.slides : [];
-  } catch {
-    // keep empty; reviews block has fallback fetch too
-  }
-  try {
-    const data = await fetchNoStoreJson<{ slides?: BannerSlide[] }>("/api/pages/banners", 10_000);
-    bannerSlides = Array.isArray(data.slides) ? data.slides : [];
-  } catch {
-    // пустой массив — карусель покажет запасной блок
-  }
+  const [reviewsRes, bannersRes, pagesRes, foldersRes, orderRes] = await Promise.allSettled([
+    fetchNoStoreJson<{ slides?: ReviewSlide[] }>("/api/pages/reviews", 10_000),
+    fetchNoStoreJson<{ slides?: BannerSlide[] }>("/api/pages/banners", 10_000),
+    apiGet<ServiceListItem[]>("/api/pages"),
+    apiGet<{ folders?: ServiceFolderMeta[] }>("/api/pages/folders"),
+    apiGet<{ orderBySection?: unknown }>("/api/pages/display-order"),
+  ]);
+
+  const reviews =
+    reviewsRes.status === "fulfilled" && Array.isArray(reviewsRes.value?.slides)
+      ? reviewsRes.value.slides
+      : [];
+  const bannerSlides =
+    bannersRes.status === "fulfilled" && Array.isArray(bannersRes.value?.slides)
+      ? bannersRes.value.slides
+      : [];
+  const allPages = pagesRes.status === "fulfilled" && Array.isArray(pagesRes.value) ? pagesRes.value : [];
+  const folders =
+    foldersRes.status === "fulfilled" && Array.isArray(foldersRes.value?.folders)
+      ? foldersRes.value.folders
+      : [];
+  const orderBySection =
+    orderRes.status === "fulfilled"
+      ? normalizePageDisplayOrderMap(orderRes.value?.orderBySection)
+      : {};
 
   let homeServiceCards: ServiceTreeNode[] = [];
   let servicesRootFolderDescription: string | null = null;
-  try {
-    const [pages, foldersPayload] = await Promise.all([
-      apiGet<ServiceListItem[]>("/api/pages"),
-      apiGet<{ folders?: ServiceFolderMeta[] }>("/api/pages/folders"),
-    ]);
-    let orderBySection = {};
-    try {
-      const displayOrderPayload = await apiGet<{ orderBySection?: unknown }>("/api/pages/display-order");
-      orderBySection = normalizePageDisplayOrderMap(displayOrderPayload?.orderBySection);
-    } catch {
-      orderBySection = {};
-    }
-    const folders = Array.isArray(foldersPayload?.folders) ? foldersPayload.folders : [];
+  if (allPages.length > 0) {
     const folderMetaBySlug = new Map(folders.map((f) => [normalizeSlug(f.slug), f] as const));
     const catMeta = folderMetaBySlug.get("catalogization");
     const servicesMeta = folderMetaBySlug.get("services");
-    const rootDesc =
-      catMeta?.description?.trim() || servicesMeta?.description?.trim() || null;
+    const rootDesc = catMeta?.description?.trim() || servicesMeta?.description?.trim() || null;
     if (rootDesc) servicesRootFolderDescription = rootDesc;
-    const catalogPages = pages
+    const catalogPages = allPages
       .filter((p) => isVisibleServicePage(p) && normalizeSlug(p.slug).startsWith("catalogization/"))
       .map((p) => ({ ...p, slug: normalizeSlug(p.slug) }))
       .sort((a, b) => a.title.localeCompare(b.title, "ru"));
@@ -152,21 +150,11 @@ export default async function Home() {
         return ta.localeCompare(tb, "ru");
       },
     ).slice(0, 12);
-  } catch {
-    homeServiceCards = [];
   }
 
   let homeArticles: ArticleListItem[] = [];
-  try {
-    const pages = await apiGet<ArticleListItem[]>("/api/pages");
-    let orderBySection = {};
-    try {
-      const displayOrderPayload = await apiGet<{ orderBySection?: unknown }>("/api/pages/display-order");
-      orderBySection = normalizePageDisplayOrderMap(displayOrderPayload?.orderBySection);
-    } catch {
-      orderBySection = {};
-    }
-    const byDateDesc = pages
+  if (allPages.length > 0) {
+    const byDateDesc = (allPages as ArticleListItem[])
       .filter((p) => isVisibleArticlePage(p) && normalizeSlug(p.slug).startsWith("articles/"))
       .map((p) => ({ ...p, slug: normalizeSlug(p.slug) }))
       .sort((a, b) => {
@@ -184,10 +172,7 @@ export default async function Home() {
         const bd = new Date(b.updatedAt || b.createdAt || 0).getTime();
         return bd - ad;
       },
-    )
-      .slice(0, 10);
-  } catch {
-    homeArticles = [];
+    ).slice(0, 10);
   }
 
   return (
