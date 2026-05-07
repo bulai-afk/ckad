@@ -235,21 +235,24 @@ export type ServiceFolderCardProps = {
  * Поля для карточки раздела на главной и в /services:
  * **Название и описание** — из данных страницы в `/api/pages` (заголовок, краткое описание / summary,
  * при пустом описании — `seoDescription` из настроек страницы).
- * Превью фона — только из настроек папки в `/api/pages/folders`, если папка заведена (`isMetaFolder`)
- * и задано превью; иначе лого (см. HomeServicesFolderCards).
+ * Превью фона — из настроек страницы (`preview`, то же изображение, что используется для meta),
+ * при его отсутствии — из настроек папки в `/api/pages/folders`; иначе лого
+ * (см. HomeServicesFolderCards).
  */
 export function folderCardPropsFromServiceNode(node: ServiceTreeNode): ServiceFolderCardProps {
   const first = node.pages[0];
   const folderPreview = node.preview?.trim() ?? "";
+  const pagePreview = first?.preview?.trim() ?? "";
   const pageTitle =
     first?.title?.trim() || first?.seoTitle?.trim() || "";
   const pageDesc = first?.description?.trim() ?? "";
   const pageSeoDesc = first?.seoDescription?.trim() ?? "";
 
   const description = (pageDesc || pageSeoDesc) || undefined;
-  const fromSettings =
+  const fromPageSettings = sanitizePublicAssetUrl(pagePreview);
+  const fromFolderSettings =
     node.isMetaFolder === true ? sanitizePublicAssetUrl(folderPreview) : "";
-  const preview = fromSettings || undefined;
+  const preview = fromPageSettings || fromFolderSettings || undefined;
 
   const label = pageTitle || node.label?.trim() || node.slugPath;
 

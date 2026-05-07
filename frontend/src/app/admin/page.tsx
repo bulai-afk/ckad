@@ -109,7 +109,7 @@ function humanizeFolderSlugSegment(seg: string): string {
   return capitalizeFirst(seg.replace(/-/g, " "));
 }
 
-async function fileToWebpDataUrl(file: File, quality = 0.6): Promise<string> {
+async function fileToWebpDataUrl(file: File, quality = 0.9): Promise<string> {
   const objectUrl = URL.createObjectURL(file);
   try {
     const img = await new Promise<HTMLImageElement>((resolve, reject) => {
@@ -119,26 +119,56 @@ async function fileToWebpDataUrl(file: File, quality = 0.6): Promise<string> {
       el.src = objectUrl;
     });
 
-    const maxSide = 160;
-    const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
-    const outW = Math.max(1, Math.round(img.width * scale));
-    const outH = Math.max(1, Math.round(img.height * scale));
+    // Храним полноразмерное preview в блоке страницы; это ограничение лишь отсекает совсем огромные payload.
+    const MAX_PREVIEW_DATA_URL_LEN = 4_000_000;
+    let maxSide = 1920;
+    let currentQuality = quality;
 
-    const canvas = document.createElement("canvas");
-    canvas.width = outW;
-    canvas.height = outH;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Canvas недоступен");
-    // На всякий случай гарантируем прозрачный фон (важно для png с альфой).
-    ctx.clearRect(0, 0, outW, outH);
-    ctx.drawImage(img, 0, 0, outW, outH);
+    for (let attempt = 0; attempt < 16; attempt += 1) {
+      const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+      const outW = Math.max(1, Math.round(img.width * scale));
+      const outH = Math.max(1, Math.round(img.height * scale));
 
-    const webp = canvas.toDataURL("image/webp", quality);
-    if (webp.startsWith("data:image/webp")) return webp;
+      const canvas = document.createElement("canvas");
+      canvas.width = outW;
+      canvas.height = outH;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas недоступен");
+      // На всякий случай гарантируем прозрачный фон (важно для png с альфой).
+      ctx.clearRect(0, 0, outW, outH);
+      ctx.drawImage(img, 0, 0, outW, outH);
 
-    // PNG поддерживает прозрачность — это важно для "картинок без фона".
-    const png = canvas.toDataURL("image/png");
-    if (png.startsWith("data:image/png")) return png;
+      const webp = canvas.toDataURL("image/webp", currentQuality);
+      if (webp.startsWith("data:image/webp") && webp.length <= MAX_PREVIEW_DATA_URL_LEN) {
+        return webp;
+      }
+
+      // PNG — только если уже умещается, иначе продолжим сжимать.
+      const png = canvas.toDataURL("image/png");
+      if (png.startsWith("data:image/png") && png.length <= MAX_PREVIEW_DATA_URL_LEN) {
+        return png;
+      }
+
+      maxSide = Math.max(160, Math.floor(maxSide * 0.8));
+      currentQuality = Math.max(0.35, Number((currentQuality - 0.08).toFixed(2)));
+    }
+
+    // Последний fallback: прежний "жёсткий" пресет гарантирует компактный размер.
+    {
+      const fallbackSide = 160;
+      const scale = Math.min(1, fallbackSide / Math.max(img.width, img.height));
+      const outW = Math.max(1, Math.round(img.width * scale));
+      const outH = Math.max(1, Math.round(img.height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = outW;
+      canvas.height = outH;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas недоступен");
+      ctx.clearRect(0, 0, outW, outH);
+      ctx.drawImage(img, 0, 0, outW, outH);
+      const hardFallback = canvas.toDataURL("image/webp", 0.6);
+      if (hardFallback.startsWith("data:image/webp")) return hardFallback;
+    }
 
     throw new Error("Не удалось создать data URL изображения");
   } finally {

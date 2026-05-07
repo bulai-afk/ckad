@@ -318,6 +318,8 @@ ${scope} .page-web-cover[data-cover-aspect="6-1"][data-cover-type="image"],
 ${scope} .page-web-cover[data-cover-type="split"][data-cover-aspect="6-1"] { aspect-ratio: auto; }
 ${scope} .page-web-cover[data-cover-type="split"][data-cover-aspect="1-4"] { aspect-ratio: 1 / 1; }
 ${scope} .page-web-timeline { --timeline-gap: 0.65rem; --timeline-term-col: 4.6rem; gap: var(--timeline-gap); position: relative; }
+${scope} .page-web-timeline[data-timeline-show-term="0"],
+${scope} .page-web-timeline[data-timeline-show-term="false"] { --timeline-term-col: 0rem; }
 ${scope} .page-web-timeline::before {
   content: "";
   position: absolute;

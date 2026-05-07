@@ -224,6 +224,8 @@ ${scope} .page-web-timeline[data-timeline-show-title="0"] .page-web-timeline-tit
 ${scope} .page-web-timeline[data-timeline-show-text="0"] .page-web-timeline-text { display: none !important; }
 @media (max-width: 1205px) {
 ${scope} .page-web-timeline { grid-template-columns: 1fr; --timeline-gap: 0.65rem; --timeline-term-col: 4.6rem; gap: var(--timeline-gap); position: relative; }
+${scope} .page-web-timeline[data-timeline-show-term="0"],
+${scope} .page-web-timeline[data-timeline-show-term="false"] { --timeline-term-col: 0rem; }
 ${scope} .page-web-timeline::before {
   content: "";
   position: absolute;

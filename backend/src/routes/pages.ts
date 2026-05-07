@@ -39,10 +39,19 @@ const PAGE_DESCRIPTION_MAX = 160;
 const PAGE_KEYWORDS_MAX = 400;
 const SEO_TITLE_MAX = 60;
 const SEO_DESCRIPTION_MAX = 160;
+const PAGE_PREVIEW_DB_SAFE_MAX = 60_000;
 
 function sanitizeTextField(value: unknown, max: number): string {
   if (typeof value !== "string") return "";
   return value.trim().slice(0, max);
+}
+
+function sanitizePreviewForDbColumn(value: string): string {
+  const v = value.trim();
+  if (!v) return "";
+  // MySQL TEXT is limited (~64KB). Keep oversized data URLs in `preview` block only.
+  if (v.length > PAGE_PREVIEW_DB_SAFE_MAX) return "";
+  return v;
 }
 
 /** Тип материала в разделе «Новости»: новость или статья (блок article_kind). */
@@ -72,12 +81,12 @@ function mapPagesToListJson(pages: PageListForApi[], preferDbColumns: boolean) {
           ? fromSummary
           : null;
     const preview =
-      preferDbColumns &&
-      typeof p.preview === "string" &&
-      p.preview.trim() !== ""
-        ? p.preview
-        : typeof fromPreview === "string"
-          ? fromPreview
+      typeof fromPreview === "string" && fromPreview.trim() !== ""
+        ? fromPreview
+        : preferDbColumns &&
+            typeof p.preview === "string" &&
+            p.preview.trim() !== ""
+          ? p.preview
           : null;
     const keywords = typeof fromKeywords === "string" ? fromKeywords : null;
     const seoTitle = typeof fromSeoTitle === "string" ? fromSeoTitle : null;
@@ -1518,6 +1527,7 @@ pagesRouter.post("/", async (req, res) => {
     }
     const descriptionValue = sanitizeTextField(description, PAGE_DESCRIPTION_MAX);
     const previewValue = typeof preview === "string" ? preview.trim() : "";
+    const previewDbValue = sanitizePreviewForDbColumn(previewValue);
     const keywordsValue = sanitizeTextField(keywords, PAGE_KEYWORDS_MAX);
     const seoTitleValue = sanitizeTextField(seoTitle, SEO_TITLE_MAX);
     const seoDescriptionValue = sanitizeTextField(seoDescription, SEO_DESCRIPTION_MAX);
@@ -1583,7 +1593,7 @@ pagesRouter.post("/", async (req, res) => {
         data: {
           ...createPayload,
           description: descriptionValue || null,
-          preview: previewValue || null,
+          preview: previewDbValue || null,
         },
         include: { blocks: true },
       });
@@ -1716,6 +1726,7 @@ pagesRouter.put("/:id", async (req, res) => {
 
     const descriptionValue = sanitizeTextField(description, PAGE_DESCRIPTION_MAX);
     const previewValue = typeof preview === "string" ? preview.trim() : "";
+    const previewDbValue = sanitizePreviewForDbColumn(previewValue);
     const keywordsValue = sanitizeTextField(keywords, PAGE_KEYWORDS_MAX);
     const seoTitleValue = sanitizeTextField(seoTitle, SEO_TITLE_MAX);
     const seoDescriptionValue = sanitizeTextField(seoDescription, SEO_DESCRIPTION_MAX);
@@ -1729,7 +1740,7 @@ pagesRouter.put("/:id", async (req, res) => {
           slug: slugValue,
           ...(hasStatus ? { status } : {}),
           ...(hasDescription ? { description: descriptionValue || null } : {}),
-          ...(hasPreview ? { preview: previewValue || null } : {}),
+          ...(hasPreview ? { preview: previewDbValue || null } : {}),
         },
       })
       .catch(async (err) => {

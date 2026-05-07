@@ -81,7 +81,7 @@ export function BannerPreviewReadonly({
 
   if (useImageBanner) {
     const textBlock = (
-      <div className="mx-auto w-full min-w-0 max-w-3xl text-center">
+      <div className="mx-auto w-full min-w-0 max-w-5xl text-center">
         {slide.showAnnouncement !== false ? (
           <div className="hidden sm:mb-6 sm:flex sm:justify-center">
             <div className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs text-slate-600 ring-1 ring-slate-900/10 sm:text-sm">
@@ -112,7 +112,7 @@ export function BannerPreviewReadonly({
           </h1>
         ) : null}
         {slide.showSubtitle ? (
-          <p className="mt-6 text-pretty text-base leading-[1.4] font-medium text-slate-600">
+          <p className="mx-auto mt-6 max-w-4xl text-pretty text-base leading-[1.4] font-medium text-slate-600">
             {slide.subtitle || "Подзаголовок"}
           </p>
         ) : null}

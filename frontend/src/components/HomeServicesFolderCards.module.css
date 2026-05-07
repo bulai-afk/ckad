@@ -456,26 +456,31 @@
   display: block;
   width: 100%;
   max-width: 100%;
-  min-height: 14.5rem;
+  min-height: 0;
   overflow: hidden;
   border-radius: 1rem;
   isolation: isolate;
   box-sizing: border-box;
-  background-color: rgb(15 23 42);
+  background-color: rgb(248 250 252);
+  border: 2px solid rgb(73 109 179 / 0.7);
   box-shadow:
-    0 10px 40px rgba(15, 23, 42, 0.12),
-    0 2px 8px rgba(15, 23, 42, 0.06);
+    inset 0 0 0 1px rgb(73 109 179 / 0.28),
+    0 10px 36px rgba(73, 109, 179, 0.2),
+    0 2px 10px rgba(73, 109, 179, 0.14);
   text-decoration: none;
   color: inherit;
   transition:
+    border-color 0.25s ease,
     box-shadow 0.25s ease,
     transform 0.25s ease;
 }
 
 .cardRootFeatured:hover {
+  border-color: rgb(73 109 179 / 0.95);
   box-shadow:
-    0 20px 50px rgba(73, 109, 179, 0.22),
-    0 8px 24px rgba(15, 23, 42, 0.1);
+    inset 0 0 0 1px rgb(73 109 179 / 0.45),
+    0 16px 42px rgba(73, 109, 179, 0.28),
+    0 8px 20px rgba(73, 109, 179, 0.2);
   transform: translateY(-2px);
 }
 
@@ -486,7 +491,7 @@
 
 .cardRootFeaturedStretch {
   width: 100%;
-  min-height: 14.5rem;
+  min-height: 0;
   height: 100%;
   align-self: stretch;
 }
@@ -498,12 +503,55 @@
   pointer-events: none;
 }
 
+.cardFeaturedBannerMediaFallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgb(248 250 252);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.cardFeaturedBannerMediaFallback .cardFeaturedBannerImgLogo {
+  width: min(72%, 18rem);
+  height: min(72%, 18rem);
+  object-fit: contain;
+  object-position: center;
+  padding: 0;
+  background: transparent;
+}
+
+.cardFeaturedBannerMediaFallback .cardFeaturedBannerImg {
+  opacity: 1;
+}
+
+.cardRootFeatured:hover .cardFeaturedBannerMediaFallback,
+.cardRootFeatured:focus-visible .cardFeaturedBannerMediaFallback {
+  opacity: 1;
+}
+
+.cardRootFeatured:hover .cardFeaturedBannerMediaFallback .cardFeaturedBannerImg,
+.cardRootFeatured:focus-visible .cardFeaturedBannerMediaFallback .cardFeaturedBannerImg {
+  opacity: 1 !important;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .cardRootFeatured:active .cardFeaturedBannerMediaFallback {
+    opacity: 1;
+  }
+
+  .cardRootFeatured:active .cardFeaturedBannerMediaFallback .cardFeaturedBannerImg {
+    opacity: 1 !important;
+  }
+}
+
 .cardFeaturedBannerImg {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
   object-position: center;
+  transition: opacity 0.25s ease;
 }
 
 .cardFeaturedBannerImgLogo {
@@ -522,23 +570,70 @@
   }
 }
 
-.cardFeaturedBannerPanel {
+.cardFeaturedHoverFallback {
   position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgb(248 250 252);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.cardFeaturedHoverFallbackImg {
+  display: block;
+  width: min(72%, 18rem);
+  height: min(72%, 18rem);
+  object-fit: contain;
+  object-position: center;
+}
+
+.cardRootFeatured:hover .cardFeaturedBannerImg,
+.cardRootFeatured:focus-visible .cardFeaturedBannerImg {
+  opacity: 0;
+}
+
+.cardRootFeatured:hover .cardFeaturedHoverFallback,
+.cardRootFeatured:focus-visible .cardFeaturedHoverFallback {
+  opacity: 1;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .cardRootFeatured:active .cardFeaturedBannerImg {
+    opacity: 0;
+  }
+
+  .cardRootFeatured:active .cardFeaturedHoverFallback {
+    opacity: 1;
+  }
+}
+
+.cardFeaturedBannerPanel {
+  position: relative;
   z-index: 2;
-  left: 0;
-  top: 0;
-  bottom: 0;
+  left: auto;
+  top: auto;
+  bottom: auto;
   box-sizing: border-box;
-  width: 52%;
+  width: 100%;
   min-width: 0;
+  min-height: 100%;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
   gap: 0.25rem;
   padding: 1rem 1.1rem 1.05rem;
-  background-color: rgb(0 0 0 / 0.68);
-  backdrop-filter: blur(4px);
-  overflow: hidden;
+  background: linear-gradient(
+    to bottom,
+    rgb(248 250 252 / 0.86) 0%,
+    rgb(241 245 249 / 0.78) 48%,
+    rgb(226 232 240 / 0.72) 100%
+  );
+  backdrop-filter: blur(3px) saturate(1.03);
+  border: 1px solid rgb(73 109 179 / 0.4);
+  overflow: visible;
 }
 
 @media (min-width: 640px) {
@@ -548,29 +643,36 @@
 }
 
 @media (max-width: 639px) {
+  .cardRootFeatured::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background: linear-gradient(
+      to bottom,
+      rgb(248 250 252 / 0.9) 0%,
+      rgb(241 245 249 / 0.84) 100%
+    );
+    backdrop-filter: blur(4px) saturate(1.03);
+  }
+
   .cardFeaturedBannerPanel {
-    left: 0;
-    right: 0;
-    top: auto;
-    bottom: 0;
     width: 100%;
-    height: 50%;
-    min-height: 0;
+    height: auto;
+    min-height: 100%;
     padding: 0.9rem 0.95rem 0.95rem;
     justify-content: flex-start;
-    background-color: rgb(0 0 0 / 0.68);
-    backdrop-filter: blur(6px);
+    background: transparent;
+    backdrop-filter: none;
   }
 }
 
 @media (max-width: 1265px) {
   .cardFeaturedBannerPanel {
-    left: 0;
-    right: 0;
-    top: 0;
-    bottom: 0;
     width: 100%;
-    height: 100%;
+    height: auto;
+    min-height: 100%;
   }
 }
 
@@ -591,8 +693,8 @@
   line-height: 1.4;
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: #fff;
-  text-shadow: 0 1px 3px rgb(0 0 0 / 0.35);
+  color: #496db3;
+  text-shadow: none;
 }
 
 @media (min-width: 640px) {
@@ -606,8 +708,8 @@
   font-size: 1rem;
   line-height: 1.4;
   font-weight: 500;
-  color: rgb(255 255 255 / 0.94);
-  text-shadow: 0 1px 2px rgb(0 0 0 / 0.3);
+  color: rgb(71 85 105 / 1);
+  text-shadow: none;
   white-space: pre-wrap;
   overflow-wrap: break-word;
   word-break: break-word;
@@ -637,27 +739,29 @@
   justify-content: center;
   box-sizing: border-box;
   margin-top: auto;
-  padding: 0.5rem 1.25rem;
-  border: 1px solid rgb(255 255 255 / 0.92);
-  border-radius: 0.5rem;
-  font-size: 0.8125rem;
+  min-height: 2.5rem;
+  padding: 0 1rem;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
   font-weight: 600;
   line-height: 1.25;
   color: #fff;
-  background: transparent;
+  background-color: #496db3;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
   transition:
-    border-color 0.2s ease,
+    box-shadow 0.2s ease,
     background-color 0.2s ease;
 }
 
 @media (min-width: 640px) {
   .cardFeaturedCtaGhost {
     font-size: 0.875rem;
-    padding: 0.55rem 1.4rem;
+    padding: 0 1rem;
   }
 }
 
 .cardRootFeatured:hover .cardFeaturedCtaGhost {
-  border-color: #fff;
-  background-color: rgb(255 255 255 / 0.08);
+  background-color: #3f5f9d;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.18);
 }

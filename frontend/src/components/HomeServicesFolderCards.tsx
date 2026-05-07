@@ -48,6 +48,7 @@ const CARD_SELECTOR = "[data-service-folder-card]";
 function FolderCard({
   c,
   displaySrc,
+  fallbackSrc,
   isLogoFallback,
   ctaLabel,
   equalHeight,
@@ -58,6 +59,7 @@ function FolderCard({
 }: {
   c: HomeServicesFolderCard;
   displaySrc: string;
+  fallbackSrc: string;
   isLogoFallback: boolean;
   ctaLabel: string;
   equalHeight: boolean;
@@ -77,13 +79,26 @@ function FolderCard({
         className={`${styles.cardRootFeatured} ${equalHeight ? styles.cardRootFeaturedStretch : ""}`}
         aria-label={`${c.label}. ${ctaLabel}`}
       >
-        <div className={styles.cardFeaturedBannerMedia} aria-hidden>
+        <div
+          className={`${styles.cardFeaturedBannerMedia} ${isLogoFallback ? styles.cardFeaturedBannerMediaFallback : ""}`.trim()}
+          aria-hidden
+        >
           <img
             src={displaySrc}
             alt=""
             className={`${styles.cardFeaturedBannerImg} ${isLogoFallback ? styles.cardFeaturedBannerImgLogo : ""}`}
             decoding="async"
           />
+          {!isLogoFallback ? (
+            <div className={styles.cardFeaturedHoverFallback}>
+              <img
+                src={fallbackSrc}
+                alt=""
+                className={styles.cardFeaturedHoverFallbackImg}
+                decoding="async"
+              />
+            </div>
+          ) : null}
           {c.articleKind ? (
             <span className="pointer-events-none absolute left-3 top-3 z-[5] rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#496db3] shadow-sm ring-1 ring-slate-200/90">
               {c.articleKind === "article" ? "Статья" : "Новость"}
@@ -266,6 +281,7 @@ export function HomeServicesFolderCards({
             <FolderCard
               c={c}
               displaySrc={displaySrc}
+              fallbackSrc={fallbackPreviewSrc}
               isLogoFallback={isLogoFallback}
               ctaLabel={ctaLabel}
               equalHeight={equalHeight}
