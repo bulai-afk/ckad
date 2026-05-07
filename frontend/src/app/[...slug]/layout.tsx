@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
 
@@ -50,13 +51,14 @@ async function getSiteOrigin(): Promise<string> {
   return `${proto}://${host}`;
 }
 
-export default async function Head({
+export async function generateMetadata({
   params,
 }: {
-  params: { slug?: string[] };
-}) {
-  const slugParts = Array.isArray(params.slug) ? params.slug : [];
-  if (slugParts.length === 0) return null;
+  params: Promise<{ slug?: string[] }>;
+}): Promise<Metadata> {
+  const resolvedParams = await params;
+  const slugParts = Array.isArray(resolvedParams.slug) ? resolvedParams.slug : [];
+  if (slugParts.length === 0) return {};
 
   const path = slugParts.map((s) => encodeURIComponent(s)).join("/");
   const base = apiBaseUrl();
@@ -73,7 +75,7 @@ export default async function Head({
   } catch {
     page = null;
   }
-  if (!page) return null;
+  if (!page) return {};
 
   const seoTitle = getBlockText(page, "seo_title") || (page.seoTitle || "").trim() || page.title;
   const seoDescription =
@@ -86,21 +88,31 @@ export default async function Head({
   const canonicalUrl = toAbsoluteUrl(canonicalPath, origin);
   const imageUrl = toAbsoluteUrl(getPreviewImage(page), origin);
 
-  return (
-    <>
-      <title>{seoTitle}</title>
-      {seoDescription ? <meta name="description" content={seoDescription} /> : null}
-      {seoKeywords ? <meta name="keywords" content={seoKeywords} /> : null}
-      {canonicalUrl ? <link rel="canonical" href={canonicalUrl} /> : null}
-      <meta property="og:type" content="website" />
-      <meta property="og:title" content={seoTitle} />
-      {seoDescription ? <meta property="og:description" content={seoDescription} /> : null}
-      {canonicalUrl ? <meta property="og:url" content={canonicalUrl} /> : null}
-      {imageUrl ? <meta property="og:image" content={imageUrl} /> : null}
-      <meta name="twitter:card" content={imageUrl ? "summary_large_image" : "summary"} />
-      <meta name="twitter:title" content={seoTitle} />
-      {seoDescription ? <meta name="twitter:description" content={seoDescription} /> : null}
-      {imageUrl ? <meta name="twitter:image" content={imageUrl} /> : null}
-    </>
-  );
+  return {
+    title: seoTitle,
+    description: seoDescription || undefined,
+    keywords: seoKeywords || undefined,
+    alternates: canonicalUrl
+      ? {
+          canonical: canonicalUrl,
+        }
+      : undefined,
+    openGraph: {
+      type: "website",
+      title: seoTitle,
+      description: seoDescription || undefined,
+      url: canonicalUrl || undefined,
+      images: imageUrl ? [{ url: imageUrl }] : undefined,
+    },
+    twitter: {
+      card: imageUrl ? "summary_large_image" : "summary",
+      title: seoTitle,
+      description: seoDescription || undefined,
+      images: imageUrl ? [imageUrl] : undefined,
+    },
+  };
+}
+
+export default function SlugLayout({ children }: { children: React.ReactNode }) {
+  return children;
 }
