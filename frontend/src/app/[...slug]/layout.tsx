@@ -38,7 +38,7 @@ function getPreviewImage(page: PageData | null): string {
 
 function toAbsoluteUrl(url: string, origin: string): string {
   if (!url) return "";
-  if (/^https?:\/\//i.test(url)) return url;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(url)) return url;
   if (!origin) return url;
   return `${origin}${url.startsWith("/") ? url : `/${url}`}`;
 }

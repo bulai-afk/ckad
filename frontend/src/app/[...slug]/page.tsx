@@ -264,7 +264,7 @@ export default function Page() {
     const previousOgType = ogTypeMeta.getAttribute("content");
     const previousCanonical = canonicalLink.getAttribute("href");
     const resolvedSeoImage = seoImage
-      ? (seoImage.startsWith("http://") || seoImage.startsWith("https://")
+      ? (/^[a-z][a-z0-9+.-]*:/i.test(seoImage)
           ? seoImage
           : `${window.location.origin}${seoImage.startsWith("/") ? seoImage : `/${seoImage}`}`)
       : "";
