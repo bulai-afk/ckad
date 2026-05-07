@@ -535,16 +535,6 @@
   opacity: 1 !important;
 }
 
-@media (hover: none) and (pointer: coarse) {
-  .cardRootFeatured:active .cardFeaturedBannerMediaFallback {
-    opacity: 1;
-  }
-
-  .cardRootFeatured:active .cardFeaturedBannerMediaFallback .cardFeaturedBannerImg {
-    opacity: 1 !important;
-  }
-}
-
 .cardFeaturedBannerImg {
   display: block;
   width: 100%;
@@ -601,12 +591,29 @@
 }
 
 @media (hover: none) and (pointer: coarse) {
-  .cardRootFeatured:active .cardFeaturedBannerImg {
+  .cardFeaturedBannerImg,
+  .cardFeaturedHoverFallback,
+  .cardFeaturedBannerMediaFallback {
+    transition: none;
+  }
+
+  .cardRootFeatured:hover {
+    transform: none;
+  }
+
+  .cardRootFeatured:hover .cardFeaturedBannerMediaFallback,
+  .cardRootFeatured:focus-visible .cardFeaturedBannerMediaFallback {
     opacity: 0;
   }
 
-  .cardRootFeatured:active .cardFeaturedHoverFallback {
+  .cardRootFeatured:hover .cardFeaturedBannerImg,
+  .cardRootFeatured:focus-visible .cardFeaturedBannerImg {
     opacity: 1;
+  }
+
+  .cardRootFeatured:hover .cardFeaturedHoverFallback,
+  .cardRootFeatured:focus-visible .cardFeaturedHoverFallback {
+    opacity: 0;
   }
 }
 

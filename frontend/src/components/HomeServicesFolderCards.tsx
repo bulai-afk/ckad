@@ -209,6 +209,20 @@ export function HomeServicesFolderCards({
     .slice(0, limit);
 
   const [touchActiveSlug, setTouchActiveSlug] = useState<string | null>(null);
+  const [isCoarsePointer, setIsCoarsePointer] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia("(hover: none) and (pointer: coarse)");
+    const sync = () => setIsCoarsePointer(mq.matches);
+    sync();
+    if (typeof mq.addEventListener === "function") {
+      mq.addEventListener("change", sync);
+      return () => mq.removeEventListener("change", sync);
+    }
+    mq.addListener(sync);
+    return () => mq.removeListener(sync);
+  }, []);
 
   useEffect(() => {
     const onDocPointerDown = (e: PointerEvent) => {
@@ -244,6 +258,7 @@ export function HomeServicesFolderCards({
     syncHeightsToTallest &&
     equalHeight &&
     !embedInCarousel &&
+    !isCoarsePointer &&
     items.length > 1;
 
   useEqualizeFolderCardSlots(containerRef, runEqualizeSlots, itemsKey);
