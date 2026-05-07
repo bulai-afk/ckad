@@ -344,6 +344,18 @@ ${scope} .page-web-timeline[data-timeline-show-term="off" i] .page-web-timeline-
 ${scope} .page-web-timeline-item[data-timeline-show-term="0"],
 ${scope} .page-web-timeline-item[data-timeline-show-term="false" i],
 ${scope} .page-web-timeline-item[data-timeline-show-term="off" i] { grid-template-columns: 0 1.9rem minmax(0, 1fr); }
+${scope} .page-web-timeline[data-timeline-show-term="0"]::before,
+${scope} .page-web-timeline[data-timeline-show-term="false" i]::before,
+${scope} .page-web-timeline[data-timeline-show-term="off" i]::before { left: var(--timeline-line-left, 0.85rem); }
+${scope} .page-web-timeline[data-timeline-show-term="0"] .page-web-timeline-item,
+${scope} .page-web-timeline[data-timeline-show-term="false" i] .page-web-timeline-item,
+${scope} .page-web-timeline[data-timeline-show-term="off" i] .page-web-timeline-item { grid-template-columns: minmax(0, 1fr); padding-left: 1.7rem; }
+${scope} .page-web-timeline[data-timeline-show-term="0"] .page-web-timeline-dot,
+${scope} .page-web-timeline[data-timeline-show-term="false" i] .page-web-timeline-dot,
+${scope} .page-web-timeline[data-timeline-show-term="off" i] .page-web-timeline-dot { grid-column: 1; justify-self: start; margin-left: -1.28rem; }
+${scope} .page-web-timeline[data-timeline-show-term="0"] .page-web-timeline-content,
+${scope} .page-web-timeline[data-timeline-show-term="false" i] .page-web-timeline-content,
+${scope} .page-web-timeline[data-timeline-show-term="off" i] .page-web-timeline-content { grid-column: 1; }
 ${scope} .page-web-timeline-item::before,
 ${scope} .page-web-timeline-item::after { content: none; display: none; }
 ${scope} .page-web-timeline-item:not(:last-of-type)::before,
@@ -366,6 +378,18 @@ ${scope} .page-web-timeline[data-timeline-show-term="off" i] .page-web-timeline-
 ${scope} .page-web-timeline-item[data-timeline-show-term="0"],
 ${scope} .page-web-timeline-item[data-timeline-show-term="false" i],
 ${scope} .page-web-timeline-item[data-timeline-show-term="off" i] { grid-template-columns: 0 1.5rem minmax(0, 1fr); }
+${scope} .page-web-timeline[data-timeline-show-term="0"]::before,
+${scope} .page-web-timeline[data-timeline-show-term="false" i]::before,
+${scope} .page-web-timeline[data-timeline-show-term="off" i]::before { left: var(--timeline-line-left, 0.75rem); }
+${scope} .page-web-timeline[data-timeline-show-term="0"] .page-web-timeline-item,
+${scope} .page-web-timeline[data-timeline-show-term="false" i] .page-web-timeline-item,
+${scope} .page-web-timeline[data-timeline-show-term="off" i] .page-web-timeline-item { grid-template-columns: minmax(0, 1fr); padding-left: 1.55rem; }
+${scope} .page-web-timeline[data-timeline-show-term="0"] .page-web-timeline-dot,
+${scope} .page-web-timeline[data-timeline-show-term="false" i] .page-web-timeline-dot,
+${scope} .page-web-timeline[data-timeline-show-term="off" i] .page-web-timeline-dot { grid-column: 1; justify-self: start; margin-left: -1.18rem; }
+${scope} .page-web-timeline[data-timeline-show-term="0"] .page-web-timeline-content,
+${scope} .page-web-timeline[data-timeline-show-term="false" i] .page-web-timeline-content,
+${scope} .page-web-timeline[data-timeline-show-term="off" i] .page-web-timeline-content { grid-column: 1; }
 }
 ${scope} .page-web-cover[data-cover-type="split"] .page-web-cover-inner { width: 100%; padding-right: clamp(1rem, 4vw, 1.5rem); }
 ${scope} .page-web-cover[data-cover-type="split"]::before { background: linear-gradient(180deg, rgba(248,250,252,0.06) 0%, rgba(248,250,252,0.28) 48%, rgba(248,250,252,0.52) 100%); }
