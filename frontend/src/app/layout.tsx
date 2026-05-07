@@ -1,15 +1,12 @@
 import type { Metadata } from "next";
 import { Exo_2 } from "next/font/google";
 import { cookies } from "next/headers";
-import { Suspense } from "react";
-import { CookieConsentBanner } from "@/components/CookieConsentBanner";
-import { GlobalFeedbackForm } from "@/components/GlobalFeedbackForm";
 import { PreventHorizontalPageScroll } from "@/components/PreventHorizontalPageScroll";
 import { SiteFooter } from "@/components/SiteFooter";
+import { GlobalFeedbackForm } from "@/components/GlobalFeedbackForm";
 import { SiteNavbar } from "@/components/SiteNavbar";
 import { SiteMainColumn } from "@/components/SiteMainColumn";
-import { ScrollToTop } from "@/components/ScrollToTop";
-import { ViewportHeightSync } from "@/components/ViewportHeightSync";
+import { LayoutClientEnhancements } from "@/components/LayoutClientEnhancements";
 import { NAV_FOLDERS_COOKIE_NAME, parseNavFoldersCookie } from "@/lib/navFoldersCookie";
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
 import { normalizePageDisplayOrderMap, type PageDisplayOrderMap } from "@/lib/pageDisplayOrder";
@@ -115,10 +112,7 @@ export default async function RootLayout({
         style={{ backgroundColor: "#f3f4f6", color: "#020617" }}
       >
         <PreventHorizontalPageScroll />
-        <Suspense fallback={null}>
-          <ScrollToTop />
-        </Suspense>
-        <ViewportHeightSync />
+        <LayoutClientEnhancements />
         <SiteNavbar
           initialFolderNavItems={initialFolderNavItems}
           siteSettings={siteSettings}
@@ -135,7 +129,6 @@ export default async function RootLayout({
             initialOrderBySection={navOrderBySection}
           />
         </SiteMainColumn>
-        <CookieConsentBanner />
       </body>
     </html>
   );
