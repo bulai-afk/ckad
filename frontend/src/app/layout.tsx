@@ -12,6 +12,7 @@ import { ScrollToTop } from "@/components/ScrollToTop";
 import { ViewportHeightSync } from "@/components/ViewportHeightSync";
 import { NAV_FOLDERS_COOKIE_NAME, parseNavFoldersCookie } from "@/lib/navFoldersCookie";
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
+import { normalizePageDisplayOrderMap, type PageDisplayOrderMap } from "@/lib/pageDisplayOrder";
 import "./globals.css";
 
 export const dynamic = "force-dynamic";
@@ -57,6 +58,12 @@ type SiteSettings = {
   topRibbonMessages?: string[];
 };
 
+type PageSummary = {
+  title: string;
+  slug: string;
+  status: string;
+};
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -68,17 +75,34 @@ export default async function RootLayout({
   );
 
   let siteSettings: SiteSettings | null = null;
+  let navPages: PageSummary[] = [];
+  let navOrderBySection: PageDisplayOrderMap = {};
   const base = apiBaseUrl();
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10_000);
-    const res = await fetch(`${base}/api/pages/site-settings`, {
-      cache: "no-store",
-      signal: controller.signal,
-    }).finally(() => clearTimeout(timeoutId));
-    if (res.ok) {
-      const data = (await res.json()) as { settings?: SiteSettings };
-      if (data?.settings) siteSettings = data.settings;
+    const fetchNoStoreJson = async <T,>(path: string, timeoutMs: number): Promise<T> => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const res = await fetch(`${base}${path}`, { cache: "no-store", signal: controller.signal });
+        if (!res.ok) throw new Error(`GET ${path} failed with ${res.status}`);
+        return (await res.json()) as T;
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    };
+    const [settingsRes, pagesRes, orderRes] = await Promise.allSettled([
+      fetchNoStoreJson<{ settings?: SiteSettings }>("/api/pages/site-settings", 10_000),
+      fetchNoStoreJson<PageSummary[]>("/api/pages", 10_000),
+      fetchNoStoreJson<{ orderBySection?: unknown }>("/api/pages/display-order", 10_000),
+    ]);
+    if (settingsRes.status === "fulfilled" && settingsRes.value?.settings) {
+      siteSettings = settingsRes.value.settings;
+    }
+    if (pagesRes.status === "fulfilled" && Array.isArray(pagesRes.value)) {
+      navPages = pagesRes.value;
+    }
+    if (orderRes.status === "fulfilled") {
+      navOrderBySection = normalizePageDisplayOrderMap(orderRes.value?.orderBySection);
     }
   } catch {
     siteSettings = null;
@@ -95,12 +119,21 @@ export default async function RootLayout({
           <ScrollToTop />
         </Suspense>
         <ViewportHeightSync />
-        <SiteNavbar initialFolderNavItems={initialFolderNavItems} siteSettings={siteSettings} />
+        <SiteNavbar
+          initialFolderNavItems={initialFolderNavItems}
+          siteSettings={siteSettings}
+          initialPages={navPages}
+          initialOrderBySection={navOrderBySection}
+        />
         {/* overflow-x-hidden здесь, не на body — иначе sticky-шапка не прилипает к viewport (clip в старых WebKit давал артефакты). */}
         <SiteMainColumn>
           <div className="flex w-full min-h-0 flex-col">{children}</div>
           <GlobalFeedbackForm />
-          <SiteFooter siteSettings={siteSettings} />
+          <SiteFooter
+            siteSettings={siteSettings}
+            initialPages={navPages}
+            initialOrderBySection={navOrderBySection}
+          />
         </SiteMainColumn>
         <CookieConsentBanner />
       </body>

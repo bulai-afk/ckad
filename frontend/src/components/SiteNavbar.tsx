@@ -99,6 +99,8 @@ function buildSectionLinks(
 
 type SiteNavbarProps = {
   initialFolderNavItems?: FolderNavItem[];
+  initialPages?: PageSummary[];
+  initialOrderBySection?: PageDisplayOrderMap;
   siteSettings?: {
     phone?: string;
     email?: string;
@@ -125,11 +127,17 @@ function buildFallbackSectionLinks(items: FolderNavItem[], rootSlug: string): Na
   return links;
 }
 
-export function SiteNavbar({ siteSettings, initialFolderNavItems = [] }: SiteNavbarProps) {
+export function SiteNavbar({
+  siteSettings,
+  initialFolderNavItems = [],
+  initialPages = [],
+  initialOrderBySection = {},
+}: SiteNavbarProps) {
   const pathname = usePathname();
-  const [pages, setPages] = useState<PageSummary[] | null>(null);
-  const [isNavPagesLoaded, setIsNavPagesLoaded] = useState(false);
-  const [orderBySection, setOrderBySection] = useState<PageDisplayOrderMap>({});
+  const hasServerNavData = initialPages.length > 0;
+  const [pages, setPages] = useState<PageSummary[] | null>(hasServerNavData ? initialPages : null);
+  const [isNavPagesLoaded, setIsNavPagesLoaded] = useState(hasServerNavData);
+  const [orderBySection, setOrderBySection] = useState<PageDisplayOrderMap>(initialOrderBySection);
   const [topBannerIndex, setTopBannerIndex] = useState(0);
   const [isTopBannerFlipping, setIsTopBannerFlipping] = useState(false);
   const [callbackModalOpen, setCallbackModalOpen] = useState(false);
@@ -147,6 +155,7 @@ export function SiteNavbar({ siteSettings, initialFolderNavItems = [] }: SiteNav
   const flipResetTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
+    if (hasServerNavData) return;
     let alive = true;
     void (async () => {
       try {
@@ -179,7 +188,7 @@ export function SiteNavbar({ siteSettings, initialFolderNavItems = [] }: SiteNav
     return () => {
       alive = false;
     };
-  }, []);
+  }, [hasServerNavData]);
 
   useEffect(() => {
     const t = window.setInterval(() => {

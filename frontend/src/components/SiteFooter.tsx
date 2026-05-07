@@ -211,15 +211,27 @@ function dataUrlToUint8Array(dataUrl: string): Uint8Array {
   return bytes;
 }
 
-export function SiteFooter({ siteSettings }: { siteSettings?: SiteSettings | null }) {
+export function SiteFooter({
+  siteSettings,
+  initialPages = [],
+  initialOrderBySection = {},
+}: {
+  siteSettings?: SiteSettings | null;
+  initialPages?: FooterPageRow[];
+  initialOrderBySection?: PageDisplayOrderMap;
+}) {
   const pathname = usePathname();
   const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([]);
   const previewViewportRef = useRef<HTMLDivElement>(null);
+  const initialPageRows = initialPages.filter((row) => typeof row?.slug === "string" && row.slug.trim() !== "");
+  const initialCatalogLinks = buildFooterSectionLinks(initialPageRows, CATALOG_ROOT, initialOrderBySection);
+  const initialTrainingLinks = buildFooterSectionLinks(initialPageRows, TRAINING_ROOT, initialOrderBySection);
+  const hasServerFooterNavData = initialPageRows.length > 0;
   const [catalogItems, setCatalogItems] = useState<{ href: string; label: string }[]>(() =>
-    toNavItems(FALLBACK_CATALOG_LINKS),
+    initialCatalogLinks.length > 0 ? initialCatalogLinks : toNavItems(FALLBACK_CATALOG_LINKS),
   );
   const [trainingItems, setTrainingItems] = useState<{ href: string; label: string }[]>(() =>
-    toNavItems(FALLBACK_TRAINING_LINKS),
+    initialTrainingLinks.length > 0 ? initialTrainingLinks : toNavItems(FALLBACK_TRAINING_LINKS),
   );
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [pdfLoadState, setPdfLoadState] = useState<"idle" | "loading" | "error" | "ready">("idle");
@@ -229,6 +241,7 @@ export function SiteFooter({ siteSettings }: { siteSettings?: SiteSettings | nul
 
   useEffect(() => {
     if (hidden) return;
+    if (hasServerFooterNavData) return;
     let cancelled = false;
 
     void Promise.all([
@@ -266,7 +279,7 @@ export function SiteFooter({ siteSettings }: { siteSettings?: SiteSettings | nul
     return () => {
       cancelled = true;
     };
-  }, [hidden]);
+  }, [hidden, hasServerFooterNavData]);
 
   const year = new Date().getFullYear();
   const email = (siteSettings?.email || "").trim() || "info@центр-каталогизации.рф";
