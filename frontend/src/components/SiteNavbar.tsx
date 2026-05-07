@@ -272,6 +272,7 @@ export function SiteNavbar({
           <div className="flex min-w-0 shrink-0 items-center">
             <Link
               href="/"
+              prefetch
               className="-m-1 flex w-full max-w-full cursor-pointer touch-manipulation select-none items-center p-1"
               style={{ WebkitTapHighlightColor: "transparent" }}
             >
@@ -393,6 +394,7 @@ export function SiteNavbar({
                 <div className="flex items-center justify-between">
                   <Link
                     href="/"
+                    prefetch
                     onClick={closeMobileMenu}
                     className="-m-1.5 cursor-pointer touch-manipulation select-none p-1.5"
                     style={{ WebkitTapHighlightColor: "transparent" }}

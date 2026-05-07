@@ -1,0 +1,145 @@
+name: Deploy Frontend to Selectel
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/deploy-frontend.yml"
+
+concurrency:
+  group: deploy-frontend-main
+  cancel-in-progress: true
+
+jobs:
+  build-frontend:
+    name: CI — frontend (install, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Frontend — npm ci
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+
+      - name: Frontend — Next.js build
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          npm run build
+
+  deploy-frontend:
+    name: Deploy frontend — rsync + build + restart
+    needs: [build-frontend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      DEPLOY_APP_ROOT: ${{ vars.DEPLOY_APP_ROOT }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Validate secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${{ secrets.DEPLOY_HOST }}" ]; then
+            echo "::error title=Missing secret::DEPLOY_HOST is not set in repo secrets"
+            exit 1
+          fi
+          if [ -z "${{ secrets.DEPLOY_USER }}" ]; then
+            echo "::error title=Missing secret::DEPLOY_USER is not set in repo secrets"
+            exit 1
+          fi
+          if [ -z "${{ secrets.DEPLOY_SSH_KEY }}" ]; then
+            echo "::error title=Missing secret::DEPLOY_SSH_KEY is not set in repo secrets"
+            exit 1
+          fi
+
+      - name: Setup SSH key
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+          printf "\nHost *\n  StrictHostKeyChecking yes\n  IdentityFile ~/.ssh/id_ed25519\n" >> ~/.ssh/config
+
+      - name: Rsync — frontend code to server
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="${DEPLOY_APP_ROOT:-/opt/ckad/current}"
+          echo "::notice::Deploy frontend path (APP)=$APP"
+          ssh "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" "mkdir -p \"${APP}/frontend\""
+          rsync -az --delete \
+            --exclude ".env" \
+            --exclude ".env.*" \
+            --exclude "node_modules" \
+            --exclude ".next" \
+            ./frontend/ "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${APP}/frontend/"
+
+      - name: SSH — ensure swap
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" "set -euo pipefail
+            if ! swapon --show | grep -q '/swapfile'; then
+              echo '[deploy] no swapfile, creating 4G swap...'
+              fallocate -l 4G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=4096
+              chmod 600 /swapfile
+              mkswap /swapfile
+              swapon /swapfile
+              grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+            fi
+            echo '[deploy] swap OK'
+          "
+
+      - name: SSH — frontend build and restart
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="${DEPLOY_APP_ROOT:-/opt/ckad/current}"
+          ssh "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" "set -euo pipefail
+            ROOT=\"$APP\"
+            cd \"\$ROOT/frontend\"
+            npm ci --no-audit --no-fund
+            npm run build
+            systemctl restart ckad-frontend
+            systemctl --no-pager -l status ckad-frontend
+          "
+
+      - name: Health check — site
+        shell: bash
+        env:
+          SITE_URL: ${{ secrets.DEPLOY_SITE_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SITE_URL:-}" ]; then
+            echo "::warning::DEPLOY_SITE_URL is not set — skipping health check."
+            exit 0
+          fi
+          BASE="${SITE_URL%/}"
+          for attempt in $(seq 1 15); do
+            if curl -fsS --max-time 30 -o /dev/null -w '' "$BASE/"; then
+              echo "OK $BASE/"
+              exit 0
+            fi
+            echo "Health check attempt $attempt/15 failed for $BASE/, retrying in 5s..."
+            sleep 5
+          done
+          echo "::error::Health check failed after 15 attempts: $BASE/"
+          exit 1
