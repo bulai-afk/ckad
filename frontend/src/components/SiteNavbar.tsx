@@ -31,18 +31,6 @@ const NAV_OTHER_SERVICES_HREF = "/other-services";
 const NAV_NEWS_HREF = "/articles";
 const NAV_ABOUT_HREF = "/about";
 
-const FALLBACK_CATALOG_LINKS: NavLinkItem[] = [
-  { href: "#", label: "Систематизация данных" },
-  { href: "#", label: "Паспортизация объектов" },
-  { href: "#", label: "Архив и реестры" },
-];
-
-const FALLBACK_TRAINING_LINKS: NavLinkItem[] = [
-  { href: "#", label: "Курсы и программы" },
-  { href: "#", label: "Расписание" },
-  { href: "#", label: "Сертификация" },
-];
-
 const TOP_BANNER_MESSAGES = [
   "Получите консультацию по каталогизации и обучению.",
   "Сопровождаем проекты от заявки до финального согласования.",
@@ -120,6 +108,7 @@ type SiteNavbarProps = {
 export function SiteNavbar({ siteSettings }: SiteNavbarProps) {
   const pathname = usePathname();
   const [pages, setPages] = useState<PageSummary[] | null>(null);
+  const [isNavPagesLoaded, setIsNavPagesLoaded] = useState(false);
   const [orderBySection, setOrderBySection] = useState<PageDisplayOrderMap>({});
   const [topBannerIndex, setTopBannerIndex] = useState(0);
   const [isTopBannerFlipping, setIsTopBannerFlipping] = useState(false);
@@ -162,6 +151,9 @@ export function SiteNavbar({ siteSettings }: SiteNavbarProps) {
         if (!alive) return;
         setPages([]);
         setOrderBySection({});
+      } finally {
+        if (!alive) return;
+        setIsNavPagesLoaded(true);
       }
     })();
     return () => {
@@ -196,16 +188,16 @@ export function SiteNavbar({ siteSettings }: SiteNavbarProps) {
   }, [pathname]);
 
   const catalogLinks = useMemo(() => {
-    if (!pages) return FALLBACK_CATALOG_LINKS;
+    if (!isNavPagesLoaded || !pages) return [];
     const dynamic = buildSectionLinks(pages, CATALOG_ROOT, orderBySection);
-    return dynamic.length > 0 ? dynamic : FALLBACK_CATALOG_LINKS;
-  }, [pages, orderBySection]);
+    return dynamic;
+  }, [isNavPagesLoaded, pages, orderBySection]);
 
   const trainingLinks = useMemo(() => {
-    if (!pages) return FALLBACK_TRAINING_LINKS;
+    if (!isNavPagesLoaded || !pages) return [];
     const dynamic = buildSectionLinks(pages, TRAINING_ROOT, orderBySection);
-    return dynamic.length > 0 ? dynamic : FALLBACK_TRAINING_LINKS;
-  }, [pages, orderBySection]);
+    return dynamic;
+  }, [isNavPagesLoaded, pages, orderBySection]);
 
   function closeMobileMenu() {
     if (typeof document === "undefined") return;
@@ -225,7 +217,7 @@ export function SiteNavbar({ siteSettings }: SiteNavbarProps) {
       <Script
         src="https://cdn.jsdelivr.net/npm/@tailwindplus/elements@1"
         type="module"
-        strategy="lazyOnload"
+        strategy="afterInteractive"
       />
       <header className="fixed top-0 right-0 left-0 z-50">
         <div className="flex h-7 items-center justify-center bg-[#496db3] px-6 text-white shadow-sm ring-1 ring-[#3f5f9d]/60 sm:px-3.5">
