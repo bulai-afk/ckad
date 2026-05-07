@@ -119,6 +119,21 @@ export function ensureCoverBgLayers(root: ParentNode): void {
       }
     });
 
+    // Если в таймлайне нет заполненных сроков, принудительно отключаем колонку сроков на mobile.
+    // Это защищает от кейса, когда шаблон/контент отрисован без текста term:
+    // колонка для сроков остаётся, но визуально пустая и сдвигает карточки вправо.
+    const hasVisibleTermText = items.some((item) => {
+      const term = item.querySelector(":scope > .page-web-timeline-term");
+      if (!term) return false;
+      const hiddenByItemAttr =
+        (item.getAttribute("data-timeline-show-term") || "").trim() === "0";
+      if (hiddenByItemAttr) return false;
+      return (term.textContent || "").trim().length > 0;
+    });
+    if (!hasVisibleTermText && rawShowTerm === "") {
+      timeline.setAttribute("data-timeline-show-term", "0");
+    }
+
     // Общая линия таймлайна должна идти строго от первой точки до последней
     // (горизонтально на desktop, вертикально на mobile — через CSS).
     const dots = Array.from(timeline.querySelectorAll(":scope .page-web-timeline-dot")) as HTMLElement[];
