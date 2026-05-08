@@ -352,12 +352,12 @@ export function SiteFooter({
     if (typeof w.requestIdleCallback === "function") {
       w.requestIdleCallback(run);
     } else {
-      timeoutId = window.setTimeout(run, 1200);
+      timeoutId = globalThis.setTimeout(run, 1200);
     }
 
     return () => {
       cancelled = true;
-      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+      if (timeoutId !== undefined) globalThis.clearTimeout(timeoutId);
     };
   }, [hidden, footerDocuments.length]);
 
