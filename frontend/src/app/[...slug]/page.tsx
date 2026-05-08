@@ -1,14 +1,6 @@
-"use client";
-
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "next/navigation";
-import { PublicCarouselViewportSync } from "@/components/PublicCarouselViewportSync";
-import { HomeServicesFolderCards } from "@/components/HomeServicesFolderCards";
+import type { Metadata } from "next";
 import { apiGet } from "@/lib/api";
 import { apiPagesSlugRequestPath } from "@/lib/apiPagesSlugUrl";
-import { getSharedWebBlocksCss } from "@/lib/sharedWebBlocksCss";
-import { ensureCoverBgLayers, getPageShowRenderCss, getTimelineRenderCss, getWorkPricingRenderCss } from "@/lib/pageShowRender";
-import { CallbackRequestModal } from "@/components/CallbackRequestModal";
 import {
   buildServicesTree,
   findServiceTreeNode,
@@ -18,62 +10,13 @@ import {
   type ServiceListItem,
   type ServiceTreeNode,
 } from "@/lib/serviceTree";
-import Link from "next/link";
-import { ChevronRightIcon, HomeIcon } from "@heroicons/react/20/solid";
+import {
+  PageSlugClient,
+  type PageData,
+} from "@/components/PageSlugClient";
 
-const PUBLIC_LIST_MARKER_SVG = {
-  disc: encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="white"><circle cx="10" cy="10" r="3.5"/></svg>'),
-  circle: encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" stroke="white" stroke-width="2"><circle cx="10" cy="10" r="3.5"/></svg>'),
-  square: encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="white"><path d="M5.25 3A2.25 2.25 0 0 0 3 5.25v9.5A2.25 2.25 0 0 0 5.25 17h9.5A2.25 2.25 0 0 0 17 14.75v-9.5A2.25 2.25 0 0 0 14.75 3h-9.5Z"/></svg>'),
-  check: encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="white"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd"/></svg>'),
-  "check-circle": encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="white"><path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z" clip-rule="evenodd"/></svg>'),
-  dash: encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="white"><path fill-rule="evenodd" d="M4 10a.75.75 0 0 1 .75-.75h10.5a.75.75 0 0 1 0 1.5H4.75A.75.75 0 0 1 4 10Z" clip-rule="evenodd"/></svg>'),
-  arrow: encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="white"><path fill-rule="evenodd" d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/></svg>'),
-  "arrow-right": encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="white"><path fill-rule="evenodd" d="M3 10a.75.75 0 0 1 .75-.75h10.638L10.23 5.29a.75.75 0 1 1 1.04-1.08l5.5 5.25a.75.75 0 0 1 0 1.08l-5.5 5.25a.75.75 0 1 1-1.04-1.08l4.158-3.96H3.75A.75.75 0 0 1 3 10Z" clip-rule="evenodd"/></svg>'),
-  star: encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="white"><path fill-rule="evenodd" d="M10.868 2.884c-.321-.772-1.415-.772-1.736 0l-1.83 4.401-4.753.381c-.833.067-1.171 1.107-.536 1.651l3.62 3.102-1.106 4.637c-.194.813.691 1.456 1.405 1.02L10 15.591l4.069 2.485c.713.436 1.598-.207 1.404-1.02l-1.106-4.637 3.62-3.102c.635-.544.297-1.584-.536-1.65l-4.752-.382-1.831-4.401Z" clip-rule="evenodd"/></svg>'),
-  heart: encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="white"><path d="m9.653 16.915-.005-.003-.019-.01a20.759 20.759 0 0 1-1.162-.682 22.045 22.045 0 0 1-2.582-1.9C4.045 12.733 2 10.352 2 7.5a4.5 4.5 0 0 1 8-2.828A4.5 4.5 0 0 1 18 7.5c0 2.852-2.044 5.233-3.885 6.82a22.049 22.049 0 0 1-3.744 2.582l-.019.01-.005.003h-.002a.739.739 0 0 1-.69.001l-.002-.001Z"/></svg>'),
-  bolt: encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="white"><path d="M11.983 1.907a.75.75 0 0 0-1.292-.657l-8.5 9.5A.75.75 0 0 0 2.75 12h6.572l-1.305 6.093a.75.75 0 0 0 1.292.657l8.5-9.5A.75.75 0 0 0 17.25 8h-6.572l1.305-6.093Z"/></svg>'),
-} as const;
-
-const PUBLIC_LIST_COLORS = [
-  { value: "black", hex: "#000000" },
-  { value: "slate", hex: "#64748b" },
-  { value: "gray", hex: "#6b7280" },
-  { value: "zinc", hex: "#71717a" },
-  { value: "red", hex: "#ef4444" },
-  { value: "orange", hex: "#f97316" },
-  { value: "amber", hex: "#f59e0b" },
-  { value: "yellow", hex: "#eab308" },
-  { value: "lime", hex: "#84cc16" },
-  { value: "green", hex: "#22c55e" },
-  { value: "emerald", hex: "#10b981" },
-  { value: "teal", hex: "#14b8a6" },
-  { value: "cyan", hex: "#06b6d4" },
-  { value: "sky", hex: "#0ea5e9" },
-  { value: "blue", hex: "#3b82f6" },
-  { value: "indigo", hex: "#6366f1" },
-  { value: "violet", hex: "#8b5cf6" },
-  { value: "purple", hex: "#a855f7" },
-  { value: "fuchsia", hex: "#d946ef" },
-  { value: "pink", hex: "#ec4899" },
-  { value: "rose", hex: "#f43f5e" },
-] as const;
-
-type Block = {
-  id: number;
-  type: string;
-  data: { text?: string };
-};
-
-type PageData = {
-  title: string;
-  slug: string;
-  seoTitle?: string | null;
-  seoDescription?: string | null;
-  keywords?: string | null;
-  preview?: string | null;
-  blocks: Block[];
-};
+type RouteParams = { slug?: string[] | string };
+type PageProps = { params: RouteParams | Promise<RouteParams> };
 
 function getBlockText(page: PageData | null, type: string): string {
   if (!page) return "";
@@ -97,795 +40,103 @@ function getPreviewImage(page: PageData | null): string {
   return `/${raw.replace(/^\/+/, "")}`;
 }
 
-const CALLBACK_FORM_LINK = "callback://open";
-const PAGE_CACHE = new Map<string, PageData>();
+function normalizeSlugParts(raw: RouteParams["slug"]): string[] {
+  if (Array.isArray(raw)) return raw.filter(Boolean);
+  if (typeof raw === "string") return raw.split("/").filter(Boolean);
+  return [];
+}
 
-export default function Page() {
-  const params = useParams<{ slug?: string[] | string }>();
-  const slugParts = useMemo(() => {
-    const raw = params?.slug;
-    if (Array.isArray(raw)) return raw;
-    if (typeof raw === "string") return raw.split("/").filter(Boolean);
-    return [];
-  }, [params]);
+async function resolvePageBySlug(slugParts: string[]): Promise<PageData | null> {
+  if (slugParts.length === 0) return null;
+  try {
+    return await apiGet<PageData>(apiPagesSlugRequestPath(slugParts), 20_000);
+  } catch {
+    return null;
+  }
+}
 
-  const [page, setPage] = useState<PageData | null>(null);
-  const isArticlesPage = slugParts[0] === "articles";
-  const contentRootRef = useRef<HTMLElement | null>(null);
-  /** Нет CMS-страницы по slug, но есть папка в /api/pages/folders — показываем тот же хаб, что на /services */
-  const [serviceFolderHub, setServiceFolderHub] = useState<ServiceTreeNode | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [callbackModalOpen, setCallbackModalOpen] = useState(false);
-
-  useEffect(() => {
-    if (slugParts.length === 0) {
-      setPage(null);
-      setServiceFolderHub(null);
-      setLoading(false);
-      return;
-    }
-    let cancelled = false;
-    const pathSegments = slugParts;
-    const path = pathSegments.join("/");
-    const cached = PAGE_CACHE.get(path);
-
-    void (async () => {
-      setServiceFolderHub(null);
-      if (cached) {
-        setPage(cached);
-        setLoading(false);
-      } else {
-        setPage(null);
-        setLoading(true);
-      }
-
-      try {
-        try {
-          const data = await apiGet<PageData>(apiPagesSlugRequestPath(pathSegments));
-          if (!cancelled) {
-            setPage(data);
-            PAGE_CACHE.set(path, data);
-          }
-        } catch {
-          if (!cancelled) {
-            if (!cached) {
-              setPage(null);
-            }
-            if (!cached && pathSegments[0] === "services" && pathSegments.length >= 2) {
-              try {
-                const [pages, foldersPayload] = await Promise.all([
-                  apiGet<ServiceListItem[]>("/api/pages", 20000),
-                  apiGet<{ folders?: ServiceFolderMeta[] }>("/api/pages/folders", 20000),
-                ]);
-                if (cancelled) return;
-                const folders = Array.isArray(foldersPayload?.folders) ? foldersPayload.folders : [];
-                const folderMetaBySlug = new Map(
-                  folders
-                    .filter((f) => typeof f?.name === "string" && typeof f?.slug === "string")
-                    .map((f) => ({
-                      name: String(f.name || "").trim(),
-                      slug: normalizeSlug(String(f.slug || "")),
-                      description: typeof f.description === "string" ? f.description : "",
-                      preview: typeof f.preview === "string" ? f.preview : "",
-                    }))
-                    .filter((f) => f.slug === "services" || f.slug.startsWith("services/"))
-                    .map((f) => [f.slug, f] as const),
-                );
-                const servicePages = pages
-                  .filter((p) => isVisibleServicePage(p) && normalizeSlug(p.slug).startsWith("services/"))
-                  .map((p) => ({ ...p, slug: normalizeSlug(p.slug) }));
-                const tree = buildServicesTree(servicePages, folderMetaBySlug);
-                const node = findServiceTreeNode(tree, path);
-                if (
-                  node &&
-                  (node.isMetaFolder || node.pages.length > 0 || node.children.length > 0)
-                ) {
-                  setServiceFolderHub(node);
-                }
-              } catch {
-                // остаётся «не найдено»
-              }
-            }
-          }
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [slugParts]);
-
-  useEffect(() => {
-    if (!page) return;
-
-    const seoTitle =
-      getBlockText(page, "seo_title") ||
-      (typeof page.seoTitle === "string" ? page.seoTitle.trim() : "") ||
-      page.title;
-    const seoDescription =
-      getBlockText(page, "seo_description") ||
-      (typeof page.seoDescription === "string" ? page.seoDescription.trim() : "") ||
-      getBlockText(page, "summary");
-    const seoKeywords =
-      getBlockText(page, "keywords") ||
-      (typeof page.keywords === "string" ? page.keywords.trim() : "");
-    const seoImage = getPreviewImage(page);
-    const previousTitle = document.title;
-    const ensureMeta = (name: string): HTMLMetaElement => {
-      const existing = document.querySelector(`meta[name="${name}"]`) as HTMLMetaElement | null;
-      if (existing) return existing;
-      const created = document.createElement("meta");
-      created.setAttribute("name", name);
-      document.head.appendChild(created);
-      return created;
-    };
-    const ensurePropertyMeta = (property: string): HTMLMetaElement => {
-      const existing = document.querySelector(`meta[property="${property}"]`) as HTMLMetaElement | null;
-      if (existing) return existing;
-      const created = document.createElement("meta");
-      created.setAttribute("property", property);
-      document.head.appendChild(created);
-      return created;
-    };
-    const ensureCanonical = (): HTMLLinkElement => {
-      const existing = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
-      if (existing) return existing;
-      const created = document.createElement("link");
-      created.setAttribute("rel", "canonical");
-      document.head.appendChild(created);
-      return created;
-    };
-    const canonicalHref = `${window.location.origin}/${page.slug.replace(/^\/+/, "")}`;
-    const descriptionMeta = ensureMeta("description");
-    const keywordsMeta = ensureMeta("keywords");
-    const twitterCardMeta = ensureMeta("twitter:card");
-    const twitterTitleMeta = ensureMeta("twitter:title");
-    const twitterDescriptionMeta = ensureMeta("twitter:description");
-    const twitterImageMeta = ensureMeta("twitter:image");
-    const ogTitleMeta = ensurePropertyMeta("og:title");
-    const ogDescriptionMeta = ensurePropertyMeta("og:description");
-    const ogImageMeta = ensurePropertyMeta("og:image");
-    const ogUrlMeta = ensurePropertyMeta("og:url");
-    const ogTypeMeta = ensurePropertyMeta("og:type");
-    const canonicalLink = ensureCanonical();
-    const previousDescription = descriptionMeta.getAttribute("content");
-    const previousKeywords = keywordsMeta.getAttribute("content");
-    const previousTwitterCard = twitterCardMeta.getAttribute("content");
-    const previousTwitterTitle = twitterTitleMeta.getAttribute("content");
-    const previousTwitterDescription = twitterDescriptionMeta.getAttribute("content");
-    const previousTwitterImage = twitterImageMeta.getAttribute("content");
-    const previousOgTitle = ogTitleMeta.getAttribute("content");
-    const previousOgDescription = ogDescriptionMeta.getAttribute("content");
-    const previousOgImage = ogImageMeta.getAttribute("content");
-    const previousOgUrl = ogUrlMeta.getAttribute("content");
-    const previousOgType = ogTypeMeta.getAttribute("content");
-    const previousCanonical = canonicalLink.getAttribute("href");
-    const resolvedSeoImage = seoImage
-      ? (/^[a-z][a-z0-9+.-]*:/i.test(seoImage)
-          ? seoImage
-          : `${window.location.origin}${seoImage.startsWith("/") ? seoImage : `/${seoImage}`}`)
-      : "";
-
-    document.title = seoTitle || page.title || previousTitle;
-    canonicalLink.setAttribute("href", canonicalHref);
-    if (descriptionMeta && seoDescription) {
-      descriptionMeta.setAttribute("content", seoDescription);
-    }
-    if (keywordsMeta && seoKeywords) {
-      keywordsMeta.setAttribute("content", seoKeywords);
-    }
-    ogTypeMeta.setAttribute("content", "website");
-    ogUrlMeta.setAttribute("content", canonicalHref);
-    ogTitleMeta.setAttribute("content", seoTitle || page.title || "");
-    ogDescriptionMeta.setAttribute("content", seoDescription || "");
-    if (resolvedSeoImage) ogImageMeta.setAttribute("content", resolvedSeoImage);
-    else ogImageMeta.removeAttribute("content");
-    twitterCardMeta.setAttribute("content", resolvedSeoImage ? "summary_large_image" : "summary");
-    twitterTitleMeta.setAttribute("content", seoTitle || page.title || "");
-    twitterDescriptionMeta.setAttribute("content", seoDescription || "");
-    if (resolvedSeoImage) twitterImageMeta.setAttribute("content", resolvedSeoImage);
-    else twitterImageMeta.removeAttribute("content");
-
-    return () => {
-      document.title = previousTitle;
-      if (descriptionMeta) {
-        descriptionMeta.setAttribute("content", previousDescription ?? "");
-      }
-      if (keywordsMeta) {
-        keywordsMeta.setAttribute("content", previousKeywords ?? "");
-      }
-      if (twitterCardMeta) {
-        if (previousTwitterCard) twitterCardMeta.setAttribute("content", previousTwitterCard);
-        else twitterCardMeta.removeAttribute("content");
-      }
-      if (twitterTitleMeta) {
-        if (previousTwitterTitle) twitterTitleMeta.setAttribute("content", previousTwitterTitle);
-        else twitterTitleMeta.removeAttribute("content");
-      }
-      if (twitterDescriptionMeta) {
-        if (previousTwitterDescription) twitterDescriptionMeta.setAttribute("content", previousTwitterDescription);
-        else twitterDescriptionMeta.removeAttribute("content");
-      }
-      if (twitterImageMeta) {
-        if (previousTwitterImage) twitterImageMeta.setAttribute("content", previousTwitterImage);
-        else twitterImageMeta.removeAttribute("content");
-      }
-      if (ogTitleMeta) {
-        if (previousOgTitle) ogTitleMeta.setAttribute("content", previousOgTitle);
-        else ogTitleMeta.removeAttribute("content");
-      }
-      if (ogDescriptionMeta) {
-        if (previousOgDescription) ogDescriptionMeta.setAttribute("content", previousOgDescription);
-        else ogDescriptionMeta.removeAttribute("content");
-      }
-      if (ogImageMeta) {
-        if (previousOgImage) ogImageMeta.setAttribute("content", previousOgImage);
-        else ogImageMeta.removeAttribute("content");
-      }
-      if (ogUrlMeta) {
-        if (previousOgUrl) ogUrlMeta.setAttribute("content", previousOgUrl);
-        else ogUrlMeta.removeAttribute("content");
-      }
-      if (ogTypeMeta) {
-        if (previousOgType) ogTypeMeta.setAttribute("content", previousOgType);
-        else ogTypeMeta.removeAttribute("content");
-      }
-      if (canonicalLink) {
-        if (previousCanonical) canonicalLink.setAttribute("href", previousCanonical);
-        else canonicalLink.removeAttribute("href");
-      }
-    };
-  }, [page]);
-
-  useEffect(() => {
-    if (isArticlesPage) return;
-    const root = contentRootRef.current;
-    if (!root) return;
-    ensureCoverBgLayers(root);
-  }, [page, isArticlesPage]);
-
-  useEffect(() => {
-    if (isArticlesPage) return;
-    const root = contentRootRef.current;
-    if (!root) return;
-
-    // Public page must stay readonly even if saved HTML contains editor attributes.
-    const editableNodes = Array.from(root.querySelectorAll("[contenteditable]")) as HTMLElement[];
-    editableNodes.forEach((node) => {
-      if (node.getAttribute("contenteditable") !== "false") {
-        node.setAttribute("contenteditable", "false");
-      }
-    });
-  }, [page, isArticlesPage]);
-
-  useEffect(() => {
-    if (!page) return;
-    const extractBgUrl = (value: string): string | null => {
-      if (!value.includes("url(")) return null;
-      const start = value.indexOf("url(");
-      let s = value.slice(start + 4).trim();
-      if (s.startsWith('"')) {
-        const end = s.indexOf('"', 1);
-        if (end < 0) return null;
-        return s.slice(1, end).replace(/\\"/g, '"').replace(/\\\\/g, "\\");
-      }
-      if (s.startsWith("'")) {
-        const end = s.indexOf("'", 1);
-        if (end < 0) return null;
-        return s.slice(1, end);
-      }
-      const end = s.indexOf(")");
-      return end >= 0 ? s.slice(0, end).trim() : null;
-    };
-    const covers = Array.from(
-      document.querySelectorAll(".page-content .page-web-cover[data-cover-type=\"split\"]"),
-    ) as HTMLElement[];
-    covers.forEach((cover) => {
-      const src = extractBgUrl(cover.style.background || "");
-      if (src && !cover.style.getPropertyValue("--cover-bg-image").trim()) {
-        const safe = src.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-        cover.style.setProperty("--cover-bg-image", `url("${safe}")`);
-      }
-      if (!cover.style.getPropertyValue("--cover-bg-pos").trim()) {
-        const x = Number.parseFloat(cover.getAttribute("data-cover-bg-x") || "50");
-        const y = Number.parseFloat(cover.getAttribute("data-cover-bg-y") || "50");
-        const nx = Number.isFinite(x) ? Math.min(100, Math.max(0, x)) : 50;
-        const ny = Number.isFinite(y) ? Math.min(100, Math.max(0, y)) : 50;
-        cover.style.setProperty("--cover-bg-pos", `${nx}% ${ny}%`);
-      }
-    });
-    const root = contentRootRef.current;
-    if (root) ensureCoverBgLayers(root);
-  }, [page]);
-
-  if (!loading && !page && serviceFolderHub) {
-    const sectionDescription =
-      serviceFolderHub.description?.trim() ||
-      "Закрываем задачи «под ключ» в области каталогизации и анализа данных: от методики до сопровождения согласований — чтобы вы получали понятный результат в срок и без лишних рисков.";
-
-    return (
-      <div className="bg-slate-100 text-slate-900">
-        <div className="px-4 py-6 sm:px-6 lg:px-10">
-          <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-6">
-            <section className="bg-transparent p-0">
-              <nav
-                aria-label="Хлебные крошки"
-                className="mb-5 flex flex-wrap items-center gap-1.5 text-sm text-slate-500"
-              >
-                <Link
-                  href="/"
-                  className="inline-flex items-center rounded p-1 hover:bg-slate-200 hover:text-slate-700"
-                  aria-label="Главная"
-                >
-                  <HomeIcon className="h-4 w-4" />
-                </Link>
-                <ChevronRightIcon className="h-4 w-4 text-slate-400" />
-                <Link
-                  href="/services"
-                  className="rounded px-1 py-0.5 text-slate-600 hover:bg-slate-200 hover:text-slate-800"
-                >
-                  Услуги
-                </Link>
-                <ChevronRightIcon className="h-4 w-4 text-slate-400" />
-                <span className="rounded px-1 py-0.5 text-slate-700">{serviceFolderHub.label}</span>
-              </nav>
-
-              <div
-                className="mb-4 flex items-center justify-center text-[13px] font-semibold tracking-tight"
-                style={{ fontSize: "clamp(10px, 1.2vw, 16px)" }}
-              >
-                <h1
-                  className="text-center uppercase text-[#496db3]"
-                  style={{
-                    fontSize: "230%",
-                    lineHeight: 1.1,
-                    fontWeight: 950,
-                    textShadow:
-                      "0.35px 0 currentColor, -0.35px 0 currentColor, 0 0.35px currentColor, 0 -0.35px currentColor",
-                  }}
-                >
-                  {serviceFolderHub.label}
-                </h1>
-              </div>
-
-              <div className="mb-4" style={{ fontSize: "clamp(13px, 0.7vw, 14px)" }}>
-                <p
-                  className="whitespace-pre-wrap text-center font-semibold text-[#496db3]"
-                  style={{ fontSize: "112%", lineHeight: 1.35 }}
-                >
-                  {sectionDescription}
-                </p>
-              </div>
-
-              <div className="mt-4">
-                <HomeServicesFolderCards
-                  equalHeight
-                  ctaLabel="Перейти в услугу"
-                  limit={200}
-                  cards={[
-                    ...serviceFolderHub.children.map((c) => ({
-                      slugPath: c.slugPath,
-                      label: c.label,
-                      description: c.description?.trim() || undefined,
-                      preview: c.preview,
-                    })),
-                    ...serviceFolderHub.pages.map((p) => ({
-                      slugPath: p.slug,
-                      label: p.title,
-                      description: (typeof p.description === "string" && p.description.trim()) || undefined,
-                      preview: p.preview ?? undefined,
-                    })),
-                  ]}
-                />
-              </div>
-
-              <style>{`
-                .why-us-grid {
-                  grid-template-columns: 1fr;
-                  align-items: stretch;
-                }
-                @media (min-width: 768px) {
-                  .why-us-grid {
-                    grid-template-columns: repeat(2, minmax(0, 1fr));
-                  }
-                }
-                @media (min-width: 1024px) {
-                  .why-us-grid {
-                    grid-template-columns: repeat(4, minmax(0, 1fr));
-                  }
-                }
-              `}</style>
-            </section>
-          </div>
-        </div>
-      </div>
+async function resolveServiceFolderHub(slugParts: string[]): Promise<ServiceTreeNode | null> {
+  if (slugParts[0] !== "services" || slugParts.length < 2) return null;
+  const path = slugParts.join("/");
+  try {
+    const [pages, foldersPayload] = await Promise.all([
+      apiGet<ServiceListItem[]>("/api/pages", 20_000),
+      apiGet<{ folders?: ServiceFolderMeta[] }>("/api/pages/folders", 20_000),
+    ]);
+    const folders = Array.isArray(foldersPayload?.folders) ? foldersPayload.folders : [];
+    const folderMetaBySlug = new Map(
+      folders
+        .filter((f) => typeof f?.name === "string" && typeof f?.slug === "string")
+        .map((f) => ({
+          name: String(f.name || "").trim(),
+          slug: normalizeSlug(String(f.slug || "")),
+          description: typeof f.description === "string" ? f.description : "",
+          preview: typeof f.preview === "string" ? f.preview : "",
+        }))
+        .filter((f) => f.slug === "services" || f.slug.startsWith("services/"))
+        .map((f) => [f.slug, f] as const),
     );
+    const servicePages = pages
+      .filter((p) => isVisibleServicePage(p) && normalizeSlug(p.slug).startsWith("services/"))
+      .map((p) => ({ ...p, slug: normalizeSlug(p.slug) }));
+    const tree = buildServicesTree(servicePages, folderMetaBySlug);
+    const node = findServiceTreeNode(tree, path);
+    if (!node) return null;
+    return node.isMetaFolder || node.pages.length > 0 || node.children.length > 0 ? node : null;
+  } catch {
+    return null;
   }
+}
 
-  if (!loading && !page) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100 text-slate-900">
-        <p className="text-sm text-slate-500">
-          Страница не найдена или не опубликована.
-        </p>
-      </div>
-    );
-  }
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const resolvedParams = await Promise.resolve(params);
+  const slugParts = normalizeSlugParts(resolvedParams.slug);
+  const page = await resolvePageBySlug(slugParts);
+  if (!page) return {};
 
-  if (!page) {
-    return <div className="min-h-screen bg-slate-100 text-slate-900" />;
-  }
+  const seoTitle =
+    getBlockText(page, "seo_title") ||
+    (typeof page.seoTitle === "string" ? page.seoTitle.trim() : "") ||
+    page.title;
+  const seoDescription =
+    getBlockText(page, "seo_description") ||
+    (typeof page.seoDescription === "string" ? page.seoDescription.trim() : "") ||
+    getBlockText(page, "summary");
+  const seoKeywords =
+    getBlockText(page, "keywords") ||
+    (typeof page.keywords === "string" ? page.keywords.trim() : "");
+  const seoImage = getPreviewImage(page);
+
+  return {
+    title: seoTitle || page.title,
+    description: seoDescription || undefined,
+    keywords: seoKeywords || undefined,
+    openGraph: {
+      title: seoTitle || page.title,
+      description: seoDescription || undefined,
+      images: seoImage ? [seoImage] : undefined,
+      type: "website",
+    },
+    twitter: {
+      card: seoImage ? "summary_large_image" : "summary",
+      title: seoTitle || page.title,
+      description: seoDescription || undefined,
+      images: seoImage ? [seoImage] : undefined,
+    },
+  };
+}
+
+export default async function Page({ params }: PageProps) {
+  const resolvedParams = await Promise.resolve(params);
+  const slugParts = normalizeSlugParts(resolvedParams.slug);
+  const page = await resolvePageBySlug(slugParts);
+  const serviceFolderHub = page ? null : await resolveServiceFolderHub(slugParts);
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900">
-      <div className="mx-auto w-full pb-6 pt-0">
-        <section>
-          <PublicCarouselViewportSync />
-
-          {isArticlesPage ? (
-          <main
-            className="page-editor goz-full-width"
-            onClick={(e) => {
-              const target = e.target as HTMLElement;
-              const link = target.closest?.("a.page-web-cover-el-button") as HTMLAnchorElement | null;
-              if (!link) return;
-              const href = (link.getAttribute("href") || "").trim();
-              if (href !== CALLBACK_FORM_LINK) return;
-              e.preventDefault();
-              setCallbackModalOpen(true);
-            }}
-          >
-          {page.blocks.map((block) => {
-            if (
-              block.type === "summary" ||
-              block.type === "preview" ||
-              block.type === "keywords" ||
-              block.type === "seo_title" ||
-              block.type === "seo_description"
-            ) {
-              return null;
-            }
-            if (block.type === "text") {
-              const html = typeof block.data.text === "string" ? block.data.text : "";
-              return (
-                <div
-                  key={block.id}
-                  className="article-page-content page-content"
-                  dangerouslySetInnerHTML={{ __html: html }}
-                />
-              );
-            }
-
-            return (
-              <div
-                key={block.id}
-                className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3 text-xs text-slate-500"
-              >
-                Неподдерживаемый тип блока: {block.type}
-              </div>
-            );
-          })}
-          {page.blocks.length === 0 && (
-            <p className="text-sm text-slate-500">
-              У этой страницы пока нет контента.
-            </p>
-          )}
-          </main>
-          ) : (
-          <main
-            ref={contentRootRef}
-            className="page-editor goz-full-width w-full service-page-content-root"
-            onClick={(e) => {
-              const target = e.target as HTMLElement;
-              const link = target.closest?.("a.page-web-cover-el-button") as HTMLAnchorElement | null;
-              if (!link) return;
-              const href = (link.getAttribute("href") || "").trim();
-              if (href !== CALLBACK_FORM_LINK) return;
-              e.preventDefault();
-              setCallbackModalOpen(true);
-            }}
-          >
-          {page.blocks.map((block) => {
-            if (
-              block.type === "summary" ||
-              block.type === "preview" ||
-              block.type === "keywords" ||
-              block.type === "seo_title" ||
-              block.type === "seo_description"
-            ) {
-              return null;
-            }
-            if (block.type === "text") {
-              const html = typeof block.data.text === "string" ? block.data.text : "";
-              return (
-                <div
-                  key={block.id}
-                  className="page-content text-[12px] leading-relaxed text-slate-800"
-                  dangerouslySetInnerHTML={{ __html: html }}
-                />
-              );
-            }
-
-            return (
-              <div
-                key={block.id}
-                className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3 text-xs text-slate-500"
-              >
-                Неподдерживаемый тип блока: {block.type}
-              </div>
-            );
-          })}
-          {page.blocks.length === 0 && (
-            <p className="text-sm text-slate-500">
-              У этой страницы пока нет контента.
-            </p>
-          )}
-          </main>
-          )}
-          <CallbackRequestModal
-            open={callbackModalOpen}
-            onClose={() => setCallbackModalOpen(false)}
-            sourceMessage="Заявка из кнопки обложки страницы."
-          />
-          <style>{`
-          ${getSharedWebBlocksCss(".page-content")}
-          .page-content img { max-width: 100%; height: auto; }
-          .page-content table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; }
-          .page-content td, .page-content th { border: 1px solid #cbd5e1; padding: 0.5rem; vertical-align: top; }
-          .page-content .page-editor-table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; max-width: 100%; }
-          .page-content .page-editor-table td,
-          .page-content .page-editor-table th { border: 1px solid #cbd5e1; padding: 0.5rem; vertical-align: top; }
-          .page-content ul { margin: 0.5rem 0; padding-left: 1.25rem; list-style: disc outside; --list-marker-color: #000000; }
-          ${PUBLIC_LIST_COLORS.map((c) => `.page-content ul[data-list-color="${c.value}"] { --list-marker-color: ${c.hex}; }`).join("\n")}
-          .page-content ul[data-list-style] { list-style: none; padding-left: 1.5em; }
-          .page-content ul[data-list-style] li::before { content: ""; display: inline-block; width: 1em; height: 1em; margin-right: 0.35em; margin-left: -1.5em; vertical-align: -0.15em; background-color: var(--list-marker-color); -webkit-mask-size: contain; mask-size: contain; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: center; mask-position: center; }
-          .page-content ul[data-list-style="disc"] li::before { -webkit-mask-image: url("data:image/svg+xml,${PUBLIC_LIST_MARKER_SVG.disc}"); mask-image: url("data:image/svg+xml,${PUBLIC_LIST_MARKER_SVG.disc}"); }
-          .page-content ul[data-list-style="circle"] li::before { -webkit-mask-image: url("data:image/svg+xml,${PUBLIC_LIST_MARKER_SVG.circle}"); mask-image: url("data:image/svg+xml,${PUBLIC_LIST_MARKER_SVG.circle}"); }
-          .page-content ul[data-list-style="square"] li::before { -webkit-mask-image: url("data:image/svg+xml,${PUBLIC_LIST_MARKER_SVG.square}"); mask-image: url("data:image/svg+xml,${PUBLIC_LIST_MARKER_SVG.square}"); }
-          .page-content ul[data-list-style="check"] li::before { -webkit-mask-image: url("data:image/svg+xml,${PUBLIC_LIST_MARKER_SVG.check}"); mask-image: url("data:image/svg+xml,${PUBLIC_LIST_MARKER_SVG.check}"); }
-          .page-content ul[data-list-style="check-circle"] li::before { -webkit-mask-image: url("data:image/svg+xml,${PUBLIC_LIST_MARKER_SVG["check-circle"]}"); mask-image: url("data:image/svg+xml,${PUBLIC_LIST_MARKER_SVG["check-circle"]}"); }
-          .page-content ul[data-list-style="dash"] li::before { -webkit-mask-image: url("data:image/svg+xml,${PUBLIC_LIST_MARKER_SVG.dash}"); mask-image: url("data:image/svg+xml,${PUBLIC_LIST_MARKER_SVG.dash}"); }
-          .page-content ul[data-list-style="arrow"] li::before { -webkit-mask-image: url("data:image/svg+xml,${PUBLIC_LIST_MARKER_SVG.arrow}"); mask-image: url("data:image/svg+xml,${PUBLIC_LIST_MARKER_SVG.arrow}"); }
-          .page-content ul[data-list-style="arrow-right"] li::before { -webkit-mask-image: url("data:image/svg+xml,${PUBLIC_LIST_MARKER_SVG["arrow-right"]}"); mask-image: url("data:image/svg+xml,${PUBLIC_LIST_MARKER_SVG["arrow-right"]}"); }
-          .page-content ul[data-list-style="star"] li::before { -webkit-mask-image: url("data:image/svg+xml,${PUBLIC_LIST_MARKER_SVG.star}"); mask-image: url("data:image/svg+xml,${PUBLIC_LIST_MARKER_SVG.star}"); }
-          .page-content ul[data-list-style="heart"] li::before { -webkit-mask-image: url("data:image/svg+xml,${PUBLIC_LIST_MARKER_SVG.heart}"); mask-image: url("data:image/svg+xml,${PUBLIC_LIST_MARKER_SVG.heart}"); }
-          .page-content ul[data-list-style="bolt"] li::before { -webkit-mask-image: url("data:image/svg+xml,${PUBLIC_LIST_MARKER_SVG.bolt}"); mask-image: url("data:image/svg+xml,${PUBLIC_LIST_MARKER_SVG.bolt}"); }
-          .page-content ul[data-list-style="none"] li::before { content: none; }
-          .page-content ol { list-style: none; padding-left: 0; margin: 0.35rem 0; --list-marker-color: #000000; }
-          ${PUBLIC_LIST_COLORS.map((c) => `.page-content ol[data-list-color="${c.value}"] { --list-marker-color: ${c.hex}; }`).join("\n")}
-          .page-content ol > li { position: relative; list-style: none; padding-left: 2.75em; margin: 0.12em 0; min-height: 1.35em; box-sizing: border-box; }
-          .page-content ol > li::before { position: absolute; left: 0; top: 0; width: 2.35em; text-align: right; padding-right: 0.45em; box-sizing: border-box; content: attr(data-list-num); color: var(--marker-color, var(--list-marker-color)); line-height: inherit; pointer-events: none; }
-          .page-content ol > li[data-marker-bold]::before { font-weight: bold; }
-          .page-content li { margin: 0.15rem 0; }
-          .page-content p { margin: 0.5rem 0; }
-          .goz-full-width .page-content { width: 100%; max-width: none; }
-          .goz-full-width .page-content .page-web-cover,
-          .goz-full-width .page-content .page-web-carousel,
-          .goz-full-width .page-content .page-web-timeline,
-          .goz-full-width .page-content .page-web-text-media,
-          .goz-full-width .page-content .page-web-text-block { max-width: none; width: 100%; }
-          .page-content .page-web-text-block:not([data-text-block-variant="feature-grid"]):not([data-text-block-variant="work-pricing"]) { width: 100%; margin: 1.25rem 0; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; padding: 1rem; box-sizing: border-box; }
-          .page-content .page-web-text-block h3 { margin: 0 0 0.55rem; font-size: 1.2rem; line-height: 1.2; color: #0f172a; }
-          .page-content .page-web-text-block p { margin: 0; color: #475569; line-height: 1.55; }
-          .page-content .page-web-text-media { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1rem; width: 100%; margin: 1.25rem 0; }
-          .page-content .page-web-text-media-col { min-height: 210px; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; padding: 1rem; box-sizing: border-box; overflow-wrap: anywhere; }
-          .page-content .page-web-text-media-col--media { background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%); display: flex; align-items: center; justify-content: center; text-align: center; color: #64748b; }
-          .page-content .page-web-text-media-col h3 { margin: 0 0 0.55rem; font-size: 1.2rem; line-height: 1.2; color: #0f172a; }
-          .page-content .page-web-text-media-col p { margin: 0; color: #475569; line-height: 1.55; }
-          .page-content .page-web-text-media-placeholder { color: #64748b; font-size: 0.9rem; }
-          @media (max-width: 767px) {
-            .page-content .page-web-text-media { grid-template-columns: 1fr; }
-            .page-content .page-web-text-media-col { min-height: 160px; }
-          }
-          ${getTimelineRenderCss(".page-content")}
-          ${getPageShowRenderCss(".page-content")}
-          .page-content .page-web-carousel { position: relative; width: 100%; max-width: 100%; margin: 1.25rem 0; box-sizing: border-box; display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 10px; background: transparent; border: none; overflow: visible; }
-          .page-content .page-web-carousel-arrow { position: relative; flex-shrink: 0; z-index: 2; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 9999px; border: 1px solid #cbd5e1; background: #fff; color: #334155; font-size: 1.25rem; line-height: 1; cursor: pointer; padding: 0; box-shadow: 0 1px 4px rgba(15,23,42,0.08); }
-          .page-content .page-web-carousel-arrow:hover { background: #f8fafc; color: #0f172a; }
-          .page-content .page-web-carousel-arrow:disabled { opacity: 0.45; cursor: not-allowed; background: #f8fafc; color: #94a3b8; border-color: #e2e8f0; box-shadow: none; }
-          .page-content .page-web-carousel-prev { order: 1; }
-          .page-content .page-web-carousel-next { order: 3; }
-          .page-content .page-web-carousel-viewport { order: 2; position: relative; z-index: 0; flex: 1 1 0; min-width: 0; width: 100%; max-width: 100%; margin: 0; box-sizing: border-box; border-radius: 8px; background: transparent; min-height: 180px; scrollbar-width: thin; scrollbar-color: rgba(100, 116, 139, 0.45) transparent; display: grid; grid-auto-flow: column; grid-auto-columns: calc((100% - 16px) / 3); gap: 8px; overflow-x: auto; overflow-y: visible; }
-          .page-content .page-web-carousel-viewport:not(:has(.page-web-carousel-strip)) { scroll-snap-type: x mandatory; scroll-snap-stop: always; -webkit-overflow-scrolling: touch; }
-          .page-content .page-web-carousel-viewport:has(.page-web-carousel-strip) { display: block; padding: 14px 0; container-type: inline-size; container-name: web-carousel-vp; overflow-x: hidden; overflow-y: visible; -webkit-overflow-scrolling: touch; scrollbar-width: thin; scrollbar-color: rgba(100, 116, 139, 0.45) transparent; scroll-snap-type: none; }
-          .page-content .page-web-carousel-strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, var(--carousel-slide-px, calc((max(0px, var(--carousel-inner-px, 100cqi)) - 16px) / 3))); align-items: stretch; gap: 8px; width: max-content; min-width: 100%; box-sizing: border-box; min-height: 0; }
-          .page-content .page-web-carousel[data-carousel-aspect="vertical"] .page-web-carousel-viewport,
-          .page-content .page-web-carousel[data-carousel-aspect="square"] .page-web-carousel-viewport,
-          .page-content .page-web-carousel[data-carousel-aspect="a4"] .page-web-carousel-viewport { grid-auto-columns: calc((100% - 24px) / 4); }
-          .page-content .page-web-carousel[data-carousel-aspect="vertical"] .page-web-carousel-strip,
-          .page-content .page-web-carousel[data-carousel-aspect="square"] .page-web-carousel-strip,
-          .page-content .page-web-carousel[data-carousel-aspect="a4"] .page-web-carousel-strip { grid-auto-columns: minmax(0, var(--carousel-slide-px, calc((max(0px, var(--carousel-inner-px, 100cqi)) - 24px) / 4))); }
-          @media (max-width: 1023px) {
-            .page-content .page-web-carousel-viewport { grid-auto-columns: calc((100% - 8px) / 2); }
-            .page-content .page-web-carousel-strip { grid-auto-columns: minmax(0, var(--carousel-slide-px, calc((max(0px, var(--carousel-inner-px, 100cqi)) - 8px) / 2))); }
-            .page-content .page-web-carousel[data-carousel-aspect="vertical"] .page-web-carousel-viewport,
-            .page-content .page-web-carousel[data-carousel-aspect="square"] .page-web-carousel-viewport,
-            .page-content .page-web-carousel[data-carousel-aspect="a4"] .page-web-carousel-viewport { grid-auto-columns: calc((100% - 16px) / 3); }
-            .page-content .page-web-carousel[data-carousel-aspect="vertical"] .page-web-carousel-strip,
-            .page-content .page-web-carousel[data-carousel-aspect="square"] .page-web-carousel-strip,
-            .page-content .page-web-carousel[data-carousel-aspect="a4"] .page-web-carousel-strip { grid-auto-columns: minmax(0, var(--carousel-slide-px, calc((max(0px, var(--carousel-inner-px, 100cqi)) - 16px) / 3))); }
-          }
-          @media (max-width: 767px) {
-            .page-content .page-web-carousel-viewport { grid-auto-columns: 100%; }
-            .page-content .page-web-carousel-strip { grid-auto-columns: minmax(0, var(--carousel-slide-px, max(0px, var(--carousel-inner-px, 100cqi)))); }
-            .page-content .page-web-carousel[data-carousel-aspect="vertical"] .page-web-carousel-viewport,
-            .page-content .page-web-carousel[data-carousel-aspect="square"] .page-web-carousel-viewport,
-            .page-content .page-web-carousel[data-carousel-aspect="a4"] .page-web-carousel-viewport { grid-auto-columns: calc((100% - 8px) / 2); }
-            .page-content .page-web-carousel[data-carousel-aspect="vertical"] .page-web-carousel-strip,
-            .page-content .page-web-carousel[data-carousel-aspect="square"] .page-web-carousel-strip,
-            .page-content .page-web-carousel[data-carousel-aspect="a4"] .page-web-carousel-strip { grid-auto-columns: minmax(0, var(--carousel-slide-px, calc((max(0px, var(--carousel-inner-px, 100cqi)) - 8px) / 2))); }
-          }
-          .page-content .page-web-carousel-slide { position: relative; z-index: 2; box-sizing: border-box; padding: 0; }
-          .page-content .page-web-carousel-viewport:not(:has(.page-web-carousel-strip)) .page-web-carousel-slide { min-width: 0; scroll-snap-align: start; scroll-snap-stop: always; width: auto; max-width: none; }
-          .page-content .page-web-carousel-strip .page-web-carousel-slide { min-width: 0; width: 100%; max-width: none; scroll-snap-align: start; scroll-snap-stop: always; }
-          .page-content .page-web-carousel-slide-inner { position: relative; z-index: 3; width: 100%; aspect-ratio: 16 / 9; min-height: 0; border-radius: 6px; overflow: hidden; background: #e2e8f0; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgba(15,23,42,0.06), 0 4px 12px rgba(15,23,42,0.08), 0 0 0 1px rgba(15,23,42,0.06); }
-          .page-content .page-web-carousel[data-carousel-aspect="vertical"] .page-web-carousel-slide-inner { aspect-ratio: 9 / 16; }
-          .page-content .page-web-carousel[data-carousel-aspect="square"] .page-web-carousel-slide-inner { aspect-ratio: 1 / 1; }
-          .page-content .page-web-carousel[data-carousel-aspect="a4"] .page-web-carousel-slide-inner { aspect-ratio: 210 / 297; }
-          .page-content .page-web-carousel-slide-inner:has(.page-web-carousel-img) { background: transparent; }
-          .page-content .page-web-carousel-placeholder { position: relative; z-index: 0; padding: 1rem; text-align: center; font-size: 14px; color: #64748b; }
-          .page-content .page-web-carousel-slide-inner:has(.page-web-carousel-img) .page-web-carousel-placeholder { display: none; }
-          .page-content .page-web-carousel-img { position: absolute; inset: 0; z-index: 1; display: block; width: 100%; height: 100%; object-fit: cover; object-position: center; margin: 0; border-radius: 6px; }
-          .page-content .page-web-carousel-viewport::-webkit-scrollbar { height: 5px; width: 5px; }
-          .page-content .page-web-carousel-viewport::-webkit-scrollbar-track { background: transparent; }
-          .page-content .page-web-carousel-viewport::-webkit-scrollbar-thumb { background-color: rgba(100, 116, 139, 0.35); border-radius: 999px; }
-          .page-content .page-web-carousel-viewport::-webkit-scrollbar-thumb:hover { background-color: rgba(71, 85, 105, 0.5); }
-          .page-editor .page-content { padding: 0 1rem 1rem; box-sizing: border-box; }
-          ${getSharedWebBlocksCss(".page-editor")}
-          ${getSharedWebBlocksCss(".page-content")}
-          ${getTimelineRenderCss(".page-editor .page-content")}
-          ${getPageShowRenderCss(".page-editor .page-content")}
-          ${getWorkPricingRenderCss(".page-content")}
-          ${getWorkPricingRenderCss(".page-editor .page-content")}
-          /* Service pages: keep content headings same size as site blue headings */
-          .service-page-content-root .page-content h1,
-          .service-page-content-root .page-content h2,
-          .service-page-content-root .page-content h3 {
-            font-size: var(--site-blue-title-fs) !important;
-            line-height: var(--site-blue-title-lh) !important;
-          }
-          .service-page-content-root .page-content .page-web-cover-el-title,
-          .service-page-content-root .page-content .page-web-feature-grid-title,
-          .service-page-content-root .page-content .page-web-timeline-heading,
-          .service-page-content-root .page-content .page-web-work-pricing .wsx,
-          .service-page-content-root .page-content .page-web-work-pricing .wsy,
-          .service-page-content-root .page-content .page-web-work-pricing .wti,
-          .service-page-content-root .page-content .page-web-text-block h3,
-          .service-page-content-root .page-content .page-web-text-media .page-web-text-media-col h3 {
-            font-size: var(--site-blue-title-fs) !important;
-            line-height: var(--site-blue-title-lh) !important;
-          }
-          @media (max-width: 1205px) {
-            .service-page-content-root .page-content {
-              --site-blue-title-fs: 2.25rem;
-              --site-blue-title-lh: 2.25rem;
-              --site-red-blue-gap: -0.375rem;
-            }
-            .service-page-content-root .page-content .page-web-cover {
-              aspect-ratio: auto !important;
-              height: max-content !important;
-              min-height: max-content !important;
-            }
-            .service-page-content-root .page-content .page-web-cover .page-web-cover-inner {
-              flex: 0 0 auto !important;
-              overflow: visible !important;
-            }
-            .service-page-content-root .page-content .page-web-cover[data-cover-type="split"] .page-web-cover-el-title {
-              font-size: var(--site-blue-title-fs) !important;
-              line-height: var(--site-blue-title-lh) !important;
-            }
-            .service-page-content-root .page-content .page-web-cover[data-cover-type="split"] .page-web-cover-el-subtitle {
-              font-size: 1rem;
-              line-height: 1.4;
-            }
-            .service-page-content-root .page-content .page-web-cover .page-web-cover-el-button {
-              font-size: 0.875rem;
-              padding: 0.625rem 1rem;
-              border-radius: 0.375rem;
-            }
-            .service-page-content-root .page-content .page-web-cover[data-cover-type="split"] .page-web-cover-inner {
-              width: 100%;
-              padding-right: clamp(1rem, 4vw, 1.5rem);
-            }
-            .service-page-content-root .page-content .page-web-cover[data-cover-type="image"].page-web-cover-has-bg::before {
-              content: "" !important;
-              position: absolute;
-              inset: 0;
-              z-index: 1;
-              pointer-events: none;
-              background: rgba(248, 250, 252, 0.36) !important;
-              -webkit-backdrop-filter: blur(3px) saturate(1.02) brightness(1.08) !important;
-              backdrop-filter: blur(3px) saturate(1.02) brightness(1.08) !important;
-              filter: none !important;
-              box-shadow: none !important;
-              opacity: 1 !important;
-            }
-            .service-page-content-root .page-content .page-web-cover[data-cover-type="split"]::before {
-              background: rgba(248, 250, 252, 0.36) !important;
-              -webkit-backdrop-filter: blur(3px) saturate(1.02) brightness(1.08);
-              backdrop-filter: blur(3px) saturate(1.02) brightness(1.08);
-              z-index: 2 !important;
-              filter: none !important;
-              box-shadow: none !important;
-            }
-            .service-page-content-root .page-content .page-web-cover[data-cover-type="split"]::after {
-              width: 100% !important;
-              border-left: none;
-              opacity: 0.35;
-              z-index: 1 !important;
-              background-image: var(--cover-bg-image) !important;
-              background-size: cover !important;
-              background-position: var(--cover-bg-pos, 50% 50%) !important;
-              background-repeat: no-repeat !important;
-            }
-            .service-page-content-root .page-content .page-web-cover[data-cover-type="split"].page-web-cover-has-bg::after {
-              background-image: var(--cover-bg-image) !important;
-              background-size: cover !important;
-              background-position: var(--cover-bg-pos, 50% 50%) !important;
-              background-repeat: no-repeat !important;
-            }
-            .service-page-content-root .page-content .page-web-cover[data-cover-type="split"] > .page-web-cover-bg {
-              width: 100%;
-              right: 0;
-              display: block !important;
-            }
-            .service-page-content-root .page-content .page-web-cover[data-cover-type="hero"][data-cover-aspect="1-8"],
-            .service-page-content-root .page-content .page-web-cover[data-cover-type="image"][data-cover-aspect="1-8"],
-            .service-page-content-root .page-content .page-web-cover[data-cover-type="hero"][data-cover-aspect="1-4"],
-            .service-page-content-root .page-content .page-web-cover[data-cover-type="image"][data-cover-aspect="1-4"] {
-              aspect-ratio: auto !important;
-            }
-            .service-page-content-root .page-content .page-web-cover[data-cover-type="hero"],
-            .service-page-content-root .page-content .page-web-cover[data-cover-type="image"] {
-              aspect-ratio: auto !important;
-            }
-            .service-page-content-root .page-content .page-web-cover[data-cover-type="split"][data-cover-aspect="1-8"],
-            .service-page-content-root .page-content .page-web-cover[data-cover-type="split"][data-cover-aspect="1-4"] {
-              aspect-ratio: auto !important;
-            }
-            .service-page-content-root .page-content .page-web-cover .page-web-cover-inner {
-              overflow: visible;
-            }
-            .service-page-content-root .page-content .page-web-cover[data-cover-aspect="6-1"][data-cover-type="hero"],
-            .service-page-content-root .page-content .page-web-cover[data-cover-aspect="6-1"][data-cover-type="image"],
-            .service-page-content-root .page-content .page-web-cover[data-cover-type="split"][data-cover-aspect="6-1"] {
-              aspect-ratio: auto !important;
-            }
-            .service-page-content-root .page-content .page-web-cover[data-cover-aspect="8-1"][data-cover-type="hero"],
-            .service-page-content-root .page-content .page-web-cover[data-cover-aspect="8-1"][data-cover-type="image"],
-            .service-page-content-root .page-content .page-web-cover[data-cover-type="split"][data-cover-aspect="8-1"] {
-              aspect-ratio: auto !important;
-            }
-            .service-page-content-root .page-content .page-web-text-media {
-              grid-template-columns: 1fr;
-            }
-            .service-page-content-root .page-content .page-web-text-media-col {
-              min-height: 160px;
-            }
-            .service-page-content-root .page-content .page-web-feature-grid-list {
-              grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
-            .service-page-content-root .page-content .page-web-feature-grid[data-feature-grid-message-position="right"] .page-web-feature-grid-lead-row,
-            .service-page-content-root .page-content .page-web-feature-grid[data-feature-grid-message-position="left"] .page-web-feature-grid-lead-row,
-            .service-page-content-root .page-content .page-web-feature-grid-lead-row[data-feature-grid-message-position="right"],
-            .service-page-content-root .page-content .page-web-feature-grid-lead-row[data-feature-grid-message-position="left"] {
-              grid-template-columns: minmax(0, 1fr);
-            }
-            .service-page-content-root .page-content .page-web-feature-grid[data-feature-grid-image-position="right"],
-            .service-page-content-root .page-content .page-web-feature-grid[data-feature-grid-image-position="left"] {
-              grid-template-columns: minmax(0, 1fr);
-            }
-          }
-          .page-content .page-web-feature-grid-image,
-          .page-editor .page-content .page-web-feature-grid-image {
-            border: none !important;
-          }
-          `}</style>
-        </section>
-      </div>
-    </div>
+    <PageSlugClient
+      slugParts={slugParts}
+      page={page}
+      serviceFolderHub={serviceFolderHub}
+    />
   );
 }
