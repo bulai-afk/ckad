@@ -327,7 +327,7 @@ export function SiteFooter({
     if (hidden) return;
     if (footerDocuments.length > 0) return;
     let cancelled = false;
-    let timeoutId: number | undefined;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
     const run = () => {
       void fetch("/api/pages/site-settings", { cache: "no-store" })
