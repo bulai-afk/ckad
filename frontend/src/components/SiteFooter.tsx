@@ -348,10 +348,9 @@ export function SiteFooter({
         });
     };
 
-    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
-      (window as Window & { requestIdleCallback: (cb: () => void) => number }).requestIdleCallback(
-        run,
-      );
+    const w = window as Window & { requestIdleCallback?: (cb: () => void) => number };
+    if (typeof w.requestIdleCallback === "function") {
+      w.requestIdleCallback(run);
     } else {
       timeoutId = window.setTimeout(run, 1200);
     }
