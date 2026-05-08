@@ -248,6 +248,31 @@ export function PageSlugClient({ slugParts, page, serviceFolderHub }: PageSlugCl
           ${getPageShowRenderCss(".page-editor .page-content")}
           ${getWorkPricingRenderCss(".page-content")}
           ${getWorkPricingRenderCss(".page-editor .page-content")}
+          /* Service pages: keep content headings same size as site blue headings */
+          .service-page-content-root .page-content h1,
+          .service-page-content-root .page-content h2,
+          .service-page-content-root .page-content h3 {
+            font-size: var(--site-blue-title-fs) !important;
+            line-height: var(--site-blue-title-lh) !important;
+          }
+          .service-page-content-root .page-content .page-web-cover-el-title,
+          .service-page-content-root .page-content .page-web-feature-grid-title,
+          .service-page-content-root .page-content .page-web-timeline-heading,
+          .service-page-content-root .page-content .page-web-work-pricing .wsx,
+          .service-page-content-root .page-content .page-web-work-pricing .wsy,
+          .service-page-content-root .page-content .page-web-work-pricing .wti,
+          .service-page-content-root .page-content .page-web-text-block h3,
+          .service-page-content-root .page-content .page-web-text-media .page-web-text-media-col h3 {
+            font-size: var(--site-blue-title-fs) !important;
+            line-height: var(--site-blue-title-lh) !important;
+          }
+          @media (max-width: 1205px) {
+            .service-page-content-root .page-content {
+              --site-blue-title-fs: 2.25rem;
+              --site-blue-title-lh: 2.25rem;
+              --site-red-blue-gap: -0.375rem;
+            }
+          }
           `}</style>
         </section>
       </div>
