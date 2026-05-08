@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
+
+export const revalidate = 300;
 
 type Block = {
   type: string;
@@ -43,14 +44,6 @@ function toAbsoluteUrl(url: string, origin: string): string {
   return `${origin}${url.startsWith("/") ? url : `/${url}`}`;
 }
 
-async function getSiteOrigin(): Promise<string> {
-  const h = await headers();
-  const host = h.get("x-forwarded-host") || h.get("host") || "";
-  const proto = h.get("x-forwarded-proto") || "https";
-  if (!host) return "";
-  return `${proto}://${host}`;
-}
-
 export async function generateMetadata({
   params,
 }: {
@@ -83,7 +76,10 @@ export async function generateMetadata({
     (page.seoDescription || "").trim() ||
     getBlockText(page, "summary");
   const seoKeywords = getBlockText(page, "keywords") || (page.keywords || "").trim();
-  const origin = await getSiteOrigin();
+  const origin =
+    process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/+$/, "") ||
+    process.env.SITE_URL?.trim().replace(/\/+$/, "") ||
+    "";
   const canonicalPath = `/${page.slug.replace(/^\/+/, "")}`;
   const canonicalUrl = toAbsoluteUrl(canonicalPath, origin);
   const imageUrl = toAbsoluteUrl(getPreviewImage(page), origin);

@@ -1,5 +1,4 @@
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
-import { apiGet } from "@/lib/api";
 import {
   buildServicesTree,
   findServiceTreeNode,
@@ -16,6 +15,7 @@ import {
 
 type RouteParams = { slug?: string[] | string };
 type PageProps = { params: RouteParams | Promise<RouteParams> };
+export const revalidate = 300;
 
 function normalizeSlugParts(raw: RouteParams["slug"]): string[] {
   if (Array.isArray(raw)) return raw.filter(Boolean);
@@ -42,11 +42,15 @@ async function resolvePageBySlug(slugParts: string[]): Promise<PageData | null> 
 async function resolveServiceFolderHub(slugParts: string[]): Promise<ServiceTreeNode | null> {
   if (slugParts[0] !== "services" || slugParts.length < 2) return null;
   const path = slugParts.join("/");
+  const base = apiBaseUrl();
   try {
-    const [pages, foldersPayload] = await Promise.all([
-      apiGet<ServiceListItem[]>("/api/pages", 20_000),
-      apiGet<{ folders?: ServiceFolderMeta[] }>("/api/pages/folders", 20_000),
+    const [pagesRes, foldersRes] = await Promise.all([
+      fetch(`${base}/api/pages`, { cache: "force-cache", next: { revalidate: 300 } }),
+      fetch(`${base}/api/pages/folders`, { cache: "force-cache", next: { revalidate: 300 } }),
     ]);
+    if (!pagesRes.ok || !foldersRes.ok) return null;
+    const pages = (await pagesRes.json()) as ServiceListItem[];
+    const foldersPayload = (await foldersRes.json()) as { folders?: ServiceFolderMeta[] };
     const folders = Array.isArray(foldersPayload?.folders) ? foldersPayload.folders : [];
     const folderMetaBySlug = new Map(
       folders
