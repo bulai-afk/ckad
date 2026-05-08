@@ -1,6 +1,4 @@
-import type { Metadata } from "next";
-import { apiGet } from "@/lib/api";
-import { apiPagesSlugRequestPath } from "@/lib/apiPagesSlugUrl";
+import { apiBaseUrl } from "@/lib/apiBaseUrl";
 import {
   buildServicesTree,
   findServiceTreeNode,
@@ -18,28 +16,6 @@ import {
 type RouteParams = { slug?: string[] | string };
 type PageProps = { params: RouteParams | Promise<RouteParams> };
 
-function getBlockText(page: PageData | null, type: string): string {
-  if (!page) return "";
-  const block = page.blocks.find((b) => b.type === type);
-  if (!block) return "";
-  return typeof block.data?.text === "string" ? block.data.text.trim() : "";
-}
-
-function getPreviewImage(page: PageData | null): string {
-  if (!page) return "";
-  const previewBlock = page.blocks.find((b) => b.type === "preview");
-  const fromBlock =
-    previewBlock && typeof (previewBlock.data as { src?: unknown })?.src === "string"
-      ? String((previewBlock.data as { src?: string }).src).trim()
-      : "";
-  const fromPage = typeof page.preview === "string" ? page.preview.trim() : "";
-  const raw = fromBlock || fromPage;
-  if (!raw) return "";
-  if (/^https?:\/\//i.test(raw)) return raw;
-  if (raw.startsWith("/")) return raw;
-  return `/${raw.replace(/^\/+/, "")}`;
-}
-
 function normalizeSlugParts(raw: RouteParams["slug"]): string[] {
   if (Array.isArray(raw)) return raw.filter(Boolean);
   if (typeof raw === "string") return raw.split("/").filter(Boolean);
@@ -48,8 +24,15 @@ function normalizeSlugParts(raw: RouteParams["slug"]): string[] {
 
 async function resolvePageBySlug(slugParts: string[]): Promise<PageData | null> {
   if (slugParts.length === 0) return null;
+  const path = slugParts.map((s) => encodeURIComponent(s)).join("/");
+  const base = apiBaseUrl();
   try {
-    return await apiGet<PageData>(apiPagesSlugRequestPath(slugParts), 20_000);
+    const res = await fetch(`${base}/api/pages/slug/${path}`, {
+      cache: "force-cache",
+      next: { revalidate: 300 },
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as PageData;
   } catch {
     return null;
   }
@@ -86,44 +69,6 @@ async function resolveServiceFolderHub(slugParts: string[]): Promise<ServiceTree
   } catch {
     return null;
   }
-}
-
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const resolvedParams = await Promise.resolve(params);
-  const slugParts = normalizeSlugParts(resolvedParams.slug);
-  const page = await resolvePageBySlug(slugParts);
-  if (!page) return {};
-
-  const seoTitle =
-    getBlockText(page, "seo_title") ||
-    (typeof page.seoTitle === "string" ? page.seoTitle.trim() : "") ||
-    page.title;
-  const seoDescription =
-    getBlockText(page, "seo_description") ||
-    (typeof page.seoDescription === "string" ? page.seoDescription.trim() : "") ||
-    getBlockText(page, "summary");
-  const seoKeywords =
-    getBlockText(page, "keywords") ||
-    (typeof page.keywords === "string" ? page.keywords.trim() : "");
-  const seoImage = getPreviewImage(page);
-
-  return {
-    title: seoTitle || page.title,
-    description: seoDescription || undefined,
-    keywords: seoKeywords || undefined,
-    openGraph: {
-      title: seoTitle || page.title,
-      description: seoDescription || undefined,
-      images: seoImage ? [seoImage] : undefined,
-      type: "website",
-    },
-    twitter: {
-      card: seoImage ? "summary_large_image" : "summary",
-      title: seoTitle || page.title,
-      description: seoDescription || undefined,
-      images: seoImage ? [seoImage] : undefined,
-    },
-  };
 }
 
 export default async function Page({ params }: PageProps) {

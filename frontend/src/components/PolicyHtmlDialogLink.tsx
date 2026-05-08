@@ -26,11 +26,36 @@ export type PolicyHtmlDialogLinkProps = {
   emptyDocumentMessage: string;
 };
 
-function normalizePolicyHtml(html: string): string {
+function absolutizeStylesheetHrefTag(tag: string, baseOrigin: string): string {
+  if (!baseOrigin) return tag;
+  return tag.replace(
+    /\bhref\s*=\s*(['"])([^'"]+)\1/i,
+    (_full, quote: string, href: string) => {
+      const rawHref = String(href || "").trim();
+      if (!rawHref) return _full;
+      try {
+        const absoluteHref = new URL(rawHref, baseOrigin).toString();
+        return `href=${quote}${absoluteHref}${quote}`;
+      } catch {
+        return _full;
+      }
+    },
+  );
+}
+
+function normalizePolicyHtml(html: string, baseOrigin: string): string {
   const raw = String(html || "").trim();
   if (!raw) return "";
   const bodyMatch = raw.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-  if (bodyMatch?.[1]) return bodyMatch[1].trim();
+  if (bodyMatch?.[1]) {
+    const headMatch = raw.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
+    const head = headMatch?.[1] ?? "";
+    const styleTags = head.match(/<style\b[^>]*>[\s\S]*?<\/style>/gi) ?? [];
+    const stylesheetLinkTags = (head.match(/<link\b[^>]*>/gi) ?? [])
+      .filter((tag) => /\brel\s*=\s*(['"])stylesheet\1/i.test(tag) || /\brel\s*=\s*stylesheet\b/i.test(tag))
+      .map((tag) => absolutizeStylesheetHrefTag(tag, baseOrigin));
+    return [...styleTags, ...stylesheetLinkTags, bodyMatch[1].trim()].join("\n");
+  }
   return raw;
 }
 
@@ -65,7 +90,8 @@ export function PolicyHtmlDialogLink({
         const raw = data?.settings?.[settingsHtmlKey];
         const policyHtml = typeof raw === "string" ? raw.trim() : "";
         if (cancelled) return;
-        setHtml(normalizePolicyHtml(policyHtml));
+        const baseOrigin = typeof window !== "undefined" ? window.location.origin : "";
+        setHtml(normalizePolicyHtml(policyHtml, baseOrigin));
       } catch {
         if (!cancelled) setHtml("");
       } finally {

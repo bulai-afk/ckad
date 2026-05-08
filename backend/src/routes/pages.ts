@@ -3,6 +3,7 @@ import { prisma } from "../prisma";
 import sharp from "sharp";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 import { backendDataPath, backendRootDir } from "../backendPaths";
 
 export const pagesRouter = Router();
@@ -40,6 +41,10 @@ const PAGE_KEYWORDS_MAX = 400;
 const SEO_TITLE_MAX = 60;
 const SEO_DESCRIPTION_MAX = 160;
 const PAGE_PREVIEW_DB_SAFE_MAX = 60_000;
+const PUBLIC_INLINE_IMAGE_MAX_BYTES = 180_000;
+const TRANSPARENT_GIF_DATA_URL =
+  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
+const UPLOADS_INLINE_DIR = backendDataPath("uploads", "inline");
 
 function sanitizeTextField(value: unknown, max: number): string {
   if (typeof value !== "string") return "";
@@ -483,6 +488,90 @@ async function normalizeInlineImageDataUrlsToWebp(html: string): Promise<string>
   return next;
 }
 
+async function persistInlineImageDataUrl(dataUrl: string): Promise<string> {
+  const match = dataUrl.match(/^data:image\/([a-z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/i);
+  if (!match) return dataUrl;
+  const mime = String(match[1] || "").toLowerCase();
+  const b64 = String(match[2] || "");
+  if (!b64) return dataUrl;
+  let bytes = Buffer.from(b64, "base64");
+  let ext = mime === "svg+xml" ? "svg" : "webp";
+  try {
+    if (mime !== "svg+xml" && mime !== "webp") {
+      bytes = await sharp(bytes).webp({ quality: 82 }).toBuffer();
+    } else if (mime === "webp") {
+      bytes = await sharp(bytes).webp({ quality: 82 }).toBuffer();
+    }
+  } catch {
+    // keep decoded bytes as-is if conversion fails
+    ext = mime === "svg+xml" ? "svg" : mime || "bin";
+  }
+  await fs.mkdir(UPLOADS_INLINE_DIR, { recursive: true });
+  const fileName = `${Date.now()}-${crypto.randomUUID()}.${ext}`;
+  const absPath = path.join(UPLOADS_INLINE_DIR, fileName);
+  await fs.writeFile(absPath, bytes);
+  return `/api/pages/uploads/inline/${fileName}`;
+}
+
+async function persistInlineImageDataUrlsInHtml(html: string): Promise<string> {
+  if (!html || !/data:image\//i.test(html)) return html;
+  const re = /data:image\/([a-z0-9.+-]+);base64,([A-Za-z0-9+/=]+)/gi;
+  const matches = Array.from(html.matchAll(re));
+  if (matches.length === 0) return html;
+  const unique = Array.from(new Set(matches.map((m) => m[0]).filter(Boolean)));
+  if (unique.length === 0) return html;
+  let next = html;
+  for (const src of unique) {
+    try {
+      const uploadedUrl = await persistInlineImageDataUrl(src);
+      if (uploadedUrl !== src) {
+        next = next.split(src).join(uploadedUrl);
+      }
+    } catch {
+      // keep original data url if write failed
+    }
+  }
+  return next;
+}
+
+function normalizeInlineUploadPathFromUrl(value: string): string | null {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  const basePath = "/api/pages/uploads/inline/";
+  let pathname = "";
+  if (raw.startsWith("http://") || raw.startsWith("https://")) {
+    try {
+      pathname = new URL(raw).pathname;
+    } catch {
+      return null;
+    }
+  } else {
+    pathname = raw.split("?")[0]?.split("#")[0] || "";
+  }
+  const idx = pathname.indexOf(basePath);
+  if (idx < 0) return null;
+  const tail = pathname.slice(idx + basePath.length).replace(/^\/+/, "");
+  if (!tail) return null;
+  const safeTail = tail
+    .split("/")
+    .filter(Boolean)
+    .filter((seg) => seg !== "." && seg !== "..")
+    .join("/");
+  return safeTail || null;
+}
+
+function collectInlineUploadPathsFromHtml(html: string): string[] {
+  if (!html || !html.includes("/api/pages/uploads/inline/")) return [];
+  const out = new Set<string>();
+  const re = /\/api\/pages\/uploads\/inline\/[^\s"'()<>]+/gi;
+  const matches = html.match(re) ?? [];
+  for (const m of matches) {
+    const normalized = normalizeInlineUploadPathFromUrl(m);
+    if (normalized) out.add(normalized);
+  }
+  return Array.from(out);
+}
+
 async function normalizeBannerImageDataUrlToWebp(
   dataUrl: string | null,
 ): Promise<string | null> {
@@ -506,6 +595,57 @@ async function normalizeBannerImageDataUrlToWebp(
   } catch {
     return dataUrl;
   }
+}
+
+function stripLargeInlineImageDataUrls(value: string): string {
+  if (!value || !/data:image\//i.test(value)) return value;
+  const re = /data:image\/([a-z0-9.+-]+);base64,([A-Za-z0-9+/=]+)/gi;
+  return value.replace(re, (full, _mime, b64: string) => {
+    const approxBytes = Math.floor((b64.length * 3) / 4);
+    if (approxBytes <= PUBLIC_INLINE_IMAGE_MAX_BYTES) return full;
+    return TRANSPARENT_GIF_DATA_URL;
+  });
+}
+
+function shrinkPublicPagePayload<T extends { preview?: unknown; blocks?: unknown[] }>(
+  page: T,
+): T {
+  const blocks = Array.isArray(page.blocks) ? page.blocks : [];
+  const safeBlocks = blocks.map((block) => {
+    if (typeof block !== "object" || block === null) return block;
+    const blockObj = block as { data?: unknown };
+    const data = blockObj.data;
+    if (typeof data !== "object" || data === null) return block;
+    const dataObj = data as Record<string, unknown>;
+    const nextData: Record<string, unknown> = { ...dataObj };
+    let changed = false;
+    if (typeof dataObj.text === "string") {
+      const nextText = stripLargeInlineImageDataUrls(dataObj.text);
+      if (nextText !== dataObj.text) {
+        nextData.text = nextText;
+        changed = true;
+      }
+    }
+    if (typeof dataObj.src === "string") {
+      const nextSrc = stripLargeInlineImageDataUrls(dataObj.src);
+      if (nextSrc !== dataObj.src) {
+        nextData.src = nextSrc;
+        changed = true;
+      }
+    }
+    if (!changed) return block;
+    return {
+      ...(block as Record<string, unknown>),
+      data: nextData,
+    };
+  });
+  const preview =
+    typeof page.preview === "string" ? stripLargeInlineImageDataUrls(page.preview) : page.preview;
+  return {
+    ...page,
+    preview,
+    blocks: safeBlocks,
+  };
 }
 
 function isBannerSlideLike(item: unknown): item is Record<string, unknown> {
@@ -1439,10 +1579,178 @@ pagesRouter.get("/slug/{*path}", async (req, res) => {
     return res.status(404).json({ error: "Page not found" });
   }
 
-  return res.json({
+  const orderedPage = {
     ...page,
     blocks: sortBlocksByOrder(page.blocks),
-  });
+  };
+  const publicPage = shrinkPublicPagePayload(orderedPage);
+  res.set("Cache-Control", "public, s-maxage=300, stale-while-revalidate=600");
+  return res.json(publicPage);
+});
+
+pagesRouter.get("/uploads/{*path}", async (req, res) => {
+  const rel = slugFromPathParam(req.params.path)
+    .split("/")
+    .filter(Boolean)
+    .filter((seg) => seg !== "." && seg !== "..")
+    .join("/");
+  if (!rel) return res.status(400).json({ error: "path is required" });
+  const abs = path.resolve(backendDataPath("uploads"), rel);
+  const root = path.resolve(backendDataPath("uploads"));
+  if (!abs.startsWith(`${root}${path.sep}`) && abs !== root) {
+    return res.status(400).json({ error: "invalid_path" });
+  }
+  try {
+    const stat = await fs.stat(abs);
+    if (!stat.isFile()) return res.status(404).json({ error: "Not found" });
+    const ext = path.extname(abs).toLowerCase();
+    const contentType =
+      ext === ".webp"
+        ? "image/webp"
+        : ext === ".png"
+          ? "image/png"
+          : ext === ".jpg" || ext === ".jpeg"
+            ? "image/jpeg"
+            : ext === ".gif"
+              ? "image/gif"
+              : ext === ".svg"
+                ? "image/svg+xml"
+                : "application/octet-stream";
+    const data = await fs.readFile(abs);
+    res.set("Content-Type", contentType);
+    res.set("Cache-Control", "public, max-age=31536000, immutable");
+    return res.send(data);
+  } catch {
+    return res.status(404).json({ error: "Not found" });
+  }
+});
+
+pagesRouter.post("/migrate-inline-images", async (_req, res) => {
+  let convertedTextBlocks = 0;
+  let convertedPreviewBlocks = 0;
+  let convertedPagePreviewColumns = 0;
+  try {
+    const blocks = await prisma.block.findMany({
+      where: { type: { in: ["text", "preview"] } },
+      select: { id: true, type: true, data: true },
+    });
+    for (const block of blocks) {
+      const data =
+        typeof block.data === "object" && block.data !== null
+          ? (block.data as Record<string, unknown>)
+          : {};
+      if (block.type === "text" && typeof data.text === "string" && data.text.includes("data:image/")) {
+        const normalized = await normalizeInlineImageDataUrlsToWebp(data.text);
+        const persisted = await persistInlineImageDataUrlsInHtml(normalized);
+        if (persisted !== data.text) {
+          await prisma.block.update({
+            where: { id: block.id },
+            data: { data: { ...data, text: persisted } },
+          });
+          convertedTextBlocks += 1;
+        }
+      }
+      if (block.type === "preview" && typeof data.src === "string" && data.src.startsWith("data:image/")) {
+        const persistedSrc = await persistInlineImageDataUrl(data.src);
+        if (persistedSrc !== data.src) {
+          await prisma.block.update({
+            where: { id: block.id },
+            data: { data: { ...data, src: persistedSrc } },
+          });
+          convertedPreviewBlocks += 1;
+        }
+      }
+    }
+
+    const pages = await prisma.page.findMany({
+      where: { preview: { not: null } },
+      select: { id: true, preview: true },
+    });
+    for (const p of pages) {
+      const preview = typeof p.preview === "string" ? p.preview.trim() : "";
+      if (!preview.startsWith("data:image/")) continue;
+      const persisted = await persistInlineImageDataUrl(preview);
+      if (persisted !== preview) {
+        await prisma.page.update({
+          where: { id: p.id },
+          data: { preview: persisted },
+        });
+        convertedPagePreviewColumns += 1;
+      }
+    }
+
+    return res.json({
+      ok: true,
+      convertedTextBlocks,
+      convertedPreviewBlocks,
+      convertedPagePreviewColumns,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      error: "migration_failed",
+      details: error instanceof Error ? error.message : String(error),
+      convertedTextBlocks,
+      convertedPreviewBlocks,
+      convertedPagePreviewColumns,
+    });
+  }
+});
+
+pagesRouter.post("/uploads/inline/cleanup", async (_req, res) => {
+  try {
+    const referenced = new Set<string>();
+    const blocks = await prisma.block.findMany({
+      where: { type: { in: ["text", "preview"] } },
+      select: { data: true },
+    });
+    for (const block of blocks) {
+      const data =
+        typeof block.data === "object" && block.data !== null
+          ? (block.data as Record<string, unknown>)
+          : {};
+      if (typeof data.text === "string") {
+        for (const rel of collectInlineUploadPathsFromHtml(data.text)) referenced.add(rel);
+      }
+      if (typeof data.src === "string") {
+        const rel = normalizeInlineUploadPathFromUrl(data.src);
+        if (rel) referenced.add(rel);
+      }
+    }
+    const pages = await prisma.page.findMany({
+      where: { preview: { not: null } },
+      select: { preview: true },
+    });
+    for (const page of pages) {
+      const rel = normalizeInlineUploadPathFromUrl(typeof page.preview === "string" ? page.preview : "");
+      if (rel) referenced.add(rel);
+    }
+
+    await fs.mkdir(UPLOADS_INLINE_DIR, { recursive: true });
+    const dirEntries = await fs.readdir(UPLOADS_INLINE_DIR, { withFileTypes: true });
+    const existingFiles = dirEntries.filter((entry) => entry.isFile()).map((entry) => entry.name);
+    let removed = 0;
+    const removedFiles: string[] = [];
+    for (const fileName of existingFiles) {
+      if (referenced.has(fileName)) continue;
+      const absPath = path.join(UPLOADS_INLINE_DIR, fileName);
+      await fs.unlink(absPath);
+      removed += 1;
+      removedFiles.push(fileName);
+    }
+
+    return res.json({
+      ok: true,
+      totalFiles: existingFiles.length,
+      referencedFiles: referenced.size,
+      removedFilesCount: removed,
+      removedFiles,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      error: "cleanup_failed",
+      details: error instanceof Error ? error.message : String(error),
+    });
+  }
 });
 
 // Get single page with blocks
@@ -1517,7 +1825,8 @@ pagesRouter.post("/", async (req, res) => {
       const type = b.type ?? "text";
       const data: any = b.data ?? {};
       if (type === "text" && typeof data.text === "string") {
-        data.text = await normalizeInlineImageDataUrlsToWebp(data.text);
+        const normalizedHtml = await normalizeInlineImageDataUrlsToWebp(data.text);
+        data.text = await persistInlineImageDataUrlsInHtml(normalizedHtml);
       }
       initialBlocks.push({
         type,
@@ -1526,7 +1835,10 @@ pagesRouter.post("/", async (req, res) => {
       });
     }
     const descriptionValue = sanitizeTextField(description, PAGE_DESCRIPTION_MAX);
-    const previewValue = typeof preview === "string" ? preview.trim() : "";
+    const previewRaw = typeof preview === "string" ? preview.trim() : "";
+    const previewValue = previewRaw.startsWith("data:image/")
+      ? await persistInlineImageDataUrl(previewRaw)
+      : previewRaw;
     const previewDbValue = sanitizePreviewForDbColumn(previewValue);
     const keywordsValue = sanitizeTextField(keywords, PAGE_KEYWORDS_MAX);
     const seoTitleValue = sanitizeTextField(seoTitle, SEO_TITLE_MAX);
@@ -1725,7 +2037,10 @@ pagesRouter.put("/:id", async (req, res) => {
     }
 
     const descriptionValue = sanitizeTextField(description, PAGE_DESCRIPTION_MAX);
-    const previewValue = typeof preview === "string" ? preview.trim() : "";
+    const previewRaw = typeof preview === "string" ? preview.trim() : "";
+    const previewValue = previewRaw.startsWith("data:image/")
+      ? await persistInlineImageDataUrl(previewRaw)
+      : previewRaw;
     const previewDbValue = sanitizePreviewForDbColumn(previewValue);
     const keywordsValue = sanitizeTextField(keywords, PAGE_KEYWORDS_MAX);
     const seoTitleValue = sanitizeTextField(seoTitle, SEO_TITLE_MAX);
@@ -1760,7 +2075,9 @@ pagesRouter.put("/:id", async (req, res) => {
     if (hasText) {
       const textValueRaw = typeof text === "string" ? text.trim() : "";
       const textValue = textValueRaw
-        ? await normalizeInlineImageDataUrlsToWebp(textValueRaw)
+        ? await persistInlineImageDataUrlsInHtml(
+            await normalizeInlineImageDataUrlsToWebp(textValueRaw),
+          )
         : "";
       if (textValue) {
         if (firstTextBlock) {
