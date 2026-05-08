@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useEffect } from "react";
+import Image from "next/image";
 import {
   bannerDebugEnabled,
   describeBannerImageRef,
@@ -147,14 +148,17 @@ export function BannerPreviewReadonly({
     return (
       <div className="relative h-full min-h-0 w-full overflow-hidden bg-slate-200">
         {imageSrc ? (
-          <img
+          <Image
             src={imageSrc}
             alt={bannerTitleForAlt(slide.title)}
+            fill
+            sizes="100vw"
+            quality={75}
+            priority={prioritizeImageLoading}
+            loading={prioritizeImageLoading ? undefined : "lazy"}
+            fetchPriority={prioritizeImageLoading ? "high" : "auto"}
             className="absolute inset-0 box-border h-full w-full min-h-0 min-w-0 max-w-full object-cover"
             style={{ objectPosition: `50% ${slide.imagePosY ?? 50}%` }}
-            loading={prioritizeImageLoading ? "eager" : "lazy"}
-            fetchPriority={prioritizeImageLoading ? "high" : "auto"}
-            decoding="async"
             onLoad={() => {
               if (!bannerDebugEnabled()) return;
               logBannerDebug("preview:img-load", {
@@ -226,14 +230,17 @@ export function BannerPreviewReadonly({
           <div className="absolute inset-0 z-0 md:hidden">
             {imageSrc ? (
               <>
-                <img
+                <Image
                   src={imageSrc}
                   alt={bannerTitleForAlt(slide.title)}
+                  fill
+                  sizes="100vw"
+                  quality={75}
+                  priority={prioritizeImageLoading}
+                  loading={prioritizeImageLoading ? undefined : "lazy"}
+                  fetchPriority={prioritizeImageLoading ? "high" : "auto"}
                   className="absolute inset-0 box-border h-full w-full min-h-0 min-w-0 max-w-full object-cover"
                   style={{ objectPosition: `50% ${slide.imagePosY ?? 50}%` }}
-                  loading={prioritizeImageLoading ? "eager" : "lazy"}
-                  fetchPriority={prioritizeImageLoading ? "high" : "auto"}
-                  decoding="async"
                 />
                 {slide.showOverlay !== false ? (
                   <div
@@ -314,14 +321,17 @@ export function BannerPreviewReadonly({
           </div>
           <div className="relative hidden min-h-[12rem] w-full flex-1 overflow-hidden border-t border-slate-300/70 bg-slate-200/60 md:block md:h-full md:min-h-0 md:w-1/2 md:flex-none md:border-l md:border-t-0">
             {imageSrc ? (
-              <img
+              <Image
                 src={imageSrc}
                 alt={bannerTitleForAlt(slide.title)}
+                fill
+                sizes="(min-width: 768px) 50vw, 100vw"
+                quality={75}
+                priority={prioritizeImageLoading}
+                loading={prioritizeImageLoading ? undefined : "lazy"}
+                fetchPriority={prioritizeImageLoading ? "high" : "auto"}
                 className="absolute inset-0 box-border min-h-0 min-w-0 h-full w-full max-w-full object-cover"
                 style={{ objectPosition: `50% ${slide.imagePosY ?? 50}%` }}
-                loading={prioritizeImageLoading ? "eager" : "lazy"}
-                fetchPriority={prioritizeImageLoading ? "high" : "auto"}
-                decoding="async"
               />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center bg-slate-300">

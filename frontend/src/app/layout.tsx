@@ -9,7 +9,6 @@ import { SiteMainColumn } from "@/components/SiteMainColumn";
 import { LayoutClientEnhancements } from "@/components/LayoutClientEnhancements";
 import { NAV_FOLDERS_COOKIE_NAME, parseNavFoldersCookie } from "@/lib/navFoldersCookie";
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
-import { normalizePageDisplayOrderMap, type PageDisplayOrderMap } from "@/lib/pageDisplayOrder";
 import "./globals.css";
 
 export const revalidate = 120;
@@ -54,12 +53,6 @@ type SiteSettings = {
   topRibbonMessages?: string[];
 };
 
-type PageSummary = {
-  title: string;
-  slug: string;
-  status: string;
-};
-
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -71,8 +64,6 @@ export default async function RootLayout({
   );
 
   let siteSettings: SiteSettings | null = null;
-  let navPages: PageSummary[] = [];
-  let navOrderBySection: PageDisplayOrderMap = {};
   const base = apiBaseUrl();
   try {
     const fetchJson = async <T,>(
@@ -95,20 +86,12 @@ export default async function RootLayout({
         clearTimeout(timeoutId);
       }
     };
-    const [settingsRes, pagesRes, orderRes] = await Promise.allSettled([
+    const [settingsRes] = await Promise.allSettled([
       fetchJson<{ settings?: SiteSettings }>("/api/pages/site-settings", 10_000, true),
-      fetchJson<PageSummary[]>("/api/pages", 10_000, false),
-      fetchJson<{ orderBySection?: unknown }>("/api/pages/display-order", 10_000, true),
     ]);
     if (settingsRes.status === "fulfilled" && settingsRes.value?.settings) {
       // Убираем тяжёлые dataUrl документов из критического SSR payload.
       siteSettings = { ...settingsRes.value.settings, documents: [] };
-    }
-    if (pagesRes.status === "fulfilled" && Array.isArray(pagesRes.value)) {
-      navPages = pagesRes.value;
-    }
-    if (orderRes.status === "fulfilled") {
-      navOrderBySection = normalizePageDisplayOrderMap(orderRes.value?.orderBySection);
     }
   } catch {
     siteSettings = null;
@@ -125,8 +108,8 @@ export default async function RootLayout({
         <SiteNavbar
           initialFolderNavItems={initialFolderNavItems}
           siteSettings={siteSettings}
-          initialPages={navPages}
-          initialOrderBySection={navOrderBySection}
+          initialPages={[]}
+          initialOrderBySection={{}}
         />
         {/* overflow-x-hidden здесь, не на body — иначе sticky-шапка не прилипает к viewport (clip в старых WebKit давал артефакты). */}
         <SiteMainColumn>
@@ -140,8 +123,8 @@ export default async function RootLayout({
           <GlobalFeedbackForm />
           <SiteFooter
             siteSettings={siteSettings}
-            initialPages={navPages}
-            initialOrderBySection={navOrderBySection}
+            initialPages={[]}
+            initialOrderBySection={{}}
           />
         </SiteMainColumn>
       </body>

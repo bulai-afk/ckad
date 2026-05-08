@@ -149,8 +149,6 @@ export function useEqualizeFolderCardSlots(
 
     window.addEventListener("resize", scheduleHard);
     const t0 = window.setTimeout(scheduleHard, 0);
-    const t1 = window.setTimeout(scheduleHard, 150);
-    const t2 = window.setTimeout(scheduleHard, 600);
 
     return () => {
       cancelled = true;
@@ -161,8 +159,6 @@ export function useEqualizeFolderCardSlots(
       imgListeners.forEach(({ el, fn }) => el.removeEventListener("load", fn));
       window.removeEventListener("resize", scheduleHard);
       window.clearTimeout(t0);
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
       getSlots(root).forEach((el) => {
         el.style.height = "";
         el.style.minHeight = "";
