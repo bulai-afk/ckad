@@ -9,6 +9,7 @@ import {
 } from "@/lib/pageWebCarouselTranslate";
 
 function syncCarouselsInDocument() {
+  const toRefresh: HTMLElement[] = [];
   document.querySelectorAll(".page-content .page-web-carousel-viewport").forEach((node) => {
     const vp = node as HTMLElement;
     if (!vp.querySelector(":scope > .page-web-carousel-strip")) {
@@ -25,14 +26,26 @@ function syncCarouselsInDocument() {
     vp.style.setProperty("--carousel-slide-px", `${slidePx}px`);
     const strip = vp.querySelector(":scope > .page-web-carousel-strip") as HTMLElement | null;
     strip?.style.removeProperty("width");
-    refreshCarouselStripTranslateAfterLayout(vp);
+    toRefresh.push(vp);
   });
+  if (toRefresh.length > 0) {
+    requestAnimationFrame(() => {
+      toRefresh.forEach((vp) => refreshCarouselStripTranslateAfterLayout(vp));
+    });
+  }
 }
 
 /** Публичная страница: карусель на grid + cqi; transform-навигация из lib. */
 export function PublicCarouselViewportSync() {
   useEffect(() => {
-    const run = () => syncCarouselsInDocument();
+    let rafId = 0;
+    const run = () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        rafId = 0;
+        syncCarouselsInDocument();
+      });
+    };
     run();
     const ro = new ResizeObserver(run);
     document.querySelectorAll(".page-content .page-web-carousel-viewport").forEach((el) => ro.observe(el));
@@ -81,6 +94,7 @@ export function PublicCarouselViewportSync() {
     document.addEventListener("touchend", onTouchEnd, { passive: true });
 
     return () => {
+      if (rafId) cancelAnimationFrame(rafId);
       window.removeEventListener("resize", run);
       ro.disconnect();
       document.removeEventListener("click", onClick);

@@ -13,15 +13,20 @@ export async function GET() {
   try {
     const res = await fetch(`${backendBase()}/api/pages/site-settings`, {
       method: "GET",
-      cache: "no-store",
+      cache: "force-cache",
+      next: { revalidate: 300 },
       headers: { Accept: "application/json" },
     });
     const text = await res.text();
+    const upstreamCacheControl = res.headers.get("cache-control");
     return new NextResponse(text, {
       status: res.status,
       headers: {
         "Content-Type": "application/json",
-        "Cache-Control": "no-store, max-age=0",
+        "Cache-Control":
+          upstreamCacheControl && upstreamCacheControl.trim()
+            ? upstreamCacheControl
+            : "public, s-maxage=300, stale-while-revalidate=600",
       },
     });
   } catch {

@@ -8,9 +8,26 @@
     "start": "next start",
     "lint": "eslint"
   },
+  "browserslist": {
+    "production": [
+      "supports es6-module",
+      "last 2 Chrome major versions",
+      "last 2 Edge major versions",
+      "last 2 Firefox major versions",
+      "last 2 Safari major versions",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 Chrome major version",
+      "last 1 Firefox major version",
+      "last 1 Safari major version"
+    ]
+  },
   "dependencies": {
     "@headlessui/react": "^2.2.10",
     "@heroicons/react": "^2.2.0",
+    "@tailwindplus/elements": "^1.0.22",
     "next": "16.1.7",
     "pdfjs-dist": "^4.10.38",
     "react": "19.2.3",

@@ -197,12 +197,16 @@ export function HomeArticlesCarousel({ slides }: Props) {
                     }}
                     onPointerUp={(e) => e.stopPropagation()}
                     onClick={() => setIndex(i)}
-                    className={`h-2.5 rounded-full transition-all ${
-                      i === safeIndex
-                        ? "w-6 bg-[#496db3]"
-                        : "w-2.5 bg-slate-300 hover:bg-slate-400"
-                    }`}
-                  />
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-full"
+                  >
+                    <span
+                      className={`h-2.5 rounded-full transition-all ${
+                        i === safeIndex
+                          ? "w-6 bg-[#496db3]"
+                          : "w-2.5 bg-slate-300 hover:bg-slate-400"
+                      }`}
+                    />
+                  </button>
                 ))}
               </div>
             ) : null}

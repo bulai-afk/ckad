@@ -1,4 +1,10 @@
 export function ensureCoverBgLayers(root: ParentNode): void {
+  const rootKey = root as object;
+  const existingRaf = timelineMeasureRafByRoot.get(rootKey);
+  if (existingRaf) {
+    cancelAnimationFrame(existingRaf);
+    timelineMeasureRafByRoot.delete(rootKey);
+  }
   const debugEnabled =
     typeof window !== "undefined" &&
     window.localStorage?.getItem("debugPageCoverSync") === "1";
@@ -136,27 +142,39 @@ export function ensureCoverBgLayers(root: ParentNode): void {
 
     // Общая линия таймлайна должна идти строго от первой точки до последней
     // (горизонтально на desktop, вертикально на mobile — через CSS).
-    const dots = Array.from(timeline.querySelectorAll(":scope .page-web-timeline-dot")) as HTMLElement[];
-    if (dots.length >= 2) {
-      const timelineRect = timeline.getBoundingClientRect();
-      const firstRect = dots[0].getBoundingClientRect();
-      const lastRect = dots[dots.length - 1].getBoundingClientRect();
-      const leftPx = Math.max(0, firstRect.left + firstRect.width / 2 - timelineRect.left);
-      const rightPx = Math.max(0, timelineRect.right - (lastRect.left + lastRect.width / 2));
-      const topPx = Math.max(0, firstRect.top + firstRect.height / 2 - timelineRect.top);
-      const bottomPx = Math.max(0, timelineRect.bottom - (lastRect.top + lastRect.height / 2));
-      timeline.style.setProperty("--timeline-line-left", `${leftPx}px`);
-      timeline.style.setProperty("--timeline-line-right", `${rightPx}px`);
-      timeline.style.setProperty("--timeline-line-top", `${topPx}px`);
-      timeline.style.setProperty("--timeline-line-bottom", `${bottomPx}px`);
-    } else {
-      timeline.style.removeProperty("--timeline-line-left");
-      timeline.style.removeProperty("--timeline-line-right");
-      timeline.style.removeProperty("--timeline-line-top");
-      timeline.style.removeProperty("--timeline-line-bottom");
-    }
+    // Геометрию таймлайна меряем в следующем кадре после всех DOM-изменений выше,
+    // чтобы избежать forced layout из-за read-after-write в одном таске.
   });
+  const rafId = requestAnimationFrame(() => {
+    timelineMeasureRafByRoot.delete(rootKey);
+    timelines.forEach((timeline) => {
+      const dots = Array.from(
+        timeline.querySelectorAll(":scope .page-web-timeline-dot"),
+      ) as HTMLElement[];
+      if (dots.length >= 2) {
+        const timelineRect = timeline.getBoundingClientRect();
+        const firstRect = dots[0].getBoundingClientRect();
+        const lastRect = dots[dots.length - 1].getBoundingClientRect();
+        const leftPx = Math.max(0, firstRect.left + firstRect.width / 2 - timelineRect.left);
+        const rightPx = Math.max(0, timelineRect.right - (lastRect.left + lastRect.width / 2));
+        const topPx = Math.max(0, firstRect.top + firstRect.height / 2 - timelineRect.top);
+        const bottomPx = Math.max(0, timelineRect.bottom - (lastRect.top + lastRect.height / 2));
+        timeline.style.setProperty("--timeline-line-left", `${leftPx}px`);
+        timeline.style.setProperty("--timeline-line-right", `${rightPx}px`);
+        timeline.style.setProperty("--timeline-line-top", `${topPx}px`);
+        timeline.style.setProperty("--timeline-line-bottom", `${bottomPx}px`);
+      } else {
+        timeline.style.removeProperty("--timeline-line-left");
+        timeline.style.removeProperty("--timeline-line-right");
+        timeline.style.removeProperty("--timeline-line-top");
+        timeline.style.removeProperty("--timeline-line-bottom");
+      }
+    });
+  });
+  timelineMeasureRafByRoot.set(rootKey, rafId);
 }
+
+const timelineMeasureRafByRoot = new WeakMap<object, number>();
 
 export function getTimelineRenderCss(scope: string): string {
   return `

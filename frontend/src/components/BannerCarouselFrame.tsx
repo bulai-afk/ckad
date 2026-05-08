@@ -113,13 +113,17 @@ export function BannerCarouselFrame<TSlide extends SlideWithId>({
                 onPointerDown={(e) => e.stopPropagation()}
                 onPointerUp={(e) => e.stopPropagation()}
                 onClick={() => onSelectSlide(idx)}
-                className={`h-2.5 rounded-full transition-all ${
-                  idx === activeIndex
-                    ? "w-6 bg-[#496db3]"
-                    : "w-2.5 bg-slate-300 hover:bg-slate-400"
-                }`}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full"
                 aria-label={`Перейти к банеру ${idx + 1}`}
-              />
+              >
+                <span
+                  className={`h-2.5 rounded-full transition-all ${
+                    idx === activeIndex
+                      ? "w-6 bg-[#496db3]"
+                      : "w-2.5 bg-slate-300 hover:bg-slate-400"
+                  }`}
+                />
+              </button>
             ))}
           </div>
         ) : null}

@@ -12,6 +12,25 @@ type SiteSettingsHtmlPayload = {
   };
 };
 
+let siteSettingsHtmlCache: SiteSettingsHtmlPayload | null = null;
+let siteSettingsHtmlInflight: Promise<SiteSettingsHtmlPayload> | null = null;
+
+async function getSiteSettingsHtmlPayload(): Promise<SiteSettingsHtmlPayload> {
+  if (siteSettingsHtmlCache) return siteSettingsHtmlCache;
+  if (siteSettingsHtmlInflight) return siteSettingsHtmlInflight;
+  siteSettingsHtmlInflight = (async () => {
+    const res = await fetch(`${apiBaseUrl()}/api/pages/site-settings`, { cache: "force-cache" });
+    const data = (await res.json().catch(() => ({}))) as SiteSettingsHtmlPayload;
+    siteSettingsHtmlCache = data;
+    return data;
+  })()
+    .catch(() => ({}) as SiteSettingsHtmlPayload)
+    .finally(() => {
+      siteSettingsHtmlInflight = null;
+    });
+  return siteSettingsHtmlInflight;
+}
+
 const inlineDocLinkButtonClass =
   "inline max-w-full cursor-pointer select-none border-0 bg-transparent p-0 text-left font-inherit align-baseline text-inherit shadow-none outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#496db3] disabled:cursor-wait";
 
@@ -85,8 +104,7 @@ export function PolicyHtmlDialogLink({
     let cancelled = false;
     void (async () => {
       try {
-        const res = await fetch(`${apiBaseUrl()}/api/pages/site-settings`, { cache: "no-store" });
-        const data = (await res.json().catch(() => ({}))) as SiteSettingsHtmlPayload;
+        const data = await getSiteSettingsHtmlPayload();
         const raw = data?.settings?.[settingsHtmlKey];
         const policyHtml = typeof raw === "string" ? raw.trim() : "";
         if (cancelled) return;

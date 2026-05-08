@@ -121,7 +121,13 @@ export default async function RootLayout({
         />
         {/* overflow-x-hidden здесь, не на body — иначе sticky-шапка не прилипает к viewport (clip в старых WebKit давал артефакты). */}
         <SiteMainColumn>
-          <div className="flex w-full min-h-0 flex-col">{children}</div>
+          <div
+            id="main-content"
+            role="main"
+            className="flex w-full min-h-0 flex-col"
+          >
+            {children}
+          </div>
           <GlobalFeedbackForm />
           <SiteFooter
             siteSettings={siteSettings}

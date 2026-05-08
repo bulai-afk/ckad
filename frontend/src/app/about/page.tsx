@@ -258,9 +258,9 @@ export default async function AboutPage() {
           <p className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-center text-pretty sm:-mt-2">
             Принципы, на которых строится работа
           </p>
-          <dl className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {values.map((item) => (
-              <div
+              <li
                 key={item.title}
                 className="flex min-h-full items-start gap-3 rounded-[10px] border border-slate-200 bg-white p-[0.9rem]"
               >
@@ -268,12 +268,12 @@ export default async function AboutPage() {
                   <item.icon aria-hidden="true" className="h-[1.12rem] w-[1.12rem] shrink-0" />
                 </div>
                 <div className="min-w-0">
-                  <dt className="text-base font-semibold leading-[1.4] text-slate-900">{item.title}</dt>
-                  <dd className="mt-1 text-base leading-[1.4] text-slate-600">{item.text}</dd>
+                  <h3 className="text-base font-semibold leading-[1.4] text-slate-900">{item.title}</h3>
+                  <p className="mt-1 text-base leading-[1.4] text-slate-600">{item.text}</p>
                 </div>
-              </div>
+              </li>
             ))}
-          </dl>
+          </ul>
         </div>
       </section>
 

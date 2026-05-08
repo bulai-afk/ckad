@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -45,6 +46,54 @@ const DEFAULT_FALLBACK_PREVIEW = "/logo_1.svg";
 
 const CARD_SELECTOR = "[data-service-folder-card]";
 
+function ResponsiveCardImage({
+  src,
+  alt,
+  className,
+  sizes,
+  fill = true,
+}: {
+  src: string;
+  alt: string;
+  className: string;
+  sizes: string;
+  fill?: boolean;
+}) {
+  const isLocalAsset = src.startsWith("/");
+  if (isLocalAsset) {
+    if (!fill) {
+      return (
+        <Image
+          src={src}
+          alt={alt}
+          width={512}
+          height={512}
+          sizes={sizes}
+          className={className}
+        />
+      );
+    }
+    return (
+      <Image
+        src={src}
+        alt={alt}
+        fill
+        sizes={sizes}
+        className={className}
+      />
+    );
+  }
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={className}
+      decoding="async"
+      loading="lazy"
+    />
+  );
+}
+
 function FolderCard({
   c,
   displaySrc,
@@ -83,19 +132,20 @@ function FolderCard({
           className={`${styles.cardFeaturedBannerMedia} ${isLogoFallback ? styles.cardFeaturedBannerMediaFallback : ""}`.trim()}
           aria-hidden
         >
-          <img
+          <ResponsiveCardImage
             src={displaySrc}
             alt=""
             className={`${styles.cardFeaturedBannerImg} ${isLogoFallback ? styles.cardFeaturedBannerImgLogo : ""}`}
-            decoding="async"
+            sizes="(max-width: 639px) 94vw, (max-width: 1023px) 72vw, 46vw"
           />
           {!isLogoFallback ? (
             <div className={styles.cardFeaturedHoverFallback}>
-              <img
+              <ResponsiveCardImage
                 src={fallbackSrc}
                 alt=""
                 className={styles.cardFeaturedHoverFallbackImg}
-                decoding="async"
+                sizes="(max-width: 639px) 90vw, (max-width: 1023px) 70vw, 42vw"
+                fill={false}
               />
             </div>
           ) : null}
@@ -156,12 +206,11 @@ function FolderCard({
     >
       <div className={styles.cardBgStack} aria-hidden>
         <div className={styles.cardBgImageWrap}>
-          <img
-            key={`${c.slugPath}-${displaySrc.length}-${isLogoFallback ? "logo" : "pv"}`}
+          <ResponsiveCardImage
             src={displaySrc}
             alt=""
             className={`${styles.cardBgImg} ${isLogoFallback ? styles.cardBgImgLogo : ""}`}
-            decoding="async"
+            sizes="(max-width: 639px) 92vw, (max-width: 1023px) 46vw, 30vw"
           />
         </div>
         <div className={styles.cardBgDim} />

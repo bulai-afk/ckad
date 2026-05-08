@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Script from "next/script";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { apiGet } from "@/lib/api";
@@ -39,6 +38,14 @@ const TOP_BANNER_MESSAGES = [
 ];
 
 const DESKTOP_NAV_POPOVER_IDS = ["desktop-menu-catalog", "desktop-menu-study"] as const;
+let tailwindElementsLoadPromise: Promise<unknown> | null = null;
+
+function ensureTailwindElementsLoaded(): Promise<unknown> {
+  if (!tailwindElementsLoadPromise) {
+    tailwindElementsLoadPromise = import("@tailwindplus/elements");
+  }
+  return tailwindElementsLoadPromise;
+}
 
 function hideDesktopNavPopovers() {
   if (typeof document === "undefined") return;
@@ -155,6 +162,23 @@ export function SiteNavbar({
   const flipResetTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
+    const scheduleLoad = () => {
+      void ensureTailwindElementsLoaded();
+    };
+    if (typeof window === "undefined") return;
+    const w = window as Window & {
+      requestIdleCallback?: (callback: () => void) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    if (typeof w.requestIdleCallback === "function") {
+      const idleId = w.requestIdleCallback(scheduleLoad);
+      return () => w.cancelIdleCallback?.(idleId);
+    }
+    const t = setTimeout(scheduleLoad, 1);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
     if (hasServerNavData) return;
     let alive = true;
     void (async () => {
@@ -245,11 +269,6 @@ export function SiteNavbar({
 
   return (
     <>
-      <Script
-        src="https://cdn.jsdelivr.net/npm/@tailwindplus/elements@1"
-        type="module"
-        strategy="afterInteractive"
-      />
       <header className="fixed top-0 right-0 left-0 z-50">
         <div className="flex h-7 items-center justify-center bg-[#496db3] px-6 text-white shadow-sm ring-1 ring-[#3f5f9d]/60 sm:px-3.5">
             <div className="flex items-center justify-center">
