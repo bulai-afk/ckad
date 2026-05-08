@@ -1,18 +1,10 @@
 import { NextResponse } from "next/server";
-
-function backendBase(): string {
-  return (
-    process.env.BACKEND_API_URL ||
-    process.env.API_URL ||
-    process.env.NEXT_PUBLIC_API_URL ||
-    "http://127.0.0.1:4000"
-  );
-}
+import { backendApiUrl } from "@/lib/backendApiUrl";
 
 export async function POST(request: Request) {
   try {
     const body = await request.text();
-    const res = await fetch(`${backendBase()}/api/feedback`, {
+    const res = await fetch(`${backendApiUrl()}/api/feedback`, {
       method: "POST",
       cache: "no-store",
       headers: {

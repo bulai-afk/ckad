@@ -1,23 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { backendApiUrl } from "@/lib/backendApiUrl";
 
 export const runtime = "nodejs";
-
-/** URL Express-бэкенда (только на сервере Next, не в браузере). */
-function backendBase(): string {
-  return (
-    process.env.BACKEND_API_URL ||
-    process.env.API_URL ||
-    process.env.NEXT_PUBLIC_API_URL ||
-    "http://127.0.0.1:4000"
-  );
-}
 
 const PROXY_TIMEOUT_MS = 120_000;
 
 async function proxyToBackend(
   init: RequestInit & { method: string },
 ): Promise<Response> {
-  const url = `${backendBase()}/api/pages/banners`;
+  const url = `${backendApiUrl()}/api/pages/banners`;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), PROXY_TIMEOUT_MS);
   try {

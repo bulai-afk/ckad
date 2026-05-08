@@ -10,7 +10,11 @@ import { waitForDatabaseReady } from "./prisma";
 
 const app = express();
 const port = process.env.PORT || 4000;
-const requestLogEnabled = process.env.DEBUG_REQUESTS !== "0";
+/** В production по умолчанию выключено (меньше шума и нагрузки на journald/диск); включить: DEBUG_REQUESTS=1 */
+const requestLogEnabled =
+  process.env.NODE_ENV === "production"
+    ? process.env.DEBUG_REQUESTS === "1"
+    : process.env.DEBUG_REQUESTS !== "0";
 
 app.use(cors());
 app.use(

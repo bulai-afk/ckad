@@ -1,17 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-
-function backendBase(): string {
-  return (
-    process.env.BACKEND_API_URL ||
-    process.env.API_URL ||
-    process.env.NEXT_PUBLIC_API_URL ||
-    "http://127.0.0.1:4000"
-  );
-}
+import { backendApiUrl } from "@/lib/backendApiUrl";
 
 export async function GET() {
   try {
-    const url = `${backendBase()}/api/pages/folders`;
+    const url = `${backendApiUrl()}/api/pages/folders`;
     const res = await fetch(url, {
       method: "GET",
       cache: "no-store",
@@ -45,7 +37,7 @@ export async function GET() {
 export async function PUT(req: NextRequest) {
   try {
     const body = await req.text();
-    const res = await fetch(`${backendBase()}/api/pages/folders`, {
+    const res = await fetch(`${backendApiUrl()}/api/pages/folders`, {
       method: "PUT",
       cache: "no-store",
       headers: { "Content-Type": "application/json", Accept: "application/json" },

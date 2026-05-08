@@ -1,13 +1,5 @@
 import { NextResponse } from "next/server";
-
-function backendBase(): string {
-  return (
-    process.env.BACKEND_API_URL ||
-    process.env.API_URL ||
-    process.env.NEXT_PUBLIC_API_URL ||
-    "http://127.0.0.1:4000"
-  );
-}
+import { backendApiUrl } from "@/lib/backendApiUrl";
 
 /**
  * GET /api/pages/slug/a/b/c → бэкенд /api/pages/slug/a/b/c (без %2F внутри сегмента).
@@ -23,7 +15,7 @@ export async function GET(
   }
   const path = segments.map((s) => encodeURIComponent(s)).join("/");
   try {
-    const url = `${backendBase()}/api/pages/slug/${path}`;
+    const url = `${backendApiUrl()}/api/pages/slug/${path}`;
     const res = await fetch(url, {
       method: "GET",
       cache: "force-cache",

@@ -1,13 +1,5 @@
 import { NextResponse } from "next/server";
-
-function backendBase(): string {
-  return (
-    process.env.BACKEND_API_URL ||
-    process.env.API_URL ||
-    process.env.NEXT_PUBLIC_API_URL ||
-    "http://127.0.0.1:4000"
-  );
-}
+import { backendApiUrl } from "@/lib/backendApiUrl";
 
 export async function POST(req: Request) {
   let username = "";
@@ -32,7 +24,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const upstream = await fetch(`${backendBase()}/api/auth/login`, {
+    const upstream = await fetch(`${backendApiUrl()}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),

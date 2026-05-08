@@ -1,18 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-
-function backendBase(): string {
-  return (
-    process.env.BACKEND_API_URL ||
-    process.env.API_URL ||
-    process.env.NEXT_PUBLIC_API_URL ||
-    "http://127.0.0.1:4000"
-  );
-}
+import { backendApiUrl } from "@/lib/backendApiUrl";
 
 export async function PUT(req: NextRequest) {
   try {
     const body = await req.text();
-    const res = await fetch(`${backendBase()}/api/pages/folder-rename`, {
+    const res = await fetch(`${backendApiUrl()}/api/pages/folder-rename`, {
       method: "PUT",
       cache: "no-store",
       headers: { "Content-Type": "application/json", Accept: "application/json" },

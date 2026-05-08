@@ -1,18 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-
-function backendBase(): string {
-  return (
-    process.env.BACKEND_API_URL ||
-    process.env.API_URL ||
-    process.env.NEXT_PUBLIC_API_URL ||
-    "http://127.0.0.1:4000"
-  );
-}
+import { backendApiUrl } from "@/lib/backendApiUrl";
 
 /** Список страниц для публичного навбара (клиент ходит сюда same-origin). */
 export async function GET() {
   try {
-    const url = `${backendBase()}/api/pages`;
+    const url = `${backendApiUrl()}/api/pages`;
     const res = await fetch(url, {
       method: "GET",
       cache: "no-store",
@@ -39,7 +31,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.text();
-    const res = await fetch(`${backendBase()}/api/pages`, {
+    const res = await fetch(`${backendApiUrl()}/api/pages`, {
       method: "POST",
       cache: "no-store",
       headers: { "Content-Type": "application/json", Accept: "application/json" },

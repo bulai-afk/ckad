@@ -1,17 +1,9 @@
 import { NextResponse } from "next/server";
-
-function backendBase(): string {
-  return (
-    process.env.BACKEND_API_URL ||
-    process.env.API_URL ||
-    process.env.NEXT_PUBLIC_API_URL ||
-    "http://127.0.0.1:4000"
-  );
-}
+import { backendApiUrl } from "@/lib/backendApiUrl";
 
 export async function GET() {
   try {
-    const res = await fetch(`${backendBase()}/api/feedback/requests`, {
+    const res = await fetch(`${backendApiUrl()}/api/feedback/requests`, {
       method: "GET",
       cache: "no-store",
       headers: { Accept: "application/json" },
@@ -32,7 +24,7 @@ export async function GET() {
 export async function DELETE(request: Request) {
   try {
     const body = await request.text();
-    const res = await fetch(`${backendBase()}/api/feedback/requests`, {
+    const res = await fetch(`${backendApiUrl()}/api/feedback/requests`, {
       method: "DELETE",
       cache: "no-store",
       headers: {

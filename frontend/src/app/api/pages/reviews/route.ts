@@ -1,16 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-
-function backendBase(): string {
-  return (
-    process.env.BACKEND_API_URL ||
-    process.env.API_URL ||
-    process.env.NEXT_PUBLIC_API_URL ||
-    "http://127.0.0.1:4000"
-  );
-}
+import { backendApiUrl } from "@/lib/backendApiUrl";
 
 async function proxyToBackend(init: RequestInit & { method: string }): Promise<Response> {
-  const url = `${backendBase()}/api/pages/reviews`;
+  const url = `${backendApiUrl()}/api/pages/reviews`;
   return fetch(url, {
     ...init,
     cache: "no-store",

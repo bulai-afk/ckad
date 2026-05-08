@@ -1,13 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-
-function backendBase(): string {
-  return (
-    process.env.BACKEND_API_URL ||
-    process.env.API_URL ||
-    process.env.NEXT_PUBLIC_API_URL ||
-    "http://127.0.0.1:4000"
-  );
-}
+import { backendApiUrl } from "@/lib/backendApiUrl";
 
 /** Прокси GET/PUT/DELETE /api/pages/:id → Express (админка, same-origin). */
 export async function GET(
@@ -16,7 +8,7 @@ export async function GET(
 ) {
   const { id } = await context.params;
   try {
-    const res = await fetch(`${backendBase()}/api/pages/${encodeURIComponent(id)}`, {
+    const res = await fetch(`${backendApiUrl()}/api/pages/${encodeURIComponent(id)}`, {
       method: "GET",
       cache: "no-store",
       headers: { Accept: "application/json" },
@@ -41,7 +33,7 @@ export async function PUT(
   const { id } = await context.params;
   try {
     const body = await req.text();
-    const res = await fetch(`${backendBase()}/api/pages/${encodeURIComponent(id)}`, {
+    const res = await fetch(`${backendApiUrl()}/api/pages/${encodeURIComponent(id)}`, {
       method: "PUT",
       cache: "no-store",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -66,7 +58,7 @@ export async function DELETE(
 ) {
   const { id } = await context.params;
   try {
-    const res = await fetch(`${backendBase()}/api/pages/${encodeURIComponent(id)}`, {
+    const res = await fetch(`${backendApiUrl()}/api/pages/${encodeURIComponent(id)}`, {
       method: "DELETE",
       cache: "no-store",
     });

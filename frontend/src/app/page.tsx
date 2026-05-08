@@ -25,7 +25,6 @@ import {
 } from "@/lib/serviceTree";
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
 
-export const dynamic = "force-dynamic";
 export const revalidate = 120;
 
 type ReviewSlide = {
