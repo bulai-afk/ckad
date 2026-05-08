@@ -4,12 +4,11 @@ import {
   SparklesIcon,
   UserGroupIcon,
 } from "@heroicons/react/24/outline";
-import type { BannerSlide } from "@/components/HomeBannersCarousel";
 import { HomeBannersCarouselGate } from "@/components/HomeBannersCarouselGate";
+import type { BannerSlide } from "@/components/HomeBannersCarousel";
 import { HomeReviewsCarousel } from "@/components/HomeReviewsCarousel";
 import { HomeServicesFolderCards } from "@/components/HomeServicesFolderCards";
 import { HomeArticlesCarousel } from "@/components/HomeArticlesCarousel";
-import { apiGet } from "@/lib/api";
 import {
   normalizePageDisplayOrderMap,
   sortBySectionDisplayOrder,
@@ -27,22 +26,15 @@ import {
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 120;
 
 type ReviewSlide = {
   id: string;
   image: string | null;
 };
 
-type ArticleListItem = {
-  id: number;
-  title: string;
-  slug: string;
-  status: "DRAFT" | "PUBLISHED" | string;
-  description?: string | null;
-  preview?: string | null;
-  createdAt?: string | null;
-  updatedAt?: string | null;
-  articleKind?: "news" | "article";
+type BannersResponse = {
+  slides?: BannerSlide[];
 };
 
 const features = [
@@ -68,18 +60,22 @@ const features = [
   },
 ] as const;
 
-function isVisibleArticlePage(p: ArticleListItem): boolean {
-  if (String(p.status).toUpperCase() === "PUBLISHED") return true;
-  return process.env.NODE_ENV === "development";
-}
-
 export default async function Home() {
   const base = apiBaseUrl();
-  const fetchNoStoreJson = async <T,>(path: string, timeoutMs: number): Promise<T> => {
+  const fetchJson = async <T,>(
+    path: string,
+    timeoutMs: number,
+    useDataCache = true,
+  ): Promise<T> => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const res = await fetch(`${base}${path}`, { cache: "no-store", signal: controller.signal });
+      const res = await fetch(
+        `${base}${path}`,
+        useDataCache
+          ? { cache: "force-cache", next: { revalidate: 120 }, signal: controller.signal }
+          : { cache: "no-store", signal: controller.signal },
+      );
       if (!res.ok) throw new Error(`GET ${path} failed with ${res.status}`);
       return (await res.json()) as T;
     } catch (e: unknown) {
@@ -95,21 +91,17 @@ export default async function Home() {
       clearTimeout(timeoutId);
     }
   };
-  const [reviewsRes, bannersRes, pagesRes, foldersRes, orderRes] = await Promise.allSettled([
-    fetchNoStoreJson<{ slides?: ReviewSlide[] }>("/api/pages/reviews", 10_000),
-    fetchNoStoreJson<{ slides?: BannerSlide[] }>("/api/pages/banners", 10_000),
-    apiGet<ServiceListItem[]>("/api/pages"),
-    apiGet<{ folders?: ServiceFolderMeta[] }>("/api/pages/folders"),
-    apiGet<{ orderBySection?: unknown }>("/api/pages/display-order"),
+  const [reviewsRes, pagesRes, foldersRes, orderRes, bannersRes] = await Promise.allSettled([
+    fetchJson<{ slides?: ReviewSlide[] }>("/api/pages/reviews", 10_000, true),
+    fetchJson<ServiceListItem[]>("/api/pages", 10_000, false),
+    fetchJson<{ folders?: ServiceFolderMeta[] }>("/api/pages/folders", 10_000, true),
+    fetchJson<{ orderBySection?: unknown }>("/api/pages/display-order", 10_000, true),
+    fetchJson<BannersResponse>("/api/pages/banners", 10_000, true),
   ]);
 
   const reviews =
     reviewsRes.status === "fulfilled" && Array.isArray(reviewsRes.value?.slides)
       ? reviewsRes.value.slides
-      : [];
-  const bannerSlides =
-    bannersRes.status === "fulfilled" && Array.isArray(bannersRes.value?.slides)
-      ? bannersRes.value.slides
       : [];
   const allPages = pagesRes.status === "fulfilled" && Array.isArray(pagesRes.value) ? pagesRes.value : [];
   const folders =
@@ -120,6 +112,10 @@ export default async function Home() {
     orderRes.status === "fulfilled"
       ? normalizePageDisplayOrderMap(orderRes.value?.orderBySection)
       : {};
+  const homeBanners =
+    bannersRes.status === "fulfilled" && Array.isArray(bannersRes.value?.slides)
+      ? bannersRes.value.slides
+      : [];
 
   let homeServiceCards: ServiceTreeNode[] = [];
   let servicesRootFolderDescription: string | null = null;
@@ -152,32 +148,9 @@ export default async function Home() {
     ).slice(0, 12);
   }
 
-  let homeArticles: ArticleListItem[] = [];
-  if (allPages.length > 0) {
-    const byDateDesc = (allPages as ArticleListItem[])
-      .filter((p) => isVisibleArticlePage(p) && normalizeSlug(p.slug).startsWith("articles/"))
-      .map((p) => ({ ...p, slug: normalizeSlug(p.slug) }))
-      .sort((a, b) => {
-        const ad = new Date(a.updatedAt || a.createdAt || 0).getTime();
-        const bd = new Date(b.updatedAt || b.createdAt || 0).getTime();
-        return bd - ad;
-      });
-    homeArticles = sortBySectionDisplayOrder(
-      byDateDesc,
-      "articles",
-      (item) => normalizeSlug(item.slug),
-      orderBySection,
-      (a, b) => {
-        const ad = new Date(a.updatedAt || a.createdAt || 0).getTime();
-        const bd = new Date(b.updatedAt || b.createdAt || 0).getTime();
-        return bd - ad;
-      },
-    ).slice(0, 10);
-  }
-
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
-      <HomeBannersCarouselGate slides={bannerSlides} />
+      <HomeBannersCarouselGate slides={homeBanners} />
       <section className="bg-transparent py-8 sm:py-10 about-template-fallback">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto mt-0 max-w-3xl text-center">
@@ -254,7 +227,7 @@ export default async function Home() {
 
       <HomeReviewsCarousel slides={reviews} />
 
-      <HomeArticlesCarousel slides={homeArticles} />
+      <HomeArticlesCarousel slides={[]} />
 
     </div>
   );

@@ -10,7 +10,6 @@
   },
   "browserslist": {
     "production": [
-      "supports es6-module",
       "last 2 Chrome major versions",
       "last 2 Edge major versions",
       "last 2 Firefox major versions",

@@ -36,6 +36,7 @@ type BannerPreviewReadonlyProps = {
   preserveBannerTitleLineBreaks?: boolean;
   callbackFormLink: string;
   onPrimaryClick?: () => void;
+  prioritizeImageLoading?: boolean;
 };
 
 const DEFAULT_ANNOUNCEMENT_TEXT = "Announcing our next round of funding.";
@@ -61,6 +62,7 @@ export function BannerPreviewReadonly({
   preserveBannerTitleLineBreaks = true,
   callbackFormLink,
   onPrimaryClick,
+  prioritizeImageLoading = false,
 }: BannerPreviewReadonlyProps) {
   const imageSrc = typeof slide.image === "string" ? slide.image.trim() : "";
   const useImageBanner = slide.bannerType === "image";
@@ -150,7 +152,8 @@ export function BannerPreviewReadonly({
             alt={bannerTitleForAlt(slide.title)}
             className="absolute inset-0 box-border h-full w-full min-h-0 min-w-0 max-w-full object-cover"
             style={{ objectPosition: `50% ${slide.imagePosY ?? 50}%` }}
-            loading="eager"
+            loading={prioritizeImageLoading ? "eager" : "lazy"}
+            fetchPriority={prioritizeImageLoading ? "high" : "auto"}
             decoding="async"
             onLoad={() => {
               if (!bannerDebugEnabled()) return;
@@ -228,6 +231,9 @@ export function BannerPreviewReadonly({
                   alt={bannerTitleForAlt(slide.title)}
                   className="absolute inset-0 box-border h-full w-full min-h-0 min-w-0 max-w-full object-cover"
                   style={{ objectPosition: `50% ${slide.imagePosY ?? 50}%` }}
+                  loading={prioritizeImageLoading ? "eager" : "lazy"}
+                  fetchPriority={prioritizeImageLoading ? "high" : "auto"}
+                  decoding="async"
                 />
                 {slide.showOverlay !== false ? (
                   <div
@@ -313,6 +319,9 @@ export function BannerPreviewReadonly({
                 alt={bannerTitleForAlt(slide.title)}
                 className="absolute inset-0 box-border min-h-0 min-w-0 h-full w-full max-w-full object-cover"
                 style={{ objectPosition: `50% ${slide.imagePosY ?? 50}%` }}
+                loading={prioritizeImageLoading ? "eager" : "lazy"}
+                fetchPriority={prioritizeImageLoading ? "high" : "auto"}
+                decoding="async"
               />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center bg-slate-300">

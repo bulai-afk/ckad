@@ -281,7 +281,7 @@ export function HomeBannersCarousel({
           onSelectSlide={setIndex}
           swipeProps={bannerSwipe}
           roundedClassName={frameClass}
-          renderSlide={(slide) => (
+          renderSlide={(slide, idx) => (
             <div className="relative h-full min-h-0 w-full min-w-0 max-w-full overflow-hidden bg-slate-100">
               <div
                 className="flex h-full min-h-0 w-full min-w-0 flex-col"
@@ -296,6 +296,7 @@ export function HomeBannersCarousel({
                   preserveBannerTitleLineBreaks={preserveBannerTitleLineBreaks}
                   callbackFormLink={CALLBACK_FORM_LINK}
                   onPrimaryClick={() => setCallbackModalOpen(true)}
+                  prioritizeImageLoading={idx === 0}
                 />
               </div>
             </div>

@@ -12,8 +12,7 @@ import { apiBaseUrl } from "@/lib/apiBaseUrl";
 import { normalizePageDisplayOrderMap, type PageDisplayOrderMap } from "@/lib/pageDisplayOrder";
 import "./globals.css";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = 120;
 
 const exo2 = Exo_2({
   subsets: ["latin"],
@@ -76,11 +75,20 @@ export default async function RootLayout({
   let navOrderBySection: PageDisplayOrderMap = {};
   const base = apiBaseUrl();
   try {
-    const fetchNoStoreJson = async <T,>(path: string, timeoutMs: number): Promise<T> => {
+    const fetchJson = async <T,>(
+      path: string,
+      timeoutMs: number,
+      useDataCache = true,
+    ): Promise<T> => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
       try {
-        const res = await fetch(`${base}${path}`, { cache: "no-store", signal: controller.signal });
+        const res = await fetch(
+          `${base}${path}`,
+          useDataCache
+            ? { cache: "force-cache", next: { revalidate: 120 }, signal: controller.signal }
+            : { cache: "no-store", signal: controller.signal },
+        );
         if (!res.ok) throw new Error(`GET ${path} failed with ${res.status}`);
         return (await res.json()) as T;
       } finally {
@@ -88,12 +96,13 @@ export default async function RootLayout({
       }
     };
     const [settingsRes, pagesRes, orderRes] = await Promise.allSettled([
-      fetchNoStoreJson<{ settings?: SiteSettings }>("/api/pages/site-settings", 10_000),
-      fetchNoStoreJson<PageSummary[]>("/api/pages", 10_000),
-      fetchNoStoreJson<{ orderBySection?: unknown }>("/api/pages/display-order", 10_000),
+      fetchJson<{ settings?: SiteSettings }>("/api/pages/site-settings", 10_000, true),
+      fetchJson<PageSummary[]>("/api/pages", 10_000, false),
+      fetchJson<{ orderBySection?: unknown }>("/api/pages/display-order", 10_000, true),
     ]);
     if (settingsRes.status === "fulfilled" && settingsRes.value?.settings) {
-      siteSettings = settingsRes.value.settings;
+      // Убираем тяжёлые dataUrl документов из критического SSR payload.
+      siteSettings = { ...settingsRes.value.settings, documents: [] };
     }
     if (pagesRes.status === "fulfilled" && Array.isArray(pagesRes.value)) {
       navPages = pagesRes.value;

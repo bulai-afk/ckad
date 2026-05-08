@@ -8,6 +8,7 @@ import {
   excerptFromArticleDescription,
   formatArticleDate,
 } from "@/components/ArticleTeaserCard";
+import { apiBaseUrl } from "@/lib/apiBaseUrl";
 import { sanitizePublicAssetUrl } from "@/lib/publicAssetUrl";
 
 const AUTOPLAY_INTERVAL_MS = 5500;
@@ -16,6 +17,7 @@ export type HomeArticleSlide = {
   id: number;
   title: string;
   slug: string;
+  status?: string;
   description?: string | null;
   preview?: string | null;
   createdAt?: string | null;
@@ -29,13 +31,50 @@ type Props = {
 };
 
 export function HomeArticlesCarousel({ slides }: Props) {
-  const [runtimeSlides, setRuntimeSlides] = useState<HomeArticleSlide[]>(
-    Array.isArray(slides) ? slides : [],
-  );
+  const [fetchedSlides, setFetchedSlides] = useState<HomeArticleSlide[]>([]);
 
   useEffect(() => {
-    setRuntimeSlides(Array.isArray(slides) ? slides : []);
+    if (Array.isArray(slides) && slides.length > 0) return;
+    void (async () => {
+      try {
+        const res = await fetch(`${apiBaseUrl()}/api/pages`, {
+          method: "GET",
+          headers: { Accept: "application/json" },
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as HomeArticleSlide[];
+        const normalized = (Array.isArray(data) ? data : [])
+          .filter((p) => {
+            const status = String(p.status ?? "").toUpperCase();
+            if (status === "PUBLISHED") return true;
+            return process.env.NODE_ENV === "development";
+          })
+          .filter((p) =>
+            String(p.slug || "")
+              .trim()
+              .replace(/\\/g, "/")
+              .replace(/\/+/g, "/")
+              .replace(/^\/+|\/+$/g, "")
+              .toLowerCase()
+              .startsWith("articles/"),
+          )
+          .sort((a, b) => {
+            const ad = new Date(a.updatedAt || a.createdAt || 0).getTime();
+            const bd = new Date(b.updatedAt || b.createdAt || 0).getTime();
+            return bd - ad;
+          })
+          .slice(0, 10);
+        setFetchedSlides(normalized);
+      } catch {
+        setFetchedSlides([]);
+      }
+    })();
   }, [slides]);
+
+  const runtimeSlides = useMemo(
+    () => (Array.isArray(slides) && slides.length > 0 ? slides : fetchedSlides),
+    [slides, fetchedSlides],
+  );
 
   const normalized = useMemo(
     () =>
@@ -71,11 +110,6 @@ export function HomeArticlesCarousel({ slides }: Props) {
     const id = window.setInterval(tick, AUTOPLAY_INTERVAL_MS);
     return () => window.clearInterval(id);
   }, [dotCount, tabVisible, carouselHovered, maxStart]);
-
-  useEffect(() => {
-    if (index !== safeIndex) setIndex(safeIndex);
-    if (renderIndex !== safeRenderIndex) setRenderIndex(safeRenderIndex);
-  }, [index, safeIndex, renderIndex, safeRenderIndex]);
 
   const isSlideInRenderRange = useMemo(() => {
     const start = Math.min(safeIndex, safeRenderIndex);

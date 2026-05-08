@@ -102,6 +102,12 @@ type SiteSettings = {
   }[];
 };
 
+type FooterDocument = {
+  name: string;
+  size: number;
+  dataUrl: string;
+};
+
 type FooterPageRow = {
   id?: number;
   title: string;
@@ -236,6 +242,15 @@ export function SiteFooter({
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [pdfLoadState, setPdfLoadState] = useState<"idle" | "loading" | "error" | "ready">("idle");
   const [pageCount, setPageCount] = useState(0);
+  const [footerDocuments, setFooterDocuments] = useState<FooterDocument[]>(() =>
+    (siteSettings?.documents ?? [])
+      .filter(
+        (doc): doc is FooterDocument =>
+          typeof doc?.name === "string" &&
+          /^data:application\/pdf;base64,/i.test(String(doc?.dataUrl ?? "")),
+      )
+      .slice(0, 3),
+  );
 
   const hidden = useMemo(() => pathname?.startsWith("/admin"), [pathname]);
 
@@ -306,10 +321,46 @@ export function SiteFooter({
     externalSvgSrc: d.externalSvgSrc,
   })).filter((i) => i.href);
 
-  const footerDocuments = (siteSettings?.documents ?? [])
-    .filter((doc) => typeof doc?.name === "string" && /^data:application\/pdf;base64,/i.test(String(doc?.dataUrl ?? "")))
-    .slice(0, 3);
   const previewFile = previewIndex !== null ? footerDocuments[previewIndex] ?? null : null;
+
+  useEffect(() => {
+    if (hidden) return;
+    if (footerDocuments.length > 0) return;
+    let cancelled = false;
+    let timeoutId: number | undefined;
+
+    const run = () => {
+      void fetch("/api/pages/site-settings", { cache: "no-store" })
+        .then(async (res) => {
+          if (!res.ok) return;
+          const payload = (await res.json()) as { settings?: SiteSettings };
+          const docs = (payload.settings?.documents ?? [])
+            .filter(
+              (doc): doc is FooterDocument =>
+                typeof doc?.name === "string" &&
+                /^data:application\/pdf;base64,/i.test(String(doc?.dataUrl ?? "")),
+            )
+            .slice(0, 3);
+          if (!cancelled) setFooterDocuments(docs);
+        })
+        .catch(() => {
+          /* no-op */
+        });
+    };
+
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      (window as Window & { requestIdleCallback: (cb: () => void) => number }).requestIdleCallback(
+        run,
+      );
+    } else {
+      timeoutId = window.setTimeout(run, 1200);
+    }
+
+    return () => {
+      cancelled = true;
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+    };
+  }, [hidden, footerDocuments.length]);
 
   useEffect(() => {
     if (previewIndex === null) return;
