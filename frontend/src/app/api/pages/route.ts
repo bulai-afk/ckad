@@ -7,7 +7,8 @@ export async function GET() {
     const url = `${backendApiUrl()}/api/pages`;
     const res = await fetch(url, {
       method: "GET",
-      cache: "no-store",
+      cache: "force-cache",
+      next: { revalidate: 120 },
       headers: { Accept: "application/json" },
     });
     if (!res.ok) {
@@ -17,8 +18,14 @@ export async function GET() {
       });
     }
     const data = (await res.json()) as unknown;
+    const upstreamCc = res.headers.get("cache-control");
     return NextResponse.json(Array.isArray(data) ? data : [], {
-      headers: { "Cache-Control": "no-store, max-age=0" },
+      headers: {
+        "Cache-Control":
+          upstreamCc && upstreamCc.trim().length > 0
+            ? upstreamCc
+            : "public, s-maxage=120, stale-while-revalidate=600",
+      },
     });
   } catch {
     return NextResponse.json([], {

@@ -5,7 +5,6 @@ import {
   UserGroupIcon,
 } from "@heroicons/react/24/outline";
 import { HomeBannersCarouselGate } from "@/components/HomeBannersCarouselGate";
-import type { BannerSlide } from "@/components/HomeBannersCarousel";
 import { HomeReviewsCarousel } from "@/components/HomeReviewsCarousel";
 import { HomeServicesFolderCards } from "@/components/HomeServicesFolderCards";
 import { HomeArticlesCarousel } from "@/components/HomeArticlesCarousel";
@@ -27,14 +26,23 @@ import { apiBaseUrl } from "@/lib/apiBaseUrl";
 
 export const revalidate = 120;
 
-type ReviewSlide = {
-  id: string;
-  image: string | null;
-};
-
-type BannersResponse = {
-  slides?: BannerSlide[];
-};
+/** Не тащим гигантские data:/HTML поля в дерево услуг — они раздувают RSC payload главной. */
+function slimServicePageForHomeTree(p: ServiceListItem): ServiceListItem {
+  const clip = (v: string | null | undefined, max: number): string | null | undefined => {
+    if (v == null) return v;
+    if (typeof v !== "string") return v;
+    const t = v.trim();
+    if (!t) return null;
+    if (t.startsWith("data:image")) return null;
+    return t.length <= max ? t : `${t.slice(0, max)}…`;
+  };
+  return {
+    ...p,
+    description: clip(p.description, 4000),
+    preview: clip(p.preview, 2048),
+    seoDescription: clip(p.seoDescription, 2000),
+  };
+}
 
 const features = [
   {
@@ -90,19 +98,15 @@ export default async function Home() {
       clearTimeout(timeoutId);
     }
   };
-  const [reviewsRes, pagesRes, foldersRes, orderRes, bannersRes] = await Promise.allSettled([
-    fetchJson<{ slides?: ReviewSlide[] }>("/api/pages/reviews", 10_000, true),
-    fetchJson<ServiceListItem[]>("/api/pages", 10_000, false),
+  const [pagesRes, foldersRes, orderRes] = await Promise.allSettled([
+    fetchJson<ServiceListItem[]>("/api/pages", 10_000, true),
     fetchJson<{ folders?: ServiceFolderMeta[] }>("/api/pages/folders", 10_000, true),
     fetchJson<{ orderBySection?: unknown }>("/api/pages/display-order", 10_000, true),
-    fetchJson<BannersResponse>("/api/pages/banners", 10_000, true),
   ]);
 
-  const reviews =
-    reviewsRes.status === "fulfilled" && Array.isArray(reviewsRes.value?.slides)
-      ? reviewsRes.value.slides
-      : [];
-  const allPages = pagesRes.status === "fulfilled" && Array.isArray(pagesRes.value) ? pagesRes.value : [];
+  const allPagesRaw =
+    pagesRes.status === "fulfilled" && Array.isArray(pagesRes.value) ? pagesRes.value : [];
+  const allPages = allPagesRaw.map(slimServicePageForHomeTree);
   const folders =
     foldersRes.status === "fulfilled" && Array.isArray(foldersRes.value?.folders)
       ? foldersRes.value.folders
@@ -111,11 +115,6 @@ export default async function Home() {
     orderRes.status === "fulfilled"
       ? normalizePageDisplayOrderMap(orderRes.value?.orderBySection)
       : {};
-  const homeBanners =
-    bannersRes.status === "fulfilled" && Array.isArray(bannersRes.value?.slides)
-      ? bannersRes.value.slides
-      : [];
-
   let homeServiceCards: ServiceTreeNode[] = [];
   let servicesRootFolderDescription: string | null = null;
   if (allPages.length > 0) {
@@ -149,7 +148,7 @@ export default async function Home() {
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
-      <HomeBannersCarouselGate slides={homeBanners} />
+      <HomeBannersCarouselGate />
       <section className="bg-transparent py-8 sm:py-10 about-template-fallback">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto mt-0 max-w-3xl text-center">
@@ -224,7 +223,7 @@ export default async function Home() {
         </div>
       </section>
 
-      <HomeReviewsCarousel slides={reviews} />
+      <HomeReviewsCarousel slides={[]} />
 
       <HomeArticlesCarousel slides={[]} />
 

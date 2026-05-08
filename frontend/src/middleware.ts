@@ -25,12 +25,20 @@ export function middleware(req: NextRequest) {
 
   const res = NextResponse.next();
 
-  /* HTML и маршруты приложения: не отдавать из кэша браузера (актуальные папки/услуги и т.д.) */
-  res.headers.set("Cache-Control", "no-store, must-revalidate");
-
+  /*
+   * Публичные страницы: CDN может держать HTML коротко (s-maxage), браузер — с ревалидацией (max-age=0).
+   * Полный no-store раздувает «critical path» на каждом заходе (HAR: многомегабайтный документ снова с нуля).
+   * Админка и редиректы ниже — только no-store.
+   */
   if (!pathname.startsWith("/admin")) {
+    res.headers.set(
+      "Cache-Control",
+      "public, max-age=0, s-maxage=120, stale-while-revalidate=600",
+    );
     return res;
   }
+
+  res.headers.set("Cache-Control", "no-store, must-revalidate");
 
   const isAdminLoginRoute = pathname === "/admin/login";
   const isAuthorized = req.cookies.get("admin_auth")?.value === "1";
