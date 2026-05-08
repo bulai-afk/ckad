@@ -193,9 +193,9 @@ export default async function Home() {
             </p>
           </div>
           <div className="mt-8 max-w-none about-template-fallback__list-wrap">
-            <dl className="grid max-w-none grid-cols-1 gap-x-8 gap-y-10 lg:grid-cols-2 lg:gap-y-16 about-template-fallback__grid">
+            <ul className="grid max-w-none grid-cols-1 gap-x-8 gap-y-10 lg:grid-cols-2 lg:gap-y-16 about-template-fallback__grid">
               {features.map((feature) => (
-                <div key={feature.name} className="about-template-fallback__item flex items-center gap-4">
+                <li key={feature.name} className="about-template-fallback__item flex items-center gap-4">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#496db3]/12 about-template-fallback__icon">
                     <feature.icon
                       aria-hidden="true"
@@ -203,18 +203,18 @@ export default async function Home() {
                     />
                   </div>
                   <div className="min-w-0">
-                    <dt className="text-base/7 font-semibold text-gray-900 about-template-fallback__dt">
+                    <h3 className="text-base/7 font-semibold text-gray-900 about-template-fallback__dt">
                       {feature.name}
-                    </dt>
+                    </h3>
                     {feature.description ? (
-                      <dd className="mt-0 text-base/7 text-gray-600 about-template-fallback__dd">
+                      <p className="mt-0 text-base/7 text-gray-600 about-template-fallback__dd">
                         {feature.description}
-                      </dd>
+                      </p>
                     ) : null}
                   </div>
-                </div>
+                </li>
               ))}
-            </dl>
+            </ul>
           </div>
         </div>
       </section>

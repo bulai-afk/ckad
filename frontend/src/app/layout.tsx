@@ -106,7 +106,7 @@ export default async function RootLayout({
   }
 
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${exo2.className} flex min-h-screen flex-col antialiased`}
         style={{ backgroundColor: "#f3f4f6", color: "#020617" }}

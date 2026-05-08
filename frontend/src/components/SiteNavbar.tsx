@@ -162,23 +162,6 @@ export function SiteNavbar({
   const flipResetTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
-    const scheduleLoad = () => {
-      void ensureTailwindElementsLoaded();
-    };
-    if (typeof window === "undefined") return;
-    const w = window as Window & {
-      requestIdleCallback?: (callback: () => void) => number;
-      cancelIdleCallback?: (id: number) => void;
-    };
-    if (typeof w.requestIdleCallback === "function") {
-      const idleId = w.requestIdleCallback(scheduleLoad);
-      return () => w.cancelIdleCallback?.(idleId);
-    }
-    const t = setTimeout(scheduleLoad, 1);
-    return () => clearTimeout(t);
-  }, []);
-
-  useEffect(() => {
     if (hasServerNavData) return;
     let alive = true;
     void (async () => {
@@ -260,6 +243,13 @@ export function SiteNavbar({
     if (el instanceof HTMLDialogElement) el.close();
   }
 
+  async function openMobileMenu() {
+    await ensureTailwindElementsLoaded();
+    if (typeof document === "undefined") return;
+    const el = document.getElementById("mobile-menu");
+    if (el instanceof HTMLDialogElement) el.showModal();
+  }
+
   function openCallbackFromNav() {
     closeMobileMenu();
     setCallbackModalOpen(true);
@@ -307,8 +297,9 @@ export function SiteNavbar({
           <div className="flex min-[1206px]:hidden">
               <button
                 type="button"
-              command="show-modal"
-              commandfor="mobile-menu"
+              onClick={() => {
+                void openMobileMenu();
+              }}
               className="-m-1.5 inline-flex items-center justify-center rounded-md p-1.5 text-[#496db3]"
             >
               <span className="sr-only">Open main menu</span>
@@ -321,7 +312,7 @@ export function SiteNavbar({
             <el-popover-group className="block w-full min-w-0 max-w-4xl">
             <div className="flex w-full flex-wrap items-center justify-center gap-x-6 gap-y-2 xl:gap-x-8">
             <div className="relative">
-              <button popoverTarget="desktop-menu-catalog" className="flex items-center gap-x-1 whitespace-nowrap py-1 text-sm/6 font-semibold text-[#496db3] transition hover:text-red-600">
+              <button popoverTarget="desktop-menu-catalog" onPointerEnter={() => { void ensureTailwindElementsLoaded(); }} className="flex items-center gap-x-1 whitespace-nowrap py-1 text-sm/6 font-semibold text-[#496db3] transition hover:text-red-600">
                 Каталогизация
                 <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className="size-5 flex-none text-gray-400">
                   <path d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" fillRule="evenodd" />
@@ -345,7 +336,7 @@ export function SiteNavbar({
         </div>
 
             <div className="relative">
-              <button popoverTarget="desktop-menu-study" className="flex items-center gap-x-1 whitespace-nowrap py-1 text-sm/6 font-semibold text-[#496db3] transition hover:text-red-600">
+              <button popoverTarget="desktop-menu-study" onPointerEnter={() => { void ensureTailwindElementsLoaded(); }} className="flex items-center gap-x-1 whitespace-nowrap py-1 text-sm/6 font-semibold text-[#496db3] transition hover:text-red-600">
                 Учебный центр
                 <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className="size-5 flex-none text-gray-400">
                   <path d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" fillRule="evenodd" />

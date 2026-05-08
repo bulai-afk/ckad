@@ -598,6 +598,16 @@ async function normalizeBannerImageDataUrlToWebp(
   }
 }
 
+async function normalizeAndPersistBannerImage(
+  image: string | null,
+): Promise<string | null> {
+  const normalized = await normalizeBannerImageDataUrlToWebp(image);
+  if (typeof normalized === "string" && normalized.startsWith("data:image/")) {
+    return await persistInlineImageDataUrl(normalized);
+  }
+  return normalized;
+}
+
 function stripLargeInlineImageDataUrls(value: string): string {
   if (!value || !/data:image\//i.test(value)) return value;
   const re = /data:image\/([a-z0-9.+-]+);base64,([A-Za-z0-9+/=]+)/gi;
@@ -924,7 +934,7 @@ async function buildBannerSlidesFromInput(input: unknown[]): Promise<BannerSlide
   const slides: BannerSlide[] = [];
   for (const slide of rawSlides) {
     try {
-      const image = await normalizeBannerImageDataUrlToWebp(slide.image);
+      const image = await normalizeAndPersistBannerImage(slide.image);
       slides.push({ ...slide, image });
     } catch (e: unknown) {
       // eslint-disable-next-line no-console
@@ -948,7 +958,7 @@ async function readBannersFromFile(): Promise<BannerSlide[]> {
     let changed = false;
     const normalizedSlides: BannerSlide[] = [];
     for (const slide of slides) {
-      const nextImage = await normalizeBannerImageDataUrlToWebp(slide.image);
+      const nextImage = await normalizeAndPersistBannerImage(slide.image);
       if (nextImage !== slide.image) changed = true;
       normalizedSlides.push({ ...slide, image: nextImage });
     }
@@ -1723,6 +1733,12 @@ pagesRouter.post("/uploads/inline/cleanup", async (_req, res) => {
     });
     for (const page of pages) {
       const rel = normalizeInlineUploadPathFromUrl(typeof page.preview === "string" ? page.preview : "");
+      if (rel) referenced.add(rel);
+    }
+
+    const bannerSlides = await readBannersFromFile();
+    for (const slide of bannerSlides) {
+      const rel = normalizeInlineUploadPathFromUrl(typeof slide.image === "string" ? slide.image : "");
       if (rel) referenced.add(rel);
     }
 

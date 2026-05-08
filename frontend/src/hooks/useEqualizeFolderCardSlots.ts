@@ -66,7 +66,6 @@ export function useEqualizeFolderCardSlots(
           el.style.height = "";
           el.style.minHeight = "";
         });
-        void root.offsetHeight;
       }
 
       const finish = () => {

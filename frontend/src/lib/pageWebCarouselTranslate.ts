@@ -92,9 +92,13 @@ function syncCarouselArrowDisabledState(vp: HTMLElement, offsetPx: number, maxOf
 
 /** Левый край слайда в координатах ленты (устойчиво к `position: relative` у активного слайда). */
 function slideLeftRelativeToStrip(strip: HTMLElement, slide: HTMLElement): number {
-  const sr = strip.getBoundingClientRect();
-  const sl = slide.getBoundingClientRect();
-  return sl.left - sr.left;
+  let left = 0;
+  let node: HTMLElement | null = slide;
+  while (node && node !== strip) {
+    left += node.offsetLeft;
+    node = node.offsetParent as HTMLElement | null;
+  }
+  return left;
 }
 
 /** Шаг в px на один слайд (ширина колонки + gap). */
