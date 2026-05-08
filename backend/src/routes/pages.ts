@@ -494,13 +494,14 @@ async function persistInlineImageDataUrl(dataUrl: string): Promise<string> {
   const mime = String(match[1] || "").toLowerCase();
   const b64 = String(match[2] || "");
   if (!b64) return dataUrl;
-  let bytes = Buffer.from(b64, "base64");
+  const decoded = Buffer.from(b64, "base64");
+  let bytes = new Uint8Array(decoded);
   let ext = mime === "svg+xml" ? "svg" : "webp";
   try {
     if (mime !== "svg+xml" && mime !== "webp") {
-      bytes = await sharp(bytes).webp({ quality: 82 }).toBuffer();
+      bytes = new Uint8Array(await sharp(decoded).webp({ quality: 82 }).toBuffer());
     } else if (mime === "webp") {
-      bytes = await sharp(bytes).webp({ quality: 82 }).toBuffer();
+      bytes = new Uint8Array(await sharp(decoded).webp({ quality: 82 }).toBuffer());
     }
   } catch {
     // keep decoded bytes as-is if conversion fails
