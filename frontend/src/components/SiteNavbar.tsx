@@ -259,7 +259,7 @@ export function SiteNavbar({
 
   return (
     <>
-      <header className="fixed top-0 right-0 left-0 z-50">
+      <header className="fixed top-0 right-0 left-0 z-50" suppressHydrationWarning>
         <div className="flex h-7 items-center justify-center bg-[#496db3] px-6 text-white shadow-sm ring-1 ring-[#3f5f9d]/60 sm:px-3.5">
             <div className="flex items-center justify-center">
               <p className="top-info-cube whitespace-nowrap text-center text-xs font-medium text-white/95 sm:text-sm">

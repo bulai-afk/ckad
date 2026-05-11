@@ -4,6 +4,7 @@ import {
   SparklesIcon,
   UserGroupIcon,
 } from "@heroicons/react/24/outline";
+import type { BannerSlide } from "@/components/HomeBannersCarousel";
 import { HomeBannersCarouselGate } from "@/components/HomeBannersCarouselGate";
 import { HomeReviewsCarousel } from "@/components/HomeReviewsCarousel";
 import { HomeServicesFolderCards } from "@/components/HomeServicesFolderCards";
@@ -98,10 +99,13 @@ export default async function Home() {
       clearTimeout(timeoutId);
     }
   };
-  const [pagesRes, foldersRes, orderRes] = await Promise.allSettled([
+  type BannersPayload = { slides?: BannerSlide[] };
+
+  const [pagesRes, foldersRes, orderRes, bannersRes] = await Promise.allSettled([
     fetchJson<ServiceListItem[]>("/api/pages", 10_000, true),
     fetchJson<{ folders?: ServiceFolderMeta[] }>("/api/pages/folders", 10_000, true),
     fetchJson<{ orderBySection?: unknown }>("/api/pages/display-order", 10_000, true),
+    fetchJson<BannersPayload>("/api/pages/banners", 10_000, true),
   ]);
 
   const allPagesRaw =
@@ -115,6 +119,10 @@ export default async function Home() {
     orderRes.status === "fulfilled"
       ? normalizePageDisplayOrderMap(orderRes.value?.orderBySection)
       : {};
+  const homeBanners =
+    bannersRes.status === "fulfilled" && Array.isArray(bannersRes.value?.slides)
+      ? bannersRes.value.slides
+      : [];
   let homeServiceCards: ServiceTreeNode[] = [];
   let servicesRootFolderDescription: string | null = null;
   if (allPages.length > 0) {
@@ -148,7 +156,7 @@ export default async function Home() {
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
-      <HomeBannersCarouselGate />
+      <HomeBannersCarouselGate slides={homeBanners} />
       <section className="bg-transparent py-8 sm:py-10 about-template-fallback">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto mt-0 max-w-3xl text-center">

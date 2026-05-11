@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { PreventHorizontalPageScroll } from "@/components/PreventHorizontalPageScroll";
 import { SiteFooter } from "@/components/SiteFooter";
 import { GlobalFeedbackForm } from "@/components/GlobalFeedbackForm";
-import { SiteNavbarClientRoot } from "@/components/SiteNavbarClientRoot";
+import { SiteNavbar } from "@/components/SiteNavbar";
 import { SiteMainColumn } from "@/components/SiteMainColumn";
 import { LayoutClientEnhancements } from "@/components/LayoutClientEnhancements";
 import { NAV_FOLDERS_COOKIE_NAME, parseNavFoldersCookie } from "@/lib/navFoldersCookie";
@@ -105,7 +105,7 @@ export default async function RootLayout({
       >
         <PreventHorizontalPageScroll />
         <LayoutClientEnhancements />
-        <SiteNavbarClientRoot
+        <SiteNavbar
           initialFolderNavItems={initialFolderNavItems}
           siteSettings={siteSettings}
           initialPages={[]}
