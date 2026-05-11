@@ -14,8 +14,11 @@ import "./globals.css";
 export const revalidate = 120;
 
 const exo2 = Exo_2({
-  subsets: ["latin"],
+  /* Без кириллицы весь русский текст сначала идёт из fallback, потом «подскакивает» при подгрузке Exo 2. */
+  subsets: ["latin", "cyrillic"],
   weight: ["400", "500", "600", "700", "800"],
+  display: "fallback",
+  adjustFontFallback: true,
 });
 
 export const metadata: Metadata = {
