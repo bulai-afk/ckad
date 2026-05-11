@@ -6,6 +6,7 @@ import { apiDelete, apiGet, apiPost, apiPut } from "@/lib/api";
 import {
   NAV_FOLDERS_COOKIE_NAME,
   serializeNavFoldersCookie,
+  shouldForceFolderShowInNavbarOff,
 } from "@/lib/navFoldersCookie";
 import {
   normalizePageDisplayOrderMap,
@@ -233,6 +234,7 @@ type CustomFolder = {
   description?: string;
   showInNavbar?: boolean;
   preview?: string;
+  keywords?: string;
 };
 
 const FOLDER_PREVIEW_DEBUG = false;
@@ -245,6 +247,24 @@ const ADMIN_SECTION_TABS: AdminSectionConfig[] = [
   { id: "other", label: "Прочие услуги", rootSlug: "other-services" },
   { id: "articles", label: "Новости", rootSlug: "articles" },
 ];
+
+const ADMIN_SECTION_ROOT_SLUG_SET = new Set(
+  ADMIN_SECTION_TABS.map((t) => normalizeUrlSlugPath(t.rootSlug)),
+);
+
+function isAdminSectionRootSlug(slug: string): boolean {
+  return ADMIN_SECTION_ROOT_SLUG_SET.has(normalizeUrlSlugPath(slug));
+}
+
+/** Подписи корневых разделов — как в шапке сайта и вкладках админки. */
+const ADMIN_ROOT_FOLDER_LABEL: Record<string, string> = {
+  articles: "Новости",
+  catalogization: "Каталогизация",
+  "training-center": "Учебный центр",
+  "other-services": "Прочие услуги",
+  services: "Услуги",
+  about: "О компании",
+};
 
 const PAGE_TITLE_MAX = 60;
 const PAGE_DESCRIPTION_MAX = 160;
@@ -304,15 +324,15 @@ export default function AdminPage() {
   const [editFolderParentSlug, setEditFolderParentSlug] = useState<string>("__root");
   const [editFolderName, setEditFolderName] = useState<string>("");
   const [editFolderDescription, setEditFolderDescription] = useState<string>("");
-  const [editFolderShowInNavbar, setEditFolderShowInNavbar] =
-    useState<boolean>(false);
   const [editFolderPreview, setEditFolderPreview] = useState<string>("");
+  const [editFolderKeywords, setEditFolderKeywords] = useState<string>("");
   const [editFolderModalError, setEditFolderModalError] =
     useState<string | null>(null);
 
   const titleInputRef = useRef<HTMLInputElement | null>(null);
   const pagePreviewInputRef = useRef<HTMLInputElement | null>(null);
   const editFolderNameInputRef = useRef<HTMLInputElement | null>(null);
+  const editFolderPreviewInputRef = useRef<HTMLInputElement | null>(null);
   const dragPreviewRef = useRef<HTMLElement | null>(null);
   const dragSourceRef = useRef<HTMLElement | null>(null);
   const dragStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -357,14 +377,20 @@ export default function AdminPage() {
           .map((f) => ({
             name: String(f.name || "").trim(),
             slug: normalizeUrlSlugPath(String(f.slug || "").trim()),
-            description: typeof f.description === "string" ? f.description : "",
+            description:
+              typeof f.description === "string"
+                ? f.description
+                : f.description != null
+                  ? String(f.description).trim()
+                  : "",
             showInNavbar: Boolean(f.showInNavbar),
             preview: typeof f.preview === "string" ? f.preview : "",
+            keywords: typeof f.keywords === "string" ? f.keywords : "",
           }))
           .filter((f) => f.name && f.slug);
         const seen = new Map<string, (typeof loadedRaw)[0]>();
         for (const f of loadedRaw) {
-          if (!seen.has(f.slug)) seen.set(f.slug, f);
+          seen.set(f.slug, f);
         }
         const loaded = Array.from(seen.values());
         omitNextFoldersPersistRef.current = true;
@@ -917,8 +943,12 @@ export default function AdminPage() {
       }
       setEditFolderPreview(webpDataUrl);
       const oldN = normalizeUrlSlugPath(editFolderOldSlug);
-      setCustomFolders((prev) =>
-        prev.some((f) => normalizeUrlSlugPath(f.slug) === oldN)
+      setCustomFolders((prev) => {
+        const prevEntry = prev.find((f) => normalizeUrlSlugPath(f.slug) === oldN);
+        const navFlag = shouldForceFolderShowInNavbarOff(oldN)
+          ? false
+          : Boolean(prevEntry?.showInNavbar);
+        return prev.some((f) => normalizeUrlSlugPath(f.slug) === oldN)
           ? prev.map((f) =>
               normalizeUrlSlugPath(f.slug) === oldN ? { ...f, preview: webpDataUrl } : f,
             )
@@ -927,11 +957,13 @@ export default function AdminPage() {
               {
                 name: editFolderName.trim() || oldN.split("/").pop() || oldN,
                 slug: oldN,
-                showInNavbar: editFolderShowInNavbar,
+                description: editFolderDescription.trim(),
+                keywords: editFolderKeywords.trim(),
+                showInNavbar: navFlag,
                 preview: webpDataUrl,
               },
-            ],
-      );
+            ];
+      });
       setEditFolderModalError(null);
     } catch {
       setEditFolderModalError("Не удалось обработать файл превью. Попробуйте другое изображение.");
@@ -957,15 +989,24 @@ export default function AdminPage() {
   function openEditFolderModal(folderSlug: string) {
     const n = normalizeUrlSlugPath(folderSlug);
     const entry = customFolders.find((f) => normalizeUrlSlugPath(f.slug) === n);
+    const tabForRoot = ADMIN_SECTION_TABS.find(
+      (t) => normalizeUrlSlugPath(t.rootSlug) === n,
+    );
     const parentPath = getFolderParentPath(n);
     const leafSlug = n.split("/").pop() || n;
     setEditFolderOldSlug(n);
     setEditFolderParentSlug(parentPath);
     setEditFolderSlug(leafSlug);
-    setEditFolderName(entry?.name ?? humanizeFolderSlugSegment(leafSlug));
+    setEditFolderName(
+      entry?.name?.trim() ||
+        tabForRoot?.label ||
+        humanizeFolderSlugSegment(leafSlug),
+    );
     setEditFolderDescription(entry?.description ?? "");
-    setEditFolderShowInNavbar(Boolean(entry?.showInNavbar));
     setEditFolderPreview(entry?.preview ?? "");
+    setEditFolderKeywords(
+      entry && typeof entry.keywords === "string" ? entry.keywords : "",
+    );
     setEditFolderModalError(null);
     setIsEditFolderModalOpen(true);
 
@@ -978,12 +1019,12 @@ export default function AdminPage() {
     void (async () => {
       const newName = editFolderName.trim();
       if (!newName) {
-        setEditFolderModalError("Введите название папки");
+        setEditFolderModalError("Введите название страницы");
         return;
       }
       if (newName.includes("/")) {
         setEditFolderModalError(
-          "Название папки не должно содержать '/'.",
+          "Название страницы не должно содержать '/'.",
         );
         return;
       }
@@ -997,12 +1038,17 @@ export default function AdminPage() {
       const newSlug = normalizeUrlSlugPath(parentSlug ? `${parentSlug}/${newLeaf}` : newLeaf);
 
       if (!newLeaf) {
-        setEditFolderModalError("Некорректный служебный адрес папки");
+        setEditFolderModalError("Некорректный служебный адрес страницы");
         return;
       }
 
       if (!oldSlug) {
         setEditFolderModalError("Нельзя изменить служебный адрес");
+        return;
+      }
+
+      if (isAdminSectionRootSlug(oldSlug) && newSlug !== oldSlug) {
+        setEditFolderModalError("Служебный адрес корневого раздела нельзя изменить.");
         return;
       }
 
@@ -1014,7 +1060,11 @@ export default function AdminPage() {
             normalizeUrlSlugPath(f.slug) === newSlug && normalizeUrlSlugPath(f.slug) !== oldSlug,
         );
         const oldEntry = prev.find((f) => normalizeUrlSlugPath(f.slug) === oldSlug);
+        const nextShowInNavbar = shouldForceFolderShowInNavbarOff(newSlug)
+          ? false
+          : Boolean(oldEntry?.showInNavbar);
         const nextPreview = editFolderPreview.trim();
+        const nextKeywords = editFolderKeywords.trim();
         const mapped = prev.map((f) => {
           const fs = normalizeUrlSlugPath(f.slug);
           if (fs === oldSlug) {
@@ -1023,7 +1073,8 @@ export default function AdminPage() {
               slug: newSlug,
               name: newName,
               description: editFolderDescription.trim(),
-              showInNavbar: editFolderShowInNavbar,
+              keywords: nextKeywords,
+              showInNavbar: nextShowInNavbar,
               preview: nextPreview,
             };
           }
@@ -1040,7 +1091,8 @@ export default function AdminPage() {
                 name: newName,
                 slug: newSlug,
                 description: editFolderDescription.trim(),
-                showInNavbar: editFolderShowInNavbar,
+                keywords: nextKeywords,
+                showInNavbar: nextShowInNavbar,
                 preview: nextPreview || "",
               },
             ];
@@ -1083,15 +1135,15 @@ export default function AdminPage() {
         setEditFolderParentSlug("__root");
         setEditFolderName("");
         setEditFolderDescription("");
-        setEditFolderShowInNavbar(false);
         setEditFolderPreview("");
+        setEditFolderKeywords("");
       } catch (e) {
         const msg =
           e instanceof Error ? e.message : "Unknown error";
         setEditFolderModalError(
           msg.includes("409")
             ? "Служебный адрес уже используется"
-            : `Ошибка при переименовании папки: ${msg}`,
+            : `Ошибка при сохранении: ${msg}`,
         );
       }
     })();
@@ -1159,9 +1211,13 @@ export default function AdminPage() {
 
   function getFolderDisplayName(folderSlug: string): string {
     const n = normalizeUrlSlugPath(folderSlug);
+    const root = n.split("/")[0] || n;
+    if (n === root && ADMIN_ROOT_FOLDER_LABEL[root]) {
+      return ADMIN_ROOT_FOLDER_LABEL[root];
+    }
     const entry = customFolders.find((f) => normalizeUrlSlugPath(f.slug) === n);
     const fallback = n.split("/").pop() || n;
-    return entry?.name ?? humanizeFolderSlugSegment(fallback);
+    return entry?.name?.trim() || humanizeFolderSlugSegment(fallback);
   }
 
   function formatPageDate(value: string | Date | undefined): string {
@@ -1185,6 +1241,7 @@ export default function AdminPage() {
   }
 
   const draftKeywords = parseKeywords(keywords);
+  const editFolderDraftKeywords = parseKeywords(editFolderKeywords);
 
   return (
     <div className="min-h-screen bg-white">
@@ -1197,22 +1254,46 @@ export default function AdminPage() {
           <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-6 py-6 lg:px-10">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2">
-                {ADMIN_SECTION_TABS.map((tab) => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => {
-                      setActiveTab(tab.id);
-                    }}
-                    className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold transition ${
-                      activeTab === tab.id
-                        ? "border-[#496db3] bg-[#496db3] text-white"
-                        : "border-slate-200 bg-white text-slate-700 hover:border-[#496db3]/40 hover:text-[#496db3]"
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
+                {ADMIN_SECTION_TABS.map((tab) => {
+                  const selected = activeTab === tab.id;
+                  return (
+                    <div
+                      key={tab.id}
+                      className={`inline-flex overflow-hidden rounded-full border text-xs font-semibold transition ${
+                        selected
+                          ? "border-[#496db3] bg-[#496db3] text-white"
+                          : "border-slate-200 bg-white text-slate-700 hover:border-[#496db3]/40"
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`px-3 py-1 outline-none transition ${
+                          selected ? "hover:bg-[#3f5f9d]" : "hover:bg-slate-50 hover:text-[#496db3]"
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          openEditFolderModal(tab.rootSlug);
+                        }}
+                        className={`inline-flex items-center justify-center border-l px-2 py-1 outline-none transition ${
+                          selected
+                            ? "border-white/30 text-white hover:bg-[#3f5f9d]"
+                            : "border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-[#496db3]"
+                        }`}
+                        aria-label={`Настройки раздела «${tab.label}»`}
+                        title="Настройки раздела"
+                      >
+                        <Cog6ToothIcon className="h-4 w-4 [stroke-width:2.1]" />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
               <button
                 type="button"
@@ -1908,7 +1989,7 @@ export default function AdminPage() {
           onClick={() => setIsEditFolderModalOpen(false)}
           role="dialog"
           aria-modal="true"
-          aria-label="Редактировать папку"
+          aria-label="Редактировать страницу"
         >
           <div
             className="w-full max-w-md rounded-2xl bg-white p-4 shadow-xl ring-1 ring-slate-200 relative"
@@ -1928,81 +2009,25 @@ export default function AdminPage() {
 
             <div className="h-0" />
 
-            <label className="mt-4 flex flex-col gap-1 text-sm">
-              <span className="font-semibold text-slate-700">
-                Введите название папки
-              </span>
-              <input
-                value={editFolderName}
-                onChange={(e) => setEditFolderName(e.target.value)}
-                ref={editFolderNameInputRef}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    confirmEditFolder();
-                  }
-                }}
-                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#496db3] focus:ring-1 focus:ring-[#496db3] focus:ring-offset-0 transition-colors"
-                placeholder="Например: Новости"
-              />
-            </label>
-
-            <label className="mt-4 flex flex-col gap-1 text-sm">
-              <span className="font-semibold text-slate-700">
-                Описание папки
-              </span>
-              <textarea
-                value={editFolderDescription}
-                onChange={(e) => setEditFolderDescription(e.target.value)}
-                rows={3}
-                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#496db3] focus:ring-1 focus:ring-[#496db3] focus:ring-offset-0 transition-colors"
-                placeholder="Краткое описание раздела"
-              />
-            </label>
-
-            <label className="mt-4 flex flex-col gap-1 text-sm">
-              <span className="font-semibold text-slate-700">
-                Служебный адрес папки
-              </span>
-              <div className="flex items-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus-within:border-[#496db3] focus-within:ring-1 focus-within:ring-[#496db3] transition-colors">
-                {editFolderParentSlug && editFolderParentSlug !== "__root" && (
-                  <span className="shrink-0 text-slate-400">{editFolderParentSlug}/</span>
-                )}
-              <input
-                value={editFolderSlug}
-                onChange={(e) => setEditFolderSlug(slugifyLatin(e.target.value))}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    void confirmEditFolder();
-                  }
-                }}
-                  className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-slate-400"
-                />
-              </div>
-            </label>
-
-            <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
-              <span className="font-semibold text-slate-700">
-                Фото папки
-              </span>
-              <div className="flex flex-col items-end gap-2">
-                <label className="inline-flex w-fit cursor-pointer flex-col items-start gap-1">
-                  <span className="text-[11px] font-medium text-slate-500">Мини-превью (нажмите для загрузки)</span>
-                  <div className="h-48 w-48 overflow-hidden rounded-lg border border-slate-200 bg-slate-50 shadow-sm">
+            <div className="mt-4 space-y-3">
+              <div className="rounded-xl border border-slate-200 bg-white p-2">
+                <label className="block cursor-pointer">
+                  <div className="relative aspect-[2/1] w-full overflow-hidden rounded-lg bg-slate-50 ring-1 ring-slate-200">
                     {editFolderPreview.trim() ? (
                       <img
                         src={editFolderPreview}
-                        alt="Превью папки"
+                        alt="Превью страницы"
                         className="h-full w-full object-cover"
                       />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center px-2 text-center text-[10px] font-medium leading-tight text-slate-400">
-                        Выбрать изображение
+                      <div className="flex h-full w-full flex-col items-center justify-center gap-1 px-2 text-center">
+                        <span className="text-xs font-medium text-slate-500">Выбрать изображение</span>
+                        <span className="text-[11px] text-slate-400">Рекомендация: превью страницы 2:1</span>
                       </div>
                     )}
                   </div>
                   <input
+                    ref={editFolderPreviewInputRef}
                     type="file"
                     accept="image/*"
                     className="hidden"
@@ -2014,38 +2039,132 @@ export default function AdminPage() {
                   />
                 </label>
                 {editFolderPreview.trim() ? (
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-medium text-red-700 transition-colors hover:bg-red-100"
-                    onClick={() => setEditFolderPreview("")}
-                  >
-                    <TrashIcon className="h-3.5 w-3.5 shrink-0 [stroke-width:2]" />
-                    Удалить превью
-                  </button>
+                  <div className="mt-2 flex justify-end">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-medium text-red-700 transition-colors hover:bg-red-100"
+                      onClick={() => setEditFolderPreview("")}
+                    >
+                      <TrashIcon className="h-3.5 w-3.5 shrink-0 [stroke-width:2]" />
+                      Удалить превью
+                    </button>
+                  </div>
                 ) : null}
               </div>
-            </div>
 
-            <label className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
-              <span className="font-semibold text-slate-700">
-                Показывать папку в navbar
-              </span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={editFolderShowInNavbar}
-                onClick={() => setEditFolderShowInNavbar((v) => !v)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  editFolderShowInNavbar ? "bg-[#496db3]" : "bg-slate-300"
-                }`}
-              >
-                <span
-                  className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                    editFolderShowInNavbar ? "translate-x-5" : "translate-x-1"
-                  }`}
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="font-semibold text-slate-700">
+                  Введите название страницы
+                </span>
+                <input
+                  value={editFolderName}
+                  onChange={(e) =>
+                    setEditFolderName(e.target.value.slice(0, PAGE_TITLE_MAX))
+                  }
+                  ref={editFolderNameInputRef}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      void confirmEditFolder();
+                    }
+                  }}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#496db3] focus:ring-1 focus:ring-[#496db3]"
+                  placeholder="Например: О центре"
                 />
-              </button>
-            </label>
+                <span className="text-[11px] text-slate-400">
+                  {editFolderName.length}/{PAGE_TITLE_MAX}
+                </span>
+              </label>
+
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="font-semibold text-slate-700">
+                  Введите короткое описание страницы
+                </span>
+                <textarea
+                  value={editFolderDescription}
+                  onChange={(e) =>
+                    setEditFolderDescription(
+                      e.target.value.slice(0, PAGE_DESCRIPTION_MAX),
+                    )
+                  }
+                  rows={3}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#496db3] focus:ring-1 focus:ring-[#496db3]"
+                  placeholder="Описание страницы для быстрого просмотра…"
+                />
+                <span className="text-[11px] text-slate-400">
+                  {editFolderDescription.length}/{PAGE_DESCRIPTION_MAX}
+                </span>
+              </label>
+
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="font-semibold text-slate-700">
+                  Введите ключевые слова через запятую
+                </span>
+                <textarea
+                  value={editFolderKeywords}
+                  onChange={(e) =>
+                    setEditFolderKeywords(e.target.value.slice(0, PAGE_KEYWORDS_MAX))
+                  }
+                  rows={2}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#496db3] focus:ring-1 focus:ring-[#496db3]"
+                  placeholder="каталогизация, обучение, гоз, сертификация"
+                />
+                <span className="text-[11px] text-slate-400">
+                  {editFolderKeywords.length}/{PAGE_KEYWORDS_MAX}
+                </span>
+                {editFolderDraftKeywords.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {editFolderDraftKeywords.map((keyword) => (
+                      <span
+                        key={`folder-draft-${keyword}`}
+                        className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600"
+                      >
+                        {keyword}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </label>
+
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="font-semibold text-slate-700">
+                  Введите служебный адрес страницы
+                </span>
+                <div
+                  className={`flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus-within:border-[#496db3] focus-within:ring-1 focus-within:ring-[#496db3] ${
+                    isAdminSectionRootSlug(editFolderOldSlug)
+                      ? "cursor-not-allowed bg-slate-100"
+                      : "bg-white"
+                  }`}
+                  title={
+                    isAdminSectionRootSlug(editFolderOldSlug)
+                      ? "Адрес корневого раздела фиксирован"
+                      : undefined
+                  }
+                >
+                  {editFolderParentSlug && editFolderParentSlug !== "__root" && (
+                    <span className="truncate text-slate-400">
+                      {editFolderParentSlug}/
+                    </span>
+                  )}
+                  <input
+                    value={editFolderSlug}
+                    readOnly={isAdminSectionRootSlug(editFolderOldSlug)}
+                    onChange={(e) => setEditFolderSlug(slugifyLatin(e.target.value))}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        void confirmEditFolder();
+                      }
+                    }}
+                    className={`min-w-0 flex-1 border-none bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400 ${
+                      isAdminSectionRootSlug(editFolderOldSlug) ? "cursor-not-allowed" : ""
+                    }`}
+                    placeholder="about"
+                  />
+                </div>
+              </label>
+            </div>
 
             {editFolderModalError && (
               <div className="mt-2 text-xs text-red-600">
@@ -2056,7 +2175,7 @@ export default function AdminPage() {
             <div className="mt-5 flex items-center justify-end gap-2">
               <button
                 type="button"
-                className="rounded-full border border-slate-200 bg-white px-4 py-1.5 text-xs text-slate-700 transition-colors hover:bg-slate-50"
+                className="rounded-full border border-slate-200 bg-white px-4 py-1.5 text-xs text-slate-700 hover:bg-slate-50"
                 onClick={() => setIsEditFolderModalOpen(false)}
               >
                 Отмена

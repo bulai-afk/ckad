@@ -191,6 +191,7 @@ type StoredFolder = {
   description?: string;
   preview?: string;
   showInNavbar?: boolean;
+  keywords?: string;
 };
 
 type PageDisplayOrderMap = Record<string, string[]>;
@@ -1069,6 +1070,7 @@ async function readFoldersFromFile(): Promise<StoredFolder[]> {
           typeof item.description === "string" ? item.description.trim() : "",
         preview: (typeof item.preview === "string" ? item.preview : "").trim(),
         showInNavbar: Boolean(item.showInNavbar),
+        keywords: sanitizeTextField(item.keywords, PAGE_KEYWORDS_MAX),
       }))
       .filter((f) => f.name && f.slug);
   } catch {
@@ -1371,6 +1373,7 @@ pagesRouter.put("/folders", async (req, res) => {
           typeof item.description === "string" ? item.description.trim() : "",
         preview: (typeof item.preview === "string" ? item.preview : "").trim(),
         showInNavbar: Boolean(item.showInNavbar),
+        keywords: sanitizeTextField(item.keywords, PAGE_KEYWORDS_MAX),
       }))
       .filter((f) => f.name && f.slug);
 

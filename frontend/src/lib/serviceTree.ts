@@ -28,6 +28,7 @@ export type ServiceFolderMeta = {
   slug: string;
   description?: string;
   preview?: string;
+  keywords?: string;
 };
 
 export function normalizeSlug(s: string): string {
@@ -233,11 +234,9 @@ export type ServiceFolderCardProps = {
 
 /**
  * Поля для карточки раздела на главной и в /services:
- * **Название и описание** — из данных страницы в `/api/pages` (заголовок, краткое описание / summary,
- * при пустом описании — `seoDescription` из настроек страницы).
- * Превью фона — из настроек страницы (`preview`, то же изображение, что используется для meta),
- * при его отсутствии — из настроек папки в `/api/pages/folders`; иначе лого
- * (см. HomeServicesFolderCards).
+ * **Название** — из первой страницы раздела (`/api/pages`) или подписи узла.
+ * **Описание** — краткое описание / `seoDescription` страницы; если пусто — описание папки из `/api/pages/folders`.
+ * **Превью** — со страницы, иначе с папки; иначе лого (см. HomeServicesFolderCards).
  */
 export function folderCardPropsFromServiceNode(node: ServiceTreeNode): ServiceFolderCardProps {
   const first = node.pages[0];
@@ -247,8 +246,9 @@ export function folderCardPropsFromServiceNode(node: ServiceTreeNode): ServiceFo
     first?.title?.trim() || first?.seoTitle?.trim() || "";
   const pageDesc = first?.description?.trim() ?? "";
   const pageSeoDesc = first?.seoDescription?.trim() ?? "";
+  const folderDesc = node.description?.trim() ?? "";
 
-  const description = (pageDesc || pageSeoDesc) || undefined;
+  const description = (pageDesc || pageSeoDesc || folderDesc) || undefined;
   const fromPageSettings = sanitizePublicAssetUrl(pagePreview);
   const fromFolderSettings =
     node.isMetaFolder === true ? sanitizePublicAssetUrl(folderPreview) : "";

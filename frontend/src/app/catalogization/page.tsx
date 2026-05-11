@@ -4,13 +4,13 @@ import { getSectionServicesHubData } from "@/lib/sectionServicesHubData";
 export const dynamic = "force-dynamic";
 
 const DESCRIPTION_FALLBACK =
-  "Дополнительные услуги и направления работы: описания, практические материалы и полезные рекомендации.";
+  "Каталогизация предметов снабжения: номенклатура, карточки, согласования с контрольными органами и сопровождение на всех этапах.";
 
-export default async function OtherServicesPage() {
+export default async function CatalogizationSectionPage() {
   const data = await getSectionServicesHubData({
-    rootSlug: "other-services",
-    defaultRootTitle: "Прочие услуги",
-    treeRootLabel: "Прочие услуги",
+    rootSlug: "catalogization",
+    defaultRootTitle: "Каталогизация",
+    treeRootLabel: "Каталогизация",
   });
   return (
     <SectionServicesHubView

@@ -6,11 +6,49 @@ export type FolderNavItem = { href: string; label: string };
 
 type StoredFolder = { name: string; slug: string; showInNavbar?: boolean };
 
+function normNavFolderSlug(s: string): string {
+  return s
+    .trim()
+    .toLowerCase()
+    .replace(/\\/g, "/")
+    .replace(/\/+/g, "/")
+    .replace(/^\/+|\/+$/g, "");
+}
+
+/**
+ * Корневые разделы, которые в шапке задаются кодом (не из cookie).
+ * Для них флаг showInNavbar в данных принудительно false при сохранении из админки.
+ */
+const NAV_TOP_LEVEL_ROOT_SLUGS = new Set([
+  "articles",
+  "other-services",
+  "catalogization",
+  "training-center",
+  "services",
+  "about",
+]);
+
+export function shouldForceFolderShowInNavbarOff(slug: string): boolean {
+  return NAV_TOP_LEVEL_ROOT_SLUGS.has(normNavFolderSlug(slug));
+}
+
+/** Папки, которые реально используются как пункты выпадающих «Каталогизация» / «Учебный центр» (см. SiteNavbar). */
+function folderSlugQualifiesForNavCookie(slug: string): boolean {
+  const s = normNavFolderSlug(slug);
+  if (!s || shouldForceFolderShowInNavbarOff(s)) return false;
+  return s.startsWith("catalogization/") || s.startsWith("training-center/");
+}
+
 /** Для document.cookie (encodeURIComponent) */
 export function serializeNavFoldersCookie(folders: StoredFolder[]): string {
   const minimal = folders
-    .filter((f) => Boolean(f.showInNavbar) && typeof f.slug === "string" && typeof f.name === "string")
-    .map((f) => ({ name: f.name, slug: f.slug }));
+    .filter((f) => {
+      if (!f || typeof f.slug !== "string" || typeof f.name !== "string") return false;
+      const name = f.name.trim();
+      if (!name) return false;
+      return folderSlugQualifiesForNavCookie(f.slug);
+    })
+    .map((f) => ({ name: f.name.trim(), slug: normNavFolderSlug(f.slug) }));
   return encodeURIComponent(JSON.stringify(minimal));
 }
 
@@ -24,7 +62,8 @@ function parseNavFoldersJson(json: string): FolderNavItem[] {
         const o = f as Record<string, unknown>;
         return typeof o.name === "string" && typeof o.slug === "string";
       })
-      .map((f) => ({ href: `/${f.slug}`, label: f.name }));
+      .map((f) => ({ href: `/${normNavFolderSlug(f.slug)}`, label: f.name.trim() }))
+      .filter((item) => folderSlugQualifiesForNavCookie(item.href.replace(/^\/+/, "")));
     const seen = new Set<string>();
     return items.filter((item) => {
       const k = item.href.toLowerCase();

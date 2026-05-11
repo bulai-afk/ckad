@@ -4,13 +4,13 @@ import { getSectionServicesHubData } from "@/lib/sectionServicesHubData";
 export const dynamic = "force-dynamic";
 
 const DESCRIPTION_FALLBACK =
-  "Дополнительные услуги и направления работы: описания, практические материалы и полезные рекомендации.";
+  "Обучение специалистов и руководителей: правила каталогизации, работа с номенклатурой в ГОЗ и практические разборы по нормативной базе.";
 
-export default async function OtherServicesPage() {
+export default async function TrainingCenterSectionPage() {
   const data = await getSectionServicesHubData({
-    rootSlug: "other-services",
-    defaultRootTitle: "Прочие услуги",
-    treeRootLabel: "Прочие услуги",
+    rootSlug: "training-center",
+    defaultRootTitle: "Учебный центр",
+    treeRootLabel: "Учебный центр",
   });
   return (
     <SectionServicesHubView

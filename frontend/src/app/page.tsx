@@ -7,41 +7,26 @@ import {
 import type { BannerSlide } from "@/components/HomeBannersCarousel";
 import { HomeBannersCarouselGate } from "@/components/HomeBannersCarouselGate";
 import { HomeReviewsCarousel } from "@/components/HomeReviewsCarousel";
+import type { HomeServicesFolderCard } from "@/components/HomeServicesFolderCards";
 import { HomeServicesFolderCards } from "@/components/HomeServicesFolderCards";
 import { HomeArticlesCarousel } from "@/components/HomeArticlesCarousel";
-import {
-  normalizePageDisplayOrderMap,
-  sortBySectionDisplayOrder,
-} from "@/lib/pageDisplayOrder";
-import {
-  buildServicesTree,
-  collectServiceCardsForHome,
-  folderCardPropsFromServiceNode,
-  isVisibleServicePage,
-  normalizeSlug,
-  type ServiceFolderMeta,
-  type ServiceListItem,
-  type ServiceTreeNode,
-} from "@/lib/serviceTree";
+import { normalizeSlug, type ServiceFolderMeta } from "@/lib/serviceTree";
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
 
 export const revalidate = 120;
 
-/** Не тащим гигантские data:/HTML поля в дерево услуг — они раздувают RSC payload главной. */
-function slimServicePageForHomeTree(p: ServiceListItem): ServiceListItem {
-  const clip = (v: string | null | undefined, max: number): string | null | undefined => {
-    if (v == null) return v;
-    if (typeof v !== "string") return v;
-    const t = v.trim();
-    if (!t) return null;
-    if (t.startsWith("data:image")) return null;
-    return t.length <= max ? t : `${t.slice(0, max)}…`;
-  };
+function homeServiceCategoryCard(
+  folderMetaBySlug: Map<string, ServiceFolderMeta>,
+  slug: string,
+  fallbackLabel: string,
+): HomeServicesFolderCard {
+  const s = normalizeSlug(slug);
+  const meta = folderMetaBySlug.get(s);
   return {
-    ...p,
-    description: clip(p.description, 4000),
-    preview: clip(p.preview, 2048),
-    seoDescription: clip(p.seoDescription, 2000),
+    slugPath: s,
+    label: meta?.name?.trim() || fallbackLabel,
+    description: meta?.description?.trim() || undefined,
+    preview: meta?.preview?.trim() || undefined,
   };
 }
 
@@ -101,58 +86,34 @@ export default async function Home() {
   };
   type BannersPayload = { slides?: BannerSlide[] };
 
-  const [pagesRes, foldersRes, orderRes, bannersRes] = await Promise.allSettled([
-    fetchJson<ServiceListItem[]>("/api/pages", 10_000, true),
-    fetchJson<{ folders?: ServiceFolderMeta[] }>("/api/pages/folders", 10_000, true),
-    fetchJson<{ orderBySection?: unknown }>("/api/pages/display-order", 10_000, true),
+  const [foldersRes, bannersRes] = await Promise.allSettled([
+    /* без Data Cache: иначе после сохранения папок в админке главная долго показывает старые описания */
+    fetchJson<{ folders?: ServiceFolderMeta[] }>("/api/pages/folders", 10_000, false),
     fetchJson<BannersPayload>("/api/pages/banners", 10_000, true),
   ]);
 
-  const allPagesRaw =
-    pagesRes.status === "fulfilled" && Array.isArray(pagesRes.value) ? pagesRes.value : [];
-  const allPages = allPagesRaw.map(slimServicePageForHomeTree);
   const folders =
     foldersRes.status === "fulfilled" && Array.isArray(foldersRes.value?.folders)
       ? foldersRes.value.folders
       : [];
-  const orderBySection =
-    orderRes.status === "fulfilled"
-      ? normalizePageDisplayOrderMap(orderRes.value?.orderBySection)
-      : {};
   const homeBanners =
     bannersRes.status === "fulfilled" && Array.isArray(bannersRes.value?.slides)
       ? bannersRes.value.slides
       : [];
-  let homeServiceCards: ServiceTreeNode[] = [];
-  let servicesRootFolderDescription: string | null = null;
-  if (allPages.length > 0) {
-    const folderMetaBySlug = new Map(folders.map((f) => [normalizeSlug(f.slug), f] as const));
-    const catMeta = folderMetaBySlug.get("catalogization");
-    const servicesMeta = folderMetaBySlug.get("services");
-    const rootDesc = catMeta?.description?.trim() || servicesMeta?.description?.trim() || null;
-    if (rootDesc) servicesRootFolderDescription = rootDesc;
-    const catalogPages = allPages
-      .filter((p) => isVisibleServicePage(p) && normalizeSlug(p.slug).startsWith("catalogization/"))
-      .map((p) => ({ ...p, slug: normalizeSlug(p.slug) }))
-      .sort((a, b) => a.title.localeCompare(b.title, "ru"));
 
-    const tree = buildServicesTree(catalogPages, folderMetaBySlug, {
-      rootSlug: "catalogization",
-      rootLabel: "Каталогизация",
-    });
-    const unsortedCards = collectServiceCardsForHome(tree);
-    homeServiceCards = sortBySectionDisplayOrder(
-      unsortedCards,
-      "catalogization",
-      (node) => normalizeSlug(node.slugPath),
-      orderBySection,
-      (a, b) => {
-        const ta = a.pages[0]?.title?.trim() || a.label;
-        const tb = b.pages[0]?.title?.trim() || b.label;
-        return ta.localeCompare(tb, "ru");
-      },
-    ).slice(0, 12);
+  const folderMetaBySlug = new Map<string, ServiceFolderMeta>();
+  for (const f of folders) {
+    if (!f?.slug || !String(f.name || "").trim()) continue;
+    const key = normalizeSlug(f.slug);
+    if (!key) continue;
+    folderMetaBySlug.set(key, f);
   }
+
+  const catalogCard = homeServiceCategoryCard(folderMetaBySlug, "catalogization", "Каталогизация");
+  const sideCategoryCards: HomeServicesFolderCard[] = [
+    homeServiceCategoryCard(folderMetaBySlug, "training-center", "Учебный центр"),
+    homeServiceCategoryCard(folderMetaBySlug, "other-services", "Прочие услуги"),
+  ];
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
@@ -198,35 +159,48 @@ export default async function Home() {
         </div>
       </section>
 
-      <section className="bg-transparent py-8 sm:py-10 about-template-fallback">
+      <section className="bg-transparent py-6 sm:py-10 about-template-fallback">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto mt-0 max-w-3xl text-center">
             <h2 className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-base font-semibold text-[#b91c1c]">
               Наши услуги
             </h2>
             <p className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-pretty sm:-mt-2">
-              Услуги по каталогизации
+              Каталогизация, обучение и поддержка — от методики до результата
             </p>
-            <p className="mt-6 text-pretty text-base leading-[1.4] font-medium text-slate-600">
-              {servicesRootFolderDescription ?? (
-                <>
-                  Закрываем задачи «под ключ» в области каталогизации и анализа данных: от методики до
-                  сопровождения согласований — чтобы вы получали понятный результат в срок и без лишних
-                  рисков.
-                </>
-              )}
+            <p className="mt-4 text-pretty text-[15px] leading-snug font-medium text-slate-600 sm:mt-6 sm:text-base sm:leading-[1.4]">
+              Приведём номенклатуру и данные в порядок, обучим вашу команду работе по правилам и
+              останемся рядом на этапах согласования и внедрения — без «серых зон» в ответственности и
+              сроках.
             </p>
           </div>
-          <div className="mt-8 max-w-none">
-            <HomeServicesFolderCards
-              layout="featured"
-              equalHeight
-              syncHeightsToTallest
-              alwaysShowPreview
-              ctaLabel="Подробнее"
-              gridClassName="services-home-grid"
-              cards={homeServiceCards.map((n) => folderCardPropsFromServiceNode(n))}
-            />
+          <div className="mt-6 max-w-none sm:mt-8">
+            <div className="services-home-categories-shell">
+              <div className="services-home-categories-shell__main">
+                <HomeServicesFolderCards
+                  layout="featured"
+                  equalHeight
+                  syncHeightsToTallest={false}
+                  alwaysShowPreview
+                  ctaLabel="Подробнее"
+                  gridClassName="services-home-categories-main-grid"
+                  cards={[catalogCard]}
+                  limit={1}
+                />
+              </div>
+              <div className="services-home-categories-shell__side">
+                <HomeServicesFolderCards
+                  layout="featured"
+                  equalHeight
+                  syncHeightsToTallest
+                  alwaysShowPreview
+                  ctaLabel="Подробнее"
+                  gridClassName="services-home-categories-side-grid"
+                  cards={sideCategoryCards}
+                  limit={2}
+                />
+              </div>
+            </div>
           </div>
         </div>
       </section>

@@ -18,7 +18,10 @@ export type HomeServicesFolderCard = {
   articleKind?: "news" | "article";
 };
 
-type CardLayout = "default" | "featured";
+type CardLayout = "default" | "featured" | "horizontal";
+
+/** featured: `home` — текст и кнопка снизу панели; `section-hub` — заголовок и описание сверху, кнопка снизу */
+export type FeaturedPanelVariant = "home" | "section-hub";
 
 type Props = {
   cards: HomeServicesFolderCard[];
@@ -26,6 +29,8 @@ type Props = {
   limit?: number;
   /** Горизонтальный баннер: фон на всю карточку, тёмная колонка слева (~⅓), на узких экранах — блок снизу */
   layout?: CardLayout;
+  /** Только при layout="featured": раскладка текстовой панели поверх превью */
+  featuredPanelVariant?: FeaturedPanelVariant;
   /** Текст ссылки внизу карточки */
   ctaLabel?: string;
   /** Если у карточки нет превью, показывать это изображение (по умолчанию лого сайта) */
@@ -103,6 +108,7 @@ function FolderCard({
   equalHeight,
   alwaysShowPreview,
   layout,
+  featuredPanelVariant,
   touchActiveSlug,
   setTouchActiveSlug,
 }: {
@@ -114,11 +120,44 @@ function FolderCard({
   equalHeight: boolean;
   alwaysShowPreview: boolean;
   layout: CardLayout;
+  featuredPanelVariant: FeaturedPanelVariant;
   touchActiveSlug: string | null;
   setTouchActiveSlug: (slug: string | null) => void;
 }) {
   const href = `/${c.slugPath}`;
   const touchHeld = !alwaysShowPreview && touchActiveSlug === c.slugPath;
+
+  if (layout === "horizontal") {
+    return (
+      <Link
+        href={href}
+        data-service-folder-card=""
+        className={`${styles.cardRootHorizontal} ${equalHeight ? styles.cardRootHorizontalStretch : ""}`}
+        aria-label={`${c.label}. ${ctaLabel}`}
+      >
+        <div
+          className={`${styles.cardHorizontalMedia} ${isLogoFallback ? styles.cardHorizontalMediaFallback : ""}`.trim()}
+          aria-hidden
+        >
+          <ResponsiveCardImage
+            src={displaySrc}
+            alt=""
+            className={`${styles.cardHorizontalImg} ${isLogoFallback ? styles.cardHorizontalImgLogo : ""}`}
+            sizes="(max-width: 767px) 88vw, 36vw"
+          />
+        </div>
+        <div className={styles.cardHorizontalPanel}>
+          <div className={styles.cardHorizontalPanelTop}>
+            <h3 className={styles.cardHorizontalTitle}>{c.label}</h3>
+            {c.description?.trim() ? (
+              <p className={styles.cardHorizontalDesc}>{c.description.trim()}</p>
+            ) : null}
+          </div>
+          <span className={styles.cardHorizontalCta}>{ctaLabel}</span>
+        </div>
+      </Link>
+    );
+  }
 
   if (layout === "featured") {
     return (
@@ -155,7 +194,11 @@ function FolderCard({
             </span>
           ) : null}
         </div>
-        <div className={styles.cardFeaturedBannerPanel}>
+        <div
+          className={`${styles.cardFeaturedBannerPanel}${
+            featuredPanelVariant === "section-hub" ? ` ${styles.cardFeaturedBannerPanelHub}` : ""
+          }`}
+        >
           <div className={styles.cardFeaturedBannerPanelTop}>
             <h3 className={styles.cardFeaturedTitle}>{c.label}</h3>
             {c.description?.trim() ? (
@@ -252,6 +295,7 @@ export function HomeServicesFolderCards({
   gridClassName,
   syncHeightsToTallest = false,
   alwaysShowPreview = false,
+  featuredPanelVariant = "home",
 }: Props) {
   const items = (cards || [])
     .filter((c) => c?.slugPath && c?.label?.trim())
@@ -299,8 +343,9 @@ export function HomeServicesFolderCards({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const itemsKey = useMemo(
-    () => `${items.map((i) => i.slugPath).join("\0")}|pv${alwaysShowPreview ? "1" : "0"}`,
-    [items, alwaysShowPreview],
+    () =>
+      `${items.map((i) => i.slugPath).join("\0")}|pv${alwaysShowPreview ? "1" : "0"}|fpv${featuredPanelVariant}`,
+    [items, alwaysShowPreview, featuredPanelVariant],
   );
 
   const runEqualizeSlots =
@@ -351,6 +396,7 @@ export function HomeServicesFolderCards({
               equalHeight={equalHeight}
               alwaysShowPreview={alwaysShowPreview}
               layout={layout}
+              featuredPanelVariant={featuredPanelVariant}
               touchActiveSlug={touchActiveSlug}
               setTouchActiveSlug={setTouchActiveSlug}
             />
