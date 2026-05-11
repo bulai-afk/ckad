@@ -87,8 +87,8 @@ export default async function Home() {
   type BannersPayload = { slides?: BannerSlide[] };
 
   const [foldersRes, bannersRes] = await Promise.allSettled([
-    /* без Data Cache: иначе после сохранения папок в админке главная долго показывает старые описания */
-    fetchJson<{ folders?: ServiceFolderMeta[] }>("/api/pages/folders", 10_000, false),
+    /* Превью папок — файлы в uploads, не data URL; кэш 120 c — быстрее главная, обновление с задержкой до 2 мин. */
+    fetchJson<{ folders?: ServiceFolderMeta[] }>("/api/pages/folders", 10_000, true),
     fetchJson<BannersPayload>("/api/pages/banners", 10_000, true),
   ]);
 

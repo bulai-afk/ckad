@@ -36,6 +36,16 @@ export function BannerCarouselFrame<TSlide extends SlideWithId>({
         }
       : { width: "100%" as const, transform: "translateX(0)" as const };
   const slideBasisPct = n > 0 ? 100 / n : 100;
+  const hasDots = n > 1;
+  const aspectRoundedClass = hasDots
+    ? roundedClassName === "rounded-none"
+      ? "rounded-none"
+      : `${roundedClassName.replace(/^rounded-/u, "rounded-t-")} rounded-b-none`
+    : roundedClassName;
+  const dotsBarRoundedClass =
+    hasDots && roundedClassName !== "rounded-none"
+      ? roundedClassName.replace(/^rounded-/u, "rounded-b-")
+      : "";
 
   useEffect(() => {
     if (!bannerDebugEnabled()) return;
@@ -82,7 +92,7 @@ export function BannerCarouselFrame<TSlide extends SlideWithId>({
       {/* Пропорции — только утилиты Tailwind (один слой каскада). isolate + min-h-px помогают WebKit с aspect-ratio при absolute-детях. */}
       <div
         ref={aspectRef}
-        className={`relative isolate w-full min-h-px min-w-0 max-w-full max-h-[calc(100dvh-var(--site-header-offset)-env(safe-area-inset-bottom,0px)-0.5rem)] overflow-hidden bg-slate-100 ${aspectClassName} ${roundedClassName}`}
+        className={`relative isolate w-full min-h-px min-w-0 max-w-full max-h-[calc(100dvh-var(--site-header-offset)-env(safe-area-inset-bottom,0px)-0.5rem)] overflow-hidden bg-slate-100 ${aspectClassName} ${aspectRoundedClass}`}
       >
         <div
           className="absolute inset-0 min-w-0 touch-pan-y overflow-hidden"
@@ -103,31 +113,37 @@ export function BannerCarouselFrame<TSlide extends SlideWithId>({
             ))}
           </div>
         </div>
-
-        {slides.length > 1 ? (
-          <div className="pointer-events-none absolute bottom-3 left-1/2 z-30 flex -translate-x-1/2 items-center justify-center gap-1.5 [&_button]:pointer-events-auto">
-            {slides.map((slide, idx) => (
-              <button
-                key={slide.id}
-                type="button"
-                onPointerDown={(e) => e.stopPropagation()}
-                onPointerUp={(e) => e.stopPropagation()}
-                onClick={() => onSelectSlide(idx)}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-full"
-                aria-label={`Перейти к банеру ${idx + 1}`}
-              >
-                <span
-                  className={`h-2.5 rounded-full transition-all ${
-                    idx === activeIndex
-                      ? "w-6 bg-[#496db3]"
-                      : "w-2.5 bg-slate-300 hover:bg-slate-400"
-                  }`}
-                />
-              </button>
-            ))}
-          </div>
-        ) : null}
       </div>
+
+      {hasDots ? (
+        <div
+          className={`flex items-center justify-center gap-1.5 border-t border-slate-200/80 bg-slate-100 px-4 py-2.5 ${dotsBarRoundedClass}`}
+          role="tablist"
+          aria-label="Выбор слайда баннера"
+        >
+          {slides.map((slide, idx) => (
+            <button
+              key={slide.id}
+              type="button"
+              role="tab"
+              aria-selected={idx === activeIndex}
+              onPointerDown={(e) => e.stopPropagation()}
+              onPointerUp={(e) => e.stopPropagation()}
+              onClick={() => onSelectSlide(idx)}
+              className="inline-flex h-9 min-w-9 shrink-0 items-center justify-center rounded-full"
+              aria-label={`Перейти к банеру ${idx + 1}`}
+            >
+              <span
+                className={`h-2.5 rounded-full transition-all ${
+                  idx === activeIndex
+                    ? "w-6 bg-[#496db3]"
+                    : "w-2.5 bg-slate-400/90 hover:bg-slate-500"
+                }`}
+              />
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

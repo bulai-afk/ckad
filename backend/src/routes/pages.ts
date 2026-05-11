@@ -42,6 +42,8 @@ const SEO_TITLE_MAX = 60;
 const SEO_DESCRIPTION_MAX = 160;
 const PAGE_PREVIEW_DB_SAFE_MAX = 60_000;
 const PUBLIC_INLINE_IMAGE_MAX_BYTES = 180_000;
+/** Длинная сторона превью папки перед WebP — меньше вес ответа /api/pages/folders и карточек на главной. */
+const FOLDER_PREVIEW_MAX_EDGE = 1440;
 const TRANSPARENT_GIF_DATA_URL =
   "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
 const UPLOADS_INLINE_DIR = backendDataPath("uploads", "inline");
@@ -489,7 +491,15 @@ async function normalizeInlineImageDataUrlsToWebp(html: string): Promise<string>
   return next;
 }
 
-async function persistInlineImageDataUrl(dataUrl: string): Promise<string> {
+type PersistInlineImageOpts = {
+  /** Ограничить длинную сторону перед WebP (превью папок в folders.json). */
+  maxEdge?: number;
+};
+
+async function persistInlineImageDataUrl(
+  dataUrl: string,
+  opts?: PersistInlineImageOpts,
+): Promise<string> {
   const match = dataUrl.match(/^data:image\/([a-z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/i);
   if (!match) return dataUrl;
   const mime = String(match[1] || "").toLowerCase();
@@ -499,10 +509,24 @@ async function persistInlineImageDataUrl(dataUrl: string): Promise<string> {
   let bytes = new Uint8Array(decoded);
   let ext = mime === "svg+xml" ? "svg" : "webp";
   try {
-    if (mime !== "svg+xml" && mime !== "webp") {
-      bytes = new Uint8Array(await sharp(decoded).webp({ quality: 82 }).toBuffer());
-    } else if (mime === "webp") {
-      bytes = new Uint8Array(await sharp(decoded).webp({ quality: 82 }).toBuffer());
+    if (mime !== "svg+xml") {
+      let pipeline = sharp(decoded);
+      const maxEdge = opts?.maxEdge;
+      if (maxEdge && maxEdge > 0) {
+        const meta = await sharp(decoded).metadata();
+        const w = meta.width ?? 0;
+        const h = meta.height ?? 0;
+        if (w > 0 && h > 0 && Math.max(w, h) > maxEdge) {
+          pipeline = sharp(decoded).resize({
+            width: w >= h ? maxEdge : undefined,
+            height: h > w ? maxEdge : undefined,
+            fit: "inside",
+            withoutEnlargement: true,
+          });
+        }
+      }
+      bytes = new Uint8Array(await pipeline.webp({ quality: 82 }).toBuffer());
+      ext = "webp";
     }
   } catch {
     // keep decoded bytes as-is if conversion fails
@@ -1049,33 +1073,67 @@ async function writePartnersToFile(slides: ReviewSlide[]): Promise<void> {
   );
 }
 
-async function readFoldersFromFile(): Promise<StoredFolder[]> {
+function parseFoldersJsonArray(parsed: unknown): StoredFolder[] {
+  if (!Array.isArray(parsed)) return [];
+  return parsed
+    .filter((item): item is Record<string, unknown> => {
+      return (
+        typeof item === "object" &&
+        item !== null &&
+        typeof item.name === "string" &&
+        typeof item.slug === "string"
+      );
+    })
+    .map((item) => ({
+      name: String(item.name ?? "").trim(),
+      slug: String(item.slug ?? "").trim(),
+      description:
+        typeof item.description === "string" ? item.description.trim() : "",
+      preview: (typeof item.preview === "string" ? item.preview : "").trim(),
+      showInNavbar: Boolean(item.showInNavbar),
+      keywords: sanitizeTextField(item.keywords, PAGE_KEYWORDS_MAX),
+    }))
+    .filter((f) => f.name && f.slug);
+}
+
+async function readFoldersFromDisk(): Promise<StoredFolder[]> {
   try {
     const raw = await fs.readFile(FOLDERS_DATA_PATH, "utf-8");
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter((item): item is Record<string, unknown> => {
-        return (
-          typeof item === "object" &&
-          item !== null &&
-          typeof item.name === "string" &&
-          typeof item.slug === "string"
-        );
-      })
-      .map((item) => ({
-        name: String(item.name ?? "").trim(),
-        slug: String(item.slug ?? "").trim(),
-        description:
-          typeof item.description === "string" ? item.description.trim() : "",
-        preview: (typeof item.preview === "string" ? item.preview : "").trim(),
-        showInNavbar: Boolean(item.showInNavbar),
-        keywords: sanitizeTextField(item.keywords, PAGE_KEYWORDS_MAX),
-      }))
-      .filter((f) => f.name && f.slug);
+    return parseFoldersJsonArray(JSON.parse(raw) as unknown);
   } catch {
     return [];
   }
+}
+
+/** Data URL в preview → файл в uploads/inline и относительный URL (легче JSON и HTML). */
+async function migrateFolderPreviewDataUrls(folders: StoredFolder[]): Promise<{
+  folders: StoredFolder[];
+  changed: boolean;
+}> {
+  let changed = false;
+  const out: StoredFolder[] = [];
+  for (const f of folders) {
+    const p = (f.preview ?? "").trim();
+    if (p.startsWith("data:image/")) {
+      const next = await persistInlineImageDataUrl(p, { maxEdge: FOLDER_PREVIEW_MAX_EDGE });
+      if (next !== p) {
+        changed = true;
+        out.push({ ...f, preview: next });
+        continue;
+      }
+    }
+    out.push(f);
+  }
+  return { folders: out, changed };
+}
+
+async function readFoldersFromFile(): Promise<StoredFolder[]> {
+  const fromDisk = await readFoldersFromDisk();
+  const { folders, changed } = await migrateFolderPreviewDataUrls(fromDisk);
+  if (changed) {
+    await writeFoldersToFile(folders);
+  }
+  return folders;
 }
 
 async function writeFoldersToFile(folders: StoredFolder[]): Promise<void> {
@@ -1377,8 +1435,17 @@ pagesRouter.put("/folders", async (req, res) => {
       }))
       .filter((f) => f.name && f.slug);
 
-    await writeFoldersToFile(normalized);
-    return res.json({ ok: true, folders: normalized });
+    const withFilePreviews = await Promise.all(
+      normalized.map(async (f) => {
+        const p = (f.preview ?? "").trim();
+        if (!p.startsWith("data:image/")) return f;
+        const next = await persistInlineImageDataUrl(p, { maxEdge: FOLDER_PREVIEW_MAX_EDGE });
+        return { ...f, preview: next };
+      }),
+    );
+
+    await writeFoldersToFile(withFilePreviews);
+    return res.json({ ok: true, folders: withFilePreviews });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     // eslint-disable-next-line no-console
