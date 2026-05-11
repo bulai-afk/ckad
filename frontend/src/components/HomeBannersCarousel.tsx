@@ -96,6 +96,8 @@ export function HomeBannersCarousel({
   mainVisualScale = 1,
 }: HomeBannersCarouselProps) {
   const [fetchedSlides, setFetchedSlides] = useState<BannerSlide[]>([]);
+  /** Пока баннеры подгружаются с API (главная без SSR-слайдов) — не показываем текст без стилей (FOUC). */
+  const [clientBannerFetchDone, setClientBannerFetchDone] = useState(slides.length > 0);
 
   useEffect(() => {
     if (slides.length > 0) return;
@@ -113,7 +115,9 @@ export function HomeBannersCarousel({
           setFetchedSlides(data.slides);
         }
       } catch {
-        // keep fallback banner
+        /* оставляем пусто */
+      } finally {
+        setClientBannerFetchDone(true);
       }
     })();
   }, [slides]);
@@ -256,20 +260,24 @@ export function HomeBannersCarousel({
   const frameClass = fullWidth ? "rounded-none" : "rounded-2xl";
 
   if (!canUse) {
-    return (
-      <div className="w-full min-w-0 max-w-full shrink-0 overflow-x-hidden bg-slate-100">
-        <section
-          className={`relative flex w-full max-h-[calc(100dvh-var(--site-header-offset)-env(safe-area-inset-bottom,0px)-0.5rem)] flex-col justify-center overflow-hidden ${frameClass} h-[200vw] bg-gradient-to-r from-[#496db3] to-[#3f5f9d] px-6 py-8 text-white sm:h-[50vw] md:px-10 md:py-10`}
-        >
-          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
-            Центр каталогизации — клиентская часть
-          </h1>
-          <p className="mt-2 text-sm text-white/85 md:text-base">
-            Публичные страницы, созданные в редакторе.
-          </p>
-        </section>
-      </div>
-    );
+    if (!clientBannerFetchDone) {
+      return (
+        <div className="w-full min-w-0 max-w-full shrink-0 overflow-x-hidden bg-slate-100">
+          <section
+            aria-busy="true"
+            aria-label="Загрузка баннеров"
+            className={`relative w-full overflow-hidden ${frameClass}`}
+            style={{
+              minHeight: "min(52vh, 560px)",
+              maxHeight:
+                "calc(100dvh - var(--site-header-offset, 88px) - env(safe-area-inset-bottom, 0px) - 0.5rem)",
+              background: "linear-gradient(90deg, #496db3 0%, #3f5f9d 100%)",
+            }}
+          />
+        </div>
+      );
+    }
+    return null;
   }
 
   return (
