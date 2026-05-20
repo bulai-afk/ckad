@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
+import { apiPagesSlugDataCacheTag } from "@/lib/apiPagesSlugUrl";
 
 export const revalidate = 300;
 
@@ -60,7 +61,7 @@ export async function generateMetadata({
   try {
     const res = await fetch(`${base}/api/pages/slug/${path}`, {
       cache: "force-cache",
-      next: { revalidate: 300 },
+      next: { revalidate: 300, tags: [apiPagesSlugDataCacheTag(slugParts)] },
     });
     if (res.ok) {
       page = (await res.json()) as PageData;

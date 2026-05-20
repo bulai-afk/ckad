@@ -1,4 +1,5 @@
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
+import { apiPagesSlugDataCacheTag } from "@/lib/apiPagesSlugUrl";
 import {
   buildServicesTree,
   findServiceTreeNode,
@@ -12,6 +13,7 @@ import {
   PageSlugClient,
   type PageData,
 } from "@/components/PageSlugClient";
+import { normalizeSsrWebElementsTextareaHtml } from "@/lib/normalizeSsrWebElementsTextareaHtml";
 
 type RouteParams = { slug?: string[] | string };
 type PageProps = { params: RouteParams | Promise<RouteParams> };
@@ -30,13 +32,26 @@ async function resolvePageBySlug(slugParts: string[]): Promise<PageData | null> 
   try {
     const res = await fetch(`${base}/api/pages/slug/${path}`, {
       cache: "force-cache",
-      next: { revalidate: 300 },
+      next: { revalidate: 300, tags: [apiPagesSlugDataCacheTag(slugParts)] },
     });
     if (!res.ok) return null;
     return (await res.json()) as PageData;
   } catch {
     return null;
   }
+}
+
+function pageWithSsrSafeTextHtml(page: PageData): PageData {
+  return {
+    ...page,
+    blocks: page.blocks.map((b) => {
+      if (b.type !== "text" || typeof b.data?.text !== "string") return b;
+      return {
+        ...b,
+        data: { ...b.data, text: normalizeSsrWebElementsTextareaHtml(b.data.text) },
+      };
+    }),
+  };
 }
 
 async function resolveServiceFolderHub(slugParts: string[]): Promise<ServiceTreeNode | null> {
@@ -79,7 +94,8 @@ async function resolveServiceFolderHub(slugParts: string[]): Promise<ServiceTree
 export default async function Page({ params }: PageProps) {
   const resolvedParams = await Promise.resolve(params);
   const slugParts = normalizeSlugParts(resolvedParams.slug);
-  const page = await resolvePageBySlug(slugParts);
+  const rawPage = await resolvePageBySlug(slugParts);
+  const page = rawPage ? pageWithSsrSafeTextHtml(rawPage) : null;
   const serviceFolderHub = page ? null : await resolveServiceFolderHub(slugParts);
 
   return (

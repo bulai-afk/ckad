@@ -1,4 +1,6 @@
+import { revalidatePath, revalidateTag } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
+import { apiPagesSlugDataCacheTag } from "@/lib/apiPagesSlugUrl";
 import { backendApiUrl } from "@/lib/backendApiUrl";
 
 /** Прокси GET/PUT/DELETE /api/pages/:id → Express (админка, same-origin). */
@@ -33,6 +35,16 @@ export async function PUT(
   const { id } = await context.params;
   try {
     const body = await req.text();
+    let slugForRevalidate: string | null = null;
+    try {
+      const parsed = JSON.parse(body) as { slug?: unknown };
+      if (typeof parsed.slug === "string") {
+        const s = parsed.slug.trim().replace(/^\/+/, "");
+        if (s) slugForRevalidate = s;
+      }
+    } catch {
+      /* не JSON или без slug — просто не инвалидируем путь */
+    }
     const res = await fetch(`${backendApiUrl()}/api/pages/${encodeURIComponent(id)}`, {
       method: "PUT",
       cache: "no-store",
@@ -40,6 +52,14 @@ export async function PUT(
       body,
     });
     const text = await res.text();
+    if (res.ok && slugForRevalidate) {
+      try {
+        revalidateTag(apiPagesSlugDataCacheTag(slugForRevalidate), "max");
+        revalidatePath(`/${slugForRevalidate}`, "layout");
+      } catch {
+        /* в нестандартной среде revalidatePath может быть недоступен */
+      }
+    }
     return new NextResponse(text, {
       status: res.status,
       headers: {

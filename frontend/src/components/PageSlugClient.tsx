@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronRightIcon, HomeIcon } from "@heroicons/react/20/solid";
 import { PublicCarouselViewportSync } from "@/components/PublicCarouselViewportSync";
@@ -13,6 +13,12 @@ import {
   getTimelineRenderCss,
   getWorkPricingRenderCss,
 } from "@/lib/pageShowRender";
+import {
+  clearTimelineTextareaInlineWidthsInRoot,
+  layoutWebElementsV2TextareasInRoot,
+} from "@/lib/webElementsTextareaLayout";
+import { stripLegacyTimelineDomInRoot } from "@/lib/stripLegacyTimelineDom";
+import { syncWebElementsFieldRowJustifyInRoot } from "@/lib/webElementsFieldRowJustify";
 import type { ServiceTreeNode } from "@/lib/serviceTree";
 
 const CALLBACK_FORM_LINK = "callback://open";
@@ -89,16 +95,55 @@ export function PageSlugClient({ slugParts, page, serviceFolderHub }: PageSlugCl
     ensureCoverBgLayers(root);
   }, [page, isArticlesPage]);
 
-  useEffect(() => {
+  /** До отрисовки: readonly, rows=1 (убирает UA-высоту по rows из HTML), затем layout textarea — иначе один кадр с лишним зазором под заголовком. */
+  useLayoutEffect(() => {
     if (isArticlesPage || !page) return;
     const root = contentRootRef.current;
     if (!root) return;
+    stripLegacyTimelineDomInRoot(root);
     const editableNodes = Array.from(root.querySelectorAll("[contenteditable]")) as HTMLElement[];
     editableNodes.forEach((node) => {
       if (node.getAttribute("contenteditable") !== "false") {
         node.setAttribute("contenteditable", "false");
       }
     });
+    root
+      .querySelectorAll(
+        ".page-web-text-block-subtitle-input, .page-web-text-block-title-input, .page-web-text-block-lead-input, .page-web-elements-announcement-input, .page-web-elements-title-input, .page-web-elements-title2-input, .page-web-elements-subtitle-input, .page-web-elements-description-input",
+      )
+      .forEach((node) => {
+        if (node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement) {
+          const field = node;
+          field.setAttribute("readonly", "");
+          field.setAttribute("tabindex", "-1");
+          field.removeAttribute("placeholder");
+        }
+        if (node instanceof HTMLTextAreaElement) {
+          node.setAttribute("rows", "1");
+        }
+      });
+    root.querySelectorAll("textarea[placeholder], input[placeholder]").forEach((node) => {
+      if (node instanceof HTMLTextAreaElement || node instanceof HTMLInputElement) {
+        node.removeAttribute("placeholder");
+      }
+    });
+
+    const layout = () => {
+      clearTimelineTextareaInlineWidthsInRoot(root);
+      syncWebElementsFieldRowJustifyInRoot(root);
+      layoutWebElementsV2TextareasInRoot(root);
+      clearTimelineTextareaInlineWidthsInRoot(root);
+      ensureCoverBgLayers(root);
+    };
+    layout();
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(layout) : null;
+    ro?.observe(root);
+    window.addEventListener("resize", layout);
+    void document.fonts?.ready?.then(layout);
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener("resize", layout);
+    };
   }, [page, isArticlesPage]);
 
   if (!page && serviceFolderHub) {
@@ -183,7 +228,9 @@ export function PageSlugClient({ slugParts, page, serviceFolderHub }: PageSlugCl
             className={`page-editor goz-full-width ${!isArticlesPage ? "w-full service-page-content-root" : ""}`}
             onClick={(e) => {
               const target = e.target as HTMLElement;
-              const link = target.closest?.("a.page-web-cover-el-button") as HTMLAnchorElement | null;
+              const link = target.closest?.(
+                "a.page-web-cover-el-button, a.page-web-elements-cta-button",
+              ) as HTMLAnchorElement | null;
               if (!link) return;
               const href = (link.getAttribute("href") || "").trim();
               if (href !== CALLBACK_FORM_LINK) return;
@@ -200,7 +247,7 @@ export function PageSlugClient({ slugParts, page, serviceFolderHub }: PageSlugCl
                 return (
                   <div
                     key={block.id}
-                    className={isArticlesPage ? "article-page-content page-content" : "page-content text-[12px] leading-relaxed text-slate-800"}
+                    className={isArticlesPage ? "article-page-content page-content" : "page-content text-[12px] text-slate-800"}
                     dangerouslySetInnerHTML={{ __html: html }}
                   />
                 );
@@ -248,6 +295,20 @@ export function PageSlugClient({ slugParts, page, serviceFolderHub }: PageSlugCl
           ${getPageShowRenderCss(".page-editor .page-content")}
           ${getWorkPricingRenderCss(".page-content")}
           ${getWorkPricingRenderCss(".page-editor .page-content")}
+          /* Публичный просмотр: не показываем placeholder у полей и псевдо-подсказку у анонса (readonly / визуальный шум). */
+          .page-content textarea::placeholder,
+          .page-content input::placeholder,
+          .article-page-content textarea::placeholder,
+          .article-page-content input::placeholder {
+            opacity: 0 !important;
+            color: transparent !important;
+          }
+          .page-content .page-web-elements-announcement-input:empty::before,
+          .page-content .page-web-elements-announcement-input[data-placeholder-visible="1"]::before,
+          .article-page-content .page-web-elements-announcement-input:empty::before,
+          .article-page-content .page-web-elements-announcement-input[data-placeholder-visible="1"]::before {
+            content: none !important;
+          }
           /* Service pages: keep content headings same size as site blue headings */
           .service-page-content-root .page-content h1,
           .service-page-content-root .page-content h2,
@@ -255,9 +316,14 @@ export function PageSlugClient({ slugParts, page, serviceFolderHub }: PageSlugCl
             font-size: var(--site-blue-title-fs) !important;
             line-height: var(--site-blue-title-lh) !important;
           }
+          .service-page-content-root .page-content .page-web-cover-inner > .page-web-elements.page-web-elements-title {
+            font-size: var(--site-blue-title-fs) !important;
+            line-height: 0 !important;
+          }
           .service-page-content-root .page-content .page-web-cover-el-title,
-          .service-page-content-root .page-content .page-web-feature-grid-title,
+          .service-page-content-root .page-content .page-web-elements-title-input,
           .service-page-content-root .page-content .page-web-timeline-heading,
+          .service-page-content-root .page-content .page-web-work-pricing .page-web-elements-title .page-web-elements-title-input,
           .service-page-content-root .page-content .page-web-work-pricing .wsx,
           .service-page-content-root .page-content .page-web-work-pricing .wsy,
           .service-page-content-root .page-content .page-web-work-pricing .wti,
@@ -272,6 +338,20 @@ export function PageSlugClient({ slugParts, page, serviceFolderHub }: PageSlugCl
               --site-blue-title-lh: 2.25rem;
               --site-red-blue-gap: -0.375rem;
             }
+          }
+          /* Cover: wrapper line-height 0 (no strut); textarea carries line-height (see sharedWebBlocksCss). */
+          .service-page-content-root .page-content .page-web-cover .page-web-cover-inner > .page-web-elements.page-web-elements-title {
+            line-height: 0 !important;
+          }
+          .service-page-content-root .page-content .page-web-cover .page-web-cover-inner > .page-web-elements.page-web-elements-title textarea.page-web-elements-title-input,
+          .service-page-content-root .page-content .page-web-cover .page-web-cover-el-title textarea.page-web-elements-title-input {
+            line-height: 1.2 !important;
+            padding: 0.15rem 0.45rem !important;
+            text-wrap: wrap !important;
+          }
+          .service-page-content-root .page-content .page-web-cover .page-web-cover-inner > .page-web-elements.page-web-elements-description textarea.page-web-elements-description-input {
+            line-height: 1.5 !important;
+            padding: 0.15rem 0.45rem !important;
           }
           `}</style>
         </section>

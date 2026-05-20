@@ -7,7 +7,19 @@ import { useParams } from "next/navigation";
 import { ApiRequestError, apiGet, apiPut, isPageByIdApiPath } from "@/lib/api";
 import { adminPageIdFromParams } from "@/lib/adminPageIdFromParams";
 import { getSharedWebBlocksCss } from "@/lib/sharedWebBlocksCss";
-import { getPageShowRenderCss, getWorkPricingRenderCss } from "@/lib/pageShowRender";
+import { getPageEditorWebToolbarCss } from "@/lib/pageEditorWebToolbarCss";
+import {
+  applyTimelineLineGeometry,
+  getPageShowRenderCss,
+  getTimelineRenderCss,
+  getWorkPricingRenderCss,
+} from "@/lib/pageShowRender";
+import {
+  clearTimelineTextareaInlineWidthsInRoot,
+  layoutWebElementsAnnouncementInputsInRoot,
+  layoutWebElementsTextareaSize,
+  WEB_ELEMENTS_V2_TEXTAREA_LAYOUT_SELECTOR,
+} from "@/lib/webElementsTextareaLayout";
 import {
   alignCarouselStripToStartSlideIndex,
   getCarouselSlideWidthPx,
@@ -15,6 +27,11 @@ import {
   refreshCarouselStripTranslateAfterLayout,
   shiftCarouselStripBySlide,
 } from "@/lib/pageWebCarouselTranslate";
+import { stripLegacyTimelineDom } from "@/lib/stripLegacyTimelineDom";
+import {
+  webElementsFieldRowClearFlexJustify,
+  webElementsFieldRowSetFlexJustify,
+} from "@/lib/webElementsFieldRowJustify";
 import { AdminSidebar } from "@/components/admin/Sidebar";
 import { AdminTopBar } from "@/components/admin/AdminTopBar";
 import {
@@ -57,20 +74,39 @@ const WEB_PAGE_ELEMENTS = [
   { id: "timeline", tab: "text", label: "Этапы работы", description: "Пошаговый блок этапов с заголовками и описаниями" },
   { id: "work-pricing", tab: "text", label: "Стоимость работ", description: "Блок с факторами стоимости, диапазоном цены и призывом к расчёту" },
   { id: "feature-grid", tab: "text", label: "Текстовый блок", description: "Заголовок с описанием и список преимуществ с иконками" },
+  {
+    id: "text-block-v2",
+    tab: "text",
+    label: "Текстовый блок v2",
+    description: "Плашка анонса, подзаголовок, Заголовок 1, Заголовок 2 и короткое описание",
+  },
   { id: "spacer", tab: "decor", label: "Отступ", description: "Пустой декоративный блок для дополнительного вертикального воздуха" },
 ] as const;
 const WEB_BLOCK_SHELL_SELECTOR =
-  ".page-web-cover, .page-web-carousel, .page-web-timeline, .page-web-text-media, .page-web-text-block, .page-web-spacer";
+  ".page-web-cover, .page-web-carousel, .page-web-timeline, .page-web-text-media, .page-web-text-block, .page-web-text-block-v2, .page-web-spacer";
 
 /** Панель форматирования над полотном: скрыть расширенные инструменты (размер и цвет шрифта, жирный/курсив/подчёрк, вертикальное выравнивание, списки и маркеры, таблица, картинка). */
 const PAGE_EDITOR_FORMAT_TOOLBAR_MINIMAL = true;
+
+/**
+ * Автоперенос старой HTML-разметки web-блоков в острова (p/h → textarea, шапка/шаги таймлайна, feature-grid, стоимость и т.д.).
+ * Сейчас выключено: старый текст из разметки не подмешивается в поля — правьте контент вручную или замените блоки.
+ */
+const ENABLE_LEGACY_WEB_BLOCK_HTML_MIGRATIONS = false;
 
 /** Единый маркер активного редактируемого фрагмента на полотне (подсветка области фокуса). Настраивается в CSS через переменные на `.page-editor`. */
 const PAGE_EDITOR_FOCUS_TARGET_ATTR = "data-editor-focus-target";
 
 /** Редактируемые листья внутри блока «Стоимость работ» (как в tryKeepCaret… для каретки). */
 const WORK_PRICING_EDITABLE_LEAF_SELECTOR =
-  ".page-web-work-pricing h1, .page-web-work-pricing h2, .page-web-work-pricing h3, .page-web-work-pricing h4, .page-web-work-pricing h5, .page-web-work-pricing h6, .page-web-work-pricing p, .page-web-work-pricing li, .page-web-work-pricing a, .page-web-work-pricing span, .page-web-work-pricing blockquote";
+  ".page-web-work-pricing h1, .page-web-work-pricing h2, .page-web-work-pricing h3, .page-web-work-pricing h4, .page-web-work-pricing h5, .page-web-work-pricing h6, .page-web-work-pricing p, .page-web-work-pricing li, .page-web-work-pricing a, .page-web-work-pricing span, .page-web-work-pricing blockquote, .page-web-work-pricing textarea.page-web-elements-title-input, .page-web-work-pricing textarea.page-web-elements-title2-input, .page-web-work-pricing textarea.page-web-elements-subtitle-input, .page-web-work-pricing textarea.page-web-elements-description-input";
+
+/** Горизонтальное положение островка поля в блоке «Стоимость работ» (смещает весь `textarea`, а не только текст внутри). */
+const WORK_PRICING_WEB_ELEMENTS_HALIGN_ATTR = "data-work-pricing-halign";
+type WorkPricingBlockHalign = "left" | "center" | "right";
+
+const WORK_PRICING_WEB_ELEMENTS_ALIGN_WRAP_SELECTOR =
+  ".page-web-work-pricing .page-web-elements.page-web-elements-title, .page-web-work-pricing .page-web-elements.page-web-elements-title2, .page-web-work-pricing .page-web-elements.page-web-elements-subtitle, .page-web-work-pricing .page-web-elements.page-web-elements-description";
 
 /** Иконка-галочка в пункте списка стоимости работ: не редактируется и при потере восстанавливается в начале `li`. */
 const WORK_PRICING_LI_CHECK_SVG_HTML =
@@ -100,6 +136,364 @@ function ensureWorkPricingListItemCheckmarks(root: HTMLElement): boolean {
         changed = true;
       }
     });
+  });
+  return changed;
+}
+
+function createWorkPricingDescriptionIsland(
+  initialText: string,
+  placeholder: string,
+  blockHalign: WorkPricingBlockHalign = "left",
+): HTMLElement {
+  const wrap = document.createElement("div");
+  wrap.className = "page-web-elements page-web-elements-description";
+  wrap.setAttribute("contenteditable", "false");
+  wrap.setAttribute(WORK_PRICING_WEB_ELEMENTS_HALIGN_ATTR, blockHalign);
+  const row = document.createElement("div");
+  row.className = "page-web-elements-field-row";
+  row.setAttribute("contenteditable", "false");
+  const ta = document.createElement("textarea");
+  ta.className = "page-web-elements-description-input";
+  ta.setAttribute("spellcheck", "true");
+  ta.setAttribute("placeholder", placeholder);
+  ta.setAttribute("rows", "1");
+  ta.value = initialText;
+  row.appendChild(ta);
+  wrap.appendChild(row);
+  return wrap;
+}
+
+function createWorkPricingTitleIsland(
+  initialText: string,
+  placeholder: string,
+  blockHalign: WorkPricingBlockHalign = "left",
+): HTMLElement {
+  const wrap = document.createElement("div");
+  wrap.className = "page-web-elements page-web-elements-title";
+  wrap.setAttribute("contenteditable", "false");
+  wrap.setAttribute(WORK_PRICING_WEB_ELEMENTS_HALIGN_ATTR, blockHalign);
+  const row = document.createElement("div");
+  row.className = "page-web-elements-field-row";
+  row.setAttribute("contenteditable", "false");
+  const ta = document.createElement("textarea");
+  ta.className = "page-web-elements-title-input";
+  ta.setAttribute("spellcheck", "true");
+  ta.setAttribute("placeholder", placeholder);
+  ta.setAttribute("rows", "1");
+  ta.value = initialText;
+  row.appendChild(ta);
+  wrap.appendChild(row);
+  return wrap;
+}
+
+function createWorkPricingTitle2Island(
+  initialText: string,
+  placeholder: string,
+  blockHalign: WorkPricingBlockHalign = "center",
+): HTMLElement {
+  const wrap = document.createElement("div");
+  wrap.className = "page-web-elements page-web-elements-title2";
+  wrap.setAttribute("contenteditable", "false");
+  wrap.setAttribute(WORK_PRICING_WEB_ELEMENTS_HALIGN_ATTR, blockHalign);
+  const row = document.createElement("div");
+  row.className = "page-web-elements-field-row";
+  row.setAttribute("contenteditable", "false");
+  const ta = document.createElement("textarea");
+  ta.className = "page-web-elements-title2-input";
+  ta.setAttribute("spellcheck", "true");
+  ta.setAttribute("placeholder", placeholder);
+  ta.setAttribute("rows", "1");
+  ta.value = initialText;
+  row.appendChild(ta);
+  wrap.appendChild(row);
+  return wrap;
+}
+
+/** Подзаголовок / описание баннера: `.page-web-elements.page-web-elements-description` + `textarea.page-web-elements-description-input`. */
+function createCoverDescriptionIsland(initialText: string, placeholder = "Короткое описание"): HTMLElement {
+  const wrap = document.createElement("div");
+  wrap.className = "page-web-elements page-web-elements-description";
+  wrap.setAttribute("contenteditable", "false");
+  const row = document.createElement("div");
+  row.className = "page-web-elements-field-row";
+  row.setAttribute("contenteditable", "false");
+  const ta = document.createElement("textarea");
+  ta.className = "page-web-elements-description-input";
+  ta.setAttribute("spellcheck", "true");
+  ta.setAttribute("placeholder", placeholder);
+  ta.setAttribute("rows", "1");
+  ta.value = initialText;
+  row.appendChild(ta);
+  wrap.appendChild(row);
+  return wrap;
+}
+
+/** Заголовок баннера: островок `.page-web-elements.page-web-elements-title` + `textarea.page-web-elements-title-input` (как в текстовом блоке v2). */
+function createCoverTitleIsland(initialText: string, placeholder = "Заголовок баннера"): HTMLElement {
+  const wrap = document.createElement("div");
+  wrap.className = "page-web-elements page-web-elements-title";
+  wrap.setAttribute("contenteditable", "false");
+  const row = document.createElement("div");
+  row.className = "page-web-elements-field-row";
+  row.setAttribute("contenteditable", "false");
+  const ta = document.createElement("textarea");
+  ta.className = "page-web-elements-title-input";
+  ta.setAttribute("spellcheck", "true");
+  ta.setAttribute("placeholder", placeholder);
+  ta.setAttribute("rows", "1");
+  ta.value = initialText;
+  row.appendChild(ta);
+  wrap.appendChild(row);
+  return wrap;
+}
+
+/** Анонс баннера: как в текстовом блоке v2 — `page-web-elements-announcement` + `div.page-web-elements-announcement-input`. */
+function createCoverAnnouncementIsland(
+  initialText: string,
+  options?: { includeLearnMore?: boolean; learnMoreLabel?: string },
+): HTMLElement {
+  const wrap = document.createElement("div");
+  wrap.className = "page-web-elements page-web-elements-announcement";
+  wrap.setAttribute("contenteditable", "false");
+  const row = document.createElement("div");
+  row.className = "page-web-elements-announcement-row";
+  const shell = document.createElement("div");
+  shell.className = "page-web-elements-announcement-input-shell";
+  const strip = document.createElement("div");
+  strip.className = "page-web-elements-announcement-strip";
+  strip.setAttribute("contenteditable", "false");
+  const input = document.createElement("div");
+  input.className = "page-web-elements-announcement-input";
+  input.setAttribute("contenteditable", "true");
+  input.setAttribute("spellcheck", "true");
+  input.setAttribute("role", "textbox");
+  input.setAttribute("aria-multiline", "true");
+  input.setAttribute("data-placeholder", "Анонс");
+  input.textContent = initialText;
+  strip.appendChild(input);
+  if (options?.includeLearnMore) {
+    const label = (options.learnMoreLabel || "Подробнее").trim() || "Подробнее";
+    strip.appendChild(createCoverAnnouncementLearnMoreSpan(label));
+  }
+  shell.appendChild(strip);
+  row.appendChild(shell);
+  wrap.appendChild(row);
+  return wrap;
+}
+
+/** «Подробнее» в плашке или в ряду действий баннера — тот же узел, что в текстовом блоке v2. */
+function createCoverAnnouncementLearnMoreSpan(label: string): HTMLElement {
+  const lm = document.createElement("span");
+  lm.className = "page-web-elements-announcement-learn-more";
+  lm.setAttribute("role", "button");
+  lm.setAttribute("contenteditable", "false");
+  lm.setAttribute("tabindex", "-1");
+  lm.textContent = label.trim() || "Подробнее";
+  return lm;
+}
+
+/** Кнопки баннера: та же разметка, что в `getTextBlockV2Html` — primary + secondary. */
+function createCoverActionsIsland(
+  primaryLabel: string = "Кнопка",
+  secondaryLabel: string = "Дополнительно",
+): HTMLElement {
+  const actions = document.createElement("div");
+  actions.className = "page-web-elements-actions";
+  actions.setAttribute("contenteditable", "false");
+  const cluster = document.createElement("div");
+  cluster.className = "page-web-elements-actions-cluster";
+  cluster.setAttribute("tabindex", "-1");
+
+  const btnIsland = document.createElement("div");
+  btnIsland.className = "page-web-elements page-web-elements-button";
+  btnIsland.setAttribute("contenteditable", "false");
+  const p1 = document.createElement("p");
+  p1.className = "page-web-elements-cta-wrap";
+  p1.setAttribute("contenteditable", "false");
+  const a1 = document.createElement("a");
+  a1.href = "#";
+  a1.className = "page-web-elements-cta-button";
+  a1.textContent = primaryLabel;
+  p1.appendChild(a1);
+  btnIsland.appendChild(p1);
+
+  const btn2Island = document.createElement("div");
+  btn2Island.className = "page-web-elements page-web-elements-button2";
+  btn2Island.setAttribute("contenteditable", "false");
+  const p2 = document.createElement("p");
+  p2.className = "page-web-elements-cta-wrap";
+  p2.setAttribute("contenteditable", "false");
+  const a2 = document.createElement("a");
+  a2.href = "#";
+  a2.className = "page-web-elements-cta-button-secondary";
+  a2.textContent = secondaryLabel;
+  p2.appendChild(a2);
+  btn2Island.appendChild(p2);
+
+  cluster.appendChild(btnIsland);
+  cluster.appendChild(btn2Island);
+  actions.appendChild(cluster);
+  return actions;
+}
+
+/** Старый блок кнопки (`p.page-web-cover-el-button-wrap`) → `page-web-elements-actions` + `page-web-elements-actions-cluster`. */
+function migrateLegacyCoverButtonWrapToWebElements(root: HTMLElement): boolean {
+  let changed = false;
+  root.querySelectorAll(".page-web-cover-inner > .page-web-cover-el-button-wrap").forEach((n) => {
+    const wrap = n as HTMLElement;
+    const inner = wrap.parentElement;
+    if (!inner?.classList.contains("page-web-cover-inner")) return;
+
+    const btn =
+      (wrap.querySelector(":scope > .page-web-cover-el-button") as HTMLElement | null) ??
+      (wrap.querySelector(":scope > a.page-web-cover-el-button") as HTMLElement | null);
+    const learnMore =
+      (wrap.querySelector(":scope > .page-web-cover-el-learn-more") as HTMLElement | null) ??
+      (wrap.querySelector(":scope > a.page-web-cover-el-learn-more") as HTMLElement | null);
+    const label = (btn?.textContent ?? "").replace(/\u200b/g, "").trim() || "Кнопка";
+    const island = createCoverActionsIsland(label, "Дополнительно");
+    const cluster = island.querySelector(":scope > .page-web-elements-actions-cluster") as HTMLElement | null;
+    if (cluster && learnMore) {
+      const lmText = (learnMore.textContent ?? "").replace(/\u200b/g, "").trim() || "Подробнее";
+      if (learnMore.matches(".page-web-cover-el-learn-more, a.page-web-cover-el-learn-more")) {
+        cluster.appendChild(createCoverAnnouncementLearnMoreSpan(lmText));
+      } else {
+        cluster.appendChild(learnMore);
+      }
+    }
+    wrap.replaceWith(island);
+    changed = true;
+  });
+  return changed;
+}
+
+/** Старый подзаголовок баннера (`p.page-web-cover-el-subtitle`) → `page-web-elements-description` + `textarea.page-web-elements-description-input`. */
+function migrateLegacyCoverSubtitleToWebElements(root: HTMLElement): boolean {
+  let changed = false;
+  root.querySelectorAll(".page-web-cover-inner > .page-web-cover-el-subtitle").forEach((n) => {
+    const p = n as HTMLElement;
+    if (p.querySelector("textarea.page-web-elements-description-input")) return;
+    const inner = p.parentElement;
+    if (!inner?.classList.contains("page-web-cover-inner")) return;
+    const text = (p.textContent ?? "").replace(/\u200b/g, "").trim();
+    const initial =
+      text ||
+      "Короткое описание услуги: основные преимущества, сроки и ожидаемый результат для клиента.";
+    p.replaceWith(createCoverDescriptionIsland(initial));
+    changed = true;
+  });
+  return changed;
+}
+
+/** Старый анонс баннера (`p.page-web-cover-el-announcement-wrap` …) → `page-web-elements-announcement` + `div.page-web-elements-announcement-input`. */
+function migrateLegacyCoverAnnouncementToWebElements(root: HTMLElement): boolean {
+  let changed = false;
+  root.querySelectorAll(".page-web-cover-inner > .page-web-cover-el-announcement-wrap").forEach((n) => {
+    const wrap = n as HTMLElement;
+    if (wrap.querySelector(".page-web-elements-announcement-input")) return;
+    const inner = wrap.parentElement;
+    if (!inner?.classList.contains("page-web-cover-inner")) return;
+
+    const pill = wrap.querySelector(":scope > .page-web-cover-el-announcement") as HTMLElement | null;
+    const textSpan = pill?.querySelector(".page-web-cover-el-announcement-text") as HTMLElement | null;
+    let text = (textSpan?.textContent ?? pill?.textContent ?? "").replace(/\u200b/g, "").trim();
+    if (!text) text = "Анонс: мы запустили новый этап проекта.";
+
+    const lmLegacy = pill?.querySelector(
+      ".page-web-cover-el-announcement-learn-more, .page-web-elements-announcement-learn-more",
+    ) as HTMLElement | null;
+    const learnLabel = (lmLegacy?.textContent ?? "").replace(/\u200b/g, "").trim() || "Подробнее";
+
+    const island = createCoverAnnouncementIsland(text, {
+      includeLearnMore: !!lmLegacy,
+      learnMoreLabel: learnLabel,
+    });
+    wrap.replaceWith(island);
+    changed = true;
+  });
+  return changed;
+}
+
+/**
+ * «Голые» заголовок/абзац внутри баннера (как старый HTML без классов обложки) → те же острова, что после
+ * миграций таймлайна: текст попадает в textarea, а не остаётся только в DOM вне полей.
+ */
+function migrateLegacyCoverOrphanHeadingParagraphToWebElements(root: HTMLElement): boolean {
+  let changed = false;
+  root.querySelectorAll(".page-web-cover-inner").forEach((n) => {
+    const inner = n as HTMLElement;
+    if (!inner.classList.contains("page-web-cover-inner")) return;
+
+    const titleIsland = inner.querySelector(":scope > .page-web-elements.page-web-elements-title");
+    const titleTa = inner.querySelector(
+      ":scope > .page-web-elements.page-web-elements-title textarea.page-web-elements-title-input",
+    ) as HTMLTextAreaElement | null;
+    const orphanHeading = inner.querySelector(":scope > h1, :scope > h2, :scope > h3") as HTMLElement | null;
+    if (orphanHeading && !orphanHeading.closest(".page-web-elements.page-web-elements-title")) {
+      const text = (orphanHeading.textContent ?? "").replace(/[\u200b\u00a0]/g, " ").replace(/\s+/g, " ").trim();
+      if (text) {
+        if (titleTa && !(titleTa.value || "").trim()) {
+          titleTa.value = text;
+          orphanHeading.remove();
+          changed = true;
+        } else if (!titleIsland) {
+          orphanHeading.replaceWith(createCoverTitleIsland(text));
+          changed = true;
+        }
+      }
+    }
+
+    const descIsland = inner.querySelector(":scope > .page-web-elements.page-web-elements-description");
+    const descTa = inner.querySelector(
+      ":scope > .page-web-elements.page-web-elements-description textarea.page-web-elements-description-input",
+    ) as HTMLTextAreaElement | null;
+    const orphanP = Array.from(inner.querySelectorAll(":scope > p")).find((p) => {
+      const el = p as HTMLElement;
+      if (el.classList.contains("page-web-cover-el-announcement-wrap")) return false;
+      if (el.classList.contains("page-web-cover-el-button-wrap")) return false;
+      if (el.classList.contains("page-web-cover-el-subtitle")) return false;
+      if (el.closest(".page-web-elements")) return false;
+      return (el.textContent ?? "").replace(/[\u200b\u00a0]/g, " ").replace(/\s+/g, " ").trim().length > 0;
+    }) as HTMLElement | undefined;
+
+    if (orphanP) {
+      const text = (orphanP.textContent ?? "").replace(/[\u200b\u00a0]/g, " ").replace(/\s+/g, " ").trim();
+      if (text) {
+        if (descTa && !(descTa.value || "").trim()) {
+          descTa.value = text;
+          orphanP.remove();
+          changed = true;
+        } else if (!descIsland) {
+          orphanP.replaceWith(createCoverDescriptionIsland(text));
+          changed = true;
+        }
+      }
+    }
+  });
+  return changed;
+}
+
+/** Старый заголовок баннера (`h1–h3` или `div.page-web-cover-el-title`) → островок web-elements. */
+function migrateLegacyCoverTitleHeadingToWebElements(root: HTMLElement): boolean {
+  let changed = false;
+  root.querySelectorAll(".page-web-cover-inner").forEach((n) => {
+    const inner = n as HTMLElement;
+    const legacyHeading = inner.querySelector(
+      ":scope > h1.page-web-cover-el-title, :scope > h2.page-web-cover-el-title, :scope > h3.page-web-cover-el-title",
+    ) as HTMLElement | null;
+    if (legacyHeading) {
+      const text = (legacyHeading.textContent ?? "").replace(/\u200b/g, "").trim();
+      legacyHeading.replaceWith(createCoverTitleIsland(text));
+      changed = true;
+      return;
+    }
+    const legacyDiv = inner.querySelector(":scope > .page-web-cover-el-title") as HTMLElement | null;
+    if (legacyDiv) {
+      const ta = legacyDiv.querySelector("textarea.page-web-elements-title-input") as HTMLTextAreaElement | null;
+      const text = (ta?.value ?? legacyDiv.textContent ?? "").replace(/\u200b/g, "").trim();
+      legacyDiv.replaceWith(createCoverTitleIsland(text));
+      changed = true;
+    }
   });
   return changed;
 }
@@ -881,74 +1275,255 @@ function getTextMediaBlockHtml(textColumnHtml?: string): string {
   );
 }
 
-function getTextBlockHtml(textHtml?: string): string {
-  const html =
+function escapeWebBlockHtmlText(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function escapeWebBlockHtmlAttr(s: string): string {
+  return escapeWebBlockHtmlText(s).replace(/'/g, "&#39;");
+}
+
+function getCoverButtonLinkLabelForModal(target: HTMLElement): string {
+  if (target.matches(".page-web-feature-grid-link")) {
+    const clone = target.cloneNode(true) as HTMLElement;
+    clone.querySelectorAll("span[aria-hidden='true']").forEach((s) => s.remove());
+    return (clone.textContent ?? "").replace(/\s+/g, " ").trim();
+  }
+  return (target.textContent ?? "").replace(/\u200b/g, "").trim();
+}
+
+function applyCoverButtonLinkLabelToDom(target: HTMLElement, labelRaw: string): void {
+  const label = labelRaw.trim();
+  if (!label) return;
+  if (target.matches(".page-web-feature-grid-link")) {
+    target.innerHTML = `${escapeWebBlockHtmlText(label)} <span aria-hidden="true">→</span>`;
+    return;
+  }
+  target.textContent = label;
+}
+
+type GetTextBlockHtmlOptions = { contentOnly?: boolean };
+
+function getTextBlockHtml(textHtml?: string, options?: GetTextBlockHtmlOptions): string {
+  if (options?.contentOnly) {
+    return (
+      '<div class="page-web-text-block" data-web-element="text-block" contenteditable="false">' +
+      getWebTextBlockToolbarHtml() +
+      '<div class="page-web-text-block-content" contenteditable="true">' +
+      (typeof textHtml === "string" ? textHtml : "") +
+      "</div>" +
+      "</div>"
+    );
+  }
+  const bodyHtml =
     typeof textHtml === "string" && textHtml.trim().length > 0
       ? textHtml
-      : "<h3>Заголовок</h3><p>Добавьте текст блока. Подходит для обычного контента страницы.</p>";
+      : "<p>Добавьте основной текст блока. Подходит для обычного контента страницы.</p>";
   return (
-    '<div class="page-web-text-block" data-web-element="text-block" contenteditable="false">' +
+    '<div class="page-web-text-block" data-web-element="text-block" data-text-block-has-subtitle="1" data-text-block-has-title="1" data-text-block-has-lead="1" contenteditable="false">' +
     getWebTextBlockToolbarHtml() +
+    '<div class="page-web-text-block-fields" contenteditable="false">' +
+    '<div class="page-web-elements page-web-elements-subtitle">' +
+    '<div class="page-web-elements-field-row">' +
+    '<textarea class="page-web-elements-subtitle-input" spellcheck="true" placeholder="Подзаголовок" rows="1">' +
+    escapeWebBlockHtmlText("Подзаголовок") +
+    "</textarea>" +
+    "</div></div>" +
+    '<div class="page-web-elements page-web-elements-title">' +
+    '<div class="page-web-elements-field-row">' +
+    '<textarea class="page-web-elements-title-input" spellcheck="true" placeholder="Заголовок" rows="1">' +
+    escapeWebBlockHtmlText("Заголовок") +
+    "</textarea>" +
+    "</div></div>" +
+    '<div class="page-web-elements page-web-elements-description">' +
+    '<div class="page-web-elements-field-row">' +
+    '<textarea class="page-web-elements-description-input" spellcheck="true" placeholder="Короткое описание" rows="1">' +
+    escapeWebBlockHtmlText("Краткое описание под заголовком.") +
+    "</textarea>" +
+    "</div></div>" +
+    "</div>" +
     '<div class="page-web-text-block-content" contenteditable="true">' +
-    html +
+    bodyHtml +
     "</div>" +
     "</div>"
   );
 }
 
+const FEATURE_GRID_LEAD_DEFAULT = "Краткое описание";
+
+const FEATURE_GRID_CARD_DESCRIPTION_DEFAULT =
+  "Добавьте описание карточки. Здесь можно указать ключевое преимущество.";
+
+const FEATURE_GRID_MESSAGE_BODY_DEFAULT =
+  "Здесь появится дополнительная информация в формате alert-блока.";
+
+function getFeatureGridLearnMoreRowHtml(): string {
+  return (
+    '<p class="page-web-feature-grid-item-link-wrap">' +
+    '<span class="page-web-elements-announcement-learn-more" role="button" contenteditable="false" tabindex="-1">' +
+    "Подробнее" +
+    "</span>" +
+    "</p>"
+  );
+}
+
+function getFeatureGridCardCtaRowHtml(): string {
+  return (
+    '<p class="page-web-elements-cta-wrap" contenteditable="false">' +
+    '<span class="page-web-elements-cta-button" role="button" contenteditable="false" tabindex="-1">' +
+    escapeWebBlockHtmlText("Кнопка") +
+    "</span></p>"
+  );
+}
+
+function getFeatureGridCardTitle2FieldHtml(initialValue: string): string {
+  return (
+    '<div class="page-web-elements page-web-elements-title2">' +
+    '<div class="page-web-elements-field-row">' +
+    '<textarea class="page-web-elements-title2-input" spellcheck="true" placeholder="Заголовок 2" rows="1">' +
+    escapeWebBlockHtmlText(initialValue) +
+    "</textarea></div></div>"
+  );
+}
+
+function getFeatureGridMessageTitleFieldHtml(initialValue: string): string {
+  return (
+    '<div class="page-web-elements page-web-elements-title2">' +
+    '<div class="page-web-elements-field-row">' +
+    '<textarea class="page-web-elements-title2-input page-web-feature-grid-message-title" spellcheck="true" placeholder="Заголовок сообщения" rows="1">' +
+    escapeWebBlockHtmlText(initialValue) +
+    "</textarea></div></div>"
+  );
+}
+
+function getFeatureGridMessageBodyFieldHtml(initialValue: string): string {
+  return (
+    '<div class="page-web-elements page-web-elements-description">' +
+    '<div class="page-web-elements-field-row">' +
+    '<textarea class="page-web-elements-description-input page-web-feature-grid-message-body" spellcheck="true" placeholder="Дополнительный текст alert-блока" rows="1">' +
+    escapeWebBlockHtmlText(initialValue) +
+    "</textarea></div></div>"
+  );
+}
+
+function createFeatureGridCardTitle2Wrap(initialValue: string): HTMLElement {
+  const wrap = document.createElement("div");
+  wrap.className = "page-web-elements page-web-elements-title2";
+  const row = document.createElement("div");
+  row.className = "page-web-elements-field-row";
+  const ta = document.createElement("textarea");
+  ta.className = "page-web-elements-title2-input";
+  ta.setAttribute("spellcheck", "true");
+  ta.setAttribute("placeholder", "Заголовок 2");
+  ta.setAttribute("rows", "1");
+  ta.value = initialValue;
+  row.appendChild(ta);
+  wrap.appendChild(row);
+  return wrap;
+}
+
+function getFeatureGridCardDescriptionFieldHtml(initialValue: string): string {
+  return (
+    '<div class="page-web-elements page-web-elements-description">' +
+    '<div class="page-web-elements-field-row">' +
+    '<textarea class="page-web-elements-description-input" spellcheck="true" placeholder="Короткое описание" rows="1">' +
+    escapeWebBlockHtmlText(initialValue) +
+    "</textarea></div></div>"
+  );
+}
+
+function createFeatureGridCardDescriptionWrap(initialValue: string): HTMLElement {
+  const wrap = document.createElement("div");
+  wrap.className = "page-web-elements page-web-elements-description";
+  const row = document.createElement("div");
+  row.className = "page-web-elements-field-row";
+  const ta = document.createElement("textarea");
+  ta.className = "page-web-elements-description-input";
+  ta.setAttribute("spellcheck", "true");
+  ta.setAttribute("placeholder", "Короткое описание");
+  ta.setAttribute("rows", "1");
+  ta.value = initialValue;
+  row.appendChild(ta);
+  wrap.appendChild(row);
+  return wrap;
+}
+
 function getFeatureGridTextBlockHtml(): string {
   return getTextBlockHtml(
     '<div class="page-web-feature-grid" data-feature-grid-cols="3">' +
-      '<div class="page-web-feature-grid-head">' +
-        '<p class="page-web-feature-grid-subtitle">Deploy faster</p>' +
-        '<h2 class="page-web-feature-grid-title">Everything you need to deploy your app</h2>' +
-        '<p class="page-web-feature-grid-lead">Quis tellus eget adipiscing convallis sit sit eget aliquet quis. Suspendisse eget egestas a elementum pulvinar et feugiat blandit at. In mi viverra elit nunc.</p>' +
+      '<div class="page-web-feature-grid-head" contenteditable="false">' +
+        '<div class="page-web-elements page-web-elements-subtitle">' +
+        '<div class="page-web-elements-field-row">' +
+        '<textarea class="page-web-elements-subtitle-input" spellcheck="true" placeholder="Подзаголовок" rows="1">' +
+        escapeWebBlockHtmlText("Подзаголовок") +
+        "</textarea></div></div>" +
+        '<div class="page-web-elements page-web-elements-title">' +
+        '<div class="page-web-elements-field-row">' +
+        '<textarea class="page-web-elements-title-input" spellcheck="true" placeholder="Заголовок 1" rows="1">' +
+        escapeWebBlockHtmlText("Заголовок 1") +
+        "</textarea></div></div>" +
+        '<div class="page-web-elements page-web-elements-description">' +
+        '<div class="page-web-elements-field-row">' +
+        '<textarea class="page-web-elements-description-input" spellcheck="true" placeholder="Короткое описание" rows="1">' +
+        escapeWebBlockHtmlText(FEATURE_GRID_LEAD_DEFAULT) +
+        "</textarea></div></div>" +
       '</div>' +
       '<dl class="page-web-feature-grid-list">' +
         '<div class="page-web-feature-grid-item">' +
-          '<dt class="page-web-feature-grid-item-title">' +
+          '<dt class="page-web-feature-grid-item-title" contenteditable="false">' +
             '<span class="page-web-feature-grid-icon-wrap" aria-hidden="true">' +
               '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="page-web-feature-grid-icon">' +
                 '<path d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z" stroke-linecap="round" stroke-linejoin="round"></path>' +
               "</svg>" +
             "</span>" +
-            "Server monitoring" +
+            getFeatureGridCardTitle2FieldHtml("Мониторинг серверов") +
           "</dt>" +
-          '<dd class="page-web-feature-grid-item-body">' +
-            "<p>Non quo aperiam repellendus quas est est. Eos aut dolore aut ut sit nesciunt. Ex tempora quia. Sit nobis consequatur dolores incidunt.</p>" +
-            '<p class="page-web-feature-grid-item-link-wrap"><a href="#" class="page-web-feature-grid-link">Learn more <span aria-hidden="true">→</span></a></p>' +
+          '<dd class="page-web-feature-grid-item-body" contenteditable="false">' +
+            getFeatureGridCardDescriptionFieldHtml(
+              "Следите за нагрузкой и доступностью серверов в одном месте. Настройте оповещения и отчёты, чтобы команда реагировала до того, как заметят пользователи.",
+            ) +
+            getFeatureGridLearnMoreRowHtml() +
           "</dd>" +
         "</div>" +
         '<div class="page-web-feature-grid-item">' +
-          '<dt class="page-web-feature-grid-item-title">' +
+          '<dt class="page-web-feature-grid-item-title" contenteditable="false">' +
             '<span class="page-web-feature-grid-icon-wrap" aria-hidden="true">' +
               '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="page-web-feature-grid-icon">' +
                 '<path d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" stroke-linecap="round" stroke-linejoin="round"></path>' +
               "</svg>" +
             "</span>" +
-            "Collaborate" +
+            getFeatureGridCardTitle2FieldHtml("Совместная работа") +
           "</dt>" +
-          '<dd class="page-web-feature-grid-item-body">' +
-            "<p>Vero eum voluptatem aliquid nostrum voluptatem. Vitae esse natus. Earum nihil deserunt eos quasi cupiditate. A inventore et molestiae natus.</p>" +
-            '<p class="page-web-feature-grid-item-link-wrap"><a href="#" class="page-web-feature-grid-link">Learn more <span aria-hidden="true">→</span></a></p>' +
+          '<dd class="page-web-feature-grid-item-body" contenteditable="false">' +
+            getFeatureGridCardDescriptionFieldHtml(
+              "Объединяйте задачи, обсуждения и файлы в одной среде. Меньше переключений между сервисами — больше времени на продукт и общий результат.",
+            ) +
+            getFeatureGridLearnMoreRowHtml() +
           "</dd>" +
         "</div>" +
         '<div class="page-web-feature-grid-item">' +
-          '<dt class="page-web-feature-grid-item-title">' +
+          '<dt class="page-web-feature-grid-item-title" contenteditable="false">' +
             '<span class="page-web-feature-grid-icon-wrap" aria-hidden="true">' +
               '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="page-web-feature-grid-icon">' +
                 '<path d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5m-9-6h.008v.008H12v-.008ZM12 15h.008v.008H12V15Zm0 2.25h.008v.008H12v-.008ZM9.75 15h.008v.008H9.75V15Zm0 2.25h.008v.008H9.75v-.008ZM7.5 15h.008v.008H7.5V15Zm0 2.25h.008v.008H7.5v-.008Zm6.75-4.5h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V15Zm0 2.25h.008v.008h-.008v-.008Zm2.25-4.5h.008v.008H16.5v-.008Zm0 2.25h.008v.008H16.5V15Z" stroke-linecap="round" stroke-linejoin="round"></path>' +
               "</svg>" +
             "</span>" +
-            "Task scheduling" +
+            getFeatureGridCardTitle2FieldHtml("Планирование задач") +
           "</dt>" +
-          '<dd class="page-web-feature-grid-item-body">' +
-            "<p>Et quod quaerat dolorem quaerat architecto aliquam accusantium. Ex adipisci et doloremque autem quia quam. Quis eos molestiae at iure impedit.</p>" +
-            '<p class="page-web-feature-grid-item-link-wrap"><a href="#" class="page-web-feature-grid-link">Learn more <span aria-hidden="true">→</span></a></p>' +
+          '<dd class="page-web-feature-grid-item-body" contenteditable="false">' +
+            getFeatureGridCardDescriptionFieldHtml(
+              "Распределяйте сроки и приоритеты без хаоса в таблицах. Наглядные статусы и напоминания помогают держать план под контролем от идеи до релиза.",
+            ) +
+            getFeatureGridLearnMoreRowHtml() +
           "</dd>" +
         "</div>" +
       "</dl>" +
-    "</div>"
+    "</div>",
+    { contentOnly: true },
   ).replace('data-web-element="text-block"', 'data-web-element="text-block" data-text-block-variant="feature-grid"');
 }
 
@@ -957,46 +1532,574 @@ function getWorkPricingTextBlockHtml(): string {
     '<div class="page-web-work-pricing">' +
       '<div class="wrc wrh wrp wse wtt wtv wuf wuo wuq wut">' +
         '<div class="wsp wui wuu">' +
-          '<h3 class="wsx wtg wth wto">Lifetime membership</h3>' +
-          '<p class="wre wta wtn">Lorem ipsum dolor sit amet consect etur adipisicing elit. Itaque amet indis perferendis blanditiis repellendus etur quidem assumenda.</p>' +
+          '<div class="page-web-elements page-web-elements-title" contenteditable="false" data-work-pricing-halign="left">' +
+          '<div class="page-web-elements-field-row" contenteditable="false">' +
+          '<textarea class="page-web-elements-title-input" spellcheck="true" placeholder="Заголовок" rows="1">' +
+          escapeWebBlockHtmlText("Пожизненное участие") +
+          "</textarea></div></div>" +
+          '<div class="page-web-elements page-web-elements-description" contenteditable="false" data-work-pricing-halign="left">' +
+          '<div class="page-web-elements-field-row" contenteditable="false">' +
+          '<textarea class="page-web-elements-description-input" spellcheck="true" placeholder="Короткое описание" rows="1">' +
+          escapeWebBlockHtmlText(
+            "Один раз подключаетесь — и навсегда остаётесь в сообществе: материалы, встречи и поддержка без ежемесячных платежей.",
+          ) +
+          "</textarea></div></div>" +
           '<div class="wrg wrj wrx wsc">' +
-            '<h4 class="wru wtd wtg wtq">What’s included</h4>' +
+            '<div class="page-web-elements page-web-elements-subtitle" contenteditable="false" data-work-pricing-halign="left">' +
+            '<div class="page-web-elements-field-row" contenteditable="false">' +
+            '<textarea class="page-web-elements-subtitle-input" spellcheck="true" placeholder="Подзаголовок" rows="1">' +
+            escapeWebBlockHtmlText("Что входит") +
+            "</textarea></div></div>" +
             '<div class="wrm wrt wsh"></div>' +
           "</div>" +
           '<ul role="list" class="wrf wrk wrv wrz wtd wtn wug wuh">' +
             '<li class="wrj wsb">' +
               WORK_PRICING_LI_CHECK_SVG_HTML +
-              "Private forum access" +
+              '<div class="page-web-elements page-web-elements-description" contenteditable="false" data-work-pricing-halign="left">' +
+              '<div class="page-web-elements-field-row" contenteditable="false">' +
+              '<textarea class="page-web-elements-description-input" spellcheck="true" placeholder="Текст пункта" rows="1">' +
+              escapeWebBlockHtmlText("Доступ к закрытому форуму") +
+              "</textarea></div></div>" +
             "</li>" +
             '<li class="wrj wsb">' +
               WORK_PRICING_LI_CHECK_SVG_HTML +
-              "Member resources" +
+              '<div class="page-web-elements page-web-elements-description" contenteditable="false" data-work-pricing-halign="left">' +
+              '<div class="page-web-elements-field-row" contenteditable="false">' +
+              '<textarea class="page-web-elements-description-input" spellcheck="true" placeholder="Текст пункта" rows="1">' +
+              escapeWebBlockHtmlText("Материалы для участников") +
+              "</textarea></div></div>" +
             "</li>" +
             '<li class="wrj wsb">' +
               WORK_PRICING_LI_CHECK_SVG_HTML +
-              "Entry to annual conference" +
+              '<div class="page-web-elements page-web-elements-description" contenteditable="false" data-work-pricing-halign="left">' +
+              '<div class="page-web-elements-field-row" contenteditable="false">' +
+              '<textarea class="page-web-elements-description-input" spellcheck="true" placeholder="Текст пункта" rows="1">' +
+              escapeWebBlockHtmlText("Участие в ежегодной конференции") +
+              "</textarea></div></div>" +
             "</li>" +
             '<li class="wrj wsb">' +
               WORK_PRICING_LI_CHECK_SVG_HTML +
-              "Official member t-shirt" +
+              '<div class="page-web-elements page-web-elements-description" contenteditable="false" data-work-pricing-halign="left">' +
+              '<div class="page-web-elements-field-row" contenteditable="false">' +
+              '<textarea class="page-web-elements-description-input" spellcheck="true" placeholder="Текст пункта" rows="1">' +
+              escapeWebBlockHtmlText("Фирменная футболка участника") +
+              "</textarea></div></div>" +
             "</li>" +
           "</ul>" +
         "</div>" +
         '<div class="wrd wso wup wur wus wuv">' +
           '<div class="wsd wsg wsu wsw wtu wtx wuq wuw wux wuz">' +
             '<div class="wrc wrs wss">' +
-              '<p class="wsz wtg wtn">Pay once, own it forever</p>' +
-              '<p class="wre wrj wrw wry wsa">' +
-                '<span class="wsy wtg wth wto">70 000 ₽</span>' +
-              "</p>" +
-              '<a href="#" class="wrg wri wro wsf wsl wsq wst wsw wtc wtg wtr wts wua wub wuc wue">Get access</a>' +
-              '<p class="wre wte wtn">Invoices and receipts available for easy company reimbursement</p>' +
+              '<div class="page-web-elements page-web-elements-title2" contenteditable="false" data-work-pricing-halign="center">' +
+              '<div class="page-web-elements-field-row" contenteditable="false">' +
+              '<textarea class="page-web-elements-title2-input" spellcheck="true" placeholder="Подпись над ценой" rows="1">' +
+              escapeWebBlockHtmlText("Один раз оплатили — навсегда ваше") +
+              "</textarea></div></div>" +
+              '<div class="page-web-elements page-web-elements-title" contenteditable="false" data-work-pricing-halign="center">' +
+              '<div class="page-web-elements-field-row" contenteditable="false">' +
+              '<textarea class="page-web-elements-title-input" spellcheck="true" placeholder="Стоимость" rows="1">' +
+              escapeWebBlockHtmlText("70 000 ₽") +
+              "</textarea></div></div>" +
+              '<p class="page-web-elements-cta-wrap" contenteditable="false">' +
+              '<a href="#" class="page-web-elements-cta-button">' +
+              escapeWebBlockHtmlText("Получить доступ") +
+              "</a></p>" +
+              '<div class="page-web-elements page-web-elements-description" contenteditable="false" data-work-pricing-halign="left">' +
+              '<div class="page-web-elements-field-row" contenteditable="false">' +
+              '<textarea class="page-web-elements-description-input" spellcheck="true" placeholder="Дополнительный текст" rows="1">' +
+              escapeWebBlockHtmlText(
+                "Счета и чеки для бухгалтерии — удобно оформить возмещение через работодателя.",
+              ) +
+              "</textarea></div></div>" +
             "</div>" +
           "</div>" +
         "</div>" +
       "</div>" +
-    "</div>"
+    "</div>",
+    { contentOnly: true },
   ).replace('data-web-element="text-block"', 'data-web-element="text-block" data-text-block-variant="work-pricing"');
+}
+
+function isPlainWebTextBlock(block: HTMLElement): boolean {
+  const v = block.getAttribute("data-text-block-variant");
+  return v !== "feature-grid" && v !== "work-pricing";
+}
+
+function ensurePlainTextBlockFieldShell(block: HTMLElement): boolean {
+  if (!isPlainWebTextBlock(block)) return false;
+  if (block.querySelector(":scope > .page-web-text-block-fields")) return false;
+  const content = block.querySelector(":scope > .page-web-text-block-content") as HTMLElement | null;
+  if (!content) return false;
+  const wrap = document.createElement("div");
+  wrap.className = "page-web-text-block-fields";
+  wrap.setAttribute("contenteditable", "false");
+  wrap.innerHTML =
+    '<div class="page-web-elements page-web-elements-subtitle">' +
+    '<div class="page-web-elements-field-row">' +
+    '<textarea class="page-web-elements-subtitle-input" spellcheck="true" placeholder="Подзаголовок" rows="1"></textarea>' +
+    "</div></div>" +
+    '<div class="page-web-elements page-web-elements-title">' +
+    '<div class="page-web-elements-field-row">' +
+    '<textarea class="page-web-elements-title-input" spellcheck="true" placeholder="Заголовок" rows="1"></textarea>' +
+    "</div></div>" +
+    '<div class="page-web-elements page-web-elements-description">' +
+    '<div class="page-web-elements-field-row">' +
+    '<textarea class="page-web-elements-description-input" spellcheck="true" placeholder="Короткое описание" rows="1"></textarea>' +
+    "</div></div>";
+  block.insertBefore(wrap, content);
+  if (!block.hasAttribute("data-text-block-has-subtitle")) block.setAttribute("data-text-block-has-subtitle", "1");
+  if (!block.hasAttribute("data-text-block-has-title")) block.setAttribute("data-text-block-has-title", "1");
+  if (!block.hasAttribute("data-text-block-has-lead")) block.setAttribute("data-text-block-has-lead", "1");
+  return true;
+}
+
+function ensurePlainTextBlockSubtitleFieldWrap(block: HTMLElement): boolean {
+  if (!isPlainWebTextBlock(block)) return false;
+  const fields = block.querySelector(":scope > .page-web-text-block-fields") as HTMLElement | null;
+  if (!fields || fields.querySelector(":scope > .page-web-elements-subtitle")) return false;
+  const wrap = document.createElement("div");
+  wrap.className = "page-web-elements page-web-elements-subtitle";
+  wrap.innerHTML =
+    '<div class="page-web-elements-field-row">' +
+    '<textarea class="page-web-elements-subtitle-input" spellcheck="true" placeholder="Подзаголовок" rows="1"></textarea>' +
+    "</div>";
+  fields.insertBefore(wrap, fields.firstChild);
+  if (!block.hasAttribute("data-text-block-has-subtitle")) block.setAttribute("data-text-block-has-subtitle", "1");
+  return true;
+}
+
+/** Старые обёртки input → общие `page-web-elements-*` + textarea (как в текстовом блоке v2). */
+function migrateLegacyPlainTextBlockFieldsToWebElements(block: HTMLElement): boolean {
+  if (!isPlainWebTextBlock(block)) return false;
+  const fields = block.querySelector(":scope > .page-web-text-block-fields") as HTMLElement | null;
+  if (!fields) return false;
+  let changed = false;
+  const makeTextarea = (className: string, placeholder: string, value: string) => {
+    const ta = document.createElement("textarea");
+    ta.className = className;
+    ta.setAttribute("spellcheck", "true");
+    ta.setAttribute("placeholder", placeholder);
+    ta.setAttribute("rows", "1");
+    ta.value = value;
+    return ta;
+  };
+  const pairs: Array<{
+    legacyWrap: string;
+    legacyInput: string;
+    kind: "subtitle" | "title" | "description";
+    placeholder: string;
+  }> = [
+    {
+      legacyWrap: ".page-web-text-block-subtitle-field-wrap",
+      legacyInput: ".page-web-text-block-subtitle-input",
+      kind: "subtitle",
+      placeholder: "Подзаголовок",
+    },
+    {
+      legacyWrap: ".page-web-text-block-title-field-wrap",
+      legacyInput: ".page-web-text-block-title-input",
+      kind: "title",
+      placeholder: "Заголовок",
+    },
+    {
+      legacyWrap: ".page-web-text-block-lead-field-wrap",
+      legacyInput: ".page-web-text-block-lead-input",
+      kind: "description",
+      placeholder: "Короткое описание",
+    },
+  ];
+  for (const { legacyWrap, legacyInput, kind, placeholder } of pairs) {
+    const oldWrap = fields.querySelector(legacyWrap) as HTMLElement | null;
+    if (!oldWrap) continue;
+    const oldField = oldWrap.querySelector(legacyInput) as HTMLInputElement | HTMLTextAreaElement | null;
+    const val =
+      oldField instanceof HTMLTextAreaElement || oldField instanceof HTMLInputElement ? oldField.value ?? "" : "";
+    const wrap = document.createElement("div");
+    wrap.className = `page-web-elements page-web-elements-${kind}`;
+    const taClass =
+      kind === "subtitle"
+        ? "page-web-elements-subtitle-input"
+        : kind === "title"
+          ? "page-web-elements-title-input"
+          : "page-web-elements-description-input";
+    const row = document.createElement("div");
+    row.className = "page-web-elements-field-row";
+    row.appendChild(makeTextarea(taClass, placeholder, val));
+    wrap.appendChild(row);
+    oldWrap.replaceWith(wrap);
+    changed = true;
+  }
+  return changed;
+}
+
+function normalizePlainTextBlockFieldTextareas(fields: HTMLElement): boolean {
+  let mutated = false;
+  const defs: Array<{ selector: string; rows: number }> = [
+    { selector: ".page-web-elements-subtitle-input", rows: 1 },
+    { selector: ".page-web-elements-title-input", rows: 1 },
+    { selector: ".page-web-elements-description-input", rows: 1 },
+  ];
+  defs.forEach(({ selector, rows }) => {
+    const node = fields.querySelector(selector);
+    if (!node) return;
+    if (node instanceof HTMLInputElement) {
+      const ta = document.createElement("textarea");
+      ta.className = node.className;
+      ta.setAttribute("spellcheck", node.getAttribute("spellcheck") ?? "true");
+      ta.setAttribute("placeholder", node.getAttribute("placeholder") ?? "");
+      ta.setAttribute("rows", String(rows));
+      ta.value = node.value ?? "";
+      if (node.style.textAlign) ta.style.textAlign = node.style.textAlign;
+      if (node.getAttribute(PAGE_EDITOR_FOCUS_TARGET_ATTR) === "1") {
+        ta.setAttribute(PAGE_EDITOR_FOCUS_TARGET_ATTR, "1");
+      }
+      node.replaceWith(ta);
+      mutated = true;
+      return;
+    }
+    if (node instanceof HTMLTextAreaElement) {
+      if (node.getAttribute("rows") !== String(rows)) {
+        node.setAttribute("rows", String(rows));
+        mutated = true;
+      }
+    }
+  });
+  if (ensureWebElementsTextFieldRowsInRoot(fields)) mutated = true;
+  return mutated;
+}
+
+/** Textarea подзаголовка / заголовков / описания: `text-align` и на `.page-web-elements-field-row`, и на поле — у textarea UA-стили перебивают наследование с ряда. */
+const WEB_ELEMENTS_TEXT_FIELD_TEXTAREA_SELECTOR =
+  ".page-web-elements-subtitle-input, .page-web-elements-title-input, .page-web-elements-title2-input, .page-web-elements-description-input";
+
+function ensureWebElementsTextFieldRowWrap(elementsWrap: HTMLElement): boolean {
+  let changed = false;
+  const wpIsland =
+    !!elementsWrap.closest(".page-web-work-pricing") &&
+    (elementsWrap.classList.contains("page-web-elements-title") ||
+      elementsWrap.classList.contains("page-web-elements-title2") ||
+      elementsWrap.classList.contains("page-web-elements-subtitle") ||
+      elementsWrap.classList.contains("page-web-elements-description"));
+  const existingRow = elementsWrap.querySelector(":scope > .page-web-elements-field-row") as HTMLElement | null;
+  if (existingRow) {
+    const ta = existingRow.querySelector(WEB_ELEMENTS_TEXT_FIELD_TEXTAREA_SELECTOR) as HTMLTextAreaElement | null;
+    if (!ta) return changed;
+    const taAlign = (ta.style.textAlign || "").trim().toLowerCase();
+    const rowAlign = (existingRow.style.textAlign || "").trim().toLowerCase();
+    const effectiveAlign =
+      taAlign === "center" || taAlign === "right" || taAlign === "left"
+        ? taAlign
+        : rowAlign === "center" || rowAlign === "right" || rowAlign === "left"
+          ? rowAlign
+          : "";
+    if (effectiveAlign) {
+      if (wpIsland) {
+        elementsWrap.setAttribute(WORK_PRICING_WEB_ELEMENTS_HALIGN_ATTR, effectiveAlign);
+        if (existingRow.style.getPropertyValue("text-align")) {
+          existingRow.style.removeProperty("text-align");
+          changed = true;
+        }
+        if (!ta.style.getPropertyValue("text-align")) {
+          ta.style.textAlign = effectiveAlign;
+          changed = true;
+        }
+      } else {
+        existingRow.style.textAlign = effectiveAlign;
+        webElementsFieldRowSetFlexJustify(existingRow, effectiveAlign as "left" | "center" | "right");
+        ta.style.textAlign = effectiveAlign;
+        changed = true;
+      }
+    } else if (!wpIsland && ta.style.getPropertyValue("text-align")) {
+      ta.style.removeProperty("text-align");
+      changed = true;
+      if (existingRow.style.getPropertyValue("text-align")) {
+        existingRow.style.removeProperty("text-align");
+        changed = true;
+      }
+      if (existingRow.style.getPropertyValue("justify-content")) {
+        webElementsFieldRowClearFlexJustify(existingRow);
+        changed = true;
+      }
+    }
+    return changed;
+  }
+  const directTa = Array.from(elementsWrap.children).find(
+    (c): c is HTMLTextAreaElement =>
+      c instanceof HTMLTextAreaElement && c.matches(WEB_ELEMENTS_TEXT_FIELD_TEXTAREA_SELECTOR),
+  );
+  if (!directTa) return changed;
+  const row = document.createElement("div");
+  row.className = "page-web-elements-field-row";
+  const taAlign = (directTa.style.textAlign || "").trim().toLowerCase();
+  if (taAlign === "center" || taAlign === "right" || taAlign === "left") {
+    if (wpIsland) {
+      elementsWrap.setAttribute(WORK_PRICING_WEB_ELEMENTS_HALIGN_ATTR, taAlign);
+      directTa.style.textAlign = taAlign;
+    } else {
+      row.style.textAlign = taAlign;
+      webElementsFieldRowSetFlexJustify(row, taAlign as "left" | "center" | "right");
+      directTa.style.textAlign = taAlign;
+    }
+  }
+  elementsWrap.insertBefore(row, directTa);
+  row.appendChild(directTa);
+  return true;
+}
+
+function ensureWebElementsTextFieldRowsInRoot(root: HTMLElement): boolean {
+  let changed = false;
+  root
+    .querySelectorAll(
+      ".page-web-elements-subtitle, .page-web-elements-title, .page-web-elements-title2, .page-web-elements-description",
+    )
+    .forEach((n) => {
+      if (n instanceof HTMLElement && ensureWebElementsTextFieldRowWrap(n)) changed = true;
+    });
+  return changed;
+}
+
+function webElementsActionsAlignItemsToHorizontal(
+  raw: string,
+): "left" | "center" | "right" | null {
+  const v = raw.trim().toLowerCase();
+  if (v === "center") return "center";
+  if (v === "flex-end" || v === "end" || v === "self-end") return "right";
+  if (v === "flex-start" || v === "start" || v === "self-start") return "left";
+  return null;
+}
+
+function readWebElementsActionsAlign(outer: HTMLElement): "left" | "center" | "right" {
+  const aiInline = webElementsActionsAlignItemsToHorizontal(outer.style.alignItems || "");
+  if (aiInline) return aiInline;
+  const ta = (outer.style.textAlign || "").trim().toLowerCase();
+  if (ta === "center" || ta === "right" || ta === "left") return ta as "left" | "center" | "right";
+  const jc = (outer.style.justifyContent || "").trim().toLowerCase();
+  if (jc === "center") return "center";
+  if (jc === "flex-end" || jc === "end") return "right";
+  if (jc === "flex-start" || jc === "start") return "left";
+  const cs = getComputedStyle(outer);
+  const display = (cs.display || "").trim().toLowerCase();
+  const flexDir = (cs.flexDirection || "").trim().toLowerCase();
+  if (display === "flex" && (flexDir === "column" || flexDir === "column-reverse")) {
+    const fromAi = webElementsActionsAlignItemsToHorizontal(cs.alignItems || "");
+    if (fromAi) return fromAi;
+  }
+  const csTa = (cs.textAlign || "").trim().toLowerCase();
+  if (csTa === "center" || csTa === "right" || csTa === "left") return csTa as "left" | "center" | "right";
+  if (csTa === "start") return "left";
+  if (csTa === "end") return "right";
+  const csJc = (cs.justifyContent || "").trim().toLowerCase();
+  if (csJc === "center") return "center";
+  if (csJc === "flex-end" || csJc === "end") return "right";
+  return "left";
+}
+
+function applyWebElementsActionsAlign(outer: HTMLElement, align: "left" | "center" | "right"): void {
+  outer.style.textAlign = align;
+  outer.style.removeProperty("justify-content");
+  const cs = getComputedStyle(outer);
+  const display = (cs.display || "").trim().toLowerCase();
+  const flexDir = (cs.flexDirection || "").trim().toLowerCase();
+  if (display === "flex" && (flexDir === "column" || flexDir === "column-reverse")) {
+    outer.style.alignItems = align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center";
+  } else {
+    outer.style.removeProperty("align-items");
+  }
+}
+
+function getActiveWebElementsActionsInsideEditor(el: HTMLElement): HTMLElement | null {
+  const active = document.activeElement as Element | null;
+  if (!active || !el.contains(active)) return null;
+  if (active.matches(".page-web-elements-actions-cluster")) return active as HTMLElement;
+  const outer = active.closest(".page-web-elements-actions") as HTMLElement | null;
+  if (!outer || !el.contains(outer)) return null;
+  const cluster = outer.querySelector(":scope > .page-web-elements-actions-cluster") as HTMLElement | null;
+  if (cluster) {
+    if (active === outer || cluster.contains(active)) return cluster;
+  }
+  if (active.matches(".page-web-elements-actions") && !cluster) return outer;
+  return null;
+}
+
+function getWebElementsActionsOuterFromFocus(focus: HTMLElement): HTMLElement | null {
+  if (focus.matches(".page-web-elements-actions-cluster")) {
+    const p = focus.parentElement;
+    return p?.classList.contains("page-web-elements-actions") ? (p as HTMLElement) : null;
+  }
+  if (focus.matches(".page-web-elements-actions")) return focus;
+  return focus.closest(".page-web-elements-actions") as HTMLElement | null;
+}
+
+/** Внешний ряд на всю ширину + внутренний кластер кнопок (подсветка по ширине контента, выравнивание через text-align на внешнем). */
+function ensureWebElementsActionsCluster(outer: HTMLElement): boolean {
+  if (!outer.classList.contains("page-web-elements-actions")) return false;
+  let changed = false;
+  const existing = outer.querySelector(":scope > .page-web-elements-actions-cluster") as HTMLElement | null;
+  if (existing) {
+    if (existing.getAttribute("tabindex") !== "-1") {
+      existing.setAttribute("tabindex", "-1");
+      changed = true;
+    }
+    if (outer.hasAttribute("tabindex")) {
+      outer.removeAttribute("tabindex");
+      changed = true;
+    }
+    const jc = (outer.style.justifyContent || "").trim().toLowerCase();
+    if (jc) {
+      const align: "left" | "center" | "right" =
+        jc === "center" ? "center" : jc === "flex-end" || jc === "end" ? "right" : "left";
+      applyWebElementsActionsAlign(outer, align);
+      changed = true;
+    }
+    return changed;
+  }
+  const toWrap = Array.from(outer.children).filter(
+    (c): c is HTMLElement =>
+      c instanceof HTMLElement &&
+      (c.classList.contains("page-web-elements-button") || c.classList.contains("page-web-elements-button2")),
+  );
+  if (toWrap.length === 0) return changed;
+  const cluster = document.createElement("div");
+  cluster.className = "page-web-elements-actions-cluster";
+  cluster.setAttribute("tabindex", "-1");
+  if (outer.getAttribute("tabindex") === "-1") {
+    outer.removeAttribute("tabindex");
+    changed = true;
+  }
+  const jc = (outer.style.justifyContent || "").trim().toLowerCase();
+  if (jc) {
+    const align: "left" | "center" | "right" =
+      jc === "center" ? "center" : jc === "flex-end" || jc === "end" ? "right" : "left";
+    applyWebElementsActionsAlign(outer, align);
+    changed = true;
+  } else if (!outer.style.textAlign) {
+    applyWebElementsActionsAlign(outer, "left");
+  }
+  toWrap.forEach((n) => cluster.appendChild(n));
+  outer.appendChild(cluster);
+  return true;
+}
+
+function ensureWebElementsActionsClustersInRoot(root: HTMLElement): boolean {
+  let changed = false;
+  root.querySelectorAll(".page-web-text-block-v2 .page-web-elements-actions, .page-web-cover-inner > .page-web-elements-actions").forEach((n) => {
+    if (n instanceof HTMLElement && ensureWebElementsActionsCluster(n)) changed = true;
+  });
+  return changed;
+}
+
+function migrateLegacyPlainTextBlockHeadingIntoFields(block: HTMLElement): boolean {
+  if (!isPlainWebTextBlock(block)) return false;
+  const titleInput = block.querySelector(".page-web-elements-title-input") as
+    | HTMLInputElement
+    | HTMLTextAreaElement
+    | null;
+  const leadInput = block.querySelector(".page-web-elements-description-input") as
+    | HTMLInputElement
+    | HTMLTextAreaElement
+    | null;
+  if (!titleInput || !leadInput) return false;
+  const content = block.querySelector(":scope > .page-web-text-block-content") as HTMLElement | null;
+  if (!content) return false;
+  if (content.querySelector(".page-web-feature-grid, .page-web-work-pricing")) return false;
+
+  let changed = false;
+  const first = content.firstElementChild;
+  if (first && /^H[1-6]$/i.test(first.tagName)) {
+    if (!titleInput.value.trim()) {
+      titleInput.value = (first.textContent || "").trim();
+    }
+    first.remove();
+    changed = true;
+    block.setAttribute("data-text-block-has-title", "1");
+  }
+  const p1 = content.firstElementChild;
+  const p2 = p1?.nextElementSibling ?? null;
+  if (
+    p1?.tagName === "P" &&
+    p2 &&
+    !(p1 as HTMLElement).querySelector("img,table,ul,ol")
+  ) {
+    if (!leadInput.value.trim()) {
+      leadInput.value = (p1.textContent || "").trim();
+    }
+    p1.remove();
+    changed = true;
+    block.setAttribute("data-text-block-has-lead", "1");
+  }
+  if (changed && !(content.textContent || "").replace(/\u200b/g, "").trim() && !content.querySelector("img,table,ul,ol,iframe,video")) {
+    content.innerHTML = "<p>Добавьте основной текст блока. Подходит для обычного контента страницы.</p>";
+  }
+  return changed;
+}
+
+function reorderPlainTextBlockFieldsBeforeContent(block: HTMLElement): boolean {
+  if (!isPlainWebTextBlock(block)) return false;
+  const toolbar = block.querySelector(":scope > .page-web-text-block-toolbar") as HTMLElement | null;
+  const fields = block.querySelector(":scope > .page-web-text-block-fields") as HTMLElement | null;
+  const content = block.querySelector(":scope > .page-web-text-block-content") as HTMLElement | null;
+  if (!toolbar || !fields || !content) return false;
+  if (fields.previousElementSibling === toolbar) return false;
+  block.insertBefore(fields, content);
+  return true;
+}
+
+function countPlainTextBlockVisibleHeadFields(block: HTMLElement): number {
+  let n = 0;
+  if (block.getAttribute("data-text-block-has-subtitle") !== "0") n += 1;
+  if (block.getAttribute("data-text-block-has-title") !== "0") n += 1;
+  if (block.getAttribute("data-text-block-has-lead") !== "0") n += 1;
+  return n;
+}
+
+function applyPlainTextBlockFieldToggle(block: HTMLElement, field: "subtitle" | "title" | "lead"): boolean {
+  if (!isPlainWebTextBlock(block)) return false;
+  const subtitleInput = block.querySelector(".page-web-elements-subtitle-input") as
+    | HTMLInputElement
+    | HTMLTextAreaElement
+    | null;
+  const titleInput = block.querySelector(".page-web-elements-title-input") as
+    | HTMLInputElement
+    | HTMLTextAreaElement
+    | null;
+  const leadInput = block.querySelector(".page-web-elements-description-input") as
+    | HTMLInputElement
+    | HTMLTextAreaElement
+    | null;
+  const attr =
+    field === "subtitle"
+      ? "data-text-block-has-subtitle"
+      : field === "title"
+        ? "data-text-block-has-title"
+        : "data-text-block-has-lead";
+  const input = field === "subtitle" ? subtitleInput : field === "title" ? titleInput : leadInput;
+  const on = block.getAttribute(attr) !== "0";
+  if (on) {
+    if (countPlainTextBlockVisibleHeadFields(block) <= 1) return false;
+    block.setAttribute(attr, "0");
+    if (input) input.value = "";
+    return true;
+  }
+  block.setAttribute(attr, "1");
+  return true;
+}
+
+function syncPlainTextBlockFieldMenuButtons(toolbar: HTMLElement, block: HTMLElement) {
+  if (!isPlainWebTextBlock(block)) return;
+  const hasSubtitle = block.getAttribute("data-text-block-has-subtitle") !== "0";
+  const hasTitle = block.getAttribute("data-text-block-has-title") !== "0";
+  const hasLead = block.getAttribute("data-text-block-has-lead") !== "0";
+  const count = (hasSubtitle ? 1 : 0) + (hasTitle ? 1 : 0) + (hasLead ? 1 : 0);
+  (["subtitle", "title", "lead"] as const).forEach((field) => {
+    const has = field === "subtitle" ? hasSubtitle : field === "title" ? hasTitle : hasLead;
+    toolbar.querySelectorAll(`[data-plain-text-block-field="${field}"]`).forEach((node) => {
+      const btn = node as HTMLButtonElement;
+      btn.setAttribute("aria-checked", has ? "true" : "false");
+      const disableRemoveLast = has && count <= 1;
+      btn.disabled = disableRemoveLast;
+      btn.setAttribute("aria-disabled", disableRemoveLast ? "true" : "false");
+    });
+  });
 }
 
 function addOneWorkPricingItem(block: HTMLElement): boolean {
@@ -1006,7 +2109,8 @@ function addOneWorkPricingItem(block: HTMLElement): boolean {
   const nextIndex = list.querySelectorAll(":scope > li").length + 1;
   const li = document.createElement("li");
   li.className = "wrj wsb";
-  li.innerHTML = WORK_PRICING_LI_CHECK_SVG_HTML + "Новый пункт " + String(nextIndex);
+  li.innerHTML = WORK_PRICING_LI_CHECK_SVG_HTML;
+  li.appendChild(createWorkPricingDescriptionIsland("Новый пункт " + String(nextIndex), "Текст пункта"));
   list.appendChild(li);
   return true;
 }
@@ -1021,13 +2125,7 @@ function removeOneWorkPricingItem(block: HTMLElement): boolean {
   return true;
 }
 
-type CoverInsertBlockKind =
-  | "title"
-  | "subtitle"
-  | "button"
-  | "announcement"
-  | "announcement-learn-more"
-  | "bottom-learn-more";
+type CoverInsertBlockKind = "title" | "subtitle" | "button" | "announcement";
 
 const COVER_TYPE_PRESETS = [
   { id: "hero", label: "Банер с градиентом" },
@@ -1039,43 +2137,26 @@ type CoverTypePresetId = (typeof COVER_TYPE_PRESETS)[number]["id"];
 
 function getCoverInsertElementNode(inner: HTMLElement, kind: CoverInsertBlockKind): HTMLElement | null {
   if (kind === "title") {
-    return inner.querySelector(":scope > .page-web-cover-el-title") as HTMLElement | null;
+    return inner.querySelector(":scope > .page-web-elements.page-web-elements-title") as HTMLElement | null;
   }
   if (kind === "subtitle") {
-    return inner.querySelector(":scope > .page-web-cover-el-subtitle") as HTMLElement | null;
+    return inner.querySelector(":scope > .page-web-elements.page-web-elements-description") as HTMLElement | null;
   }
   if (kind === "button") {
-    return inner.querySelector(":scope > .page-web-cover-el-button-wrap") as HTMLElement | null;
+    return inner.querySelector(":scope > .page-web-elements-actions") as HTMLElement | null;
   }
-  if (kind === "announcement") {
-    return inner.querySelector(":scope > .page-web-cover-el-announcement-wrap") as HTMLElement | null;
-  }
-  if (kind === "announcement-learn-more") {
-    return inner.querySelector(".page-web-cover-el-announcement-learn-more") as HTMLElement | null;
-  }
-  return inner.querySelector(".page-web-cover-el-learn-more") as HTMLElement | null;
+  return inner.querySelector(":scope > .page-web-elements.page-web-elements-announcement") as HTMLElement | null;
 }
 
-function getCoverInsertRootSelector(kind: Exclude<CoverInsertBlockKind, "announcement-learn-more">): string {
-  if (kind === "announcement") return ".page-web-cover-el-announcement-wrap";
-  if (kind === "title") return ".page-web-cover-el-title";
-  if (kind === "subtitle") return ".page-web-cover-el-subtitle";
-  if (kind === "button") return ".page-web-cover-el-button-wrap";
-  return ".page-web-cover-el-button-wrap";
+function getCoverInsertRootSelector(kind: CoverInsertBlockKind): string {
+  if (kind === "announcement") return ".page-web-elements.page-web-elements-announcement";
+  if (kind === "title") return ".page-web-elements.page-web-elements-title";
+  if (kind === "subtitle") return ".page-web-elements.page-web-elements-description";
+  return ".page-web-elements-actions";
 }
 
-function insertCoverNodeByVisualOrder(
-  inner: HTMLElement,
-  node: HTMLElement,
-  kind: Exclude<CoverInsertBlockKind, "announcement-learn-more">,
-) {
-  const order: Exclude<CoverInsertBlockKind, "announcement-learn-more">[] = [
-    "announcement",
-    "title",
-    "subtitle",
-    "button",
-    "bottom-learn-more",
-  ];
+function insertCoverNodeByVisualOrder(inner: HTMLElement, node: HTMLElement, kind: CoverInsertBlockKind) {
+  const order: CoverInsertBlockKind[] = ["announcement", "title", "subtitle", "button"];
   const myIdx = order.indexOf(kind);
   if (myIdx < 0) {
     inner.appendChild(node);
@@ -1101,22 +2182,44 @@ function syncCoverElementsMenuLabels(toolbar: HTMLElement) {
     subtitle: { add: "Добавить подзаголовок", remove: "Убрать подзаголовок" },
     button: { add: "Добавить кнопку", remove: "Убрать кнопку" },
     announcement: { add: "Добавить плашку анонса", remove: "Убрать плашку анонса" },
-    "announcement-learn-more": {
-      add: "Добавить Learn more (в плашке)",
-      remove: "Убрать Learn more (в плашке)",
-    },
-    "bottom-learn-more": {
-      add: "Добавить Learn more (внизу)",
-      remove: "Убрать Learn more (внизу)",
-    },
   };
   toolbar.querySelectorAll("[data-insert-cover-element]").forEach((node) => {
     const btn = node as HTMLElement;
     const raw = (btn.getAttribute("data-insert-cover-element") || "") as CoverInsertBlockKind;
     if (!(raw in labels)) return;
     const exists = !!getCoverInsertElementNode(inner, raw);
-    btn.textContent = exists ? labels[raw].remove : labels[raw].add;
+    btn.setAttribute("aria-checked", exists ? "true" : "false");
+    const text = exists ? labels[raw].remove : labels[raw].add;
+    const labelEl = btn.querySelector(".page-web-cover-menu-insert-cover-el-label");
+    if (labelEl) labelEl.textContent = text;
+    else btn.textContent = text;
   });
+}
+
+function syncCoverButton2Toggle(toolbar: HTMLElement) {
+  const cover = toolbar.closest(".page-web-cover") as HTMLElement | null;
+  const inner = cover?.querySelector(".page-web-cover-inner") as HTMLElement | null;
+  const btn = toolbar.querySelector("[data-toggle-cover-button2]") as HTMLButtonElement | null;
+  if (!inner || !btn) return;
+  const cluster = inner.querySelector(".page-web-elements-actions .page-web-elements-actions-cluster");
+  const hasB2 = !!cluster?.querySelector(".page-web-elements-button2");
+  const labelEl = btn.querySelector(".page-web-cover-menu-insert-cover-el-label");
+  if (!hasB2) {
+    btn.disabled = true;
+    btn.setAttribute("aria-disabled", "true");
+    btn.setAttribute("aria-checked", "false");
+    if (labelEl) labelEl.textContent = "Дополнительная кнопка";
+    return;
+  }
+  btn.disabled = false;
+  btn.setAttribute("aria-disabled", "false");
+  let v = inner.getAttribute("data-cover-show-button2");
+  if (v !== "0" && v !== "1") {
+    inner.setAttribute("data-cover-show-button2", "1");
+    v = "1";
+  }
+  btn.setAttribute("aria-checked", v === "0" ? "false" : "true");
+  if (labelEl) labelEl.textContent = "Дополнительная кнопка";
 }
 
 function syncCoverTypeMenuState(toolbar: HTMLElement) {
@@ -1171,6 +2274,296 @@ function getWebTextMediaToolbarHtml(): string {
   );
 }
 
+function getWebTextBlockV2ToolbarHtml(): string {
+  return (
+    '<div class="page-web-text-block-v2-toolbar" contenteditable="false">' +
+    getWebBlockMoveButtonHtml("up") +
+    '<button type="button" class="page-web-text-block-v2-menu-trigger" tabindex="-1" aria-label="Меню текстового блока v2" aria-haspopup="true" title="Действия с блоком">' +
+    '<span class="page-web-text-block-v2-menu-dots" aria-hidden="true"></span></button>' +
+    getWebBlockMoveButtonHtml("down") +
+    '<div role="menu" class="page-web-text-block-v2-menu-dropdown">' +
+    '<div class="page-web-text-block-menu-sub page-web-text-block-menu-sub--v2-elements" contenteditable="false">' +
+    '<button type="button" class="page-web-text-block-menu-sub-trigger" tabindex="-1" aria-haspopup="true" aria-expanded="false">' +
+    '<span class="page-web-text-block-menu-sub-label">Элементы</span>' +
+    '<span class="page-web-text-block-menu-chevron" aria-hidden="true"></span></button>' +
+    '<div role="menu" class="page-web-text-block-menu-sub-panel">' +
+    '<button type="button" role="menuitemcheckbox" class="page-web-text-block-menu-element page-web-text-block-v2-field-toggle !flex w-full flex-row flex-nowrap items-center gap-2.5 rounded-md py-2 pl-2.5 pr-2 text-left text-[13px] font-medium text-slate-800 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40" contenteditable="false" tabindex="-1" data-toggle-v2-field="announcement" aria-checked="true">' +
+    '<span class="page-web-text-block-v2-field-toggle-box inline-flex size-[18px] shrink-0 items-center justify-center rounded border border-slate-300 bg-white shadow-sm transition-colors" aria-hidden="true"></span>' +
+    '<span class="min-w-0 flex-1 truncate text-slate-800">Плашка анонса</span></button>' +
+    '<button type="button" role="menuitemcheckbox" class="page-web-text-block-menu-element page-web-text-block-v2-field-toggle !flex w-full flex-row flex-nowrap items-center gap-2.5 rounded-md py-2 pl-2.5 pr-2 text-left text-[13px] font-medium text-slate-800 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40" contenteditable="false" tabindex="-1" data-toggle-v2-announcement-learn-more aria-checked="false">' +
+    '<span class="page-web-text-block-v2-field-toggle-box inline-flex size-[18px] shrink-0 items-center justify-center rounded border border-slate-300 bg-white shadow-sm transition-colors" aria-hidden="true"></span>' +
+    '<span class="min-w-0 flex-1 truncate text-slate-800">Кнопка «Подробнее»</span></button>' +
+    '<button type="button" role="menuitemcheckbox" class="page-web-text-block-menu-element page-web-text-block-v2-field-toggle !flex w-full flex-row flex-nowrap items-center gap-2.5 rounded-md py-2 pl-2.5 pr-2 text-left text-[13px] font-medium text-slate-800 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40" contenteditable="false" tabindex="-1" data-toggle-v2-field="subtitle" aria-checked="true">' +
+    '<span class="page-web-text-block-v2-field-toggle-box inline-flex size-[18px] shrink-0 items-center justify-center rounded border border-slate-300 bg-white shadow-sm transition-colors" aria-hidden="true"></span>' +
+    '<span class="min-w-0 flex-1 truncate text-slate-800">Подзаголовок</span></button>' +
+    '<button type="button" role="menuitemcheckbox" class="page-web-text-block-menu-element page-web-text-block-v2-field-toggle !flex w-full flex-row flex-nowrap items-center gap-2.5 rounded-md py-2 pl-2.5 pr-2 text-left text-[13px] font-medium text-slate-800 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40" contenteditable="false" tabindex="-1" data-toggle-v2-field="title" aria-checked="true">' +
+    '<span class="page-web-text-block-v2-field-toggle-box inline-flex size-[18px] shrink-0 items-center justify-center rounded border border-slate-300 bg-white shadow-sm transition-colors" aria-hidden="true"></span>' +
+    '<span class="min-w-0 flex-1 truncate text-slate-800">Заголовок 1</span></button>' +
+    '<button type="button" role="menuitemcheckbox" class="page-web-text-block-menu-element page-web-text-block-v2-field-toggle !flex w-full flex-row flex-nowrap items-center gap-2.5 rounded-md py-2 pl-2.5 pr-2 text-left text-[13px] font-medium text-slate-800 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40" contenteditable="false" tabindex="-1" data-toggle-v2-field="title2" aria-checked="true">' +
+    '<span class="page-web-text-block-v2-field-toggle-box inline-flex size-[18px] shrink-0 items-center justify-center rounded border border-slate-300 bg-white shadow-sm transition-colors" aria-hidden="true"></span>' +
+    '<span class="min-w-0 flex-1 truncate text-slate-800">Заголовок 2</span></button>' +
+    '<button type="button" role="menuitemcheckbox" class="page-web-text-block-menu-element page-web-text-block-v2-field-toggle !flex w-full flex-row flex-nowrap items-center gap-2.5 rounded-md py-2 pl-2.5 pr-2 text-left text-[13px] font-medium text-slate-800 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40" contenteditable="false" tabindex="-1" data-toggle-v2-field="description" aria-checked="true">' +
+    '<span class="page-web-text-block-v2-field-toggle-box inline-flex size-[18px] shrink-0 items-center justify-center rounded border border-slate-300 bg-white shadow-sm transition-colors" aria-hidden="true"></span>' +
+    '<span class="min-w-0 flex-1 truncate text-slate-800">Короткое описание</span></button>' +
+    '<button type="button" role="menuitemcheckbox" class="page-web-text-block-menu-element page-web-text-block-v2-field-toggle !flex w-full flex-row flex-nowrap items-center gap-2.5 rounded-md py-2 pl-2.5 pr-2 text-left text-[13px] font-medium text-slate-800 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40" contenteditable="false" tabindex="-1" data-toggle-v2-field="button" aria-checked="false">' +
+    '<span class="page-web-text-block-v2-field-toggle-box inline-flex size-[18px] shrink-0 items-center justify-center rounded border border-slate-300 bg-white shadow-sm transition-colors" aria-hidden="true"></span>' +
+    '<span class="min-w-0 flex-1 truncate text-slate-800">Кнопка</span></button>' +
+    '<button type="button" role="menuitemcheckbox" class="page-web-text-block-menu-element page-web-text-block-v2-field-toggle !flex w-full flex-row flex-nowrap items-center gap-2.5 rounded-md py-2 pl-2.5 pr-2 text-left text-[13px] font-medium text-slate-800 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40" contenteditable="false" tabindex="-1" data-toggle-v2-field="button2" aria-checked="false">' +
+    '<span class="page-web-text-block-v2-field-toggle-box inline-flex size-[18px] shrink-0 items-center justify-center rounded border border-slate-300 bg-white shadow-sm transition-colors" aria-hidden="true"></span>' +
+    '<span class="min-w-0 flex-1 truncate text-slate-800">Дополнительная кнопка</span></button>' +
+    "</div></div>" +
+    '<div class="page-web-text-block-menu-sep page-web-text-block-v2-menu-sep" aria-hidden="true"></div>' +
+    '<button type="button" role="menuitem" class="page-web-text-block-v2-menu-delete" contenteditable="false" tabindex="-1">Удалить блок</button>' +
+    "</div></div>"
+  );
+}
+
+function getTextBlockV2Html(): string {
+  return (
+    '<div class="page-web-text-block-v2" data-web-element="text-block-v2" contenteditable="false" data-v2-show-announcement="1" data-v2-show-subtitle="1" data-v2-show-title="1" data-v2-show-title2="1" data-v2-show-description="1" data-v2-show-button="0" data-v2-show-button2="0" data-v2-announcement-learn-more="0">' +
+    getWebTextBlockV2ToolbarHtml() +
+    '<div class="page-web-text-block-v2-fields" contenteditable="false">' +
+    '<div class="page-web-elements page-web-elements-announcement">' +
+    '<div class="page-web-elements-announcement-row">' +
+    '<div class="page-web-elements-announcement-input-shell">' +
+    '<div class="page-web-elements-announcement-strip" contenteditable="false">' +
+    '<div class="page-web-elements-announcement-input" contenteditable="true" spellcheck="true" role="textbox" aria-multiline="true" data-placeholder="Анонс">' +
+    escapeWebBlockHtmlText("Анонс: мы запустили новый этап проекта.") +
+    "</div>" +
+    "</div>" +
+    "</div>" +
+    "</div>" +
+    "</div>" +
+    '<div class="page-web-elements page-web-elements-subtitle">' +
+    '<div class="page-web-elements-field-row">' +
+    '<textarea class="page-web-elements-subtitle-input" spellcheck="true" placeholder="Подзаголовок" rows="1">' +
+    escapeWebBlockHtmlText("Подзаголовок") +
+    "</textarea>" +
+    "</div></div>" +
+    '<div class="page-web-elements page-web-elements-title">' +
+    '<div class="page-web-elements-field-row">' +
+    '<textarea class="page-web-elements-title-input" spellcheck="true" placeholder="Заголовок 1" rows="1">' +
+    escapeWebBlockHtmlText("Заголовок 1") +
+    "</textarea>" +
+    "</div></div>" +
+    '<div class="page-web-elements page-web-elements-title2">' +
+    '<div class="page-web-elements-field-row">' +
+    '<textarea class="page-web-elements-title2-input" spellcheck="true" placeholder="Заголовок 2" rows="1">' +
+    escapeWebBlockHtmlText("Заголовок 2") +
+    "</textarea>" +
+    "</div></div>" +
+    '<div class="page-web-elements page-web-elements-description">' +
+    '<div class="page-web-elements-field-row">' +
+    '<textarea class="page-web-elements-description-input" spellcheck="true" placeholder="Короткое описание" rows="1">' +
+    escapeWebBlockHtmlText("Короткое описание") +
+    "</textarea>" +
+    "</div></div>" +
+    '<div class="page-web-elements-actions" contenteditable="false">' +
+    '<div class="page-web-elements-actions-cluster" tabindex="-1">' +
+    '<div class="page-web-elements page-web-elements-button">' +
+    '<p class="page-web-elements-cta-wrap" contenteditable="false">' +
+    '<a href="#" class="page-web-elements-cta-button">' +
+    escapeWebBlockHtmlText("Кнопка") +
+    "</a></p>" +
+    "</div>" +
+    '<div class="page-web-elements page-web-elements-button2">' +
+    '<p class="page-web-elements-cta-wrap" contenteditable="false">' +
+    '<a href="#" class="page-web-elements-cta-button-secondary">' +
+    escapeWebBlockHtmlText("Дополнительно") +
+    "</a></p>" +
+    "</div>" +
+    "</div>" +
+    "</div>" +
+    "</div>" +
+    "</div>"
+  );
+}
+
+/** Шапка «Этапы работы»: та же разметка полей, что у текстового блока v2 (`page-web-text-block-v2-fields` + островки). */
+function getWebTimelineHeadFieldsHtml(overrides?: {
+  subtitle?: string;
+  title?: string;
+  description?: string;
+}): string {
+  const subtitle = escapeWebBlockHtmlText(
+    (overrides?.subtitle != null ? overrides.subtitle.trim() : "") || "Как мы работаем",
+  );
+  const title = escapeWebBlockHtmlText(
+    (overrides?.title != null ? overrides.title.trim() : "") || "Этапы работы",
+  );
+  const description = escapeWebBlockHtmlText(
+    (overrides?.description != null ? overrides.description.trim() : "") ||
+      "Прозрачный процесс от первого брифа до финального результата с понятными сроками на каждом шаге.",
+  );
+  return (
+    '<div class="page-web-text-block-v2-fields" contenteditable="false">' +
+    '<div class="page-web-elements page-web-elements-subtitle">' +
+    '<div class="page-web-elements-field-row">' +
+    '<textarea class="page-web-elements-subtitle-input" spellcheck="true" placeholder="Подзаголовок" rows="1">' +
+    subtitle +
+    "</textarea></div></div>" +
+    '<div class="page-web-elements page-web-elements-title">' +
+    '<div class="page-web-elements-field-row">' +
+    '<textarea class="page-web-elements-title-input" spellcheck="true" placeholder="Заголовок 1" rows="1">' +
+    title +
+    "</textarea></div></div>" +
+    '<div class="page-web-elements page-web-elements-description">' +
+    '<div class="page-web-elements-field-row">' +
+    '<textarea class="page-web-elements-description-input" spellcheck="true" placeholder="Короткое описание" rows="1">' +
+    description +
+    "</textarea></div></div>" +
+    "</div>"
+  );
+}
+
+function migrateLegacyTimelineHeadToWebElements(timeline: HTMLElement): boolean {
+  const head = timeline.querySelector(":scope > .page-web-timeline-head") as HTMLElement | null;
+  if (!head) return false;
+  const fieldsShell = head.querySelector(":scope > .page-web-text-block-v2-fields") as HTMLElement | null;
+  if (fieldsShell?.querySelector("textarea.page-web-elements-title-input")) {
+    return false;
+  }
+  const subOld = head.querySelector(".page-web-timeline-subtitle");
+  const titleOld = head.querySelector(".page-web-timeline-heading");
+  const descOld = head.querySelector(".page-web-timeline-description");
+  if (subOld || titleOld || descOld) {
+    const subtitle = (subOld?.textContent ?? "").replace(/[\u200b\u00a0]/g, " ").replace(/\s+/g, " ").trim();
+    const title = (titleOld?.textContent ?? "").replace(/[\u200b\u00a0]/g, " ").replace(/\s+/g, " ").trim();
+    const description = (descOld?.textContent ?? "").replace(/[\u200b\u00a0]/g, " ").replace(/\s+/g, " ").trim();
+    head.innerHTML = getWebTimelineHeadFieldsHtml({
+      subtitle: subtitle || undefined,
+      title: title || undefined,
+      description: description || undefined,
+    });
+    head.setAttribute("contenteditable", "false");
+    return true;
+  }
+  const taSub = head.querySelector("textarea.page-web-elements-subtitle-input") as HTMLTextAreaElement | null;
+  const taTitle = head.querySelector("textarea.page-web-elements-title-input") as HTMLTextAreaElement | null;
+  const taDesc = head.querySelector("textarea.page-web-elements-description-input") as HTMLTextAreaElement | null;
+  if (taSub && taTitle && taDesc) {
+    head.innerHTML = getWebTimelineHeadFieldsHtml({
+      subtitle: taSub.value,
+      title: taTitle.value,
+      description: taDesc.value,
+    });
+    head.setAttribute("contenteditable", "false");
+    return true;
+  }
+  return false;
+}
+
+function getWebTimelineItemTitle2Html(titleText: string): string {
+  return (
+    '<div class="page-web-elements page-web-elements-title2">' +
+    '<div class="page-web-elements-field-row">' +
+    '<textarea class="page-web-elements-title2-input" spellcheck="true" placeholder="Заголовок 2" rows="1">' +
+    escapeWebBlockHtmlText(titleText) +
+    "</textarea></div></div>"
+  );
+}
+
+function getWebTimelineItemTermHtml(text: string): string {
+  return (
+    '<div class="page-web-elements page-web-elements-subtitle page-web-timeline-term">' +
+    '<div class="page-web-elements-field-row">' +
+    '<textarea class="page-web-elements-subtitle-input" spellcheck="true" placeholder="Срок" rows="1">' +
+    escapeWebBlockHtmlText(text) +
+    "</textarea></div></div>"
+  );
+}
+
+function getWebTimelineItemStepDescriptionHtml(text: string): string {
+  return (
+    '<div class="page-web-elements page-web-elements-description page-web-timeline-text">' +
+    '<div class="page-web-elements-field-row">' +
+    '<textarea class="page-web-elements-description-input" spellcheck="true" placeholder="Короткое описание" rows="1">' +
+    escapeWebBlockHtmlText(text) +
+    "</textarea></div></div>"
+  );
+}
+
+function getTimelineItemStepTitlePlain(item: HTMLElement): string {
+  const ta = item.querySelector(
+    ":scope > .page-web-timeline-content textarea.page-web-elements-title2-input",
+  ) as HTMLTextAreaElement | null;
+  if (ta) return (ta.value || "").replace(/[\u200b\u00a0]/g, " ").replace(/\s+/g, " ").trim();
+  const legacy = item.querySelector(":scope > .page-web-timeline-content .page-web-timeline-title");
+  return (legacy?.textContent ?? "").replace(/[\u200b\u00a0]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function getTimelineItemTermPlain(item: HTMLElement): string {
+  const ta = item.querySelector(
+    ":scope > .page-web-elements.page-web-timeline-term textarea.page-web-elements-subtitle-input",
+  ) as HTMLTextAreaElement | null;
+  if (ta) return (ta.value || "").replace(/[\u200b\u00a0]/g, " ").replace(/\s+/g, " ").trim();
+  const legacy = item.querySelector(":scope > p.page-web-timeline-term");
+  return (legacy?.textContent ?? "").replace(/[\u200b\u00a0]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function getTimelineItemStepBodyPlain(item: HTMLElement): string {
+  const ta = item.querySelector(
+    ":scope > .page-web-timeline-content .page-web-elements.page-web-elements-description.page-web-timeline-text textarea.page-web-elements-description-input",
+  ) as HTMLTextAreaElement | null;
+  if (ta) return (ta.value || "").replace(/[\u200b\u00a0]/g, " ").replace(/\s+/g, " ").trim();
+  const legacy = item.querySelector(":scope > .page-web-timeline-content p.page-web-timeline-text");
+  return (legacy?.textContent ?? "").replace(/[\u200b\u00a0]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function migrateLegacyTimelineItemsToWebElements(timeline: HTMLElement): boolean {
+  let changed = false;
+  timeline.querySelectorAll(".page-web-timeline-item").forEach((it) => {
+    const item = it as HTMLElement;
+    const content = item.querySelector(":scope > .page-web-timeline-content") as HTMLElement | null;
+    if (content) {
+      if (!content.querySelector(":scope textarea.page-web-elements-title2-input")) {
+        const legTitle = content.querySelector(":scope > .page-web-timeline-title");
+        if (legTitle) {
+          const text = (legTitle.textContent ?? "").replace(/[\u200b\u00a0]/g, " ").replace(/\s+/g, " ").trim();
+          const tmp = document.createElement("div");
+          tmp.innerHTML = getWebTimelineItemTitle2Html(text);
+          const first = tmp.firstElementChild;
+          if (first) {
+            legTitle.replaceWith(first);
+            changed = true;
+          }
+        }
+      }
+      if (
+        !content.querySelector(
+          ":scope > .page-web-elements.page-web-elements-description.page-web-timeline-text textarea.page-web-elements-description-input",
+        )
+      ) {
+        const legText = content.querySelector(":scope > p.page-web-timeline-text");
+        if (legText) {
+          const text = (legText.textContent ?? "").replace(/[\u200b\u00a0]/g, " ").replace(/\s+/g, " ").trim();
+          const tmp = document.createElement("div");
+          tmp.innerHTML = getWebTimelineItemStepDescriptionHtml(text);
+          const first = tmp.firstElementChild;
+          if (first) {
+            legText.replaceWith(first);
+            changed = true;
+          }
+        }
+      }
+    }
+    if (!item.querySelector(":scope > .page-web-elements.page-web-timeline-term textarea.page-web-elements-subtitle-input")) {
+      const legTerm = item.querySelector(":scope > p.page-web-timeline-term");
+      if (legTerm) {
+        const text = (legTerm.textContent ?? "").replace(/[\u200b\u00a0]/g, " ").replace(/\s+/g, " ").trim();
+        const tmp = document.createElement("div");
+        tmp.innerHTML = getWebTimelineItemTermHtml(text);
+        const first = tmp.firstElementChild;
+        if (first) {
+          legTerm.replaceWith(first);
+          changed = true;
+        }
+      }
+    }
+  });
+  return changed;
+}
+
 function getWebTextBlockToolbarHtml(): string {
   return (
     '<div class="page-web-text-block-toolbar" contenteditable="false">' +
@@ -1179,16 +2572,42 @@ function getWebTextBlockToolbarHtml(): string {
     '<span class="page-web-text-block-menu-dots" aria-hidden="true"></span></button>' +
     getWebBlockMoveButtonHtml("down") +
     '<div role="menu" class="page-web-text-block-menu-dropdown">' +
-    '<div class="page-web-text-block-menu-sub page-web-text-block-menu-sub--feature-grid-elements" contenteditable="false">' +
+    '<div class="page-web-text-block-menu-plain-fields" contenteditable="false">' +
+    '<button type="button" role="menuitemcheckbox" class="page-web-text-block-menu-element page-web-text-block-v2-field-toggle !flex w-full flex-row flex-nowrap items-center gap-2.5 rounded-md py-2 pl-2.5 pr-2 text-left text-[13px] font-medium text-slate-800 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40" contenteditable="false" tabindex="-1" data-plain-text-block-field="subtitle" aria-checked="true">' +
+    '<span class="page-web-text-block-v2-field-toggle-box inline-flex size-[18px] shrink-0 items-center justify-center rounded border border-slate-300 bg-white shadow-sm transition-colors" aria-hidden="true"></span>' +
+    '<span class="min-w-0 flex-1 truncate text-slate-800">Подзаголовок</span></button>' +
+    '<button type="button" role="menuitemcheckbox" class="page-web-text-block-menu-element page-web-text-block-v2-field-toggle !flex w-full flex-row flex-nowrap items-center gap-2.5 rounded-md py-2 pl-2.5 pr-2 text-left text-[13px] font-medium text-slate-800 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40" contenteditable="false" tabindex="-1" data-plain-text-block-field="title" aria-checked="true">' +
+    '<span class="page-web-text-block-v2-field-toggle-box inline-flex size-[18px] shrink-0 items-center justify-center rounded border border-slate-300 bg-white shadow-sm transition-colors" aria-hidden="true"></span>' +
+    '<span class="min-w-0 flex-1 truncate text-slate-800">Заголовок 1</span></button>' +
+    '<button type="button" role="menuitemcheckbox" class="page-web-text-block-menu-element page-web-text-block-v2-field-toggle !flex w-full flex-row flex-nowrap items-center gap-2.5 rounded-md py-2 pl-2.5 pr-2 text-left text-[13px] font-medium text-slate-800 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40" contenteditable="false" tabindex="-1" data-plain-text-block-field="lead" aria-checked="true">' +
+    '<span class="page-web-text-block-v2-field-toggle-box inline-flex size-[18px] shrink-0 items-center justify-center rounded border border-slate-300 bg-white shadow-sm transition-colors" aria-hidden="true"></span>' +
+    '<span class="min-w-0 flex-1 truncate text-slate-800">Описание</span></button>' +
+    "</div>" +
+    '<div class="page-web-text-block-menu-sep page-web-text-block-menu-sep--plain-fields" aria-hidden="true"></div>' +
+    '<div class="page-web-text-block-menu-sub page-web-text-block-menu-sub--feature-grid-block-elements" contenteditable="false">' +
     '<button type="button" class="page-web-text-block-menu-sub-trigger" tabindex="-1" aria-haspopup="true" aria-expanded="false">' +
-    '<span class="page-web-text-block-menu-sub-label">Элементы</span>' +
+    '<span class="page-web-text-block-menu-sub-label">Элементы блока</span>' +
     '<span class="page-web-text-block-menu-chevron" aria-hidden="true"></span></button>' +
     '<div role="menu" class="page-web-text-block-menu-sub-panel">' +
-    '<button type="button" role="menuitem" class="page-web-text-block-menu-element" contenteditable="false" tabindex="-1" data-toggle-feature-grid-element="subtitle">Добавить подзаголовок</button>' +
-    '<button type="button" role="menuitem" class="page-web-text-block-menu-element" contenteditable="false" tabindex="-1" data-toggle-feature-grid-element="title">Добавить заголовок</button>' +
-    '<button type="button" role="menuitem" class="page-web-text-block-menu-element" contenteditable="false" tabindex="-1" data-toggle-feature-grid-element="lead">Добавить описание</button>' +
-    '<div class="page-web-text-block-menu-sep page-web-text-block-menu-sep--feature-grid-cards" aria-hidden="true"></div>' +
-    '<div class="page-web-text-block-menu-sub page-web-text-block-menu-sub--feature-grid-layout" contenteditable="false">' +
+    '<button type="button" role="menuitemcheckbox" class="page-web-text-block-menu-element page-web-text-block-v2-field-toggle !flex w-full flex-row flex-nowrap items-center gap-2.5 rounded-md py-2 pl-2.5 pr-2 text-left text-[13px] font-medium text-slate-800 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40" contenteditable="false" tabindex="-1" data-toggle-feature-grid-element="subtitle" aria-checked="true">' +
+    '<span class="page-web-text-block-v2-field-toggle-box inline-flex size-[18px] shrink-0 items-center justify-center rounded border border-slate-300 bg-white shadow-sm transition-colors" aria-hidden="true"></span>' +
+    '<span class="min-w-0 flex-1 truncate text-slate-800">Подзаголовок</span></button>' +
+    '<button type="button" role="menuitemcheckbox" class="page-web-text-block-menu-element page-web-text-block-v2-field-toggle !flex w-full flex-row flex-nowrap items-center gap-2.5 rounded-md py-2 pl-2.5 pr-2 text-left text-[13px] font-medium text-slate-800 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40" contenteditable="false" tabindex="-1" data-toggle-feature-grid-element="title" aria-checked="true">' +
+    '<span class="page-web-text-block-v2-field-toggle-box inline-flex size-[18px] shrink-0 items-center justify-center rounded border border-slate-300 bg-white shadow-sm transition-colors" aria-hidden="true"></span>' +
+    '<span class="min-w-0 flex-1 truncate text-slate-800">Заголовок</span></button>' +
+    '<button type="button" role="menuitemcheckbox" class="page-web-text-block-menu-element page-web-text-block-v2-field-toggle !flex w-full flex-row flex-nowrap items-center gap-2.5 rounded-md py-2 pl-2.5 pr-2 text-left text-[13px] font-medium text-slate-800 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40" contenteditable="false" tabindex="-1" data-toggle-feature-grid-element="lead" aria-checked="true">' +
+    '<span class="page-web-text-block-v2-field-toggle-box inline-flex size-[18px] shrink-0 items-center justify-center rounded border border-slate-300 bg-white shadow-sm transition-colors" aria-hidden="true"></span>' +
+    '<span class="min-w-0 flex-1 truncate text-slate-800">Описание</span></button>' +
+    '<button type="button" role="menuitemcheckbox" class="page-web-text-block-menu-element page-web-text-block-v2-field-toggle !flex w-full flex-row flex-nowrap items-center gap-2.5 rounded-md py-2 pl-2.5 pr-2 text-left text-[13px] font-medium text-slate-800 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40" contenteditable="false" tabindex="-1" data-feature-grid-block-toggle="cards" aria-checked="true">' +
+    '<span class="page-web-text-block-v2-field-toggle-box inline-flex size-[18px] shrink-0 items-center justify-center rounded border border-slate-300 bg-white shadow-sm transition-colors" aria-hidden="true"></span>' +
+    '<span class="min-w-0 flex-1 truncate text-slate-800">Карточки</span></button>' +
+    "</div></div>" +
+    '<div class="page-web-text-block-menu-sub page-web-text-block-menu-sub--feature-grid-card-elements" contenteditable="false">' +
+    '<button type="button" class="page-web-text-block-menu-sub-trigger" tabindex="-1" aria-haspopup="true" aria-expanded="false">' +
+    '<span class="page-web-text-block-menu-sub-label">Элементы карточек</span>' +
+    '<span class="page-web-text-block-menu-chevron" aria-hidden="true"></span></button>' +
+    '<div role="menu" class="page-web-text-block-menu-sub-panel">' +
+    '<div class="page-web-text-block-menu-sub page-web-text-block-menu-sub--feature-grid-card-grid" contenteditable="false">' +
     '<button type="button" class="page-web-text-block-menu-sub-trigger" tabindex="-1" aria-haspopup="true" aria-expanded="false">' +
     '<span class="page-web-text-block-menu-sub-label">Сетка карточек</span>' +
     '<span class="page-web-text-block-menu-chevron" aria-hidden="true"></span></button>' +
@@ -1200,13 +2619,32 @@ function getWebTextBlockToolbarHtml(): string {
     '<button type="button" role="menuitemradio" class="page-web-text-block-menu-grid-option" contenteditable="false" tabindex="-1" data-feature-grid-set-cols="4" aria-checked="false">' +
     '<span class="page-web-text-block-menu-grid-option-radio" aria-hidden="true"></span><span class="page-web-text-block-menu-grid-option-label">4 в ряд</span></button>' +
     "</div></div>" +
+    '<div class="page-web-text-block-menu-sep" aria-hidden="true"></div>' +
+    '<button type="button" role="menuitemcheckbox" class="page-web-text-block-menu-element page-web-text-block-v2-field-toggle !flex w-full flex-row flex-nowrap items-center gap-2.5 rounded-md py-2 pl-2.5 pr-2 text-left text-[13px] font-medium text-slate-800 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40" contenteditable="false" tabindex="-1" data-feature-grid-card-field-toggle="title2" aria-checked="true">' +
+    '<span class="page-web-text-block-v2-field-toggle-box inline-flex size-[18px] shrink-0 items-center justify-center rounded border border-slate-300 bg-white shadow-sm transition-colors" aria-hidden="true"></span>' +
+    '<span class="min-w-0 flex-1 truncate text-slate-800">Заголовок 2</span></button>' +
+    '<button type="button" role="menuitemcheckbox" class="page-web-text-block-menu-element page-web-text-block-v2-field-toggle !flex w-full flex-row flex-nowrap items-center gap-2.5 rounded-md py-2 pl-2.5 pr-2 text-left text-[13px] font-medium text-slate-800 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40" contenteditable="false" tabindex="-1" data-feature-grid-card-field-toggle="description" aria-checked="true">' +
+    '<span class="page-web-text-block-v2-field-toggle-box inline-flex size-[18px] shrink-0 items-center justify-center rounded border border-slate-300 bg-white shadow-sm transition-colors" aria-hidden="true"></span>' +
+    '<span class="min-w-0 flex-1 truncate text-slate-800">Описание</span></button>' +
+    '<button type="button" role="menuitemcheckbox" class="page-web-text-block-menu-element page-web-text-block-v2-field-toggle !flex w-full flex-row flex-nowrap items-center gap-2.5 rounded-md py-2 pl-2.5 pr-2 text-left text-[13px] font-medium text-slate-800 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40" contenteditable="false" tabindex="-1" data-feature-grid-card-field-toggle="learn-more" aria-checked="true">' +
+    '<span class="page-web-text-block-v2-field-toggle-box inline-flex size-[18px] shrink-0 items-center justify-center rounded border border-slate-300 bg-white shadow-sm transition-colors" aria-hidden="true"></span>' +
+    '<span class="min-w-0 flex-1 truncate text-slate-800">Подробнее</span></button>' +
+    '<div class="page-web-text-block-menu-sep" aria-hidden="true"></div>' +
     '<button type="button" role="menuitem" class="page-web-text-block-menu-element" contenteditable="false" tabindex="-1" data-feature-grid-cards-action="add">Добавить карточку</button>' +
-    '<button type="button" role="menuitem" class="page-web-text-block-menu-element" contenteditable="false" tabindex="-1" data-feature-grid-cards-action="remove">Убрать карточку</button>' +
-    '<button type="button" role="menuitem" class="page-web-text-block-menu-element" contenteditable="false" tabindex="-1" data-feature-grid-cards-decor-action="description">Убрать описания у карточек</button>' +
-    '<button type="button" role="menuitem" class="page-web-text-block-menu-element" contenteditable="false" tabindex="-1" data-feature-grid-cards-decor-action="icons">Добавить иконки к карточкам</button>' +
-    '<button type="button" role="menuitem" class="page-web-text-block-menu-element" contenteditable="false" tabindex="-1" data-feature-grid-cards-decor-action="numbers">Включить нумерацию в кружке</button>' +
-    '<button type="button" role="menuitem" class="page-web-text-block-menu-element" contenteditable="false" tabindex="-1" data-feature-grid-cards-decor-action="learn-more">Добавить кнопку Learn more</button>' +
-    "</div></div>" +
+    '<button type="button" role="menuitem" class="page-web-text-block-menu-element" contenteditable="false" tabindex="-1" data-feature-grid-cards-action="remove">Удалить карточку</button>' +
+    '<div class="page-web-text-block-menu-sep" aria-hidden="true"></div>' +
+    '<div class="page-web-text-block-menu-sub page-web-text-block-menu-sub--feature-grid-card-icons" contenteditable="false">' +
+    '<button type="button" class="page-web-text-block-menu-sub-trigger" tabindex="-1" aria-haspopup="true" aria-expanded="false">' +
+    '<span class="page-web-text-block-menu-sub-label">Иконки</span>' +
+    '<span class="page-web-text-block-menu-chevron" aria-hidden="true"></span></button>' +
+    '<div role="menu" class="page-web-text-block-menu-sub-panel">' +
+    '<button type="button" role="menuitemradio" class="page-web-text-block-menu-grid-option" contenteditable="false" tabindex="-1" data-feature-grid-card-decoration="none" aria-checked="false">' +
+    '<span class="page-web-text-block-menu-grid-option-radio" aria-hidden="true"></span><span class="page-web-text-block-menu-grid-option-label">Без иконок</span></button>' +
+    '<button type="button" role="menuitemradio" class="page-web-text-block-menu-grid-option" contenteditable="false" tabindex="-1" data-feature-grid-card-decoration="icons" aria-checked="false">' +
+    '<span class="page-web-text-block-menu-grid-option-radio" aria-hidden="true"></span><span class="page-web-text-block-menu-grid-option-label">С иконками</span></button>' +
+    '<button type="button" role="menuitemradio" class="page-web-text-block-menu-grid-option" contenteditable="false" tabindex="-1" data-feature-grid-card-decoration="numbers" aria-checked="false">' +
+    '<span class="page-web-text-block-menu-grid-option-radio" aria-hidden="true"></span><span class="page-web-text-block-menu-grid-option-label">Нумерация</span></button>' +
+    "</div></div></div></div>" +
     '<div class="page-web-text-block-menu-sub page-web-text-block-menu-sub--feature-grid-extra" contenteditable="false">' +
     '<button type="button" class="page-web-text-block-menu-sub-trigger" tabindex="-1" aria-haspopup="true" aria-expanded="false">' +
     '<span class="page-web-text-block-menu-sub-label">Дополнительно</span>' +
@@ -1282,28 +2720,311 @@ function isFeatureGridImagePosition(value: string | null): value is FeatureGridI
   return value === "none" || value === "left" || value === "right" || value === "bottom";
 }
 
+function isFeatureGridCardFieldToggleKey(value: string | null): value is "title2" | "description" | "learn-more" | "cta" {
+  return value === "title2" || value === "description" || value === "learn-more" || value === "cta";
+}
+
+function isFeatureGridCardDecorationKey(value: string | null): value is "none" | "icons" | "numbers" {
+  return value === "none" || value === "icons" || value === "numbers";
+}
+
+function applyFeatureGridCardFieldToggle(root: HTMLElement, key: "title2" | "description" | "learn-more" | "cta"): boolean {
+  if (key === "title2") return toggleFeatureGridCardTitle2(root);
+  if (key === "description") return toggleFeatureGridCardDescriptions(root);
+  if (key === "cta") return toggleFeatureGridCardCta(root);
+  return toggleFeatureGridCardLearnMore(root);
+}
+
+type WebTextBlockV2FieldKey =
+  | "announcement"
+  | "subtitle"
+  | "title"
+  | "title2"
+  | "description"
+  | "button"
+  | "button2";
+
+const WEB_TEXT_BLOCK_V2_FIELD_KEYS: WebTextBlockV2FieldKey[] = [
+  "announcement",
+  "subtitle",
+  "title",
+  "title2",
+  "description",
+  "button",
+  "button2",
+];
+
+const WEB_TEXT_BLOCK_V2_FIELD_ATTR: Record<WebTextBlockV2FieldKey, string> = {
+  announcement: "data-v2-show-announcement",
+  subtitle: "data-v2-show-subtitle",
+  title: "data-v2-show-title",
+  title2: "data-v2-show-title2",
+  description: "data-v2-show-description",
+  button: "data-v2-show-button",
+  button2: "data-v2-show-button2",
+};
+
+function isWebTextBlockV2FieldKey(value: string | null | undefined): value is WebTextBlockV2FieldKey {
+  return (
+    value === "announcement" ||
+    value === "subtitle" ||
+    value === "title" ||
+    value === "title2" ||
+    value === "description" ||
+    value === "button" ||
+    value === "button2"
+  );
+}
+
+function normalizeWebTextBlockV2VisibilityAttrs(block: HTMLElement): boolean {
+  let changed = false;
+  for (const k of WEB_TEXT_BLOCK_V2_FIELD_KEYS) {
+    const attr = WEB_TEXT_BLOCK_V2_FIELD_ATTR[k];
+    const raw = block.getAttribute(attr);
+    const defaultVal = k === "button" || k === "button2" ? "0" : "1";
+    if (raw !== "0" && raw !== "1") {
+      block.setAttribute(attr, defaultVal);
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+function isWebTextBlockV2FieldVisible(block: HTMLElement, kind: WebTextBlockV2FieldKey): boolean {
+  return block.getAttribute(WEB_TEXT_BLOCK_V2_FIELD_ATTR[kind]) !== "0";
+}
+
+function countVisibleWebTextBlockV2Fields(block: HTMLElement): number {
+  let n = 0;
+  for (const k of WEB_TEXT_BLOCK_V2_FIELD_KEYS) {
+    if (isWebTextBlockV2FieldVisible(block, k)) n += 1;
+  }
+  return n;
+}
+
+function toggleWebTextBlockV2Field(block: HTMLElement, kind: WebTextBlockV2FieldKey): boolean {
+  const attr = WEB_TEXT_BLOCK_V2_FIELD_ATTR[kind];
+  if (isWebTextBlockV2FieldVisible(block, kind)) {
+    if (countVisibleWebTextBlockV2Fields(block) <= 1) return false;
+    block.setAttribute(attr, "0");
+    return true;
+  }
+  block.setAttribute(attr, "1");
+  return true;
+}
+
+/** Сохранённый HTML со старыми классами v2-field / announcement-* / cta-* → общие `page-web-elements-*`. */
+function migrateLegacyWebTextBlockV2FieldsToWebElements(fields: HTMLElement): boolean {
+  let changed = false;
+  fields.querySelectorAll(".page-web-text-block-v2-field-wrap").forEach((node) => {
+    const el = node as HTMLElement;
+    for (const key of WEB_TEXT_BLOCK_V2_FIELD_KEYS) {
+      const legacy = `page-web-text-block-v2-field-wrap--${key}`;
+      if (el.classList.contains(legacy)) {
+        el.classList.remove("page-web-text-block-v2-field-wrap", legacy);
+        el.classList.add("page-web-elements", `page-web-elements-${key}`);
+        changed = true;
+        break;
+      }
+    }
+  });
+  const classPairs: Array<[string, string]> = [
+    ["page-web-text-block-v2-announcement-input-shell", "page-web-elements-announcement-input-shell"],
+    ["page-web-text-block-v2-announcement-strip", "page-web-elements-announcement-strip"],
+    ["page-web-text-block-v2-announcement-row", "page-web-elements-announcement-row"],
+    ["page-web-text-block-v2-announcement-learn-more", "page-web-elements-announcement-learn-more"],
+    ["page-web-text-block-v2-announcement-input", "page-web-elements-announcement-input"],
+    ["page-web-text-block-v2-title2-input", "page-web-elements-title2-input"],
+    ["page-web-text-block-v2-title-input", "page-web-elements-title-input"],
+    ["page-web-text-block-v2-subtitle-input", "page-web-elements-subtitle-input"],
+    ["page-web-text-block-v2-description-input", "page-web-elements-description-input"],
+    ["page-web-text-block-v2-cta-button-secondary", "page-web-elements-cta-button-secondary"],
+    ["page-web-text-block-v2-cta-button", "page-web-elements-cta-button"],
+    ["page-web-text-block-v2-cta-wrap", "page-web-elements-cta-wrap"],
+    ["page-web-text-block-v2-cta-row", "page-web-elements-actions"],
+    ["page-web-text-block-v2-announcement-toolbar", "page-web-elements-announcement-toolbar"],
+  ];
+  for (const [fromClass, toClass] of classPairs) {
+    fields.querySelectorAll("." + fromClass).forEach((node) => {
+      const el = node as HTMLElement;
+      if (el.classList.contains(fromClass)) {
+        el.classList.remove(fromClass);
+        el.classList.add(toClass);
+        changed = true;
+      }
+    });
+  }
+  return changed;
+}
+
+function syncWebTextBlockV2ElementsMenuState(toolbar: HTMLElement) {
+  const block = toolbar.closest(".page-web-text-block-v2") as HTMLElement | null;
+  if (!block) return;
+  const count = countVisibleWebTextBlockV2Fields(block);
+  toolbar.querySelectorAll("[data-toggle-v2-field]").forEach((node) => {
+    const btn = node as HTMLButtonElement;
+    const raw = btn.getAttribute("data-toggle-v2-field");
+    if (!isWebTextBlockV2FieldKey(raw)) return;
+    const on = isWebTextBlockV2FieldVisible(block, raw);
+    btn.setAttribute("aria-checked", on ? "true" : "false");
+    const disableUncheck = on && count <= 1;
+    btn.disabled = disableUncheck;
+    btn.setAttribute("aria-disabled", disableUncheck ? "true" : "false");
+  });
+  const learnToggle = toolbar.querySelector(
+    "[data-toggle-v2-announcement-learn-more]",
+  ) as HTMLButtonElement | null;
+  if (learnToggle) {
+    const annOn = isWebTextBlockV2FieldVisible(block, "announcement");
+    const hasLm =
+      block.getAttribute("data-v2-announcement-learn-more") === "1" ||
+      !!block.querySelector(".page-web-elements-announcement-learn-more");
+    learnToggle.setAttribute("aria-checked", hasLm ? "true" : "false");
+    learnToggle.disabled = !annOn;
+    learnToggle.setAttribute("aria-disabled", !annOn ? "true" : "false");
+  }
+}
+
+function addWebTextBlockV2AnnouncementLearnMore(block: HTMLElement): boolean {
+  const strip = block.querySelector(
+    ".page-web-elements-announcement-strip",
+  ) as HTMLElement | null;
+  if (!strip || strip.querySelector(".page-web-elements-announcement-learn-more")) return false;
+  const span = document.createElement("span");
+  span.className = "page-web-elements-announcement-learn-more";
+  span.setAttribute("role", "button");
+  span.setAttribute("contenteditable", "false");
+  span.setAttribute("tabindex", "-1");
+  span.textContent = "Подробнее";
+  strip.appendChild(span);
+  block.setAttribute("data-v2-announcement-learn-more", "1");
+  return true;
+}
+
+function removeWebTextBlockV2AnnouncementLearnMore(block: HTMLElement): boolean {
+  const strip = block.querySelector(
+    ".page-web-elements-announcement-strip",
+  ) as HTMLElement | null;
+  const lm = strip?.querySelector(".page-web-elements-announcement-learn-more");
+  if (!lm) return false;
+  lm.remove();
+  block.setAttribute("data-v2-announcement-learn-more", "0");
+  return true;
+}
+
+function toggleWebTextBlockV2AnnouncementLearnMore(block: HTMLElement): boolean {
+  if (block.querySelector(".page-web-elements-announcement-learn-more")) {
+    return removeWebTextBlockV2AnnouncementLearnMore(block);
+  }
+  return addWebTextBlockV2AnnouncementLearnMore(block);
+}
+
+function queryFeatureGridHeadLeadLikeWrap(head: HTMLElement): HTMLElement | null {
+  const desc = head.querySelector(":scope > .page-web-elements-description") as HTMLElement | null;
+  if (desc) return desc;
+  return head.querySelector(":scope > .page-web-feature-grid-lead") as HTMLElement | null;
+}
+
+function queryFeatureGridRowLeadLikeWrap(row: HTMLElement): HTMLElement | null {
+  const desc = row.querySelector(":scope > .page-web-elements-description") as HTMLElement | null;
+  if (desc) return desc;
+  return row.querySelector(":scope > .page-web-feature-grid-lead") as HTMLElement | null;
+}
+
+function listFeatureGridHeadDirectLeadLikeWraps(head: HTMLElement): HTMLElement[] {
+  return Array.from(head.children).filter(
+    (n): n is HTMLElement =>
+      n instanceof HTMLElement &&
+      (n.classList.contains("page-web-elements-description") || n.classList.contains("page-web-feature-grid-lead")),
+  );
+}
+
+function listFeatureGridRowLeadLikeWraps(row: HTMLElement): HTMLElement[] {
+  return Array.from(row.children).filter(
+    (n): n is HTMLElement =>
+      n instanceof HTMLElement &&
+      !n.classList.contains("page-web-feature-grid-message") &&
+      (n.classList.contains("page-web-elements-description") || n.classList.contains("page-web-feature-grid-lead")),
+  );
+}
+
+function queryFeatureGridHeadOrderAnchor(head: HTMLElement, kind: FeatureGridElementKind): HTMLElement | null {
+  if (kind === "subtitle") {
+    return head.querySelector(":scope > .page-web-elements-subtitle") as HTMLElement | null;
+  }
+  if (kind === "title") {
+    return head.querySelector(":scope > .page-web-elements-title") as HTMLElement | null;
+  }
+  return queryFeatureGridHeadLeadLikeWrap(head);
+}
+
 function getFeatureGridElementNode(root: HTMLElement, kind: FeatureGridElementKind): HTMLElement | null {
   const head = root.querySelector(".page-web-feature-grid-head") as HTMLElement | null;
   if (!head) return null;
-  if (kind === "subtitle") return head.querySelector(".page-web-feature-grid-subtitle") as HTMLElement | null;
-  if (kind === "title") return head.querySelector(".page-web-feature-grid-title") as HTMLElement | null;
-  return head.querySelector(".page-web-feature-grid-lead") as HTMLElement | null;
+  if (kind === "subtitle") {
+    const wrap = head.querySelector(":scope > .page-web-elements-subtitle") as HTMLElement | null;
+    if (wrap) return wrap;
+    return head.querySelector(".page-web-feature-grid-subtitle") as HTMLElement | null;
+  }
+  if (kind === "title") {
+    const wrap = head.querySelector(":scope > .page-web-elements-title") as HTMLElement | null;
+    if (wrap) return wrap;
+    return head.querySelector(".page-web-feature-grid-title") as HTMLElement | null;
+  }
+  const direct = queryFeatureGridHeadLeadLikeWrap(head);
+  if (direct) return direct;
+  const row = head.querySelector(":scope > .page-web-feature-grid-lead-row") as HTMLElement | null;
+  if (row) {
+    const inRow = queryFeatureGridRowLeadLikeWrap(row);
+    if (inRow) return inRow;
+  }
+  return head.querySelector(".page-web-elements-description, .page-web-feature-grid-lead") as HTMLElement | null;
 }
 
 function createFeatureGridHeadNode(kind: FeatureGridElementKind): HTMLElement {
-  const node = document.createElement(kind === "title" ? "h2" : "p");
   if (kind === "subtitle") {
-    node.className = "page-web-feature-grid-subtitle";
-    node.textContent = "Deploy faster";
-  } else if (kind === "title") {
-    node.className = "page-web-feature-grid-title";
-    node.textContent = "Everything you need to deploy your app";
-  } else {
-    node.className = "page-web-feature-grid-lead";
-    node.textContent =
-      "Quis tellus eget adipiscing convallis sit sit eget aliquet quis. Suspendisse eget egestas a elementum pulvinar et feugiat blandit at. In mi viverra elit nunc.";
+    const wrap = document.createElement("div");
+    wrap.className = "page-web-elements page-web-elements-subtitle";
+    const ta = document.createElement("textarea");
+    ta.className = "page-web-elements-subtitle-input";
+    ta.setAttribute("spellcheck", "true");
+    ta.setAttribute("placeholder", "Подзаголовок");
+    ta.setAttribute("rows", "1");
+    ta.value = "Подзаголовок";
+    const row = document.createElement("div");
+    row.className = "page-web-elements-field-row";
+    row.appendChild(ta);
+    wrap.appendChild(row);
+    return wrap;
   }
-  return node;
+  if (kind === "title") {
+    const wrap = document.createElement("div");
+    wrap.className = "page-web-elements page-web-elements-title";
+    const ta = document.createElement("textarea");
+    ta.className = "page-web-elements-title-input";
+    ta.setAttribute("spellcheck", "true");
+    ta.setAttribute("placeholder", "Заголовок 1");
+    ta.setAttribute("rows", "1");
+    ta.value = "Заголовок 1";
+    const row = document.createElement("div");
+    row.className = "page-web-elements-field-row";
+    row.appendChild(ta);
+    wrap.appendChild(row);
+    return wrap;
+  }
+  const wrap = document.createElement("div");
+  wrap.className = "page-web-elements page-web-elements-description";
+  const ta = document.createElement("textarea");
+  ta.className = "page-web-elements-description-input";
+  ta.setAttribute("spellcheck", "true");
+  ta.setAttribute("placeholder", "Короткое описание");
+  ta.setAttribute("rows", "1");
+  ta.value = FEATURE_GRID_LEAD_DEFAULT;
+  const row = document.createElement("div");
+  row.className = "page-web-elements-field-row";
+  row.appendChild(ta);
+  wrap.appendChild(row);
+  return wrap;
 }
 
 function getFeatureGridMessagePosition(root: HTMLElement): FeatureGridMessagePosition | null {
@@ -1326,7 +3047,7 @@ function ensureFeatureGridLeadRow(head: HTMLElement): HTMLElement {
   if (!row) {
     row = document.createElement("div");
     row.className = "page-web-feature-grid-lead-row";
-    const lead = head.querySelector(":scope > .page-web-feature-grid-lead") as HTMLElement | null;
+    const lead = queryFeatureGridHeadLeadLikeWrap(head);
     if (lead) row.appendChild(lead);
     head.appendChild(row);
   }
@@ -1336,9 +3057,10 @@ function ensureFeatureGridLeadRow(head: HTMLElement): HTMLElement {
 function createFeatureGridMessageNode(): HTMLElement {
   const node = document.createElement("div");
   node.className = "page-web-feature-grid-message";
+  node.setAttribute("contenteditable", "false");
   node.innerHTML =
-    '<p class="page-web-feature-grid-message-title">Важное сообщение</p>' +
-    "<p>Здесь появится дополнительная информация в формате alert-блока.</p>";
+    getFeatureGridMessageTitleFieldHtml("Важное сообщение") +
+    getFeatureGridMessageBodyFieldHtml(FEATURE_GRID_MESSAGE_BODY_DEFAULT);
   return node;
 }
 
@@ -1377,7 +3099,7 @@ function clearFeatureGridMessage(root: HTMLElement): boolean {
   if (head) {
     const row = head.querySelector(":scope > .page-web-feature-grid-lead-row") as HTMLElement | null;
     if (row) {
-      const lead = row.querySelector(":scope > .page-web-feature-grid-lead") as HTMLElement | null;
+      const lead = queryFeatureGridRowLeadLikeWrap(row);
       const message = row.querySelector(":scope > .page-web-feature-grid-message") as HTMLElement | null;
       if (message) {
         message.remove();
@@ -1404,10 +3126,8 @@ function ensureFeatureGridMessage(root: HTMLElement, position: FeatureGridMessag
   const head = ensureFeatureGridHead(root);
   const row = ensureFeatureGridLeadRow(head);
   let changed = false;
-  const rowLead = row.querySelector(":scope > .page-web-feature-grid-lead") as HTMLElement | null;
-  const headDirectLeads = Array.from(
-    head.querySelectorAll(":scope > .page-web-feature-grid-lead"),
-  ) as HTMLElement[];
+  const rowLead = queryFeatureGridRowLeadLikeWrap(row);
+  const headDirectLeads = listFeatureGridHeadDirectLeadLikeWraps(head);
   let lead = rowLead;
   if (!lead && headDirectLeads.length > 0) {
     lead = headDirectLeads[0];
@@ -1417,7 +3137,7 @@ function ensureFeatureGridMessage(root: HTMLElement, position: FeatureGridMessag
   if (lead) {
     const extras = [
       ...headDirectLeads.filter((n) => n !== lead),
-      ...Array.from(row.querySelectorAll(":scope > .page-web-feature-grid-lead")).filter((n) => n !== lead),
+      ...listFeatureGridRowLeadLikeWraps(row).filter((n) => n !== lead),
     ] as HTMLElement[];
     extras.forEach((n) => {
       n.remove();
@@ -1453,6 +3173,466 @@ function setFeatureGridMessageColor(root: HTMLElement, color: FeatureGridMessage
   if (root.getAttribute("data-feature-grid-message-color") === color) return false;
   root.setAttribute("data-feature-grid-message-color", color);
   return true;
+}
+
+/** `<h2 class="page-web-feature-grid-title">` → `page-web-elements-title` + `textarea.page-web-elements-title-input`. */
+function migrateLegacyFeatureGridTitleToWebElements(root: HTMLElement): boolean {
+  let changed = false;
+  root.querySelectorAll(".page-web-feature-grid-head .page-web-feature-grid-title").forEach((n) => {
+    const legacy = n as HTMLElement;
+    const text = (legacy.textContent ?? "").replace(/\u200b/g, "").trim();
+    const wrap = document.createElement("div");
+    wrap.className = "page-web-elements page-web-elements-title";
+    const ta = document.createElement("textarea");
+    ta.className = "page-web-elements-title-input";
+    ta.setAttribute("spellcheck", "true");
+    ta.setAttribute("placeholder", "Заголовок 1");
+    ta.setAttribute("rows", "1");
+    ta.value = text;
+    const row = document.createElement("div");
+    row.className = "page-web-elements-field-row";
+    row.appendChild(ta);
+    wrap.appendChild(row);
+    legacy.replaceWith(wrap);
+    changed = true;
+  });
+  return changed;
+}
+
+/** `<p class="page-web-feature-grid-subtitle">` → `page-web-elements-subtitle` + `textarea.page-web-elements-subtitle-input`. */
+function migrateLegacyFeatureGridSubtitleToWebElements(root: HTMLElement): boolean {
+  let changed = false;
+  root.querySelectorAll(".page-web-feature-grid-head .page-web-feature-grid-subtitle").forEach((n) => {
+    const legacy = n as HTMLElement;
+    const text = (legacy.textContent ?? "").replace(/\u200b/g, "").trim();
+    const wrap = document.createElement("div");
+    wrap.className = "page-web-elements page-web-elements-subtitle";
+    const ta = document.createElement("textarea");
+    ta.className = "page-web-elements-subtitle-input";
+    ta.setAttribute("spellcheck", "true");
+    ta.setAttribute("placeholder", "Подзаголовок");
+    ta.setAttribute("rows", "1");
+    ta.value = text;
+    const row = document.createElement("div");
+    row.className = "page-web-elements-field-row";
+    row.appendChild(ta);
+    wrap.appendChild(row);
+    legacy.replaceWith(wrap);
+    changed = true;
+  });
+  return changed;
+}
+
+/** `<p class="page-web-feature-grid-lead">` → `page-web-elements-description` + `textarea.page-web-elements-description-input`. */
+function migrateLegacyFeatureGridLeadToWebElements(root: HTMLElement): boolean {
+  let changed = false;
+  root.querySelectorAll(".page-web-feature-grid-head .page-web-feature-grid-lead").forEach((n) => {
+    const legacy = n as HTMLElement;
+    const text = (legacy.textContent ?? "").replace(/\u200b/g, "").trim();
+    const wrap = document.createElement("div");
+    wrap.className = "page-web-elements page-web-elements-description";
+    const ta = document.createElement("textarea");
+    ta.className = "page-web-elements-description-input";
+    ta.setAttribute("spellcheck", "true");
+    ta.setAttribute("placeholder", "Короткое описание");
+    ta.setAttribute("rows", "1");
+    ta.value = text;
+    const row = document.createElement("div");
+    row.className = "page-web-elements-field-row";
+    row.appendChild(ta);
+    wrap.appendChild(row);
+    legacy.replaceWith(wrap);
+    changed = true;
+  });
+  return changed;
+}
+
+/** `<p class="page-web-feature-grid-message-title">` или заголовок в `description` + `description-input.message-title` → `page-web-elements-title2` + `textarea.page-web-elements-title2-input.page-web-feature-grid-message-title`. */
+function migrateLegacyFeatureGridMessageTitleToWebElements(root: HTMLElement): boolean {
+  let changed = false;
+  root.querySelectorAll(".page-web-feature-grid-message").forEach((n) => {
+    const message = n as HTMLElement;
+    if (
+      message.querySelector(
+        ":scope .page-web-elements.page-web-elements-title2 textarea.page-web-feature-grid-message-title",
+      )
+    ) {
+      return;
+    }
+    const legacyDescTitle = message.querySelector(
+      ":scope .page-web-elements.page-web-elements-description:has(textarea.page-web-elements-description-input.page-web-feature-grid-message-title)",
+    ) as HTMLElement | null;
+    if (legacyDescTitle) {
+      const ta = legacyDescTitle.querySelector("textarea") as HTMLTextAreaElement | null;
+      const text =
+        (ta?.value ?? ta?.textContent ?? "").replace(/\u200b/g, "").trim() || "Важное сообщение";
+      const tmp = document.createElement("div");
+      tmp.innerHTML = getFeatureGridMessageTitleFieldHtml(text);
+      const block = tmp.firstElementChild as HTMLElement | null;
+      if (!block) return;
+      legacyDescTitle.replaceWith(block);
+      changed = true;
+      return;
+    }
+    const oldTitle = message.querySelector(":scope > p.page-web-feature-grid-message-title") as HTMLElement | null;
+    if (oldTitle) {
+      const text = (oldTitle.textContent || "").replace(/\u200b/g, "").trim() || "Важное сообщение";
+      const tmp = document.createElement("div");
+      tmp.innerHTML = getFeatureGridMessageTitleFieldHtml(text);
+      const block = tmp.firstElementChild as HTMLElement | null;
+      if (!block) return;
+      oldTitle.replaceWith(block);
+      changed = true;
+      return;
+    }
+    const title2NoFlag = message.querySelector(
+      ":scope .page-web-elements.page-web-elements-title2:has(textarea.page-web-elements-title2-input)",
+    ) as HTMLElement | null;
+    if (title2NoFlag) {
+      const ta = title2NoFlag.querySelector("textarea.page-web-elements-title2-input") as HTMLTextAreaElement | null;
+      if (ta && !ta.classList.contains("page-web-feature-grid-message-title")) {
+        ta.classList.add("page-web-feature-grid-message-title");
+        changed = true;
+      }
+      return;
+    }
+  });
+  return changed;
+}
+
+/** Текст тела alert-сообщения: `<p>` или старое поле без класса → `textarea` с `page-web-feature-grid-message-body`. */
+function migrateLegacyFeatureGridMessageBodyToWebElements(root: HTMLElement): boolean {
+  let changed = false;
+  root.querySelectorAll(".page-web-feature-grid-message").forEach((n) => {
+    const message = n as HTMLElement;
+    if (message.querySelector(":scope textarea.page-web-feature-grid-message-body")) {
+      return;
+    }
+    const directBodyTa = message.querySelector(
+      ":scope > .page-web-elements.page-web-elements-description textarea.page-web-elements-description-input:not(.page-web-feature-grid-message-title)",
+    ) as HTMLTextAreaElement | null;
+    if (directBodyTa) {
+      if (!directBodyTa.classList.contains("page-web-feature-grid-message-body")) {
+        directBodyTa.classList.add("page-web-feature-grid-message-body");
+        changed = true;
+      }
+      return;
+    }
+    const nestedBodyTa = message.querySelector(
+      ":scope textarea.page-web-elements-description-input:not(.page-web-feature-grid-message-title)",
+    ) as HTMLTextAreaElement | null;
+    if (nestedBodyTa) {
+      if (!nestedBodyTa.classList.contains("page-web-feature-grid-message-body")) {
+        nestedBodyTa.classList.add("page-web-feature-grid-message-body");
+        changed = true;
+      }
+      return;
+    }
+    const bodyParas = Array.from(message.querySelectorAll(":scope > p")).filter(
+      (p) => !p.classList.contains("page-web-feature-grid-message-title"),
+    ) as HTMLElement[];
+    const combined = bodyParas
+      .map((p) => (p.textContent ?? "").replace(/\u200b/g, "").trim())
+      .filter(Boolean)
+      .join("\n\n")
+      .trim();
+    const text = combined || FEATURE_GRID_MESSAGE_BODY_DEFAULT;
+    const tmp = document.createElement("div");
+    tmp.innerHTML = getFeatureGridMessageBodyFieldHtml(text);
+    const block = tmp.firstElementChild as HTMLElement | null;
+    if (!block) return;
+    const titleBlock =
+      (message.querySelector(":scope > .page-web-elements.page-web-elements-title2") as HTMLElement | null) ??
+      (message.querySelector(":scope .page-web-elements.page-web-elements-title2") as HTMLElement | null);
+    if (titleBlock?.nextSibling) message.insertBefore(block, titleBlock.nextSibling);
+    else message.appendChild(block);
+    bodyParas.forEach((p) => p.remove());
+    changed = true;
+  });
+  return changed;
+}
+
+/** `data-web-elements-halign` на lead-row: только положение alert-блока; короткое описание не трогаем. */
+function syncFeatureGridLeadRowHalignFromFieldRows(root: HTMLElement): boolean {
+  let changed = false;
+  root.querySelectorAll(".page-web-feature-grid-lead-row").forEach((n) => {
+    const leadRow = n as HTMLElement;
+    const message = leadRow.querySelector(":scope > .page-web-feature-grid-message") as HTMLElement | null;
+    if (!message) return;
+    if (leadRow.hasAttribute("data-web-elements-halign")) return;
+    for (const fr of Array.from(message.querySelectorAll(".page-web-elements-field-row"))) {
+      if (!(fr instanceof HTMLElement)) continue;
+      const raw = (fr.style.textAlign || "").trim().toLowerCase();
+      if (raw === "center" || raw === "right" || raw === "left") {
+        leadRow.setAttribute("data-web-elements-halign", raw);
+        changed = true;
+        break;
+      }
+    }
+  });
+  return changed;
+}
+
+/** Текст заголовка карточки после иконки → `page-web-elements-title2` + `textarea.page-web-elements-title2-input`; `dt` — не редактируемая оболочка. */
+function migrateLegacyFeatureGridCardTitleToTitle2(root: HTMLElement): boolean {
+  let changed = false;
+  root.querySelectorAll(".page-web-feature-grid-item-title").forEach((n) => {
+    const title = n as HTMLElement;
+    if (title.getAttribute("contenteditable") !== "false") {
+      title.setAttribute("contenteditable", "false");
+      changed = true;
+    }
+    if (title.querySelector(":scope .page-web-elements-title2-input")) return;
+
+    let collectedText = "";
+    const toRemove: ChildNode[] = [];
+    for (const ch of Array.from(title.childNodes)) {
+      if (ch.nodeType === Node.TEXT_NODE) {
+        collectedText += (ch.textContent ?? "").replace(/\u200b/g, "");
+        toRemove.push(ch);
+      } else if (ch instanceof HTMLElement) {
+        if (ch.classList.contains("page-web-feature-grid-icon-wrap")) continue;
+        if (ch.classList.contains("page-web-elements-title2")) continue;
+        collectedText += (ch.textContent ?? "").replace(/\u200b/g, "");
+        toRemove.push(ch);
+      }
+    }
+    toRemove.forEach((node) => node.remove());
+    title.appendChild(createFeatureGridCardTitle2Wrap(collectedText.trim()));
+    changed = true;
+  });
+  return changed;
+}
+
+/** Текст карточки в `<p>` внутри `dd.page-web-feature-grid-item-body` → `page-web-elements-description` + `textarea.page-web-elements-description-input`. */
+function migrateLegacyFeatureGridCardBodyToWebElements(root: HTMLElement): boolean {
+  let changed = false;
+  root.querySelectorAll(".page-web-feature-grid-item-body").forEach((n) => {
+    const body = n as HTMLElement;
+    if (body.getAttribute("contenteditable") !== "false") {
+      body.setAttribute("contenteditable", "false");
+      changed = true;
+    }
+    if (body.querySelector(":scope > .page-web-elements-description .page-web-elements-description-input")) return;
+
+    const linkWraps = Array.from(
+      body.querySelectorAll(":scope > .page-web-feature-grid-item-link-wrap"),
+    ) as HTMLElement[];
+    const paras = Array.from(
+      body.querySelectorAll(":scope > p:not(.page-web-feature-grid-item-link-wrap)"),
+    ) as HTMLElement[];
+    const texts = paras.map((p) => (p.textContent ?? "").replace(/\u200b/g, "").trim()).filter(Boolean);
+    const combined = texts.join("\n\n").trim();
+    linkWraps.forEach((lw) => lw.remove());
+    paras.forEach((p) => p.remove());
+    Array.from(body.childNodes).forEach((ch) => {
+      if (ch.nodeType === Node.TEXT_NODE && (ch.textContent ?? "").replace(/\u200b/g, "").trim()) {
+        ch.remove();
+        changed = true;
+      }
+    });
+    const desc = createFeatureGridCardDescriptionWrap(combined);
+    body.appendChild(desc);
+    linkWraps.forEach((lw) => body.appendChild(lw));
+    changed = true;
+  });
+  return changed;
+}
+
+/** Заголовок колонки «факторов» (`<h3 class="wsx">`) → `page-web-elements-title` + `textarea.page-web-elements-title-input`. */
+function migrateLegacyWorkPricingMainTitleToWebElements(root: HTMLElement): boolean {
+  let changed = false;
+  root.querySelectorAll(".page-web-work-pricing .wsp").forEach((n) => {
+    const sp = n as HTMLElement;
+    const legacy = sp.querySelector(":scope > h3.wsx") as HTMLElement | null;
+    if (!legacy) return;
+    const text = (legacy.textContent ?? "").replace(/\u200b/g, "").trim();
+    legacy.replaceWith(createWorkPricingTitleIsland(text, "Заголовок"));
+    changed = true;
+  });
+  return changed;
+}
+
+/** Строка цены (`<p class="wre wrj …"><span class="wsy">`) → `page-web-elements-title` + `textarea.page-web-elements-title-input`. */
+function migrateLegacyWorkPricingPriceRowToWebElements(root: HTMLElement): boolean {
+  let changed = false;
+  root.querySelectorAll(".page-web-work-pricing .wrc.wrs.wss > p.wre.wrj.wrw.wry.wsa").forEach((n) => {
+    const legacy = n as HTMLElement;
+    const span = legacy.querySelector(":scope > span.wsy") as HTMLElement | null;
+    const text = ((span ?? legacy).textContent ?? "").replace(/\u200b/g, "").trim();
+    legacy.replaceWith(createWorkPricingTitleIsland(text, "Стоимость", "center"));
+    changed = true;
+  });
+  return changed;
+}
+
+/** Подпись над ценой (`<p class="wsz wtg wtn">` в `.wrc.wrs.wss`) → `page-web-elements-title2` + `textarea.page-web-elements-title2-input`. */
+function migrateLegacyWorkPricingPriceCaptionParagraphToWebElements(root: HTMLElement): boolean {
+  let changed = false;
+  root.querySelectorAll(".page-web-work-pricing .wrc.wrs.wss > p.wsz.wtg.wtn").forEach((n) => {
+    const legacy = n as HTMLElement;
+    if (legacy.closest(".page-web-elements")) return;
+    const text = (legacy.textContent ?? "").replace(/\u200b/g, "").trim();
+    legacy.replaceWith(createWorkPricingTitle2Island(text, "Подпись над ценой", "center"));
+    changed = true;
+  });
+  return changed;
+}
+
+/** Кнопка в карточке цены (`<a class="wrg wri … wue">`) → `p.page-web-elements-cta-wrap` + `a.page-web-elements-cta-button`. */
+function migrateLegacyWorkPricingCtaAnchorToWebElements(root: HTMLElement): boolean {
+  let changed = false;
+  root
+    .querySelectorAll(
+      ".page-web-work-pricing a.wrg.wri.wro.wsf.wsl.wsq.wst.wsw.wtc.wtg.wtr.wts.wua.wub.wuc.wue",
+    )
+    .forEach((n) => {
+      const a = n as HTMLAnchorElement;
+      if (a.classList.contains("page-web-elements-cta-button")) return;
+      const href = (a.getAttribute("href") || "#").trim() || "#";
+      const text = (a.textContent ?? "").replace(/\u200b/g, "").trim() || "Кнопка";
+      const wrap = document.createElement("p");
+      wrap.className = "page-web-elements-cta-wrap";
+      wrap.setAttribute("contenteditable", "false");
+      const na = document.createElement("a");
+      na.setAttribute("href", href);
+      na.className = "page-web-elements-cta-button";
+      na.textContent = text;
+      wrap.appendChild(na);
+      a.replaceWith(wrap);
+      changed = true;
+    });
+  return changed;
+}
+
+/** Строка «Что входит» (`<h4 class="wru …">` в `.wrg`) → `page-web-elements-subtitle` + `textarea.page-web-elements-subtitle-input`. */
+function migrateLegacyWorkPricingIncludedRowSubtitleToWebElements(root: HTMLElement): boolean {
+  let changed = false;
+  root.querySelectorAll(".page-web-work-pricing .wrg").forEach((n) => {
+    const row = n as HTMLElement;
+    const legacy = row.querySelector(":scope > h4.wru.wtg.wtq") as HTMLElement | null;
+    if (!legacy) return;
+    const text = (legacy.textContent ?? "").replace(/\u200b/g, "").trim();
+    const wrap = document.createElement("div");
+    wrap.className = "page-web-elements page-web-elements-subtitle";
+    wrap.setAttribute("contenteditable", "false");
+    wrap.setAttribute(WORK_PRICING_WEB_ELEMENTS_HALIGN_ATTR, "left");
+    const fieldRow = document.createElement("div");
+    fieldRow.className = "page-web-elements-field-row";
+    fieldRow.setAttribute("contenteditable", "false");
+    const ta = document.createElement("textarea");
+    ta.className = "page-web-elements-subtitle-input";
+    ta.setAttribute("spellcheck", "true");
+    ta.setAttribute("placeholder", "Подзаголовок");
+    ta.setAttribute("rows", "1");
+    ta.value = text;
+    fieldRow.appendChild(ta);
+    wrap.appendChild(fieldRow);
+    legacy.replaceWith(wrap);
+    changed = true;
+  });
+  return changed;
+}
+
+/** Лид в левой колонке (`<p class="wre wta wtn">`) → `page-web-elements-description` + `textarea.page-web-elements-description-input`. */
+function migrateLegacyWorkPricingLeadParagraphToWebElements(root: HTMLElement): boolean {
+  let changed = false;
+  root.querySelectorAll(".page-web-work-pricing .wsp > p.wre.wta.wtn").forEach((n) => {
+    const legacy = n as HTMLElement;
+    const text = (legacy.textContent ?? "").replace(/\u200b/g, "").trim();
+    legacy.replaceWith(createWorkPricingDescriptionIsland(text, "Короткое описание"));
+    changed = true;
+  });
+  return changed;
+}
+
+/** Подпись под ценой (`<p class="wre wte wtn">` в `.wrd`) → `page-web-elements-description` + textarea. */
+function migrateLegacyWorkPricingRightColumnFootnoteToWebElements(root: HTMLElement): boolean {
+  let changed = false;
+  root.querySelectorAll(".page-web-work-pricing .wrd p.wre.wte.wtn").forEach((n) => {
+    const legacy = n as HTMLElement;
+    const text = (legacy.textContent ?? "").replace(/\u200b/g, "").trim();
+    legacy.replaceWith(createWorkPricingDescriptionIsland(text, "Дополнительный текст"));
+    changed = true;
+  });
+  return changed;
+}
+
+/** Текст пункта списка (после галочки) → `page-web-elements-description` + textarea. */
+function migrateLegacyWorkPricingListItemBodyToWebElements(root: HTMLElement): boolean {
+  let changed = false;
+  root.querySelectorAll(".page-web-work-pricing ul.wrf > li").forEach((n) => {
+    const li = n as HTMLElement;
+    if (
+      li.querySelector(
+        ":scope > .page-web-elements.page-web-elements-description textarea.page-web-elements-description-input",
+      )
+    ) {
+      return;
+    }
+    const svg = li.querySelector(":scope > svg.wrl.wrn") as SVGElement | null;
+    const parts: string[] = [];
+    const toRemove: ChildNode[] = [];
+    for (const ch of Array.from(li.childNodes)) {
+      if (svg && ch === svg) continue;
+      if (ch.nodeType === Node.TEXT_NODE) {
+        parts.push((ch.textContent ?? "").replace(/\u200b/g, ""));
+        toRemove.push(ch);
+      } else if (ch.nodeType === Node.ELEMENT_NODE) {
+        const el = ch as HTMLElement;
+        if (el.tagName === "P") {
+          parts.push((el.textContent ?? "").replace(/\u200b/g, "").trim());
+          toRemove.push(ch);
+        } else if (!el.classList.contains("page-web-elements")) {
+          parts.push((el.textContent ?? "").replace(/\u200b/g, "").trim());
+          toRemove.push(ch);
+        }
+      }
+    }
+    const text = parts.join(" ").replace(/\s+/g, " ").trim();
+    toRemove.forEach((x) => x.remove());
+    li.appendChild(createWorkPricingDescriptionIsland(text, "Текст пункта"));
+    changed = true;
+  });
+  return changed;
+}
+
+/** Островки web-elements внутри contenteditable блока стоимости: обёртки не редактируются, только textarea. */
+function normalizeWebWorkPricingWebElementsIslandEditabilityInEditor(rootEl: HTMLElement): boolean {
+  let changed = false;
+  const normalizeOne = (wrap: HTMLElement) => {
+    if (wrap.getAttribute("contenteditable") !== "false") {
+      wrap.setAttribute("contenteditable", "false");
+      changed = true;
+    }
+    if (!wrap.hasAttribute(WORK_PRICING_WEB_ELEMENTS_HALIGN_ATTR)) {
+      const inPriceCard =
+        (wrap.classList.contains("page-web-elements-title") || wrap.classList.contains("page-web-elements-title2")) &&
+        !!wrap.closest(".page-web-work-pricing .wrc.wrs.wss");
+      wrap.setAttribute(WORK_PRICING_WEB_ELEMENTS_HALIGN_ATTR, inPriceCard ? "center" : "left");
+      changed = true;
+    }
+    wrap.querySelectorAll(":scope > .page-web-elements-field-row").forEach((r) => {
+      const row = r as HTMLElement;
+      if (row.getAttribute("contenteditable") !== "false") {
+        row.setAttribute("contenteditable", "false");
+        changed = true;
+      }
+    });
+  };
+  rootEl.querySelectorAll(".page-web-work-pricing .page-web-elements.page-web-elements-title").forEach((n) => {
+    normalizeOne(n as HTMLElement);
+  });
+  rootEl.querySelectorAll(".page-web-work-pricing .page-web-elements.page-web-elements-title2").forEach((n) => {
+    normalizeOne(n as HTMLElement);
+  });
+  rootEl.querySelectorAll(".page-web-work-pricing .wrg > .page-web-elements.page-web-elements-subtitle").forEach((n) => {
+    normalizeOne(n as HTMLElement);
+  });
+  rootEl.querySelectorAll(".page-web-work-pricing .page-web-elements.page-web-elements-description").forEach((n) => {
+    normalizeOne(n as HTMLElement);
+  });
+  return changed;
 }
 
 function normalizeFeatureGridMessageLayoutsInEditor(rootEl: HTMLElement): boolean {
@@ -1502,22 +3682,94 @@ function normalizeFeatureGridImageLayoutsInEditor(rootEl: HTMLElement): boolean 
   return changed;
 }
 
-function createFeatureGridCardNode(index: number): HTMLElement {
-  const iconHtml = getFeatureGridIconWrapHtml("bolt");
+/** Шапка сетки внутри contenteditable: без этого каретка попадает в обёртки вне textarea. Сообщение — отдельный редактируемый островок. */
+function normalizeWebFeatureGridHeadEditabilityInEditor(rootEl: HTMLElement): boolean {
+  let changed = false;
+  rootEl.querySelectorAll(".page-web-feature-grid-head").forEach((n) => {
+    const head = n as HTMLElement;
+    if (head.getAttribute("contenteditable") !== "false") {
+      head.setAttribute("contenteditable", "false");
+      changed = true;
+    }
+  });
+  rootEl.querySelectorAll(".page-web-feature-grid .page-web-feature-grid-message").forEach((n) => {
+    const message = n as HTMLElement;
+    if (message.getAttribute("contenteditable") !== "false") {
+      message.setAttribute("contenteditable", "false");
+      changed = true;
+    }
+    message.querySelectorAll(":scope > p").forEach((p) => {
+      const pe = p as HTMLElement;
+      if (pe.getAttribute("contenteditable") !== "true") {
+        pe.setAttribute("contenteditable", "true");
+        changed = true;
+      }
+    });
+  });
+  return changed;
+}
+
+/** Соседние feature-grid: остров alert/textarea снизу может визуально и по hit-test наезжать на шапку следующего блока — поднимаем z-index по порядку в DOM. */
+function assignFeatureGridWebTextBlockStackingOrderInEditor(root: HTMLElement): boolean {
+  let changed = false;
+  let fgStack = 0;
+  root.querySelectorAll(".page-web-text-block").forEach((n) => {
+    const el = n as HTMLElement;
+    const isFg = el.getAttribute("data-text-block-variant") === "feature-grid";
+    if (isFg) {
+      fgStack += 1;
+      const z = String(fgStack);
+      if (el.style.zIndex !== z) {
+        el.style.zIndex = z;
+        changed = true;
+      }
+    } else if (el.style.zIndex) {
+      el.style.removeProperty("z-index");
+      changed = true;
+    }
+  });
+  return changed;
+}
+
+function createFeatureGridCardNode(root: HTMLElement, index: number): HTMLElement {
+  const alreadyHadCards = getFeatureGridCardsCount(root) > 0;
+  const decoration = getFeatureGridCardDecoration(root);
+  const includeIcon = decoration === "icons";
+  const includeTitle2 = hasFeatureGridCardTitle2Visible(root);
+  const includeDescription = !alreadyHadCards || hasFeatureGridCardDescriptions(root);
+  const includeCta = alreadyHadCards && hasFeatureGridCardCta(root);
+  const includeLearnMore = !alreadyHadCards || hasFeatureGridCardLearnMore(root);
+
   const wrap = document.createElement("div");
   wrap.innerHTML =
     '<div class="page-web-feature-grid-item">' +
-    '<dt class="page-web-feature-grid-item-title">' +
-    iconHtml +
-    "Карточка " +
-    String(index) +
+    '<dt class="page-web-feature-grid-item-title" contenteditable="false">' +
+    (includeIcon ? getFeatureGridIconWrapHtml("bolt") : "") +
     "</dt>" +
-    '<dd class="page-web-feature-grid-item-body">' +
-    "<p>Добавьте описание карточки. Здесь можно указать ключевое преимущество.</p>" +
-    '<p class="page-web-feature-grid-item-link-wrap"><a href="#" class="page-web-feature-grid-link">Learn more <span aria-hidden="true">→</span></a></p>' +
+    '<dd class="page-web-feature-grid-item-body" contenteditable="false">' +
     "</dd>" +
     "</div>";
-  return wrap.firstElementChild as HTMLElement;
+  const item = wrap.firstElementChild as HTMLElement;
+  const dt = item.querySelector(":scope > .page-web-feature-grid-item-title") as HTMLElement | null;
+  const dd = item.querySelector(":scope > .page-web-feature-grid-item-body") as HTMLElement | null;
+  if (!dt || !dd) return item;
+
+  if (includeTitle2) {
+    dt.appendChild(createFeatureGridCardTitle2Wrap(`Карточка ${index}`));
+  }
+  if (includeDescription) {
+    dd.appendChild(createFeatureGridCardDescriptionWrap(FEATURE_GRID_CARD_DESCRIPTION_DEFAULT));
+  }
+  if (includeCta) {
+    const tmp = document.createElement("div");
+    tmp.innerHTML = getFeatureGridCardCtaRowHtml();
+    const cta = tmp.firstElementChild;
+    if (cta) dd.appendChild(cta);
+  }
+  if (includeLearnMore) {
+    dd.appendChild(createFeatureGridLearnMoreNode());
+  }
+  return item;
 }
 
 function getFeatureGridCardItems(root: HTMLElement): HTMLElement[] {
@@ -1540,7 +3792,7 @@ function addOneFeatureGridCard(root: HTMLElement): boolean {
     root.appendChild(list);
   }
   const nextIndex = getFeatureGridCardsCount(root) + 1;
-  list.appendChild(createFeatureGridCardNode(nextIndex));
+  list.appendChild(createFeatureGridCardNode(root, nextIndex));
   return true;
 }
 
@@ -1591,10 +3843,16 @@ function detectFeatureGridIconPresetId(iconWrap: HTMLElement): FeatureGridIconPr
 }
 
 function createFeatureGridLearnMoreNode(): HTMLElement {
-  const wrap = document.createElement("div");
-  wrap.innerHTML =
-    '<p class="page-web-feature-grid-item-link-wrap"><a href="#" class="page-web-feature-grid-link">Learn more <span aria-hidden="true">→</span></a></p>';
-  return wrap.firstElementChild as HTMLElement;
+  const p = document.createElement("p");
+  p.className = "page-web-feature-grid-item-link-wrap";
+  const span = document.createElement("span");
+  span.className = "page-web-elements-announcement-learn-more";
+  span.setAttribute("role", "button");
+  span.setAttribute("contenteditable", "false");
+  span.setAttribute("tabindex", "-1");
+  span.textContent = "Подробнее";
+  p.appendChild(span);
+  return p;
 }
 
 function hasFeatureGridCardIcons(root: HTMLElement): boolean {
@@ -1606,7 +3864,45 @@ function hasFeatureGridCardNumbers(root: HTMLElement): boolean {
 }
 
 function hasFeatureGridCardLearnMore(root: HTMLElement): boolean {
-  return !!root.querySelector(".page-web-feature-grid-item-link-wrap .page-web-feature-grid-link");
+  return !!root.querySelector(
+    ".page-web-feature-grid-item-link-wrap .page-web-elements-announcement-learn-more, .page-web-feature-grid-item-link-wrap .page-web-feature-grid-link",
+  );
+}
+
+function hasFeatureGridCardTitle2Visible(root: HTMLElement): boolean {
+  return root.getAttribute("data-feature-grid-card-show-title2") !== "0";
+}
+
+function toggleFeatureGridCardTitle2(root: HTMLElement): boolean {
+  if (hasFeatureGridCardTitle2Visible(root)) {
+    root.setAttribute("data-feature-grid-card-show-title2", "0");
+  } else {
+    root.removeAttribute("data-feature-grid-card-show-title2");
+  }
+  return true;
+}
+
+function getFeatureGridCardDecoration(root: HTMLElement): "none" | "icons" | "numbers" {
+  if (hasFeatureGridCardNumbers(root)) return "numbers";
+  if (hasFeatureGridCardIcons(root)) return "icons";
+  return "none";
+}
+
+function setFeatureGridCardDecoration(root: HTMLElement, mode: "none" | "icons" | "numbers"): boolean {
+  const cur = getFeatureGridCardDecoration(root);
+  if (cur === mode) return false;
+  if (mode === "none") {
+    if (hasFeatureGridCardNumbers(root)) toggleFeatureGridCardNumbers(root);
+    if (hasFeatureGridCardIcons(root)) toggleFeatureGridCardIcons(root);
+    return true;
+  }
+  if (mode === "icons") {
+    if (hasFeatureGridCardNumbers(root)) toggleFeatureGridCardNumbers(root);
+    if (!hasFeatureGridCardIcons(root)) toggleFeatureGridCardIcons(root);
+    return true;
+  }
+  if (!hasFeatureGridCardNumbers(root)) toggleFeatureGridCardNumbers(root);
+  return true;
 }
 
 function hasFeatureGridCardDescriptions(root: HTMLElement): boolean {
@@ -1615,7 +3911,7 @@ function hasFeatureGridCardDescriptions(root: HTMLElement): boolean {
   return items.some((item) => {
     const body = item.querySelector(":scope > .page-web-feature-grid-item-body") as HTMLElement | null;
     if (!body) return false;
-    return !!body.querySelector(":scope > p:not(.page-web-feature-grid-item-link-wrap)");
+    return !!body.querySelector(":scope > .page-web-elements-description");
   });
 }
 
@@ -1680,6 +3976,41 @@ function toggleFeatureGridCardLearnMore(root: HTMLElement): boolean {
   return true;
 }
 
+function hasFeatureGridCardCta(root: HTMLElement): boolean {
+  const items = getFeatureGridCardItems(root);
+  if (items.length === 0) return false;
+  return items.some((item) => {
+    const body = item.querySelector(":scope > .page-web-feature-grid-item-body") as HTMLElement | null;
+    return !!body?.querySelector(":scope > p.page-web-elements-cta-wrap");
+  });
+}
+
+function toggleFeatureGridCardCta(root: HTMLElement): boolean {
+  const items = getFeatureGridCardItems(root);
+  if (items.length === 0) return false;
+  if (hasFeatureGridCardCta(root)) {
+    items.forEach((item) => {
+      const body = item.querySelector(":scope > .page-web-feature-grid-item-body") as HTMLElement | null;
+      if (!body) return;
+      body.querySelectorAll(":scope > p.page-web-elements-cta-wrap").forEach((n) => n.remove());
+    });
+    return true;
+  }
+  items.forEach((item) => {
+    const body = item.querySelector(":scope > .page-web-feature-grid-item-body") as HTMLElement | null;
+    if (!body) return;
+    if (body.querySelector(":scope > p.page-web-elements-cta-wrap")) return;
+    const tmp = document.createElement("div");
+    tmp.innerHTML = getFeatureGridCardCtaRowHtml();
+    const cta = tmp.firstElementChild as HTMLElement | null;
+    if (!cta) return;
+    const linkWrap = body.querySelector(":scope > .page-web-feature-grid-item-link-wrap");
+    if (linkWrap) body.insertBefore(cta, linkWrap);
+    else body.appendChild(cta);
+  });
+  return true;
+}
+
 function toggleFeatureGridCardDescriptions(root: HTMLElement): boolean {
   const items = getFeatureGridCardItems(root);
   if (items.length === 0) return false;
@@ -1688,17 +4019,19 @@ function toggleFeatureGridCardDescriptions(root: HTMLElement): boolean {
     items.forEach((item) => {
       const body = item.querySelector(":scope > .page-web-feature-grid-item-body") as HTMLElement | null;
       if (!body) return;
-      body.querySelectorAll(":scope > p:not(.page-web-feature-grid-item-link-wrap)").forEach((n) => n.remove());
+      body.querySelectorAll(":scope > .page-web-elements-description").forEach((n) => n.remove());
     });
     return true;
   }
   items.forEach((item) => {
     const body = item.querySelector(":scope > .page-web-feature-grid-item-body") as HTMLElement | null;
     if (!body) return;
-    const description = document.createElement("p");
-    description.textContent = "Добавьте описание карточки. Здесь можно указать ключевое преимущество.";
-    const linkWrap = body.querySelector(":scope > .page-web-feature-grid-item-link-wrap");
-    if (linkWrap) body.insertBefore(description, linkWrap);
+    if (body.querySelector(":scope > .page-web-elements-description")) return;
+    const description = createFeatureGridCardDescriptionWrap(FEATURE_GRID_CARD_DESCRIPTION_DEFAULT);
+    const anchor = body.querySelector(
+      ":scope > .page-web-elements-cta-wrap, :scope > .page-web-feature-grid-item-link-wrap",
+    );
+    if (anchor) body.insertBefore(description, anchor);
     else body.appendChild(description);
   });
   return true;
@@ -1718,11 +4051,25 @@ function setFeatureGridCols(root: HTMLElement, cols: 2 | 3 | 4): boolean {
   return true;
 }
 
+function hasFeatureGridBlockCardsListVisible(root: HTMLElement): boolean {
+  return root.getAttribute("data-feature-grid-show-cards") !== "0";
+}
+
+function toggleFeatureGridBlockCardsList(root: HTMLElement): boolean {
+  if (hasFeatureGridBlockCardsListVisible(root)) {
+    root.setAttribute("data-feature-grid-show-cards", "0");
+  } else {
+    root.removeAttribute("data-feature-grid-show-cards");
+  }
+  return true;
+}
+
 function ensureFeatureGridHead(root: HTMLElement): HTMLElement {
   let head = root.querySelector(".page-web-feature-grid-head") as HTMLElement | null;
   if (head) return head;
   head = document.createElement("div");
   head.className = "page-web-feature-grid-head";
+  head.setAttribute("contenteditable", "false");
   root.insertBefore(head, root.firstChild);
   return head;
 }
@@ -1737,16 +4084,22 @@ function insertFeatureGridHeadNodeByOrder(head: HTMLElement, node: HTMLElement, 
   }
   const order: FeatureGridElementKind[] = ["subtitle", "title", "lead"];
   const myIdx = order.indexOf(kind);
-  const getSelector = (k: FeatureGridElementKind) =>
-    k === "subtitle" ? ".page-web-feature-grid-subtitle" : k === "title" ? ".page-web-feature-grid-title" : ".page-web-feature-grid-lead";
   for (let i = myIdx + 1; i < order.length; i++) {
-    const after = head.querySelector(`:scope > ${getSelector(order[i])}`) as HTMLElement | null;
+    const after = queryFeatureGridHeadOrderAnchor(head, order[i]);
     if (after) {
       head.insertBefore(node, after);
       return;
     }
   }
   head.appendChild(node);
+}
+
+function countFeatureGridHeadFieldKindsPresent(root: HTMLElement): number {
+  let n = 0;
+  (["subtitle", "title", "lead"] as const).forEach((k) => {
+    if (getFeatureGridElementNode(root, k)) n += 1;
+  });
+  return n;
 }
 
 function toggleFeatureGridTextBlockElement(block: HTMLElement, kind: FeatureGridElementKind): boolean {
@@ -1756,6 +4109,7 @@ function toggleFeatureGridTextBlockElement(block: HTMLElement, kind: FeatureGrid
   if (!root) return false;
   const existing = getFeatureGridElementNode(root, kind);
   if (existing) {
+    if (countFeatureGridHeadFieldKindsPresent(root) <= 1) return false;
     const parent = existing.parentElement;
     existing.remove();
     if (kind === "lead" && parent?.classList.contains("page-web-feature-grid-lead-row")) {
@@ -1774,51 +4128,77 @@ function syncFeatureGridElementsMenuState(toolbar: HTMLElement) {
   if (!block) return;
   const content = block.querySelector(":scope > .page-web-text-block-content") as HTMLElement | null;
   const root = content?.querySelector(".page-web-feature-grid") as HTMLElement | null;
-  const labels: Record<FeatureGridElementKind, { add: string; remove: string }> = {
-    subtitle: { add: "Добавить подзаголовок", remove: "Убрать подзаголовок" },
-    title: { add: "Добавить заголовок", remove: "Убрать заголовок" },
-    lead: { add: "Добавить описание", remove: "Убрать описание" },
-  };
+  const headFieldCount = root ? countFeatureGridHeadFieldKindsPresent(root) : 0;
+  const blockCardsOn = root ? hasFeatureGridBlockCardsListVisible(root) : true;
   toolbar.querySelectorAll("[data-toggle-feature-grid-element]").forEach((node) => {
-    const btn = node as HTMLElement;
+    const btn = node as HTMLButtonElement;
     const raw = btn.getAttribute("data-toggle-feature-grid-element");
     if (!isFeatureGridElementKind(raw)) return;
     const exists = root ? !!getFeatureGridElementNode(root, raw) : false;
-    btn.textContent = exists ? labels[raw].remove : labels[raw].add;
+    btn.setAttribute("aria-checked", exists ? "true" : "false");
+    const disableRemoveLast = exists && headFieldCount <= 1;
+    btn.disabled = disableRemoveLast;
+    btn.setAttribute("aria-disabled", disableRemoveLast ? "true" : "false");
   });
-  toolbar.querySelectorAll("[data-feature-grid-cards-action='remove']").forEach((node) => {
+  toolbar.querySelectorAll("[data-feature-grid-block-toggle]").forEach((node) => {
     const btn = node as HTMLButtonElement;
-    const hasCards = root ? getFeatureGridCardsCount(root) > 0 : false;
-    btn.disabled = !hasCards;
-    btn.setAttribute("aria-disabled", hasCards ? "false" : "true");
+    const raw = btn.getAttribute("data-feature-grid-block-toggle");
+    if (raw !== "cards" || !root) return;
+    btn.setAttribute("aria-checked", hasFeatureGridBlockCardsListVisible(root) ? "true" : "false");
   });
-  toolbar.querySelectorAll("[data-feature-grid-cards-decor-action]").forEach((node) => {
-    const btn = node as HTMLButtonElement;
-    const action = btn.getAttribute("data-feature-grid-cards-decor-action");
     const hasCards = root ? getFeatureGridCardsCount(root) > 0 : false;
-    btn.disabled = !hasCards;
-    btn.setAttribute("aria-disabled", hasCards ? "false" : "true");
-    if (!hasCards) return;
-    if (action === "description") {
-      btn.textContent = hasFeatureGridCardDescriptions(root as HTMLElement)
-        ? "Убрать описания у карточек"
-        : "Добавить описания к карточкам";
+  toolbar.querySelectorAll("[data-feature-grid-cards-action]").forEach((node) => {
+    const btn = node as HTMLButtonElement;
+    const action = btn.getAttribute("data-feature-grid-cards-action");
+    if (action === "remove") {
+      const dis = !root || !blockCardsOn || !hasCards;
+      btn.disabled = dis;
+      btn.setAttribute("aria-disabled", dis ? "true" : "false");
+    } else if (action === "add") {
+      const dis = !root || !blockCardsOn;
+      btn.disabled = dis;
+      btn.setAttribute("aria-disabled", dis ? "true" : "false");
+    }
+  });
+  toolbar.querySelectorAll("[data-feature-grid-card-field-toggle]").forEach((node) => {
+    const btn = node as HTMLButtonElement;
+    const raw = btn.getAttribute("data-feature-grid-card-field-toggle");
+    if (!isFeatureGridCardFieldToggleKey(raw) || !root) return;
+    const dis = !blockCardsOn || !hasCards;
+    btn.disabled = dis;
+    btn.setAttribute("aria-disabled", dis ? "true" : "false");
+    if (!hasCards || !blockCardsOn) return;
+    if (raw === "title2") {
+      btn.setAttribute("aria-checked", hasFeatureGridCardTitle2Visible(root) ? "true" : "false");
       return;
     }
-    if (action === "icons") {
-      btn.textContent = hasFeatureGridCardIcons(root as HTMLElement) ? "Убрать иконки у карточек" : "Добавить иконки к карточкам";
+    if (raw === "description") {
+      btn.setAttribute("aria-checked", hasFeatureGridCardDescriptions(root) ? "true" : "false");
       return;
     }
-    if (action === "learn-more") {
-      btn.textContent = hasFeatureGridCardLearnMore(root as HTMLElement)
-        ? "Убрать кнопку Learn more"
-        : "Добавить кнопку Learn more";
+    if (raw === "cta") {
+      btn.setAttribute("aria-checked", hasFeatureGridCardCta(root) ? "true" : "false");
+      return;
     }
+    btn.setAttribute("aria-checked", hasFeatureGridCardLearnMore(root) ? "true" : "false");
+  });
+  toolbar.querySelectorAll("[data-feature-grid-card-decoration]").forEach((node) => {
+    const btn = node as HTMLButtonElement;
+    const raw = btn.getAttribute("data-feature-grid-card-decoration");
+    if (!isFeatureGridCardDecorationKey(raw) || !root) return;
+    const dis = !blockCardsOn || !hasCards;
+    btn.disabled = dis;
+    btn.setAttribute("aria-disabled", dis ? "true" : "false");
+    if (!hasCards || !blockCardsOn) return;
+    btn.setAttribute("aria-checked", getFeatureGridCardDecoration(root) === raw ? "true" : "false");
   });
   const currentCols = root ? getFeatureGridCols(root) : 3;
   toolbar.querySelectorAll("[data-feature-grid-set-cols]").forEach((node) => {
     const btn = node as HTMLButtonElement;
     const cols = btn.getAttribute("data-feature-grid-set-cols");
+    const dis = !root || !blockCardsOn;
+    btn.disabled = dis;
+    btn.setAttribute("aria-disabled", dis ? "true" : "false");
     btn.setAttribute("aria-checked", cols === String(currentCols) ? "true" : "false");
   });
   const currentMessagePosition = root ? (getFeatureGridMessagePosition(root) ?? "none") : "none";
@@ -1873,19 +4253,21 @@ function syncTextBlockToolbarVariantState(toolbar: HTMLElement) {
       btn.disabled = !canRemove;
       btn.setAttribute("aria-disabled", canRemove ? "false" : "true");
     });
+    return;
   }
+  syncPlainTextBlockFieldMenuButtons(toolbar, block);
 }
 
 function moveWebBlockByToolbar(toolbar: HTMLElement, direction: "up" | "down", ed: HTMLElement): boolean {
   const block = toolbar.closest(
-    ".page-web-cover, .page-web-carousel, .page-web-timeline, .page-web-text-media, .page-web-text-block, .page-web-spacer",
+    ".page-web-cover, .page-web-carousel, .page-web-timeline, .page-web-text-media, .page-web-text-block, .page-web-text-block-v2, .page-web-spacer",
   ) as HTMLElement | null;
   if (!block || !ed.contains(block)) return false;
   const parent = block.parentElement;
   if (!parent) return false;
   const blocks = Array.from(parent.children).filter((node) =>
     (node as HTMLElement).matches?.(
-      ".page-web-cover, .page-web-carousel, .page-web-timeline, .page-web-text-media, .page-web-text-block, .page-web-spacer",
+      ".page-web-cover, .page-web-carousel, .page-web-timeline, .page-web-text-media, .page-web-text-block, .page-web-text-block-v2, .page-web-spacer",
     ),
   ) as HTMLElement[];
   const idx = blocks.indexOf(block);
@@ -1895,6 +4277,30 @@ function moveWebBlockByToolbar(toolbar: HTMLElement, direction: "up" | "down", e
   if (direction === "up") parent.insertBefore(block, neighbor);
   else parent.insertBefore(neighbor, block);
   return true;
+}
+
+/**
+ * Для сравнения innerHTML до/после нормализаций: убираем из `<textarea style="…">` только
+ * измерительные свойства, которые выставляет `autosizeWebTextBlockV2Textareas` / `layoutWebElementsTextareaSize` (width/height и т.д.),
+ * иначе каждый проход layoutEffect даёт «изменение» → setContentHtml → бесконечный цикл React.
+ */
+function stripWebTextBlockV2TextareaMeasurementStylesForCompare(html: string): string {
+  return html.replace(/<textarea\b([^>]*?)>/gi, (full, attrs: string) => {
+    const styleMatch = attrs.match(/\bstyle\s*=\s*"([^"]*)"/i);
+    if (!styleMatch) return full;
+    const style = styleMatch[1];
+    const cleaned = style
+      .replace(/\bwidth\s*:\s*[^;]+;?/gi, "")
+      .replace(/\bheight\s*:\s*[^;]+;?/gi, "")
+      .replace(/\bmax-width\s*:\s*[^;]+;?/gi, "")
+      .replace(/\bbox-sizing\s*:\s*[^;]+;?/gi, "")
+      .replace(/\s*;\s*;/g, ";")
+      .trim()
+      .replace(/^;+|;+$/g, "");
+    let newAttrs = attrs.replace(/\bstyle\s*=\s*"[^"]*"/i, cleaned ? `style="${cleaned}"` : "");
+    newAttrs = newAttrs.replace(/\s{2,}/g, " ").trim();
+    return `<textarea ${newAttrs}>`;
+  });
 }
 
 /**
@@ -1911,17 +4317,19 @@ function normalizeToBlockEditorHtml(inputHtml: string): string {
     // Чистим служебный chrome редактора, если он случайно попал в сохранённый HTML.
     wrap
       .querySelectorAll(
-        '.page-editor, [aria-label="Добавить блок"], .page-web-text-block-toolbar, .page-web-spacer-toolbar, .oin, .oit, .oja, .ohx, .oie, .oir, .oia, .oif, .ohw, .oig, .oid, .oij, .oim, .oil',
+        '.page-editor, [aria-label="Добавить блок"], .page-web-text-block-toolbar, .page-web-text-block-v2-toolbar, .page-web-spacer-toolbar, .oin, .oit, .oja, .ohx, .oie, .oir, .oia, .oif, .ohw, .oig, .oid, .oij, .oim, .oil',
       )
       .forEach((n) => n.remove());
     const blockHtml: string[] = [];
     const legacy = document.createElement("div");
     const isAllowedBlock = (el: Element) =>
-      el.matches(".page-web-cover, .page-web-carousel, .page-web-timeline, .page-web-text-media, .page-web-text-block, .page-web-spacer");
+      el.matches(
+        ".page-web-cover, .page-web-carousel, .page-web-timeline, .page-web-text-media, .page-web-text-block, .page-web-text-block-v2, .page-web-spacer",
+      );
     const hasEditorChromeInside = (el: Element) =>
       Boolean(
         el.querySelector(
-          '.page-editor, [aria-label="Добавить блок"], .page-web-text-media-toolbar, .page-web-text-block-toolbar, .page-web-spacer-toolbar, .oin, .oit, .oja, .ohx, .oie, .oir, .oia, .oif, .ohw, .oig',
+          '.page-editor, [aria-label="Добавить блок"], .page-web-text-media-toolbar, .page-web-text-block-toolbar, .page-web-text-block-v2-toolbar, .page-web-spacer-toolbar, .oin, .oit, .oja, .ohx, .oie, .oir, .oia, .oif, .ohw, .oig',
         ),
       );
     const appendLegacyNode = (node: Node) => {
@@ -1933,7 +4341,9 @@ function normalizeToBlockEditorHtml(inputHtml: string): string {
       if (!(node instanceof Element)) return;
       // Никогда не переносим в контент служебную разметку самого редактора.
       if (
-        node.matches(".page-editor, .page-web-text-media-toolbar, .page-web-text-block-toolbar, .page-web-spacer-toolbar, .oin, .oit, .oja, .ohx, .oie, .oir, .oia, .oif, .ohw, .oig") ||
+        node.matches(
+          ".page-editor, .page-web-text-media-toolbar, .page-web-text-block-toolbar, .page-web-text-block-v2-toolbar, .page-web-spacer-toolbar, .oin, .oit, .oja, .ohx, .oie, .oir, .oia, .oif, .ohw, .oig",
+        ) ||
         node.matches('[aria-label="Добавить блок"]') ||
         hasEditorChromeInside(node)
       ) {
@@ -1942,7 +4352,7 @@ function normalizeToBlockEditorHtml(inputHtml: string): string {
       if (isAllowedBlock(node)) return;
       if (
         node.matches(
-          ".page-web-cover-toolbar, .page-web-carousel-toolbar, .page-web-timeline-toolbar, .page-web-text-media-toolbar, .page-web-text-block-toolbar, .page-web-spacer-toolbar, .page-web-cover-delete, .page-web-carousel-arrow",
+          ".page-web-cover-toolbar, .page-web-carousel-toolbar, .page-web-timeline-toolbar, .page-web-text-media-toolbar, .page-web-text-block-toolbar, .page-web-text-block-v2-toolbar, .page-web-spacer-toolbar, .page-web-cover-delete, .page-web-carousel-arrow",
         )
       ) {
         return;
@@ -2110,6 +4520,87 @@ function snapshotSelection(phase: string, root: HTMLElement | null) {
   });
 }
 
+/** Логи скролла, фокуса и авто-высоты в редакторе. Включить: `localStorage.setItem('debugPageEditorLayout','1')`; выключить: `'0'`. */
+const DEBUG_PAGE_EDITOR_LAYOUT = true;
+
+function editorLayoutDebugOn(): boolean {
+  if (!DEBUG_PAGE_EDITOR_LAYOUT) return false;
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem("debugPageEditorLayout") === "1";
+  } catch {
+    return false;
+  }
+}
+
+function logPageEditorLayout(phase: string, payload: Record<string, unknown>) {
+  if (!editorLayoutDebugOn()) return;
+  console.log(`[page-editor-layout] ${phase}`, payload);
+}
+
+function summarizeLayoutElement(el: Element | null | undefined): string | null {
+  if (!el) return null;
+  const tag = el.tagName.toLowerCase();
+  if (el instanceof HTMLTextAreaElement) {
+    return `${tag}(scrollH=${el.scrollHeight},clientH=${el.clientHeight},valLen=${(el.value || "").length})`;
+  }
+  const id = el.id ? `#${el.id}` : "";
+  const cn = (el as HTMLElement).className;
+  const cls =
+    typeof cn === "string"
+      ? cn
+          .trim()
+          .split(/\s+/)
+          .filter(Boolean)
+          .slice(0, 10)
+          .join(".")
+      : "";
+  return cls ? `<${tag}${id}.${cls}>` : `<${tag}${id}>`;
+}
+
+function layoutScrollSnapshot(scrollEl: HTMLElement | null, anchor: HTMLElement | null) {
+  if (!scrollEl) {
+    return {
+      scrollTop: null as number | null,
+      scrollLeft: null as number | null,
+      clientHeight: null as number | null,
+      scrollHeight: null as number | null,
+      maxScrollTop: null as number | null,
+      anchorTopInPort: null as number | null,
+      anchorBottomInPort: null as number | null,
+    };
+  }
+  const port = scrollEl.getBoundingClientRect();
+  const ar =
+    anchor && scrollEl.contains(anchor) ? anchor.getBoundingClientRect() : null;
+  const maxScrollTop = Math.max(0, scrollEl.scrollHeight - scrollEl.clientHeight);
+  return {
+    scrollTop: scrollEl.scrollTop,
+    scrollLeft: scrollEl.scrollLeft,
+    clientHeight: scrollEl.clientHeight,
+    scrollHeight: scrollEl.scrollHeight,
+    maxScrollTop,
+    nearBottom: scrollEl.scrollTop >= maxScrollTop - 4,
+    portTop: Math.round(port.top * 10) / 10,
+    anchorTopInPort: ar != null ? Math.round((ar.top - port.top) * 10) / 10 : null,
+    anchorBottomInPort: ar != null ? Math.round((ar.bottom - port.top) * 10) / 10 : null,
+    active: summarizeLayoutElement(document.activeElement),
+  };
+}
+
+/** Авто-высота полей только внутри одного web-блока: иначе при фокусе в «Стоимость» пересчитываются все textarea на странице, скачет вёрстка и withPreservedScrollPortAnchor тянет скролл к низу области. */
+function resolveWebBlockAutosizeRoot(anchor: HTMLElement | null, ed: HTMLElement): HTMLElement {
+  if (!anchor) return ed;
+  const root =
+    anchor.closest(".page-web-text-block") ??
+    anchor.closest(".page-web-text-block-v2") ??
+    anchor.closest(".page-web-cover") ??
+    anchor.closest(".page-web-timeline") ??
+    anchor.closest(".page-web-text-media") ??
+    anchor.closest(".page-web-carousel");
+  return (root as HTMLElement | null) ?? ed;
+}
+
 export default function PageEditorDetailsPage() {
   const params = useParams<{ id?: string | string[] }>();
   const pageId = useMemo(() => adminPageIdFromParams(params ?? null), [params]);
@@ -2126,7 +4617,7 @@ export default function PageEditorDetailsPage() {
   const [contentHtml, setContentHtml] = useState("");
   const hasWebBlocksInCanvas = useMemo(
     () =>
-      /page-web-(?:cover|carousel|timeline|text-media|text-block|spacer)\b/.test(
+      /page-web-(?:cover|carousel|timeline|text-media|text-block|text-block-v2|spacer)\b/.test(
         contentHtml,
       ),
     [contentHtml],
@@ -2159,6 +4650,7 @@ export default function PageEditorDetailsPage() {
   const [tableWidthModalOpen, setTableWidthModalOpen] = useState(false);
   const [tableWidthModalValue, setTableWidthModalValue] = useState("");
   const [coverButtonLinkModalOpen, setCoverButtonLinkModalOpen] = useState(false);
+  const [coverButtonLinkModalLabelValue, setCoverButtonLinkModalLabelValue] = useState("");
   const [coverButtonLinkModalValue, setCoverButtonLinkModalValue] = useState("");
   const [featureGridIconPickerOpen, setFeatureGridIconPickerOpen] = useState(false);
   const [featureGridIconPickerValue, setFeatureGridIconPickerValue] = useState<FeatureGridIconPreset["id"]>("bolt");
@@ -2195,6 +4687,7 @@ export default function PageEditorDetailsPage() {
   const tableDropdownRef = useRef<HTMLDivElement | null>(null);
   const tableBorderDropdownRef = useRef<HTMLDivElement | null>(null);
   const tableWidthModalInputRef = useRef<HTMLInputElement | null>(null);
+  const coverButtonLinkModalLabelInputRef = useRef<HTMLInputElement | null>(null);
   const coverButtonLinkModalInputRef = useRef<HTMLInputElement | null>(null);
   const tableRowHeightModalInputRef = useRef<HTMLInputElement | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
@@ -2217,9 +4710,92 @@ export default function PageEditorDetailsPage() {
     aspectRatio: number;
   } | null>(null);
   const selectedImageWrapperRef = useRef<HTMLElement | null>(null);
+  /** Ряд CTA v2: фокус снимается при mousedown на тулбаре, но выравнивание должно знать цель до click. */
+  const selectedWebElementsActionsRef = useRef<HTMLElement | null>(null);
   const cellMenuRef = useRef<HTMLDivElement | null>(null);
   const preserveTableSelectionRef = useRef(false);
   const editorScrollRef = useRef<HTMLDivElement | null>(null);
+  /** Автовысота textarea меняет layout; без этого скролл-обёртка «подкручивается» (scroll anchoring + фокус). */
+  const withPreservedEditorScroll = useCallback((run: () => void) => {
+    const scrollEl = editorScrollRef.current;
+    if (!scrollEl) {
+      run();
+      return;
+    }
+    const top = scrollEl.scrollTop;
+    const left = scrollEl.scrollLeft;
+    run();
+    scrollEl.scrollTop = top;
+    scrollEl.scrollLeft = left;
+    requestAnimationFrame(() => {
+      if (editorScrollRef.current !== scrollEl) return;
+      scrollEl.scrollTop = top;
+      scrollEl.scrollLeft = left;
+    });
+  }, []);
+
+  /**
+   * После смены фокуса фиксированный scrollTop из `withPreservedEditorScroll` часто даёт скачок вверх: вёрстка
+   * меняется (autosize), а старый scrollTop уже не соответствует. Держим положение якоря относительно верха
+   * видимой области скролла.
+   */
+  const withPreservedScrollPortAnchor = useCallback(
+    (anchor: HTMLElement | null, run: () => void, reason = "unspecified") => {
+      const scrollEl = editorScrollRef.current;
+      if (!scrollEl) {
+        if (editorLayoutDebugOn()) {
+          logPageEditorLayout(`scrollPortAnchor:noScrollEl:${reason}`, { anchor: summarizeLayoutElement(anchor) });
+        }
+        run();
+        return;
+      }
+      if (!anchor || !scrollEl.contains(anchor)) {
+        if (editorLayoutDebugOn()) {
+          logPageEditorLayout(`scrollPortAnchor:noAnchor:${reason}`, {
+            anchor: summarizeLayoutElement(anchor),
+            anchorInScroll: !!(anchor && scrollEl.contains(anchor)),
+            ...layoutScrollSnapshot(scrollEl, anchor),
+          });
+        }
+        run();
+        return;
+      }
+      const portTop = scrollEl.getBoundingClientRect().top;
+      const anchorVsPortTop = () => anchor.getBoundingClientRect().top - portTop;
+      const before = anchorVsPortTop();
+      if (editorLayoutDebugOn()) {
+        logPageEditorLayout(`scrollPortAnchor:beforeRun:${reason}`, {
+          beforeAnchorVsPortTop: Math.round(before * 10) / 10,
+          ...layoutScrollSnapshot(scrollEl, anchor),
+        });
+      }
+      run();
+      let d = before - anchorVsPortTop();
+      if (d !== 0) scrollEl.scrollTop += d;
+      if (editorLayoutDebugOn()) {
+        logPageEditorLayout(`scrollPortAnchor:afterSync:${reason}`, {
+          d: Math.round(d * 10) / 10,
+          scrollTopAfter: scrollEl.scrollTop,
+          anchorVsPortTop: Math.round(anchorVsPortTop() * 10) / 10,
+          ...layoutScrollSnapshot(scrollEl, anchor),
+        });
+      }
+      requestAnimationFrame(() => {
+        if (editorScrollRef.current !== scrollEl || !scrollEl.contains(anchor)) return;
+        d = before - anchorVsPortTop();
+        if (d !== 0) scrollEl.scrollTop += d;
+        if (editorLayoutDebugOn()) {
+          logPageEditorLayout(`scrollPortAnchor:afterRaf:${reason}`, {
+            d: Math.round(d * 10) / 10,
+            scrollTopAfter: scrollEl.scrollTop,
+            anchorVsPortTop: Math.round(anchorVsPortTop() * 10) / 10,
+            ...layoutScrollSnapshot(scrollEl, anchor),
+          });
+        }
+      });
+    },
+    [],
+  );
   const toolbarRef = useRef<HTMLDivElement | null>(null);
   const editorWrapperRef = useRef<HTMLDivElement | null>(null);
   const selectedCellRef = useRef<HTMLTableCellElement | null>(null);
@@ -2376,6 +4952,15 @@ export default function PageEditorDetailsPage() {
       if (el && !inTextBlockToolbar) {
         el.querySelectorAll(".page-web-text-block-toolbar").forEach((node) => {
           closeTextBlockToolbarMenus(node as HTMLElement);
+        });
+      }
+      const inTextBlockV2Toolbar = eventPath.some((node) => {
+        if (!(node instanceof Element)) return false;
+        return !!node.closest?.(".page-web-text-block-v2-toolbar");
+      }) || !!targetEl?.closest?.(".page-web-text-block-v2-toolbar");
+      if (el && !inTextBlockV2Toolbar) {
+        el.querySelectorAll(".page-web-text-block-v2-toolbar").forEach((node) => {
+          closeTextBlockV2ToolbarMenus(node as HTMLElement);
         });
       }
       const inSpacerToolbar = eventPath.some((node) => {
@@ -2580,30 +5165,257 @@ export default function PageEditorDetailsPage() {
       el.setAttribute(PAGE_EDITOR_FOCUS_TARGET_ATTR, "1");
     };
 
+    // Заголовок баннера: textarea не живёт в .page-web-text-block*, а общая ветка для v2 полей его не помечает;
+    // плюс inner может быть ещё без data-cover-unlocked — без этой ветки подсветка фокуса пропадает.
+    const coverInnerLoose = node.closest(".page-web-cover-inner") as HTMLElement | null;
+    if (coverInnerLoose && ed.contains(coverInnerLoose)) {
+      const coverTitleIsland = coverInnerLoose.querySelector(
+        ":scope > .page-web-elements.page-web-elements-title",
+      ) as HTMLElement | null;
+      if (
+        node instanceof HTMLTextAreaElement &&
+        node.classList.contains("page-web-elements-title-input") &&
+        coverTitleIsland &&
+        coverTitleIsland.contains(node)
+      ) {
+        mark(node);
+        return;
+      }
+      const descInputLoose = node.closest(".page-web-elements-description-input") as HTMLTextAreaElement | null;
+      if (
+        descInputLoose &&
+        coverInnerLoose.contains(descInputLoose) &&
+        !node.closest("table.page-editor-table")
+      ) {
+        const descWrap = descInputLoose.closest(".page-web-elements.page-web-elements-description") as HTMLElement | null;
+        if (descWrap && descWrap.parentElement === coverInnerLoose) {
+          mark(descInputLoose);
+          return;
+        }
+      }
+      const annInputLoose = node.closest(".page-web-elements-announcement-input") as HTMLElement | null;
+      if (
+        annInputLoose &&
+        coverInnerLoose.contains(annInputLoose) &&
+        !node.closest("table.page-editor-table")
+      ) {
+        const annWrap = annInputLoose.closest(".page-web-elements.page-web-elements-announcement") as HTMLElement | null;
+        if (annWrap && annWrap.parentElement === coverInnerLoose) {
+          mark(annInputLoose);
+          return;
+        }
+      }
+      const actionsLoose = coverInnerLoose.querySelector(":scope > .page-web-elements-actions") as HTMLElement | null;
+      if (actionsLoose && actionsLoose.contains(node) && !node.closest("table.page-editor-table")) {
+        const lmLoose = node.closest(".page-web-cover-el-learn-more") as HTMLElement | null;
+        if (lmLoose && actionsLoose.contains(lmLoose)) {
+          mark(lmLoose);
+          return;
+        }
+        const clusterLoose = actionsLoose.querySelector(
+          ":scope > .page-web-elements-actions-cluster",
+        ) as HTMLElement | null;
+        if (clusterLoose) {
+          mark(clusterLoose);
+          return;
+        }
+      }
+    }
+
     const coverInner = node.closest(".page-web-cover-inner[data-cover-unlocked='1']") as HTMLElement | null;
     if (coverInner && ed.contains(coverInner)) {
+      let coverTitleTa: HTMLTextAreaElement | null = null;
+      if (node instanceof HTMLTextAreaElement && node.classList.contains("page-web-elements-title-input")) {
+        const titleIsland = coverInner.querySelector(":scope > .page-web-elements.page-web-elements-title");
+        if (titleIsland?.contains(node)) coverTitleTa = node;
+      }
+      if (coverTitleTa) {
+        mark(coverTitleTa);
+        return;
+      }
+      const coverDescTa =
+        node instanceof HTMLTextAreaElement && node.classList.contains("page-web-elements-description-input")
+          ? node
+          : (node.closest("textarea.page-web-elements-description-input") as HTMLTextAreaElement | null);
+      const coverDescWrap = coverDescTa?.closest(
+        ".page-web-elements.page-web-elements-description",
+      ) as HTMLElement | null;
+      if (
+        coverDescTa &&
+        coverDescWrap &&
+        coverInner.contains(coverDescTa) &&
+        coverDescWrap.parentElement === coverInner
+      ) {
+        mark(coverDescTa);
+        return;
+      }
+      const coverAnnInput =
+        node instanceof HTMLElement && node.classList.contains("page-web-elements-announcement-input")
+          ? node
+          : (node.closest(".page-web-elements-announcement-input") as HTMLElement | null);
+      const coverAnnWrap = coverAnnInput?.closest(
+        ".page-web-elements.page-web-elements-announcement",
+      ) as HTMLElement | null;
+      if (coverAnnInput && coverAnnWrap && coverInner.contains(coverAnnInput) && coverAnnWrap.parentElement === coverInner) {
+        mark(coverAnnInput);
+        return;
+      }
+      const actionsDirect = coverInner.querySelector(":scope > .page-web-elements-actions") as HTMLElement | null;
+      if (actionsDirect && actionsDirect.contains(node)) {
+        const lm = node.closest(".page-web-cover-el-learn-more") as HTMLElement | null;
+        if (lm && actionsDirect.contains(lm)) {
+          mark(lm);
+          return;
+        }
+        const cluster = actionsDirect.querySelector(
+          ":scope > .page-web-elements-actions-cluster",
+        ) as HTMLElement | null;
+        if (cluster) {
+          mark(cluster);
+          return;
+        }
+      }
       const target =
         (node.closest(
-          ".page-web-cover-el-title, .page-web-cover-el-subtitle, .page-web-cover-el-button-wrap, .page-web-cover-el-announcement-wrap",
+          ".page-web-elements.page-web-elements-title, .page-web-elements.page-web-elements-announcement, .page-web-elements.page-web-elements-description, .page-web-cover-el-subtitle, .page-web-cover-el-button-wrap, .page-web-cover-el-announcement-wrap, .page-web-elements-actions-cluster",
         ) as HTMLElement | null) ??
-        (node.closest(".page-web-cover-el-learn-more, .page-web-cover-el-announcement-learn-more") as HTMLElement | null);
+        (node.closest(
+          ".page-web-cover-el-learn-more, .page-web-cover-el-announcement-learn-more, .page-web-elements-announcement-learn-more",
+        ) as HTMLElement | null);
       if (target && coverInner.contains(target)) mark(target);
       return;
     }
 
     const timeline = node.closest(".page-web-timeline") as HTMLElement | null;
     if (timeline && ed.contains(timeline)) {
+      if (
+        node instanceof HTMLTextAreaElement &&
+        (node.matches(".page-web-elements-subtitle-input") ||
+          node.matches(".page-web-elements-title-input") ||
+          node.matches(".page-web-elements-description-input"))
+      ) {
+        const head = node.closest(".page-web-timeline-head");
+        if (head && timeline.contains(head)) {
+          mark(node);
+          return;
+        }
+      }
+      if (node instanceof HTMLTextAreaElement && node.matches(".page-web-elements-subtitle-input")) {
+        const termIsland = node.closest(
+          ".page-web-elements.page-web-elements-subtitle.page-web-timeline-term",
+        ) as HTMLElement | null;
+        const parentItem = termIsland?.parentElement;
+        if (
+          termIsland &&
+          parentItem?.classList.contains("page-web-timeline-item") &&
+          timeline.contains(termIsland)
+        ) {
+          mark(node);
+          return;
+        }
+      }
+      if (node instanceof HTMLTextAreaElement && node.matches(".page-web-elements-description-input")) {
+        const descWrap = node.closest(
+          ".page-web-elements.page-web-elements-description.page-web-timeline-text",
+        ) as HTMLElement | null;
+        if (descWrap && descWrap.closest(".page-web-timeline-content") && timeline.contains(descWrap)) {
+          mark(node);
+          return;
+        }
+      }
+      if (node instanceof HTMLTextAreaElement && node.matches(".page-web-elements-title2-input")) {
+        const stepContent = node.closest(".page-web-timeline-content");
+        if (stepContent && timeline.contains(stepContent)) {
+          mark(node);
+          return;
+        }
+      }
       const target = node.closest(
-        ".page-web-timeline-subtitle, .page-web-timeline-heading, .page-web-timeline-description, .page-web-timeline-term, .page-web-timeline-title, .page-web-timeline-text",
+        ".page-web-timeline-subtitle, .page-web-timeline-heading, .page-web-timeline-description, .page-web-timeline-term, .page-web-timeline-text",
       ) as HTMLElement | null;
       if (target && timeline.contains(target)) mark(target);
       return;
     }
 
+    const ctaWrap = node.closest(".page-web-elements-cta-wrap") as HTMLElement | null;
+    if (ctaWrap && ed.contains(ctaWrap) && ctaWrap.contains(node)) {
+      const actionsRow = ctaWrap.closest(".page-web-elements-actions") as HTMLElement | null;
+      const clusterFromRow = actionsRow?.querySelector(
+        ":scope > .page-web-elements-actions-cluster",
+      ) as HTMLElement | null;
+      if (clusterFromRow && clusterFromRow.contains(ctaWrap)) {
+        mark(clusterFromRow);
+        return;
+      }
+      const inner =
+        (ctaWrap.querySelector(":scope > a.page-web-elements-cta-button") as HTMLElement | null) ??
+        (ctaWrap.querySelector(":scope > a.page-web-elements-cta-button-secondary") as HTMLElement | null) ??
+        (ctaWrap.querySelector(":scope > span.page-web-elements-cta-button") as HTMLElement | null) ??
+        (ctaWrap.querySelector(":scope > span.page-web-elements-cta-button-secondary") as HTMLElement | null);
+      if (inner) {
+        mark(inner);
+        return;
+      }
+    }
+
     const workPricingRoot = node.closest(".page-web-work-pricing") as HTMLElement | null;
     if (workPricingRoot && ed.contains(workPricingRoot)) {
+      const ta = node.closest(
+        ".page-web-work-pricing textarea.page-web-elements-title-input, .page-web-work-pricing textarea.page-web-elements-title2-input, .page-web-work-pricing textarea.page-web-elements-subtitle-input, .page-web-work-pricing textarea.page-web-elements-description-input",
+      ) as HTMLTextAreaElement | null;
+      if (ta && workPricingRoot.contains(ta)) {
+        mark(ta);
+        return;
+      }
       const target = node.closest(WORK_PRICING_EDITABLE_LEAF_SELECTOR) as HTMLElement | null;
       if (target && workPricingRoot.contains(target)) mark(target);
+      return;
+    }
+
+    if (
+      node instanceof Element &&
+      (node.matches(".page-web-text-block-subtitle-input") ||
+        node.matches(".page-web-text-block-title-input") ||
+        node.matches(".page-web-text-block-lead-input"))
+    ) {
+      const shell = node.closest(".page-web-text-block") as HTMLElement | null;
+      if (shell && ed.contains(shell)) mark(node as HTMLElement);
+      return;
+    }
+
+    if (
+      node instanceof Element &&
+      (node.matches(".page-web-elements-announcement-input") ||
+        node.matches(".page-web-elements-title-input") ||
+        node.matches(".page-web-elements-title2-input") ||
+        node.matches(".page-web-elements-subtitle-input") ||
+        node.matches(".page-web-elements-description-input"))
+    ) {
+      const shell =
+        (node.closest(".page-web-text-block-v2") as HTMLElement | null) ??
+        (node.closest(".page-web-text-block") as HTMLElement | null) ??
+        (node.closest(".page-web-timeline") as HTMLElement | null);
+      if (shell && ed.contains(shell)) mark(node as HTMLElement);
+      return;
+    }
+
+    if (node instanceof Element && node.matches(".page-web-elements-actions-cluster")) {
+      const shell =
+        (node.closest(".page-web-text-block-v2") as HTMLElement | null) ??
+        (node.closest(".page-web-text-block") as HTMLElement | null);
+      if (shell && ed.contains(shell)) mark(node as HTMLElement);
+      return;
+    }
+
+    if (
+      node instanceof Element &&
+      node.matches(".page-web-elements-actions") &&
+      !node.querySelector(":scope > .page-web-elements-actions-cluster")
+    ) {
+      const shell =
+        (node.closest(".page-web-text-block-v2") as HTMLElement | null) ??
+        (node.closest(".page-web-text-block") as HTMLElement | null);
+      if (shell && ed.contains(shell)) mark(node as HTMLElement);
       return;
     }
 
@@ -2627,6 +5439,101 @@ export default function PageEditorDetailsPage() {
   function updateToolbarState() {
     const el = editorRef.current;
     if (!el || !document.contains(el)) return;
+    const active = document.activeElement as HTMLElement | null;
+    const actionsOuter =
+      active && el.contains(active) ? getWebElementsActionsOuterFromFocus(active) : null;
+    if (actionsOuter?.classList.contains("page-web-elements-actions")) {
+      el.querySelectorAll(`[${PAGE_EDITOR_FOCUS_TARGET_ATTR}]`).forEach((n) =>
+        n.removeAttribute(PAGE_EDITOR_FOCUS_TARGET_ATTR),
+      );
+      const focusEl =
+        (actionsOuter.querySelector(":scope > .page-web-elements-actions-cluster") as HTMLElement | null) ??
+        actionsOuter;
+      focusEl.setAttribute(PAGE_EDITOR_FOCUS_TARGET_ATTR, "1");
+      selectedWebElementsActionsRef.current = focusEl;
+      setAlignment(readWebElementsActionsAlign(actionsOuter));
+      setIsInTable(false);
+      setIsInWebCoverContent(false);
+      syncPageEditorFocusTarget(el, null);
+      return;
+    }
+    const activeInput =
+      active &&
+      el.contains(active) &&
+      active.matches(
+        ".page-web-text-block-subtitle-input, .page-web-text-block-title-input, .page-web-text-block-lead-input, .page-web-elements-announcement-input, .page-web-elements-title-input, .page-web-elements-title2-input, .page-web-elements-subtitle-input, .page-web-elements-description-input",
+      ) &&
+      (active instanceof HTMLInputElement ||
+        active instanceof HTMLTextAreaElement ||
+        (active.matches(".page-web-elements-announcement-input") &&
+          active.getAttribute("contenteditable") === "true"))
+        ? active
+        : null;
+    if (activeInput) {
+      el.querySelectorAll(`[${PAGE_EDITOR_FOCUS_TARGET_ATTR}]`).forEach((n) =>
+        n.removeAttribute(PAGE_EDITOR_FOCUS_TARGET_ATTR),
+      );
+      activeInput.setAttribute(PAGE_EDITOR_FOCUS_TARGET_ATTR, "1");
+      const isElementsTextTa =
+        activeInput instanceof HTMLTextAreaElement &&
+        (activeInput.matches(".page-web-elements-subtitle-input") ||
+          activeInput.matches(".page-web-elements-title-input") ||
+          activeInput.matches(".page-web-elements-title2-input") ||
+          activeInput.matches(".page-web-elements-description-input"));
+      const coverBannerForToolbar = activeInput.closest(".page-web-cover") as HTMLElement | null;
+      const inCoverBannerToolbar =
+        !!coverBannerForToolbar &&
+        el.contains(coverBannerForToolbar) &&
+        !!activeInput.closest(".page-web-cover-inner") &&
+        isElementsTextTa;
+      if (inCoverBannerToolbar && coverBannerForToolbar && activeInput.matches(".page-web-elements-title-input")) {
+        const titleIsland = activeInput.closest(".page-web-elements.page-web-elements-title") as HTMLElement | null;
+        const ha = (titleIsland?.getAttribute("data-cover-title-halign") || "center").toLowerCase();
+        setAlignment(ha === "center" || ha === "right" ? ha : "left");
+        const va = (coverBannerForToolbar.getAttribute("data-cover-valign") || "middle").toLowerCase();
+        setCoverVerticalAlign(va === "top" || va === "bottom" ? va : "middle");
+        setIsInTable(false);
+        setIsInWebCoverContent(true);
+        syncPageEditorFocusTarget(el, null);
+        return;
+      }
+      const leadRowForHalign = activeInput.closest(".page-web-feature-grid-lead-row") as HTMLElement | null;
+      const inFeatureGridMessage = !!activeInput.closest(".page-web-feature-grid-message");
+      const halignFromLeadRow =
+        isElementsTextTa &&
+        inFeatureGridMessage &&
+        leadRowForHalign &&
+        leadRowForHalign.querySelector(":scope > .page-web-feature-grid-message")
+          ? (leadRowForHalign.getAttribute("data-web-elements-halign") || "").trim().toLowerCase()
+          : "";
+      const wpAlignWrap = activeInput.closest(WORK_PRICING_WEB_ELEMENTS_ALIGN_WRAP_SELECTOR) as HTMLElement | null;
+      const halignFromWorkPricing =
+        isElementsTextTa && wpAlignWrap?.closest(".page-web-work-pricing")
+          ? (wpAlignWrap.getAttribute(WORK_PRICING_WEB_ELEMENTS_HALIGN_ATTR) || "").trim().toLowerCase()
+          : "";
+      const alignEl =
+        activeInput.matches(".page-web-elements-announcement-input") &&
+        activeInput.getAttribute("contenteditable") === "true"
+          ? (activeInput.closest(".page-web-elements-announcement-row") as HTMLElement | null) ?? activeInput
+          : isElementsTextTa
+            ? (activeInput.closest(".page-web-elements-field-row") as HTMLElement | null) ?? activeInput
+            : activeInput;
+      const inputAlignRaw =
+        halignFromLeadRow === "center" || halignFromLeadRow === "right" || halignFromLeadRow === "left"
+          ? halignFromLeadRow
+          : halignFromWorkPricing === "center" ||
+              halignFromWorkPricing === "right" ||
+              halignFromWorkPricing === "left"
+            ? halignFromWorkPricing
+            : (alignEl.style.textAlign || getComputedStyle(alignEl).textAlign || "").toLowerCase();
+      const inputAlign =
+        inputAlignRaw === "center" || inputAlignRaw === "right" || inputAlignRaw === "left" ? inputAlignRaw : "left";
+      setAlignment(inputAlign);
+      setIsInTable(false);
+      setIsInWebCoverContent(false);
+      syncPageEditorFocusTarget(el, null);
+      return;
+    }
 
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) {
@@ -2799,7 +5706,7 @@ export default function PageEditorDetailsPage() {
             const cover = inner.closest(".page-web-cover") as HTMLElement | null;
             if (cover && el.contains(cover)) {
               inWebCoverLayouts = true;
-              const ha = (cover.getAttribute("data-cover-halign") || "left").toLowerCase();
+              const ha = (cover.getAttribute("data-cover-halign") || "center").toLowerCase();
               const va = (cover.getAttribute("data-cover-valign") || "top").toLowerCase();
               setCoverVerticalAlign(va === "middle" || va === "bottom" ? va : "top");
               const selectedImage = selectedImageWrapperRef.current;
@@ -2809,7 +5716,34 @@ export default function PageEditorDetailsPage() {
                 el.contains(selectedImage) &&
                 (selectedImage === anchor || selectedImage.contains(anchor));
               if (!inSelectedImage) {
-                setAlignment(ha === "center" || ha === "right" ? ha : "left");
+                const refSel = selectedWebElementsActionsRef.current;
+                let coverActionsOuter: HTMLElement | null = null;
+                if (refSel && el.contains(refSel) && inner.contains(refSel)) {
+                  const o = getWebElementsActionsOuterFromFocus(refSel as HTMLElement);
+                  if (
+                    o &&
+                    o.classList.contains("page-web-elements-actions") &&
+                    o.parentElement === inner
+                  ) {
+                    coverActionsOuter = o;
+                  }
+                }
+                if (!coverActionsOuter) {
+                  const anchor = range.commonAncestorContainer;
+                  const probe =
+                    anchor.nodeType === Node.TEXT_NODE
+                      ? (anchor.parentElement as Element | null)
+                      : (anchor as Element | null);
+                  const found = probe?.closest(".page-web-elements-actions") as HTMLElement | null;
+                  if (found && found.parentElement === inner && inner.contains(found)) {
+                    coverActionsOuter = found;
+                  }
+                }
+                if (coverActionsOuter) {
+                  setAlignment(readWebElementsActionsAlign(coverActionsOuter));
+                } else {
+                  setAlignment(ha === "center" || ha === "right" ? ha : "left");
+                }
               }
             }
           }
@@ -3232,16 +6166,43 @@ export default function PageEditorDetailsPage() {
       const sel = typeof window !== "undefined" ? window.getSelection() : null;
       const selectionInsideEditor =
         !!ed && !!sel && sel.rangeCount > 0 && ed.contains(sel.getRangeAt(0).commonAncestorContainer);
+      const active = typeof document !== "undefined" ? (document.activeElement as HTMLElement | null) : null;
+      const plainTextBlockFieldActive =
+        !!ed &&
+        !!active &&
+        ed.contains(active) &&
+        (active.matches(".page-web-text-block-subtitle-input") ||
+          active.matches(".page-web-text-block-title-input") ||
+          active.matches(".page-web-text-block-lead-input") ||
+          active.matches(".page-web-elements-announcement-input") ||
+          active.matches(".page-web-elements-title-input") ||
+          active.matches(".page-web-elements-title2-input") ||
+          active.matches(".page-web-elements-subtitle-input") ||
+          active.matches(".page-web-elements-description-input"));
       // Keep typing path native: don't commit React HTML state while caret is still inside editor.
-      if (selectionInsideEditor) {
+      if (selectionInsideEditor || plainTextBlockFieldActive) {
         inputSyncTimerRef.current = window.setTimeout(() => {
           inputSyncTimerRef.current = null;
           const delayed = pendingInputHtmlRef.current;
           if (typeof delayed === "string") {
             const delayedSel = typeof window !== "undefined" ? window.getSelection() : null;
+            const delayedActive =
+              typeof document !== "undefined" ? (document.activeElement as HTMLElement | null) : null;
+            const delayedPlainField =
+              !!ed &&
+              !!delayedActive &&
+              ed.contains(delayedActive) &&
+              (delayedActive.matches(".page-web-text-block-subtitle-input") ||
+                delayedActive.matches(".page-web-text-block-title-input") ||
+                delayedActive.matches(".page-web-text-block-lead-input") ||
+                delayedActive.matches(".page-web-elements-announcement-input") ||
+                delayedActive.matches(".page-web-elements-title-input") ||
+                delayedActive.matches(".page-web-elements-title2-input") ||
+                delayedActive.matches(".page-web-elements-subtitle-input") ||
+                delayedActive.matches(".page-web-elements-description-input"));
             const delayedInside =
               !!ed && !!delayedSel && delayedSel.rangeCount > 0 && ed.contains(delayedSel.getRangeAt(0).commonAncestorContainer);
-            if (!delayedInside) {
+            if (!delayedInside && !delayedPlainField) {
               pendingInputHtmlRef.current = null;
               setContentHtml((prev) => (prev === delayed ? prev : delayed));
             }
@@ -3252,6 +6213,68 @@ export default function PageEditorDetailsPage() {
       pendingInputHtmlRef.current = null;
       setContentHtml((prev) => (prev === pending ? prev : pending));
     }, 120);
+  }
+
+  function isWebTextBlockV2AnnouncementVisuallyEmpty(el: HTMLElement): boolean {
+    const raw = (el.innerText ?? "").replace(/\r\n/g, "\n").replace(/\u200b/g, "");
+    return raw.replace(/[\n\r\t\f\v \u00A0]/g, "").length === 0;
+  }
+
+  function syncWebTextBlockV2AnnouncementPlaceholderAttr(el: HTMLElement): void {
+    if (!el.matches(".page-web-elements-announcement-input")) return;
+    if (isWebTextBlockV2AnnouncementVisuallyEmpty(el)) el.setAttribute("data-placeholder-visible", "1");
+    else el.removeAttribute("data-placeholder-visible");
+  }
+
+  function normalizeWebTextBlockV2AnnouncementPlaceholderAttrs(root: HTMLElement): boolean {
+    let changed = false;
+    root.querySelectorAll(".page-web-elements-announcement-input").forEach((n) => {
+      if (!(n instanceof HTMLElement)) return;
+      const prev = n.getAttribute("data-placeholder-visible");
+      syncWebTextBlockV2AnnouncementPlaceholderAttr(n);
+      if (prev !== n.getAttribute("data-placeholder-visible")) changed = true;
+    });
+    return changed;
+  }
+
+  /**
+   * Перед сериализацией innerHTML синхронизируем живые значения полей v2 в DOM-разметку.
+   * Для анонса (contenteditable) по умолчанию не перезаписываем `textContent` при вводе — иначе сбрасывается каретка;
+   * полная подстановка plain-текста только при `flushAnnouncementText` (сохранение, уход фокуса с редактора).
+   */
+  function syncWebTextBlockV2FieldValuesForSerialization(
+    root: HTMLElement,
+    opts?: { flushAnnouncementText?: boolean },
+  ) {
+    const flushAnnouncementText = opts?.flushAnnouncementText === true;
+    root
+      .querySelectorAll(
+        ".page-web-elements-announcement-input, .page-web-elements-subtitle-input, .page-web-elements-title-input, .page-web-elements-title2-input, .page-web-elements-description-input",
+      )
+      .forEach((node) => {
+        if (node instanceof HTMLElement && node.matches(".page-web-elements-announcement-input")) {
+          if (node.getAttribute("contenteditable") === "true") {
+            const raw = (node.innerText ?? "").replace(/\r\n/g, "\n").replace(/\u200b/g, "");
+            if (raw.replace(/[\n\r\t\f\v \u00A0]/g, "").length === 0) {
+              node.textContent = "";
+            } else if (flushAnnouncementText) {
+              node.textContent = raw;
+            }
+            syncWebTextBlockV2AnnouncementPlaceholderAttr(node);
+          } else {
+            syncWebTextBlockV2AnnouncementPlaceholderAttr(node);
+          }
+          return;
+        }
+        if (node instanceof HTMLTextAreaElement) {
+          if (node.textContent !== node.value) node.textContent = node.value;
+          node.defaultValue = node.value;
+          return;
+        }
+        if (node instanceof HTMLInputElement) {
+          node.setAttribute("value", node.value);
+        }
+      });
   }
 
   function flushScheduledEditorHtmlStateSync() {
@@ -3322,7 +6345,79 @@ export default function PageEditorDetailsPage() {
     normalizeImages();
     normalizeWebCoverInnerEditability(root);
     normalizeWebTextBlockContentEditability(root);
+    if (ENABLE_LEGACY_WEB_BLOCK_HTML_MIGRATIONS && migrateLegacyFeatureGridSubtitleToWebElements(root) && caretDebugOn()) {
+      logPageEditorCaret("layoutEffect[contentHtml]:feature-grid-subtitle-elements-migrate", {});
+    }
+    if (ENABLE_LEGACY_WEB_BLOCK_HTML_MIGRATIONS && migrateLegacyFeatureGridTitleToWebElements(root) && caretDebugOn()) {
+      logPageEditorCaret("layoutEffect[contentHtml]:feature-grid-title-elements-migrate", {});
+    }
+    if (ENABLE_LEGACY_WEB_BLOCK_HTML_MIGRATIONS && migrateLegacyFeatureGridLeadToWebElements(root) && caretDebugOn()) {
+      logPageEditorCaret("layoutEffect[contentHtml]:feature-grid-lead-elements-migrate", {});
+    }
+    if (ENABLE_LEGACY_WEB_BLOCK_HTML_MIGRATIONS && migrateLegacyFeatureGridMessageTitleToWebElements(root) && caretDebugOn()) {
+      logPageEditorCaret("layoutEffect[contentHtml]:feature-grid-message-title-migrate", {});
+    }
+    if (ENABLE_LEGACY_WEB_BLOCK_HTML_MIGRATIONS && migrateLegacyFeatureGridMessageBodyToWebElements(root) && caretDebugOn()) {
+      logPageEditorCaret("layoutEffect[contentHtml]:feature-grid-message-body-migrate", {});
+    }
+    if (ENABLE_LEGACY_WEB_BLOCK_HTML_MIGRATIONS && migrateLegacyFeatureGridCardTitleToTitle2(root) && caretDebugOn()) {
+      logPageEditorCaret("layoutEffect[contentHtml]:feature-grid-card-title2-migrate", {});
+    }
+    if (ENABLE_LEGACY_WEB_BLOCK_HTML_MIGRATIONS && migrateLegacyFeatureGridCardBodyToWebElements(root) && caretDebugOn()) {
+      logPageEditorCaret("layoutEffect[contentHtml]:feature-grid-card-body-description-migrate", {});
+    }
+    if (ENABLE_LEGACY_WEB_BLOCK_HTML_MIGRATIONS && migrateLegacyWorkPricingPriceCaptionParagraphToWebElements(root) && caretDebugOn()) {
+      logPageEditorCaret("layoutEffect[contentHtml]:work-pricing-price-caption-migrate", {});
+    }
+    if (ENABLE_LEGACY_WEB_BLOCK_HTML_MIGRATIONS && migrateLegacyWorkPricingMainTitleToWebElements(root) && caretDebugOn()) {
+      logPageEditorCaret("layoutEffect[contentHtml]:work-pricing-main-title-migrate", {});
+    }
+    if (ENABLE_LEGACY_WEB_BLOCK_HTML_MIGRATIONS && migrateLegacyWorkPricingIncludedRowSubtitleToWebElements(root) && caretDebugOn()) {
+      logPageEditorCaret("layoutEffect[contentHtml]:work-pricing-included-row-subtitle-migrate", {});
+    }
+    if (ENABLE_LEGACY_WEB_BLOCK_HTML_MIGRATIONS && migrateLegacyWorkPricingLeadParagraphToWebElements(root) && caretDebugOn()) {
+      logPageEditorCaret("layoutEffect[contentHtml]:work-pricing-lead-migrate", {});
+    }
+    if (ENABLE_LEGACY_WEB_BLOCK_HTML_MIGRATIONS && migrateLegacyWorkPricingRightColumnFootnoteToWebElements(root) && caretDebugOn()) {
+      logPageEditorCaret("layoutEffect[contentHtml]:work-pricing-footnote-migrate", {});
+    }
+    if (ENABLE_LEGACY_WEB_BLOCK_HTML_MIGRATIONS && migrateLegacyWorkPricingPriceRowToWebElements(root) && caretDebugOn()) {
+      logPageEditorCaret("layoutEffect[contentHtml]:work-pricing-price-row-migrate", {});
+    }
+    if (ENABLE_LEGACY_WEB_BLOCK_HTML_MIGRATIONS && migrateLegacyWorkPricingCtaAnchorToWebElements(root) && caretDebugOn()) {
+      logPageEditorCaret("layoutEffect[contentHtml]:work-pricing-cta-anchor-migrate", {});
+    }
+    if (ENABLE_LEGACY_WEB_BLOCK_HTML_MIGRATIONS && migrateLegacyWorkPricingListItemBodyToWebElements(root) && caretDebugOn()) {
+      logPageEditorCaret("layoutEffect[contentHtml]:work-pricing-list-item-body-migrate", {});
+    }
+    if (ensureWebElementsTextFieldRowsInRoot(root) && caretDebugOn()) {
+      logPageEditorCaret("layoutEffect[contentHtml]:web-elements-field-rows", {});
+    }
+    if (syncFeatureGridLeadRowHalignFromFieldRows(root) && caretDebugOn()) {
+      logPageEditorCaret("layoutEffect[contentHtml]:feature-grid-lead-row-halign-sync", {});
+    }
+    if (ensureWebElementsActionsClustersInRoot(root) && caretDebugOn()) {
+      logPageEditorCaret("layoutEffect[contentHtml]:web-elements-actions-cluster", {});
+    }
+    if (ENABLE_LEGACY_WEB_BLOCK_HTML_MIGRATIONS && migrateLegacyCoverTitleHeadingToWebElements(root) && caretDebugOn()) {
+      logPageEditorCaret("layoutEffect[contentHtml]:cover-title-textarea-migrate", {});
+    }
+    if (ENABLE_LEGACY_WEB_BLOCK_HTML_MIGRATIONS && migrateLegacyCoverSubtitleToWebElements(root) && caretDebugOn()) {
+      logPageEditorCaret("layoutEffect[contentHtml]:cover-subtitle-description-migrate", {});
+    }
+    if (ENABLE_LEGACY_WEB_BLOCK_HTML_MIGRATIONS && migrateLegacyCoverButtonWrapToWebElements(root) && caretDebugOn()) {
+      logPageEditorCaret("layoutEffect[contentHtml]:cover-button-actions-cluster-migrate", {});
+    }
+    if (ENABLE_LEGACY_WEB_BLOCK_HTML_MIGRATIONS && migrateLegacyCoverAnnouncementToWebElements(root) && caretDebugOn()) {
+      logPageEditorCaret("layoutEffect[contentHtml]:cover-announcement-web-elements-migrate", {});
+    }
+    if (ENABLE_LEGACY_WEB_BLOCK_HTML_MIGRATIONS && migrateLegacyCoverOrphanHeadingParagraphToWebElements(root) && caretDebugOn()) {
+      logPageEditorCaret("layoutEffect[contentHtml]:cover-orphan-heading-paragraph-migrate", {});
+    }
     ensureWorkPricingListItemCheckmarks(root);
+    if (normalizeWebWorkPricingWebElementsIslandEditabilityInEditor(root) && caretDebugOn()) {
+      logPageEditorCaret("layoutEffect[contentHtml]:work-pricing-web-elements-islands-editability", {});
+    }
     if (normalizeWebCoverElementPlaceholders(root) && caretDebugOn()) {
       logPageEditorCaret("layoutEffect[contentHtml]:web-cover-placeholder-normalize", {});
     }
@@ -3342,6 +6437,9 @@ export default function PageEditorDetailsPage() {
     if (ensureWebTextBlockToolbarInEditor(root) && caretDebugOn()) {
       logPageEditorCaret("layoutEffect[contentHtml]:web-text-block-toolbar-upgrade", {});
     }
+    if (ensureWebTextBlockV2ToolbarInEditor(root) && caretDebugOn()) {
+      logPageEditorCaret("layoutEffect[contentHtml]:web-text-block-v2-toolbar-upgrade", {});
+    }
     if (ensureWebSpacerToolbarInEditor(root) && caretDebugOn()) {
       logPageEditorCaret("layoutEffect[contentHtml]:web-spacer-toolbar-upgrade", {});
     }
@@ -3351,6 +6449,12 @@ export default function PageEditorDetailsPage() {
     if (normalizeFeatureGridImageLayoutsInEditor(root) && caretDebugOn()) {
       logPageEditorCaret("layoutEffect[contentHtml]:feature-grid-image-layout-normalize", {});
     }
+    if (normalizeWebFeatureGridHeadEditabilityInEditor(root) && caretDebugOn()) {
+      logPageEditorCaret("layoutEffect[contentHtml]:feature-grid-head-editability", {});
+    }
+    if (assignFeatureGridWebTextBlockStackingOrderInEditor(root) && caretDebugOn()) {
+      logPageEditorCaret("layoutEffect[contentHtml]:feature-grid-text-block-stack", {});
+    }
     if (ensureWebInsertHandlesInEditor(root) && caretDebugOn()) {
       logPageEditorCaret("layoutEffect[contentHtml]:web-insert-handles-upgrade", {});
     }
@@ -3358,6 +6462,8 @@ export default function PageEditorDetailsPage() {
     sanitizeLeakedNodesOutOfWebCarousels(root);
     sanitizeLeakedNodesOutOfWebTextMedia(root);
     sanitizeLeakedNodesOutOfWebTextBlocks(root);
+    sanitizeLeakedNodesOutOfWebTextBlockV2(root);
+    normalizeWebTextBlockV2AnnouncementPlaceholderAttrs(root);
     sanitizeLeakedNodesOutOfWebSpacers(root);
     if (normalizeWebCarouselStripInEditor(root) && caretDebugOn()) {
       logPageEditorCaret("layoutEffect[contentHtml]:web-carousel-strip-normalize", {});
@@ -3375,15 +6481,21 @@ export default function PageEditorDetailsPage() {
       logPageEditorCaret("layoutEffect[contentHtml]:cover-type-default", {});
     }
     root.querySelectorAll(".page-editor-table").forEach((t) => syncTableColgroup(t as HTMLTableElement));
-    if (root.innerHTML !== before) {
+    const after = root.innerHTML;
+    if (after !== before) {
+      const afterNorm = stripWebTextBlockV2TextareaMeasurementStylesForCompare(after);
+      const beforeNorm = stripWebTextBlockV2TextareaMeasurementStylesForCompare(before);
+      if (afterNorm !== beforeNorm) {
       if (caretDebugOn()) {
         logPageEditorCaret("layoutEffect[contentHtml]:normalize-changed-html", {
           beforeLen: before.length,
-          afterLen: root.innerHTML.length,
+            afterLen: after.length,
         });
       }
-      setContentHtml(root.innerHTML);
+        setContentHtml(after);
     }
+    }
+    autosizeWebTextBlockV2Textareas(root);
     syncMarkerBold();
     updateToolbarState();
     highlightSelectedTableCells();
@@ -3738,19 +6850,26 @@ export default function PageEditorDetailsPage() {
       { data: "subtitle", label: "Добавить подзаголовок" },
       { data: "button", label: "Добавить кнопку" },
       { data: "announcement", label: "Добавить плашку анонса" },
-      { data: "announcement-learn-more", label: "Добавить Learn more (в плашке)" },
-      { data: "bottom-learn-more", label: "Добавить Learn more (внизу)" },
     ];
-    return items
+    const toggleBox =
+      '<span class="page-web-text-block-v2-field-toggle-box inline-flex size-[18px] shrink-0 items-center justify-center rounded border border-slate-300 bg-white shadow-sm transition-colors" aria-hidden="true"></span>';
+    const insertPart = items
       .map(
         (it) =>
-          '<button type="button" role="menuitem" class="page-web-cover-menu-insert-cover-el" contenteditable="false" tabindex="-1" data-insert-cover-element="' +
+          '<button type="button" role="menuitemcheckbox" class="page-web-cover-menu-insert-cover-el page-web-text-block-menu-element page-web-text-block-v2-field-toggle !flex w-full flex-row flex-nowrap items-center gap-2.5 rounded-md py-2 pl-2.5 pr-2 text-left text-[13px] font-medium text-slate-800 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40" contenteditable="false" tabindex="-1" data-insert-cover-element="' +
           it.data +
-          '">' +
+          '" aria-checked="false">' +
+          toggleBox +
+          '<span class="page-web-cover-menu-insert-cover-el-label min-w-0 flex-1 truncate text-slate-800">' +
           it.label +
-          "</button>"
+          "</span></button>",
       )
       .join("");
+    const secondaryToggle =
+      '<button type="button" role="menuitemcheckbox" class="page-web-cover-menu-insert-cover-el page-web-text-block-menu-element page-web-text-block-v2-field-toggle !flex w-full flex-row flex-nowrap items-center gap-2.5 rounded-md py-2 pl-2.5 pr-2 text-left text-[13px] font-medium text-slate-800 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40" contenteditable="false" tabindex="-1" data-toggle-cover-button2="1" aria-checked="false">' +
+      toggleBox +
+      '<span class="page-web-cover-menu-insert-cover-el-label min-w-0 flex-1 truncate text-slate-800">Дополнительная кнопка</span></button>';
+    return insertPart + secondaryToggle;
   }
 
   function getWebCoverTypeMenuHtml(): string {
@@ -3774,22 +6893,17 @@ export default function PageEditorDetailsPage() {
     inner.setAttribute("data-cover-unlocked", "1");
     inner.setAttribute("contenteditable", "true");
 
-    const html =
-      kind === "title"
-        ? '<h2 class="page-web-cover-el-title">Заголовок</h2>'
-        : kind === "subtitle"
-          ? '<p class="page-web-cover-el-subtitle">Подзаголовок</p>'
-          : kind === "button"
-            ? '<p class="page-web-cover-el-button-wrap"><span class="page-web-cover-el-button" role="button">Кнопка</span></p>'
-            : kind === "announcement"
-              ? '<p class="page-web-cover-el-announcement-wrap"><span class="page-web-cover-el-announcement"><span class="page-web-cover-el-announcement-text">Анонс: мы запустили новый этап проекта.</span><span class="page-web-cover-el-announcement-learn-more" role="button">Подробнее</span></span></p>'
-              : kind === "announcement-learn-more"
-                ? '<span class="page-web-cover-el-announcement-learn-more" role="button">Подробнее</span>'
-                : '<span class="page-web-cover-el-learn-more" role="button">Подробнее</span>';
-
-    const wrap = document.createElement("div");
-    wrap.innerHTML = html.trim();
-    const node = wrap.firstElementChild as HTMLElement;
+    let node: HTMLElement;
+    if (kind === "title") {
+      node = createCoverTitleIsland("Заголовок");
+    } else if (kind === "announcement") {
+      node = createCoverAnnouncementIsland("Анонс: мы запустили новый этап проекта.", { includeLearnMore: false });
+    } else if (kind === "subtitle") {
+      node = createCoverDescriptionIsland("Подзаголовок");
+    } else {
+      node = createCoverActionsIsland();
+      inner.setAttribute("data-cover-show-button2", "1");
+    }
 
     const onlyBr =
       inner.childNodes.length === 1 &&
@@ -3797,52 +6911,58 @@ export default function PageEditorDetailsPage() {
       !(inner.textContent || "").replace(/\u200b/g, "").trim();
     if (onlyBr && inner.firstChild) inner.removeChild(inner.firstChild);
 
-    if (kind === "announcement-learn-more") {
-      const existingAnnouncement = inner.querySelector(".page-web-cover-el-announcement") as HTMLElement | null;
-      if (existingAnnouncement) {
-        if (!existingAnnouncement.querySelector(".page-web-cover-el-announcement-learn-more")) {
-          existingAnnouncement.appendChild(node);
-        }
-      } else {
-        const wrapWithAnnouncement = document.createElement("div");
-        wrapWithAnnouncement.innerHTML =
-          '<p class="page-web-cover-el-announcement-wrap"><span class="page-web-cover-el-announcement"><span class="page-web-cover-el-announcement-text">Анонс: мы запустили новый этап проекта.</span></span></p>';
-        const announcementWrap = wrapWithAnnouncement.firstElementChild as HTMLElement | null;
-        const announcement = announcementWrap?.querySelector(".page-web-cover-el-announcement") as HTMLElement | null;
-        if (announcement && announcementWrap) {
-          announcement.appendChild(node);
-          insertCoverNodeByVisualOrder(inner, announcementWrap, "announcement");
-        }
-      }
-    } else if (kind === "bottom-learn-more") {
-      const buttonWrap = inner.querySelector(":scope > .page-web-cover-el-button-wrap") as HTMLElement | null;
-      if (buttonWrap) {
-        if (!buttonWrap.querySelector(".page-web-cover-el-learn-more")) {
-          buttonWrap.appendChild(node);
-        }
-      } else {
-        const wrapWithLearnMore = document.createElement("div");
-        wrapWithLearnMore.innerHTML = '<p class="page-web-cover-el-button-wrap"></p>';
-        const buttonWrapNode = wrapWithLearnMore.firstElementChild as HTMLElement | null;
-        if (buttonWrapNode) {
-          buttonWrapNode.appendChild(node);
-          insertCoverNodeByVisualOrder(inner, buttonWrapNode, "button");
-        }
-      }
-    } else {
-      insertCoverNodeByVisualOrder(inner, node, kind);
-    }
+    insertCoverNodeByVisualOrder(inner, node, kind);
 
     requestAnimationFrame(() => {
+      if (kind === "title") {
+        const ta = node.querySelector("textarea.page-web-elements-title-input") as HTMLTextAreaElement | null;
+        if (ta && ed.contains(ta)) {
+          ta.focus();
+          const len = ta.value.length;
+          ta.setSelectionRange(len, len);
+        }
+        setTimeout(() => updateToolbarState(), 0);
+        return;
+      }
+      if (kind === "announcement") {
+        const ann = node.querySelector(".page-web-elements-announcement-input") as HTMLElement | null;
+        if (ann && ed.contains(ann)) {
+          ann.focus();
+          const sel = window.getSelection();
+          if (sel) {
+            const r = document.createRange();
+            r.selectNodeContents(ann);
+            r.collapse(false);
+            sel.removeAllRanges();
+            try {
+              sel.addRange(r);
+            } catch {
+              // ignore
+            }
+          }
+          inner.focus();
+          setTimeout(() => updateToolbarState(), 0);
+        }
+        return;
+      }
+      if (kind === "subtitle") {
+        const ta = node.querySelector("textarea.page-web-elements-description-input") as HTMLTextAreaElement | null;
+        if (ta && ed.contains(ta)) {
+          ta.focus();
+          const len = ta.value.length;
+          ta.setSelectionRange(len, len);
+        }
+        setTimeout(() => updateToolbarState(), 0);
+        return;
+      }
       const sel = window.getSelection();
       if (!sel || !ed.contains(inner)) return;
       const r = document.createRange();
-      if (kind === "button" || kind === "announcement" || kind === "announcement-learn-more" || kind === "bottom-learn-more") {
+      if (kind === "button") {
         const targetTextNode =
-          node.querySelector(".page-web-cover-el-button")?.firstChild ||
-          node.querySelector(".page-web-cover-el-announcement-text")?.firstChild ||
-          node.querySelector(".page-web-cover-el-announcement-learn-more")?.firstChild ||
-          node.querySelector(".page-web-cover-el-learn-more")?.firstChild;
+          node.querySelector(".page-web-elements-cta-button")?.firstChild ??
+          (node.querySelector("a.page-web-elements-cta-button") as HTMLElement | null)?.firstChild ??
+          node.querySelector(".page-web-cover-el-button")?.firstChild;
         if (targetTextNode?.nodeType === Node.TEXT_NODE) {
           r.selectNodeContents(targetTextNode);
         } else {
@@ -3869,14 +6989,6 @@ export default function PageEditorDetailsPage() {
     const existing = getCoverInsertElementNode(inner, kind);
     if (existing) {
       existing.remove();
-      if (kind === "bottom-learn-more") {
-        const wrap = inner.querySelector(":scope > .page-web-cover-el-button-wrap") as HTMLElement | null;
-        const hasButton = !!wrap?.querySelector(".page-web-cover-el-button");
-        const hasLearnMore = !!wrap?.querySelector(".page-web-cover-el-learn-more");
-        if (wrap && !hasButton && !hasLearnMore) {
-          wrap.remove();
-        }
-      }
       return true;
     }
     insertCoverBlockElement(cover, kind, ed);
@@ -3939,10 +7051,31 @@ export default function PageEditorDetailsPage() {
         '<div class="page-web-cover" data-web-element="cover" data-cover-type="hero" data-cover-aspect="1-8" data-cover-halign="center" data-cover-valign="middle" contenteditable="false">' +
         getWebCoverToolbarHtml() +
         getWebCoverBlobLayersHtml() +
-        '<div class="page-web-cover-inner" contenteditable="false" title="Нажмите, чтобы отредактировать текст баннера">' +
-        '<h2 class="page-web-cover-el-title">Надежное решение для вашего проекта</h2>' +
-        '<p class="page-web-cover-el-subtitle">Короткое описание услуги: основные преимущества, сроки и ожидаемый результат для клиента.</p>' +
-        '<p class="page-web-cover-el-button-wrap"><span class="page-web-cover-el-button" role="button">Получить консультацию</span></p>' +
+        '<div class="page-web-cover-inner" contenteditable="false" data-cover-show-button2="1" title="Нажмите, чтобы отредактировать текст баннера">' +
+        '<div class="page-web-elements page-web-elements-title" contenteditable="false">' +
+        '<div class="page-web-elements-field-row" contenteditable="false">' +
+        '<textarea class="page-web-elements-title-input" spellcheck="true" placeholder="Заголовок баннера" rows="1">' +
+        escapeWebBlockHtmlText("Надежное решение для вашего проекта") +
+        "</textarea></div></div>" +
+        '<div class="page-web-elements page-web-elements-description" contenteditable="false">' +
+        '<div class="page-web-elements-field-row" contenteditable="false">' +
+        '<textarea class="page-web-elements-description-input" spellcheck="true" placeholder="Короткое описание" rows="1">' +
+        escapeWebBlockHtmlText(
+          "Короткое описание услуги: основные преимущества, сроки и ожидаемый результат для клиента.",
+        ) +
+        "</textarea></div></div>" +
+        '<div class="page-web-elements-actions" contenteditable="false">' +
+        '<div class="page-web-elements-actions-cluster" tabindex="-1">' +
+        '<div class="page-web-elements page-web-elements-button" contenteditable="false">' +
+        '<p class="page-web-elements-cta-wrap" contenteditable="false">' +
+        '<a href="#" class="page-web-elements-cta-button">' +
+        escapeWebBlockHtmlText("Кнопка") +
+        "</a></p></div>" +
+        '<div class="page-web-elements page-web-elements-button2" contenteditable="false">' +
+        '<p class="page-web-elements-cta-wrap" contenteditable="false">' +
+        '<a href="#" class="page-web-elements-cta-button-secondary">' +
+        escapeWebBlockHtmlText("Дополнительно") +
+        "</a></p></div></div></div>" +
         "</div>" +
         "</div>"
       );
@@ -3971,32 +7104,30 @@ export default function PageEditorDetailsPage() {
     }
     if (kind === "timeline") {
       return (
-        '<div class="page-web-timeline" data-web-element="timeline">' +
+        '<div class="page-web-timeline" data-web-element="timeline" contenteditable="false">' +
         getWebTimelineToolbarHtml() +
-        '<div class="page-web-timeline-head">' +
-        '<p class="page-web-timeline-subtitle">Как мы работаем</p>' +
-        '<h3 class="page-web-timeline-heading">Этапы работы</h3>' +
-        '<p class="page-web-timeline-description">Прозрачный процесс от первого брифа до финального результата с понятными сроками на каждом шаге.</p>' +
+        '<div class="page-web-timeline-head" contenteditable="false">' +
+        getWebTimelineHeadFieldsHtml() +
         "</div>" +
         '<div class="page-web-timeline-item">' +
         '<div class="page-web-timeline-dot" aria-hidden="true"></div>' +
         '<div class="page-web-timeline-content">' +
-        '<p class="page-web-timeline-title">Этап 1. Подготовка</p>' +
-        '<p class="page-web-timeline-text">Сбор требований, анализ текущего процесса и постановка задач.</p>' +
+        getWebTimelineItemTitle2Html("Этап 1. Подготовка") +
+        getWebTimelineItemStepDescriptionHtml("Сбор требований, анализ текущего процесса и постановка задач.") +
         "</div></div>" +
         '<div class="page-web-timeline-item">' +
-        '<p class="page-web-timeline-term">3 дня</p>' +
+        getWebTimelineItemTermHtml("3 дня") +
         '<div class="page-web-timeline-dot" aria-hidden="true"></div>' +
         '<div class="page-web-timeline-content">' +
-        '<p class="page-web-timeline-title">Этап 2. Реализация</p>' +
-        '<p class="page-web-timeline-text">Выполнение работ и регулярная синхронизация по статусу.</p>' +
+        getWebTimelineItemTitle2Html("Этап 2. Реализация") +
+        getWebTimelineItemStepDescriptionHtml("Выполнение работ и регулярная синхронизация по статусу.") +
         "</div></div>" +
         '<div class="page-web-timeline-item">' +
-        '<p class="page-web-timeline-term">5 дней</p>' +
+        getWebTimelineItemTermHtml("5 дней") +
         '<div class="page-web-timeline-dot" aria-hidden="true"></div>' +
         '<div class="page-web-timeline-content">' +
-        '<p class="page-web-timeline-title">Этап 3. Результат</p>' +
-        '<p class="page-web-timeline-text">Проверка качества, финальные правки и передача результата.</p>' +
+        getWebTimelineItemTitle2Html("Этап 3. Результат") +
+        getWebTimelineItemStepDescriptionHtml("Проверка качества, финальные правки и передача результата.") +
         "</div></div>" +
         "</div>"
       );
@@ -4012,6 +7143,9 @@ export default function PageEditorDetailsPage() {
     }
     if (kind === "work-pricing") {
       return getWorkPricingTextBlockHtml();
+    }
+    if (kind === "text-block-v2") {
+      return getTextBlockV2Html();
     }
     if (kind === "spacer") {
       return '<div class="page-web-spacer" data-web-element="spacer" data-spacer-size="md" contenteditable="false" aria-hidden="true"></div>';
@@ -4272,17 +7406,29 @@ export default function PageEditorDetailsPage() {
     let changed = false;
     root.querySelectorAll(".page-web-timeline").forEach((t) => {
       const timeline = t as HTMLElement;
+      if (timeline.getAttribute("contenteditable") !== "false") {
+        timeline.setAttribute("contenteditable", "false");
+        changed = true;
+      }
+      const headEl = timeline.querySelector(":scope > .page-web-timeline-head") as HTMLElement | null;
+      if (headEl && headEl.getAttribute("contenteditable") !== "false") {
+        headEl.setAttribute("contenteditable", "false");
+        changed = true;
+      }
+      if (!ENABLE_LEGACY_WEB_BLOCK_HTML_MIGRATIONS && stripLegacyTimelineDom(timeline)) changed = true;
+      if (ENABLE_LEGACY_WEB_BLOCK_HTML_MIGRATIONS && migrateLegacyTimelineHeadToWebElements(timeline)) changed = true;
+      if (ENABLE_LEGACY_WEB_BLOCK_HTML_MIGRATIONS && migrateLegacyTimelineItemsToWebElements(timeline)) changed = true;
       const items = Array.from(timeline.querySelectorAll(".page-web-timeline-item")) as HTMLElement[];
       // Remove empty tail items to avoid a "line tail" after the last real step.
-      for (let i = items.length - 1; i >= 1; i -= 1) {
-        const item = items[i];
-        const titleText =
-          (item.querySelector(":scope > .page-web-timeline-content .page-web-timeline-title") as HTMLElement | null)?.textContent?.trim() ?? "";
-        const bodyText =
-          (item.querySelector(":scope > .page-web-timeline-content .page-web-timeline-text") as HTMLElement | null)?.textContent?.trim() ?? "";
-        if (titleText || bodyText) break;
-        item.remove();
-        changed = true;
+      if (ENABLE_LEGACY_WEB_BLOCK_HTML_MIGRATIONS) {
+        for (let i = items.length - 1; i >= 1; i -= 1) {
+          const item = items[i];
+          const titleText = getTimelineItemStepTitlePlain(item);
+          const bodyText = getTimelineItemStepBodyPlain(item);
+          if (titleText || bodyText) break;
+          item.remove();
+          changed = true;
+        }
       }
       const normalizedItems = Array.from(timeline.querySelectorAll(".page-web-timeline-item")) as HTMLElement[];
       const stepsCount = Math.max(1, normalizedItems.length);
@@ -4290,29 +7436,14 @@ export default function PageEditorDetailsPage() {
         timeline.style.setProperty("--timeline-cols", String(stepsCount));
         changed = true;
       }
-      timeline
-        .querySelectorAll(
-          ".page-web-timeline-subtitle, .page-web-timeline-heading, .page-web-timeline-description, .page-web-timeline-term, .page-web-timeline-title, .page-web-timeline-text",
-        )
-        .forEach((n) => {
-          const el = n as HTMLElement;
-          if (el.getAttribute("contenteditable") !== "true") {
-            el.setAttribute("contenteditable", "true");
-            changed = true;
-          }
-        });
       const cleanTimelineText = (text: string): string =>
         text
           .replace(/[\u200B-\u200D\uFEFF]/g, "")
           .replace(/\s+/g, " ")
           .trim();
       const isRealTimelineItem = (item: HTMLElement): boolean => {
-        const titleText = cleanTimelineText(
-          (item.querySelector(":scope > .page-web-timeline-content .page-web-timeline-title") as HTMLElement | null)?.textContent ?? "",
-        );
-        const bodyText = cleanTimelineText(
-          (item.querySelector(":scope > .page-web-timeline-content .page-web-timeline-text") as HTMLElement | null)?.textContent ?? "",
-        );
+        const titleText = cleanTimelineText(getTimelineItemStepTitlePlain(item));
+        const bodyText = cleanTimelineText(getTimelineItemStepBodyPlain(item));
         return Boolean(titleText || bodyText);
       };
       normalizedItems.forEach((item, idx) => {
@@ -4332,32 +7463,16 @@ export default function PageEditorDetailsPage() {
       normalizedItems.forEach((item) => {
         const term = item.querySelector(":scope > .page-web-timeline-term") as HTMLElement | null;
         if (!term) {
-          const termNode = document.createElement("p");
-          termNode.className = "page-web-timeline-term";
-          termNode.textContent = "1 неделя";
-          item.insertBefore(termNode, item.firstChild);
-          changed = true;
+          const tmpTerm = document.createElement("div");
+          tmpTerm.innerHTML = getWebTimelineItemTermHtml("1 неделя");
+          const termNode = tmpTerm.firstElementChild;
+          if (termNode) {
+            item.insertBefore(termNode, item.firstChild);
+            changed = true;
+          }
         }
       });
-      const dots = Array.from(timeline.querySelectorAll(":scope > .page-web-timeline-item > .page-web-timeline-dot")) as HTMLElement[];
-      if (dots.length >= 2) {
-        const timelineRect = timeline.getBoundingClientRect();
-        const firstRect = dots[0].getBoundingClientRect();
-        const lastRect = dots[dots.length - 1].getBoundingClientRect();
-        const leftPx = Math.max(0, firstRect.left + firstRect.width / 2 - timelineRect.left);
-        const rightPx = Math.max(0, timelineRect.right - (lastRect.left + lastRect.width / 2));
-        const topPx = Math.max(0, firstRect.top + firstRect.height / 2 - timelineRect.top);
-        const bottomPx = Math.max(0, timelineRect.bottom - (lastRect.top + lastRect.height / 2));
-        timeline.style.setProperty("--timeline-line-left", `${leftPx}px`);
-        timeline.style.setProperty("--timeline-line-right", `${rightPx}px`);
-        timeline.style.setProperty("--timeline-line-top", `${topPx}px`);
-        timeline.style.setProperty("--timeline-line-bottom", `${bottomPx}px`);
-      } else {
-        timeline.style.removeProperty("--timeline-line-left");
-        timeline.style.removeProperty("--timeline-line-right");
-        timeline.style.removeProperty("--timeline-line-top");
-        timeline.style.removeProperty("--timeline-line-bottom");
-      }
+      applyTimelineLineGeometry(timeline);
       let toolbar = timeline.querySelector(":scope > .page-web-timeline-toolbar") as HTMLElement | null;
       if (!toolbar) {
         const tmp = document.createElement("div");
@@ -4453,7 +7568,12 @@ export default function PageEditorDetailsPage() {
         const movable = Array.from(block.childNodes).filter((ch) => ch !== toolbar);
         movable.forEach((ch) => content?.appendChild(ch));
         if (!(content.textContent || "").trim() && !content.querySelector("img,table,ul,ol,iframe,video")) {
-          content.innerHTML = "<h3>Заголовок</h3><p>Добавьте текст блока. Подходит для обычного контента страницы.</p>";
+          const isVariant =
+            block.getAttribute("data-text-block-variant") === "feature-grid" ||
+            block.getAttribute("data-text-block-variant") === "work-pricing";
+          content.innerHTML = isVariant
+            ? "<p></p>"
+            : "<p>Добавьте основной текст блока. Подходит для обычного контента страницы.</p>";
         }
         block.appendChild(content);
         changed = true;
@@ -4475,10 +7595,17 @@ export default function PageEditorDetailsPage() {
           !toolbar.querySelector(".page-web-block-move-down") ||
           !toolbar.querySelector(".page-web-text-block-menu-delete") ||
           !toolbar.querySelector(".page-web-text-block-menu-sub-trigger") ||
+          !toolbar.querySelector('[data-plain-text-block-field="subtitle"]') ||
+          !toolbar.querySelector('[data-plain-text-block-field="title"]') ||
+          !toolbar.querySelector(".page-web-text-block-menu-sub--feature-grid-block-elements") ||
+          !toolbar.querySelector(".page-web-text-block-menu-sub--feature-grid-card-elements") ||
+          !toolbar.querySelector(".page-web-text-block-menu-sub--feature-grid-card-grid") ||
+          !toolbar.querySelector(".page-web-text-block-menu-sub--feature-grid-card-icons") ||
+          !toolbar.querySelector('[data-feature-grid-block-toggle="cards"]') ||
           !toolbar.querySelector('[data-toggle-feature-grid-element="title"]') ||
           !toolbar.querySelector('[data-feature-grid-set-cols="4"]') ||
-          !toolbar.querySelector('[data-feature-grid-cards-decor-action="description"]') ||
-          !toolbar.querySelector('[data-feature-grid-cards-decor-action="icons"]') ||
+          !toolbar.querySelector('[data-feature-grid-card-field-toggle="title2"]') ||
+          !toolbar.querySelector('[data-feature-grid-card-decoration="none"]') ||
           !toolbar.querySelector('[data-feature-grid-image-position="right"]'))
       ) {
         const tmp = document.createElement("div");
@@ -4486,6 +7613,15 @@ export default function PageEditorDetailsPage() {
         const fresh = tmp.firstElementChild as HTMLElement;
         toolbar.replaceWith(fresh);
         changed = true;
+      }
+      if (isPlainWebTextBlock(block)) {
+        if (ensurePlainTextBlockFieldShell(block)) changed = true;
+        if (ENABLE_LEGACY_WEB_BLOCK_HTML_MIGRATIONS && migrateLegacyPlainTextBlockFieldsToWebElements(block)) changed = true;
+        const plainFields = block.querySelector(":scope > .page-web-text-block-fields") as HTMLElement | null;
+        if (plainFields && normalizePlainTextBlockFieldTextareas(plainFields)) changed = true;
+        if (ensurePlainTextBlockSubtitleFieldWrap(block)) changed = true;
+        if (ENABLE_LEGACY_WEB_BLOCK_HTML_MIGRATIONS && migrateLegacyPlainTextBlockHeadingIntoFields(block)) changed = true;
+        if (reorderPlainTextBlockFieldsBeforeContent(block)) changed = true;
       }
       toolbar = block.querySelector(".page-web-text-block-toolbar") as HTMLElement | null;
       if (toolbar) {
@@ -4496,6 +7632,402 @@ export default function PageEditorDetailsPage() {
         }
         syncTextBlockToolbarVariantState(toolbar);
       }
+    });
+    return changed;
+  }
+
+  function ensureWebTextBlockV2ToolbarInEditor(root: HTMLElement): boolean {
+    let changed = false;
+    /** Порядок: … → короткое описание → ряд кнопок (основная + доп.). */
+    function ensureWebTextBlockV2FieldWraps(fields: HTMLElement): boolean {
+      let mutated = false;
+      const tmp = document.createElement("div");
+      tmp.innerHTML = getTextBlockV2Html();
+      const sampleFields = tmp.querySelector(".page-web-text-block-v2-fields") as HTMLElement | null;
+      if (!sampleFields) return false;
+      for (const key of WEB_TEXT_BLOCK_V2_FIELD_KEYS) {
+        const wrapSel = `.page-web-elements-${key}`;
+        if (fields.querySelector(wrapSel)) continue;
+        const sample = sampleFields.querySelector(wrapSel) as HTMLElement | null;
+        if (!sample) continue;
+        const clone = sample.cloneNode(true) as HTMLElement;
+        if (key === "button" || key === "button2") {
+          let row = fields.querySelector(":scope > .page-web-elements-actions") as HTMLElement | null;
+          if (!row) {
+            row = document.createElement("div");
+            row.className = "page-web-elements-actions";
+            row.setAttribute("contenteditable", "false");
+            fields.appendChild(row);
+            mutated = true;
+          }
+          let cluster = row.querySelector(":scope > .page-web-elements-actions-cluster") as HTMLElement | null;
+          if (!cluster) {
+            cluster = document.createElement("div");
+            cluster.className = "page-web-elements-actions-cluster";
+            cluster.setAttribute("tabindex", "-1");
+            while (row.firstChild) cluster.appendChild(row.firstChild);
+            row.appendChild(cluster);
+            mutated = true;
+          }
+          cluster.appendChild(clone);
+        } else {
+          fields.appendChild(clone);
+        }
+        mutated = true;
+      }
+      return mutated;
+    }
+
+    /** Старые блоки: две кнопки сразу в fields — оборачиваем в ряд; «осыпавшиеся» обёртки возвращаем в ряд. */
+    function normalizeWebTextBlockV2CtaRowStructure(fields: HTMLElement): boolean {
+      let mutated = false;
+      const row =
+        (fields.querySelector(":scope > .page-web-elements-actions") as HTMLElement | null) ??
+        null;
+      const looseBtn = fields.querySelector(":scope > .page-web-elements-button") as HTMLElement | null;
+      const looseBtn2 = fields.querySelector(":scope > .page-web-elements-button2") as HTMLElement | null;
+      if (looseBtn && looseBtn2 && looseBtn.parentElement === fields && looseBtn2.parentElement === fields) {
+        const newRow = document.createElement("div");
+        newRow.className = "page-web-elements-actions";
+        newRow.setAttribute("contenteditable", "false");
+        fields.insertBefore(newRow, looseBtn);
+        const cluster = document.createElement("div");
+        cluster.className = "page-web-elements-actions-cluster";
+        cluster.setAttribute("tabindex", "-1");
+        cluster.appendChild(looseBtn);
+        cluster.appendChild(looseBtn2);
+        newRow.appendChild(cluster);
+        return true;
+      }
+      if (row) {
+        let cluster = row.querySelector(":scope > .page-web-elements-actions-cluster") as HTMLElement | null;
+        if (looseBtn && looseBtn.parentElement === fields) {
+          if (cluster) cluster.insertBefore(looseBtn, cluster.firstChild);
+          else row.insertBefore(looseBtn, row.firstChild);
+          mutated = true;
+        }
+        if (looseBtn2 && looseBtn2.parentElement === fields) {
+          if (!cluster) cluster = row.querySelector(":scope > .page-web-elements-actions-cluster") as HTMLElement | null;
+          (cluster ?? row).appendChild(looseBtn2);
+          mutated = true;
+        }
+        if (ensureWebElementsActionsCluster(row)) mutated = true;
+      }
+      return mutated;
+    }
+
+    /** Старые блоки: textarea / pill / без strip / лишний тулбар у плашки — приводим к row + strip + input. */
+    function normalizeWebTextBlockV2AnnouncementMarkup(fields: HTMLElement): boolean {
+      const wrap = fields.querySelector(
+        ":scope > .page-web-elements-announcement",
+      ) as HTMLElement | null;
+      if (!wrap) return false;
+      const block = fields.closest(".page-web-text-block-v2") as HTMLElement | null;
+      const tmp = document.createElement("div");
+      tmp.innerHTML = getTextBlockV2Html();
+      const sampleWrap = tmp.querySelector(".page-web-elements-announcement") as HTMLElement | null;
+      if (!sampleWrap) return false;
+
+      const rebuildFromSample = (keptFrom?: HTMLElement | null): boolean => {
+        const oldField = (keptFrom ??
+          wrap.querySelector(".page-web-elements-announcement-input")) as
+          | HTMLElement
+          | HTMLTextAreaElement
+          | null;
+        const kept =
+          oldField instanceof HTMLTextAreaElement
+            ? oldField.value
+            : oldField
+              ? (oldField.innerText ?? "").replace(/\u200b/g, "")
+              : "";
+        wrap.innerHTML = sampleWrap.innerHTML;
+        const newField = wrap.querySelector(".page-web-elements-announcement-input") as HTMLElement | null;
+        if (newField && kept !== "") newField.textContent = kept;
+        return true;
+      };
+
+      let mutated = false;
+      const row = wrap.querySelector(":scope > .page-web-elements-announcement-row") as HTMLElement | null;
+      if (!row) return rebuildFromSample();
+
+      row.querySelectorAll(":scope > .page-web-elements-announcement-toolbar").forEach((n) => {
+        n.remove();
+        mutated = true;
+      });
+
+      const shell = row.querySelector(":scope > .page-web-elements-announcement-input-shell") as HTMLElement | null;
+      if (!shell) return rebuildFromSample();
+
+      let strip = shell.querySelector(":scope > .page-web-elements-announcement-strip") as HTMLElement | null;
+      if (!strip) {
+        strip = document.createElement("div");
+        strip.className = "page-web-elements-announcement-strip";
+        strip.setAttribute("contenteditable", "false");
+        const inputMove = shell.querySelector(".page-web-elements-announcement-input") as HTMLElement | null;
+        if (inputMove) {
+          shell.insertBefore(strip, inputMove);
+          strip.appendChild(inputMove);
+        } else {
+          shell.appendChild(strip);
+        }
+        mutated = true;
+      }
+
+      let field = strip.querySelector(".page-web-elements-announcement-input") as HTMLElement | null;
+      if (!field) {
+        field = shell.querySelector(".page-web-elements-announcement-input") as HTMLElement | null;
+      }
+      if (!field) return rebuildFromSample();
+      if (field.parentElement !== strip) {
+        strip.insertBefore(field, strip.firstChild);
+        mutated = true;
+      }
+
+      wrap.querySelectorAll(".page-web-elements-announcement-learn-more").forEach((node) => {
+        const lm = node as HTMLElement;
+        if (lm.parentElement !== strip) {
+          strip!.appendChild(lm);
+          mutated = true;
+        }
+      });
+      const dupes = strip.querySelectorAll(".page-web-elements-announcement-learn-more");
+      if (dupes.length > 1) {
+        for (let i = 1; i < dupes.length; i++) dupes[i].remove();
+        mutated = true;
+      }
+
+      if (field.getAttribute("contenteditable") !== "true" || field instanceof HTMLTextAreaElement) {
+        return rebuildFromSample(field);
+      }
+
+      if (block) {
+        const hasLm = !!strip.querySelector(".page-web-elements-announcement-learn-more");
+        const want = hasLm ? "1" : "0";
+        if (block.getAttribute("data-v2-announcement-learn-more") !== want) {
+          block.setAttribute("data-v2-announcement-learn-more", want);
+          mutated = true;
+        }
+      }
+
+      return mutated;
+    }
+
+    /** Раньше text-align вешали на contenteditable с display:inline — не работало; держим на строке. */
+    function normalizeWebTextBlockV2AnnouncementRowAlignment(fields: HTMLElement): boolean {
+      const wrap = fields.querySelector(
+        ":scope > .page-web-elements-announcement",
+      ) as HTMLElement | null;
+      if (!wrap) return false;
+      const row = wrap.querySelector(":scope > .page-web-elements-announcement-row") as HTMLElement | null;
+      const field = wrap.querySelector(".page-web-elements-announcement-input") as HTMLElement | null;
+      if (!row || !field || field instanceof HTMLTextAreaElement) return false;
+      const raw = (field.style.textAlign || "").trim().toLowerCase();
+      if (raw !== "center" && raw !== "right" && raw !== "left") return false;
+      if (!row.style.getPropertyValue("text-align")) row.style.textAlign = raw;
+      field.style.removeProperty("text-align");
+      return true;
+    }
+
+    function normalizeWebTextBlockV2FieldControls(fields: HTMLElement): boolean {
+      let mutated = false;
+      const legacyAnn = fields.querySelector(".page-web-elements-announcement-input");
+      if (legacyAnn instanceof HTMLTextAreaElement) {
+        const div = document.createElement("div");
+        div.className = legacyAnn.className;
+        div.setAttribute("contenteditable", "true");
+        div.setAttribute("spellcheck", legacyAnn.getAttribute("spellcheck") ?? "true");
+        div.setAttribute("role", "textbox");
+        div.setAttribute("aria-multiline", "true");
+        div.setAttribute("data-placeholder", legacyAnn.getAttribute("placeholder") ?? "Анонс");
+        div.textContent = legacyAnn.value ?? "";
+        if (legacyAnn.getAttribute(PAGE_EDITOR_FOCUS_TARGET_ATTR) === "1") {
+          div.setAttribute(PAGE_EDITOR_FOCUS_TARGET_ATTR, "1");
+        }
+        legacyAnn.replaceWith(div);
+        mutated = true;
+      }
+      const defs: Array<{ selector: string; rows: number }> = [
+        { selector: ".page-web-elements-subtitle-input", rows: 1 },
+        { selector: ".page-web-elements-title-input", rows: 1 },
+        { selector: ".page-web-elements-title2-input", rows: 1 },
+        { selector: ".page-web-elements-description-input", rows: 1 },
+      ];
+      defs.forEach(({ selector, rows }) => {
+        const node = fields.querySelector(selector);
+        if (!node) return;
+        if (node instanceof HTMLInputElement) {
+          const ta = document.createElement("textarea");
+          ta.className = node.className;
+          ta.setAttribute("spellcheck", node.getAttribute("spellcheck") ?? "true");
+          ta.setAttribute("placeholder", node.getAttribute("placeholder") ?? "");
+          ta.setAttribute("rows", String(rows));
+          ta.value = node.value ?? "";
+          if (node.style.textAlign) ta.style.textAlign = node.style.textAlign;
+          if (node.getAttribute(PAGE_EDITOR_FOCUS_TARGET_ATTR) === "1") {
+            ta.setAttribute(PAGE_EDITOR_FOCUS_TARGET_ATTR, "1");
+          }
+          node.replaceWith(ta);
+          mutated = true;
+          return;
+        }
+        if (node instanceof HTMLTextAreaElement) {
+          if (node.getAttribute("rows") !== String(rows)) {
+            node.setAttribute("rows", String(rows));
+            mutated = true;
+          }
+        }
+      });
+      for (const kind of ["subtitle", "title", "title2", "description"] as const) {
+        const wrap = fields.querySelector(`:scope > .page-web-elements-${kind}`) as HTMLElement | null;
+        if (wrap && ensureWebElementsTextFieldRowWrap(wrap)) mutated = true;
+      }
+      return mutated;
+    }
+
+    function reorderWebTextBlockV2FieldChildren(fields: HTMLElement): boolean {
+      let moved = false;
+      const announcementWrap = fields.querySelector(
+        ":scope > .page-web-elements-announcement",
+      ) as HTMLElement | null;
+      const subtitleWrap = fields.querySelector(
+        ":scope > .page-web-elements-subtitle",
+      ) as HTMLElement | null;
+      const titleWrap = fields.querySelector(
+        ":scope > .page-web-elements-title",
+      ) as HTMLElement | null;
+      const title2Wrap = fields.querySelector(
+        ":scope > .page-web-elements-title2",
+      ) as HTMLElement | null;
+      const descriptionWrap = fields.querySelector(
+        ":scope > .page-web-elements-description",
+      ) as HTMLElement | null;
+      const ctaRow = fields.querySelector(":scope > .page-web-elements-actions") as HTMLElement | null;
+      if (!announcementWrap || !subtitleWrap || !titleWrap || !title2Wrap || !descriptionWrap || !ctaRow)
+        return false;
+      if (fields.firstElementChild !== announcementWrap) {
+        fields.insertBefore(announcementWrap, fields.firstChild);
+        moved = true;
+      }
+      if (announcementWrap.nextElementSibling !== subtitleWrap) {
+        fields.insertBefore(subtitleWrap, announcementWrap.nextElementSibling);
+        moved = true;
+      }
+      if (subtitleWrap.nextElementSibling !== titleWrap) {
+        fields.insertBefore(titleWrap, subtitleWrap.nextElementSibling);
+        moved = true;
+      }
+      if (titleWrap.nextElementSibling !== title2Wrap) {
+        fields.insertBefore(title2Wrap, titleWrap.nextElementSibling);
+        moved = true;
+      }
+      if (title2Wrap.nextElementSibling !== descriptionWrap) {
+        fields.insertBefore(descriptionWrap, title2Wrap.nextElementSibling);
+        moved = true;
+      }
+      if (descriptionWrap.nextElementSibling !== ctaRow) {
+        fields.insertBefore(ctaRow, descriptionWrap.nextElementSibling);
+        moved = true;
+      }
+      if (fields.lastElementChild !== ctaRow) {
+        fields.appendChild(ctaRow);
+        moved = true;
+      }
+      return moved;
+    }
+
+    function reorderWebTextBlockV2ShellChildren(block: HTMLElement): boolean {
+      let moved = false;
+      const toolbar = block.querySelector(":scope > .page-web-text-block-v2-toolbar") as HTMLElement | null;
+      const fields = block.querySelector(":scope > .page-web-text-block-v2-fields") as HTMLElement | null;
+      const handle = block.querySelector(":scope > .page-web-insert-handle") as HTMLElement | null;
+      if (!toolbar || !fields) return false;
+      if (block.firstElementChild !== toolbar) {
+        block.insertBefore(toolbar, block.firstChild);
+        moved = true;
+      }
+      if (toolbar.nextElementSibling !== fields) {
+        block.insertBefore(fields, toolbar.nextElementSibling);
+        moved = true;
+      }
+      if (handle && block.lastElementChild !== handle) {
+        block.appendChild(handle);
+        moved = true;
+      }
+      return moved;
+    }
+    root.querySelectorAll(".page-web-text-block-v2").forEach((n) => {
+      const block = n as HTMLElement;
+      block.querySelectorAll(".page-web-text-block-v2-content").forEach((legacy) => {
+        legacy.remove();
+        changed = true;
+      });
+      if (block.getAttribute("contenteditable") !== "false") {
+        block.setAttribute("contenteditable", "false");
+        changed = true;
+      }
+      let toolbar = block.querySelector(":scope > .page-web-text-block-v2-toolbar") as HTMLElement | null;
+      if (!toolbar) {
+        const tmp = document.createElement("div");
+        tmp.innerHTML = getWebTextBlockV2ToolbarHtml();
+        toolbar = tmp.firstElementChild as HTMLElement;
+        block.insertBefore(toolbar, block.firstChild);
+        changed = true;
+      } else if (toolbar.parentElement !== block || block.firstElementChild !== toolbar) {
+        block.insertBefore(toolbar, block.firstChild);
+        changed = true;
+      }
+      toolbar = block.querySelector(".page-web-text-block-v2-toolbar") as HTMLElement | null;
+      if (
+        toolbar &&
+        (!toolbar.querySelector(".page-web-text-block-v2-menu-trigger") ||
+          !toolbar.querySelector(".page-web-block-move-up") ||
+          !toolbar.querySelector(".page-web-block-move-down") ||
+          !toolbar.querySelector(".page-web-text-block-v2-menu-delete") ||
+          !toolbar.querySelector("[data-toggle-v2-field]") ||
+          !toolbar.querySelector('[data-toggle-v2-field="announcement"]') ||
+          !toolbar.querySelector('[data-toggle-v2-field="button"]') ||
+          !toolbar.querySelector('[data-toggle-v2-field="button2"]') ||
+          !toolbar.querySelector("[data-toggle-v2-announcement-learn-more]"))
+      ) {
+        const tmp = document.createElement("div");
+        tmp.innerHTML = getWebTextBlockV2ToolbarHtml();
+        const fresh = tmp.firstElementChild as HTMLElement;
+        toolbar.replaceWith(fresh);
+        changed = true;
+      }
+      let fields = block.querySelector(":scope > .page-web-text-block-v2-fields") as HTMLElement | null;
+      if (!fields) {
+        const tmp = document.createElement("div");
+        tmp.innerHTML = getTextBlockV2Html();
+        const sampleBlock = tmp.querySelector(".page-web-text-block-v2") as HTMLElement | null;
+        const sampleFields = sampleBlock?.querySelector(":scope > .page-web-text-block-v2-fields") as HTMLElement | null;
+        if (sampleFields) {
+          fields = sampleFields.cloneNode(true) as HTMLElement;
+          toolbar = block.querySelector(":scope > .page-web-text-block-v2-toolbar") as HTMLElement | null;
+          if (toolbar) block.insertBefore(fields, toolbar.nextElementSibling);
+          else block.insertBefore(fields, block.firstChild);
+          changed = true;
+        }
+      } else if (fields.getAttribute("contenteditable") !== "false") {
+        fields.setAttribute("contenteditable", "false");
+        changed = true;
+      }
+      if (fields && ENABLE_LEGACY_WEB_BLOCK_HTML_MIGRATIONS && migrateLegacyWebTextBlockV2FieldsToWebElements(fields)) changed = true;
+      if (fields && ensureWebTextBlockV2FieldWraps(fields)) changed = true;
+      if (fields && normalizeWebTextBlockV2CtaRowStructure(fields)) changed = true;
+      if (fields) {
+        fields.querySelectorAll(":scope > .page-web-elements-actions").forEach((node) => {
+          if (node instanceof HTMLElement && ensureWebElementsActionsCluster(node)) changed = true;
+        });
+      }
+      if (fields && normalizeWebTextBlockV2AnnouncementMarkup(fields)) changed = true;
+      if (fields && normalizeWebTextBlockV2AnnouncementRowAlignment(fields)) changed = true;
+      if (fields && normalizeWebTextBlockV2FieldControls(fields)) changed = true;
+      if (fields && reorderWebTextBlockV2FieldChildren(fields)) changed = true;
+      if (reorderWebTextBlockV2ShellChildren(block)) changed = true;
+      if (normalizeWebTextBlockV2VisibilityAttrs(block)) changed = true;
+      const tbSync = block.querySelector(":scope > .page-web-text-block-v2-toolbar") as HTMLElement | null;
+      if (tbSync) syncWebTextBlockV2ElementsMenuState(tbSync);
     });
     return changed;
   }
@@ -4687,7 +8219,11 @@ export default function PageEditorDetailsPage() {
         (n as HTMLElement).removeAttribute("contenteditable");
       });
       wrap.querySelectorAll(".page-web-text-block-toolbar").forEach((n) => n.remove());
+      wrap.querySelectorAll(".page-web-text-block-v2-toolbar").forEach((n) => n.remove());
       wrap.querySelectorAll(".page-web-text-block").forEach((n) => {
+        (n as HTMLElement).removeAttribute("contenteditable");
+      });
+      wrap.querySelectorAll(".page-web-text-block-v2").forEach((n) => {
         (n as HTMLElement).removeAttribute("contenteditable");
       });
       wrap.querySelectorAll(".page-web-spacer-toolbar").forEach((n) => n.remove());
@@ -4699,6 +8235,7 @@ export default function PageEditorDetailsPage() {
         h.removeAttribute("contenteditable");
         h.classList.remove("page-web-text-block-content");
       });
+      wrap.querySelectorAll(".page-web-text-block-v2-content").forEach((n) => n.remove());
       wrap.querySelectorAll(".page-web-carousel-slide[data-carousel-active]").forEach((n) => {
         (n as HTMLElement).removeAttribute("data-carousel-active");
       });
@@ -4938,7 +8475,36 @@ export default function PageEditorDetailsPage() {
         if (ch.nodeType === Node.ELEMENT_NODE) {
           const hel = ch as HTMLElement;
           if (hel.classList.contains("page-web-text-block-toolbar")) continue;
+          if (hel.classList.contains("page-web-text-block-fields")) continue;
           if (hel.classList.contains("page-web-text-block-content")) continue;
+          if (hel.classList.contains("page-web-insert-handle")) continue;
+          movable.push(ch);
+        } else if (ch.nodeType === Node.TEXT_NODE) {
+          if ((ch.textContent || "").replace(/\u200b/g, "").trim()) movable.push(ch);
+        }
+      }
+      if (movable.length === 0) return;
+      const frag = document.createDocumentFragment();
+      for (const ch of movable) frag.appendChild(ch);
+      parent.insertBefore(frag, block.nextSibling);
+      changed = true;
+    });
+    return changed;
+  }
+
+  /** Посторонние узлы прямым потомком `.page-web-text-block-v2` переносим после блока. */
+  function sanitizeLeakedNodesOutOfWebTextBlockV2(root: HTMLElement): boolean {
+    let changed = false;
+    root.querySelectorAll(".page-web-text-block-v2").forEach((cov) => {
+      const block = cov as HTMLElement;
+      const parent = block.parentNode;
+      if (!parent) return;
+      const movable: Node[] = [];
+      for (const ch of Array.from(block.childNodes)) {
+        if (ch.nodeType === Node.ELEMENT_NODE) {
+          const hel = ch as HTMLElement;
+          if (hel.classList.contains("page-web-text-block-v2-toolbar")) continue;
+          if (hel.classList.contains("page-web-text-block-v2-fields")) continue;
           if (hel.classList.contains("page-web-insert-handle")) continue;
           movable.push(ch);
         } else if (ch.nodeType === Node.TEXT_NODE) {
@@ -5157,16 +8723,120 @@ export default function PageEditorDetailsPage() {
     });
   }
 
+  /** Высота полей v2 по содержимому; ширина заголовков — по тексту (`layoutWebElementsTextareaSize`). */
+  function layoutWebTextBlockV2TextareaHeightOnly(textarea: HTMLTextAreaElement) {
+    layoutWebElementsTextareaSize(textarea);
+  }
+
+  function autosizeWebTextBlockV2Textareas(root: HTMLElement) {
+    clearTimelineTextareaInlineWidthsInRoot(root);
+    root.querySelectorAll(WEB_ELEMENTS_V2_TEXTAREA_LAYOUT_SELECTOR).forEach((n) => {
+      if (!(n instanceof HTMLTextAreaElement)) return;
+      layoutWebTextBlockV2TextareaHeightOnly(n);
+    });
+    clearTimelineTextareaInlineWidthsInRoot(root);
+    layoutWebElementsAnnouncementInputsInRoot(root);
+    root.querySelectorAll(".page-web-timeline").forEach((t) => {
+      applyTimelineLineGeometry(t as HTMLElement);
+    });
+  }
+
   function normalizeWebCoverElementPlaceholders(root: HTMLElement): boolean {
     let changed = false;
     root
       .querySelectorAll(
-        ".page-web-cover .page-web-cover-el-title, .page-web-cover .page-web-cover-el-subtitle, .page-web-cover .page-web-cover-el-button-wrap",
+        ".page-web-cover .page-web-cover-inner > .page-web-elements.page-web-elements-title, .page-web-cover .page-web-cover-inner > .page-web-elements.page-web-elements-announcement, .page-web-cover .page-web-cover-inner > .page-web-elements.page-web-elements-description, .page-web-cover .page-web-cover-el-subtitle, .page-web-cover .page-web-cover-inner > .page-web-elements-actions, .page-web-cover .page-web-cover-el-button-wrap",
       )
       .forEach((n) => {
         const el = n as HTMLElement;
-        const isTitle = el.classList.contains("page-web-cover-el-title");
-        const isButton = el.classList.contains("page-web-cover-el-button-wrap");
+        const isTitle =
+          el.classList.contains("page-web-elements-title") && el.classList.contains("page-web-elements");
+        const isAnnouncement =
+          el.classList.contains("page-web-elements-announcement") && el.classList.contains("page-web-elements");
+        const isDescription =
+          el.classList.contains("page-web-elements-description") && el.classList.contains("page-web-elements");
+        const isButton =
+          el.classList.contains("page-web-cover-el-button-wrap") || el.classList.contains("page-web-elements-actions");
+        const titleTa = isTitle
+          ? (el.querySelector(":scope textarea.page-web-elements-title-input") as HTMLTextAreaElement | null)
+          : null;
+        if (titleTa) {
+          const ph = "Здесь вы можете написать заголовок";
+          if (titleTa.getAttribute("placeholder") !== ph) {
+            titleTa.setAttribute("placeholder", ph);
+            changed = true;
+          }
+          if (el.getAttribute("data-placeholder") !== ph) {
+            el.setAttribute("data-placeholder", ph);
+            changed = true;
+          }
+          const visible = (titleTa.value || "").replace(/[\u200b\s]+/g, "").length === 0 ? "1" : "0";
+          if (el.getAttribute("data-placeholder-visible") !== visible) {
+            el.setAttribute("data-placeholder-visible", visible);
+            changed = true;
+          }
+          return;
+        }
+        const descTa = isDescription
+          ? (el.querySelector(":scope textarea.page-web-elements-description-input") as HTMLTextAreaElement | null)
+          : null;
+        if (descTa) {
+          const ph = "Здесь вы можете написать подзаголовок и описание";
+          if (descTa.getAttribute("placeholder") !== ph) {
+            descTa.setAttribute("placeholder", ph);
+            changed = true;
+          }
+          if (el.getAttribute("data-placeholder") !== ph) {
+            el.setAttribute("data-placeholder", ph);
+            changed = true;
+          }
+          const visible = (descTa.value || "").replace(/[\u200b\s]+/g, "").length === 0 ? "1" : "0";
+          if (el.getAttribute("data-placeholder-visible") !== visible) {
+            el.setAttribute("data-placeholder-visible", visible);
+            changed = true;
+          }
+          return;
+        }
+        if (isAnnouncement) {
+          const annInput = el.querySelector(
+            ":scope .page-web-elements-announcement-input",
+          ) as HTMLElement | null;
+          if (!annInput) return;
+          const ph = annInput.getAttribute("data-placeholder") || "Анонс";
+          const raw = (annInput.textContent || "").replace(/\u200b/g, "");
+          const visible = raw.replace(/[\s\u00a0]+/g, "").length === 0 ? "1" : "0";
+          if (annInput.getAttribute("data-placeholder-visible") !== visible) {
+            annInput.setAttribute("data-placeholder-visible", visible);
+            changed = true;
+          }
+          if (el.getAttribute("data-placeholder") !== ph) {
+            el.setAttribute("data-placeholder", ph);
+            changed = true;
+          }
+          if (el.getAttribute("data-placeholder-visible") !== visible) {
+            el.setAttribute("data-placeholder-visible", visible);
+            changed = true;
+          }
+          return;
+        }
+        if (el.classList.contains("page-web-elements-actions")) {
+          const cta =
+            (el.querySelector(".page-web-elements-cta-button") as HTMLElement | null) ??
+            (el.querySelector("a.page-web-elements-cta-button") as HTMLElement | null);
+          if (!cta) return;
+          const ph = "Здесь вы можете написать текст кнопки";
+          if (el.getAttribute("data-placeholder") !== ph) {
+            el.setAttribute("data-placeholder", ph);
+            changed = true;
+          }
+          const raw = (cta.textContent || "").replace(/\u200b/g, "");
+          const visible = raw.replace(/[\s\u00a0]+/g, "").length === 0 ? "1" : "0";
+          if (el.getAttribute("data-placeholder-visible") !== visible) {
+            el.setAttribute("data-placeholder-visible", visible);
+            changed = true;
+          }
+          return;
+        }
         const placeholder = isTitle
           ? "Здесь вы можете написать заголовок"
           : isButton
@@ -5194,7 +8864,7 @@ export default function PageEditorDetailsPage() {
     let changed = false;
     root
       .querySelectorAll(
-        "a.page-web-cover-el-button, a.page-web-cover-el-announcement-learn-more, a.page-web-cover-el-learn-more",
+        "a.page-web-cover-el-button, a.page-web-cover-el-announcement-learn-more, a.page-web-cover-el-learn-more, a.page-web-elements-announcement-learn-more, a.page-web-elements-cta-button, a.page-web-elements-cta-button-secondary",
       )
       .forEach((node) => {
       const a = node as HTMLAnchorElement;
@@ -5205,7 +8875,34 @@ export default function PageEditorDetailsPage() {
       if (href && href !== "#" && !href.toLowerCase().startsWith("javascript:")) {
         span.setAttribute("data-href", href);
       }
+      if (
+        span.classList.contains("page-web-elements-announcement-learn-more") ||
+        span.classList.contains("page-web-elements-cta-button") ||
+        span.classList.contains("page-web-elements-cta-button-secondary")
+      ) {
+        span.setAttribute("contenteditable", "false");
+        span.setAttribute("tabindex", "-1");
+      }
       while (a.firstChild) span.appendChild(a.firstChild);
+      a.parentNode?.replaceChild(span, a);
+      changed = true;
+    });
+    root.querySelectorAll("a.page-web-feature-grid-link").forEach((node) => {
+      const a = node as HTMLAnchorElement;
+      if (!a.closest(".page-web-feature-grid-item-body")) return;
+      const span = document.createElement("span");
+      span.className = "page-web-elements-announcement-learn-more";
+      span.setAttribute("role", "button");
+      span.setAttribute("contenteditable", "false");
+      span.setAttribute("tabindex", "-1");
+      const href = (a.getAttribute("href") || "").trim();
+      if (href && href !== "#" && !href.toLowerCase().startsWith("javascript:")) {
+        span.setAttribute("data-href", href);
+      }
+      let label = (a.textContent ?? "").replace(/\s+/g, " ").trim();
+      label = label.replace(/→.*$/, "").trim();
+      if (/^learn\s+more/i.test(label)) label = "";
+      span.textContent = label || "Подробнее";
       a.parentNode?.replaceChild(span, a);
       changed = true;
     });
@@ -5220,12 +8917,15 @@ export default function PageEditorDetailsPage() {
       wrap.innerHTML = html;
       wrap
         .querySelectorAll(
-          "span.page-web-cover-el-button[data-href], span.page-web-cover-el-announcement-learn-more[data-href], span.page-web-cover-el-learn-more[data-href]",
+          "span.page-web-cover-el-button[data-href], span.page-web-cover-el-announcement-learn-more[data-href], span.page-web-cover-el-learn-more[data-href], span.page-web-elements-announcement-learn-more[data-href], span.page-web-elements-cta-button, span.page-web-elements-cta-button-secondary",
         )
         .forEach((node) => {
         const span = node as HTMLSpanElement;
-        const href = (span.getAttribute("data-href") || "").trim();
-        if (!href) return;
+        const hrefRaw = (span.getAttribute("data-href") || "").trim();
+        const href =
+          hrefRaw && !hrefRaw.toLowerCase().startsWith("javascript:")
+            ? hrefRaw
+            : "#";
         const a = document.createElement("a");
         a.className = span.className;
         a.setAttribute("href", href);
@@ -5478,6 +9178,41 @@ export default function PageEditorDetailsPage() {
     setTimeout(() => updateToolbarState(), 0);
   }
 
+  function removeWebTextBlockV2(block: HTMLElement) {
+    const el = editorRef.current;
+    if (!el || !el.contains(block)) return;
+    const parent = block.parentNode;
+    const next = block.nextSibling;
+    block.remove();
+    setContentHtml(el.innerHTML);
+    syncMarkerBold();
+    const selection = window.getSelection();
+    const r = document.createRange();
+    if (next) {
+      if (next.nodeType === Node.TEXT_NODE) {
+        r.setStart(next, 0);
+      } else if (next.nodeType === Node.ELEMENT_NODE) {
+        r.selectNodeContents(next);
+        r.collapse(true);
+      } else {
+        r.setStart(parent ?? el, 0);
+        r.collapse(true);
+      }
+    } else {
+      const pad = document.createElement("div");
+      pad.innerHTML = "<br>";
+      parent?.appendChild(pad);
+      r.setStart(pad, 0);
+      r.collapse(true);
+    }
+    r.collapse(true);
+    selection?.removeAllRanges();
+    selection?.addRange(r);
+    savedRangeRef.current = r.cloneRange();
+    el.focus();
+    setTimeout(() => updateToolbarState(), 0);
+  }
+
   const WEB_MENU_DEBUG = true;
 
   function getWebMenuToolbarDebugState(toolbar: HTMLElement) {
@@ -5524,7 +9259,7 @@ export default function PageEditorDetailsPage() {
       const ddRect = dropdown.getBoundingClientRect();
       if (ddRect.bottom <= window.innerHeight - viewportGap) return;
       const trigger = toolbar.querySelector(
-        ".page-web-cover-menu-trigger, .page-web-carousel-menu-trigger, .page-web-timeline-menu-trigger, .page-web-text-media-menu-trigger, .page-web-text-block-menu-trigger, .page-web-spacer-menu-trigger",
+        ".page-web-cover-menu-trigger, .page-web-carousel-menu-trigger, .page-web-timeline-menu-trigger, .page-web-text-media-menu-trigger, .page-web-text-block-menu-trigger, .page-web-text-block-v2-menu-trigger, .page-web-spacer-menu-trigger",
       ) as HTMLElement | null;
       if (!trigger) {
         toolbar.setAttribute("data-menu-drop", "up");
@@ -5699,6 +9434,47 @@ export default function PageEditorDetailsPage() {
     logWebMenuDebug("close-text-media:end", toolbar);
   }
 
+  function closeTextBlockV2ToolbarMenus(toolbar: HTMLElement) {
+    logWebMenuDebug("close-text-block-v2:start", toolbar);
+    // Сначала вложения (панель «Элементы»), затем основное меню — иначе на один кадр/правило панель может остаться видимой.
+    toolbar.querySelectorAll('.page-web-text-block-menu-sub[data-submenu-open="1"]').forEach((s) => {
+      (s as HTMLElement).removeAttribute("data-submenu-open");
+    });
+    toolbar.querySelectorAll(".page-web-text-block-menu-sub").forEach((node) => {
+      (node as HTMLElement).removeAttribute("data-submenu-drop");
+    });
+    toolbar.querySelectorAll(".page-web-text-block-menu-sub-panel").forEach((node) => {
+      const panel = node as HTMLElement;
+      panel.style.removeProperty("display");
+      panel.style.removeProperty("visibility");
+      panel.style.removeProperty("opacity");
+      panel.style.removeProperty("pointer-events");
+      panel.removeAttribute("data-force-hidden");
+      panel.style.removeProperty("position");
+      panel.style.removeProperty("left");
+      panel.style.removeProperty("top");
+      panel.style.removeProperty("right");
+      panel.style.removeProperty("transform");
+      panel.style.removeProperty("z-index");
+    });
+    toolbar.querySelectorAll(".page-web-text-block-menu-sub-trigger").forEach((tr) => {
+      (tr as HTMLElement).setAttribute("aria-expanded", "false");
+    });
+    void toolbar.offsetHeight;
+    const dd = toolbar.querySelector(".page-web-text-block-v2-menu-dropdown") as HTMLElement | null;
+    if (dd) {
+      dd.style.removeProperty("display");
+      dd.style.removeProperty("visibility");
+      dd.style.removeProperty("opacity");
+      dd.style.removeProperty("pointer-events");
+      dd.removeAttribute("data-force-hidden");
+    }
+    toolbar.removeAttribute("data-menu-open");
+    clearToolbarDropdownVerticalPlacement(toolbar);
+    void toolbar.offsetHeight;
+    logWebMenuDebug("close-text-block-v2:end", toolbar);
+  }
+
   function closeTextBlockToolbarMenus(toolbar: HTMLElement) {
     logWebMenuDebug("close-text-block:start", toolbar);
     const dd = toolbar.querySelector(".page-web-text-block-menu-dropdown") as HTMLElement | null;
@@ -5743,6 +9519,7 @@ export default function PageEditorDetailsPage() {
         timeline: ed.querySelectorAll(".page-web-timeline-toolbar").length,
         textMedia: ed.querySelectorAll(".page-web-text-media-toolbar").length,
         textBlock: ed.querySelectorAll(".page-web-text-block-toolbar").length,
+        textBlockV2: ed.querySelectorAll(".page-web-text-block-v2-toolbar").length,
       });
     }
     ed.querySelectorAll(".page-web-cover-toolbar").forEach((node) => {
@@ -5759,6 +9536,9 @@ export default function PageEditorDetailsPage() {
     });
     ed.querySelectorAll(".page-web-text-block-toolbar").forEach((node) => {
       closeTextBlockToolbarMenus(node as HTMLElement);
+    });
+    ed.querySelectorAll(".page-web-text-block-v2-toolbar").forEach((node) => {
+      closeTextBlockV2ToolbarMenus(node as HTMLElement);
     });
     if (WEB_MENU_DEBUG) {
       console.log("[web-menu-debug] close-all:end");
@@ -5789,6 +9569,8 @@ export default function PageEditorDetailsPage() {
           ".page-web-text-block-menu-sub-trigger",
           ".page-web-text-block-menu-dropdown",
           ".page-web-text-block-menu-sub-panel",
+          ".page-web-text-block-v2-menu-trigger",
+          ".page-web-text-block-v2-menu-dropdown",
           ".page-web-spacer-menu-trigger",
           ".page-web-spacer-menu-dropdown",
         ].join(", "),
@@ -5886,7 +9668,7 @@ export default function PageEditorDetailsPage() {
   }
 
   const STRUCTURED_EDITABLE_SELECTOR =
-    '.page-web-cover-inner[data-cover-unlocked="1"], .page-web-timeline-subtitle, .page-web-timeline-heading, .page-web-timeline-description, .page-web-timeline-term, .page-web-timeline-title, .page-web-timeline-text, .page-web-text-media-col, .page-web-text-block-content, table.page-editor-table td[data-cell-editing]';
+    '.page-web-cover-inner[data-cover-unlocked="1"], .page-web-timeline-head, .page-web-timeline-subtitle, .page-web-timeline-heading, .page-web-timeline-description, .page-web-timeline-term, .page-web-timeline-text, .page-web-text-media-col, .page-web-text-block-content, table.page-editor-table td[data-cell-editing]';
 
   function getStructuredEditableContainer(ed: HTMLElement, node: Node | null): HTMLElement | null {
     if (!node) return null;
@@ -5902,8 +9684,57 @@ export default function PageEditorDetailsPage() {
     let probe: Node | null = node;
     if (probe.nodeType === Node.TEXT_NODE) probe = probe.parentElement;
     if (!(probe instanceof Element)) return null;
+    const coverInner = probe.closest(".page-web-cover-inner");
+    if (coverInner) {
+      const titleIsland = coverInner.querySelector(
+        ":scope > .page-web-elements.page-web-elements-title",
+      ) as HTMLElement | null;
+      if (titleIsland && (titleIsland === probe || titleIsland.contains(probe))) {
+        if (probe instanceof HTMLTextAreaElement && probe.classList.contains("page-web-elements-title-input")) {
+          return probe;
+        }
+        return titleIsland;
+      }
+      const descWrap = coverInner.querySelector(
+        ":scope > .page-web-elements.page-web-elements-description",
+      ) as HTMLElement | null;
+      if (descWrap && (descWrap === probe || descWrap.contains(probe))) {
+        if (probe instanceof HTMLTextAreaElement && probe.classList.contains("page-web-elements-description-input")) {
+          return probe;
+        }
+        return (
+          (descWrap.querySelector("textarea.page-web-elements-description-input") as HTMLTextAreaElement | null) ??
+          descWrap
+        );
+      }
+      const annWrap = coverInner.querySelector(
+        ":scope > .page-web-elements.page-web-elements-announcement",
+      ) as HTMLElement | null;
+      if (annWrap && (annWrap === probe || annWrap.contains(probe))) {
+        if (probe instanceof HTMLElement && probe.classList.contains("page-web-elements-announcement-input")) {
+          return probe;
+        }
+        return (
+          (annWrap.querySelector(".page-web-elements-announcement-input") as HTMLElement | null) ?? annWrap
+        );
+      }
+      const actionsWrap = coverInner.querySelector(":scope > .page-web-elements-actions") as HTMLElement | null;
+      if (actionsWrap && (actionsWrap === probe || actionsWrap.contains(probe))) {
+        if (
+          probe instanceof HTMLElement &&
+          (probe.matches(".page-web-elements-cta-button") || probe.matches("a.page-web-elements-cta-button"))
+        ) {
+          return probe;
+        }
+        return (
+          (actionsWrap.querySelector(
+            ".page-web-elements-cta-button, a.page-web-elements-cta-button",
+          ) as HTMLElement | null) ?? actionsWrap
+        );
+      }
+    }
     return probe.closest(
-      ".page-web-cover-el-title, .page-web-cover-el-subtitle, .page-web-cover-el-button-wrap, .page-web-cover-el-announcement-wrap, .page-web-cover-el-learn-more, .page-web-cover-el-announcement-learn-more",
+      ".page-web-cover-el-subtitle, .page-web-cover-el-button-wrap, .page-web-cover-el-announcement-wrap, .page-web-cover-el-learn-more, .page-web-cover-el-announcement-learn-more, .page-web-elements.page-web-elements-description, .page-web-elements-description-input, .page-web-elements-actions, .page-web-elements-actions-cluster, .page-web-elements-cta-button, a.page-web-elements-cta-button",
     ) as HTMLElement | null;
   }
 
@@ -5934,7 +9765,7 @@ export default function PageEditorDetailsPage() {
     if (probe.nodeType === Node.TEXT_NODE) probe = probe.parentElement;
     if (!(probe instanceof Element)) return null;
     return probe.closest(
-      "h1, h2, h3, h4, h5, h6, p, li, dt, dd, blockquote, .page-web-feature-grid-item-title, .page-web-timeline-term, .page-web-timeline-title, .page-web-timeline-text, .wti, .wty, .wsx, .wsy, .wue",
+      "h1, h2, h3, h4, h5, h6, p, li, dt, dd, blockquote, textarea.page-web-elements-title-input, textarea.page-web-elements-title2-input, textarea.page-web-elements-subtitle-input, textarea.page-web-elements-description-input, .page-web-feature-grid-item-title, .page-web-timeline-term, .page-web-timeline-text, .wti, .wty, .wsx, .wsy, .page-web-elements-cta-button",
     ) as HTMLElement | null;
   }
 
@@ -6114,7 +9945,7 @@ export default function PageEditorDetailsPage() {
     if (!inner || !ed.contains(inner)) return false;
 
     let current = node.closest(
-      ".page-web-cover-el-subtitle, .page-web-cover-el-button-wrap, .page-web-cover-el-button, .page-web-cover-el-announcement-wrap, .page-web-cover-el-learn-more, .page-web-cover-el-announcement-learn-more, .page-web-cover-el-announcement-text",
+      ".page-web-cover-el-subtitle, .page-web-cover-el-button-wrap, .page-web-cover-el-button, .page-web-cover-el-announcement-wrap, .page-web-cover-el-learn-more, .page-web-cover-el-announcement-learn-more, .page-web-cover-el-announcement-text, .page-web-elements.page-web-elements-announcement, .page-web-elements-announcement-input, .page-web-elements-announcement-learn-more, .page-web-elements.page-web-elements-description, .page-web-elements-description-input, .page-web-elements-actions, .page-web-elements-actions-cluster, .page-web-elements-cta-button, a.page-web-elements-cta-button",
     ) as HTMLElement | null;
     if (!current && range.startContainer === inner) {
       const offset = Math.max(0, Math.min(range.startOffset, inner.childNodes.length));
@@ -6128,7 +9959,7 @@ export default function PageEditorDetailsPage() {
         const elCh = ch as HTMLElement;
         if (
           elCh.matches(
-            ".page-web-cover-el-subtitle, .page-web-cover-el-button-wrap, .page-web-cover-el-announcement-wrap, .page-web-cover-el-learn-more, .page-web-cover-el-announcement-learn-more, .page-web-cover-el-announcement-text",
+            ".page-web-cover-el-subtitle, .page-web-cover-el-button-wrap, .page-web-cover-el-announcement-wrap, .page-web-cover-el-learn-more, .page-web-cover-el-announcement-learn-more, .page-web-cover-el-announcement-text, .page-web-elements.page-web-elements-announcement, .page-web-elements.page-web-elements-description, .page-web-elements-actions",
           )
         ) {
           current = elCh;
@@ -6139,7 +9970,12 @@ export default function PageEditorDetailsPage() {
     if (!current || !inner.contains(current)) return false;
     const buttonInCurrent = current.matches(".page-web-cover-el-button")
       ? current
-      : (current.querySelector(".page-web-cover-el-button") as HTMLElement | null);
+      : current.matches(".page-web-elements-cta-button") || current.matches("a.page-web-elements-cta-button")
+        ? current
+        : ((current.querySelector(".page-web-cover-el-button") as HTMLElement | null) ??
+          (current.querySelector(
+            ".page-web-elements-cta-button, a.page-web-elements-cta-button",
+          ) as HTMLElement | null));
     const atCurrentStart = isRangeAtElementStart(range, current) || isRangeAtElementStartLenient(range, current);
     const atButtonStart = !!buttonInCurrent && (
       isRangeAtElementStart(range, buttonInCurrent) || isRangeAtElementStartLenient(range, buttonInCurrent)
@@ -6240,9 +10076,11 @@ export default function PageEditorDetailsPage() {
 
     const featureGridBody = node.closest(".page-web-feature-grid-item-body") as HTMLElement | null;
     if (featureGridBody && content.contains(featureGridBody)) {
-      const featureGridLearnMoreLink = node.closest(".page-web-feature-grid-link") as HTMLElement | null;
-      if (featureGridLearnMoreLink) {
-        if (isAtElementTextStart(featureGridLearnMoreLink)) return keepCaretAtStart(featureGridLearnMoreLink);
+      const featureGridLearnMore =
+        (node.closest(".page-web-elements-announcement-learn-more") as HTMLElement | null) ||
+        (node.closest(".page-web-feature-grid-link") as HTMLElement | null);
+      if (featureGridLearnMore && featureGridBody.contains(featureGridLearnMore)) {
+        if (isAtElementTextStart(featureGridLearnMore)) return keepCaretAtStart(featureGridLearnMore);
       }
 
       const bodyParagraph = node.closest("p") as HTMLElement | null;
@@ -6257,17 +10095,29 @@ export default function PageEditorDetailsPage() {
 
     const timelineLockedTarget = (
       node.closest(
-        ".page-web-timeline-heading, .page-web-timeline-subtitle, .page-web-timeline-description, .page-web-timeline-title, .page-web-timeline-term, .page-web-timeline-text",
+        ".page-web-timeline-heading, .page-web-timeline-subtitle, .page-web-timeline-description, .page-web-timeline-term, .page-web-timeline-text",
       ) as HTMLElement | null
     );
     if (timelineLockedTarget && content.contains(timelineLockedTarget)) {
+      if (
+        timelineLockedTarget.querySelector(
+          "textarea.page-web-elements-subtitle-input, textarea.page-web-elements-description-input",
+        )
+      ) {
+        return false;
+      }
       if (isAtElementTextStart(timelineLockedTarget)) return keepCaretAtStart(timelineLockedTarget);
     }
 
     const workPricingRoot = node.closest(".page-web-work-pricing") as HTMLElement | null;
     if (workPricingRoot && content.contains(workPricingRoot)) {
       const workPricingTarget = node.closest(WORK_PRICING_EDITABLE_LEAF_SELECTOR) as HTMLElement | null;
-      if (workPricingTarget && workPricingRoot.contains(workPricingTarget) && isAtElementTextStart(workPricingTarget)) {
+      if (
+        workPricingTarget &&
+        workPricingRoot.contains(workPricingTarget) &&
+        !(workPricingTarget instanceof HTMLTextAreaElement || workPricingTarget instanceof HTMLInputElement) &&
+        isAtElementTextStart(workPricingTarget)
+      ) {
         return keepCaretAtStart(workPricingTarget);
       }
     }
@@ -6570,6 +10420,28 @@ export default function PageEditorDetailsPage() {
     setContentHtml(el.innerHTML);
     setAlignment(value);
     return true;
+  }
+
+  function getActiveTextInputInsideEditor(el: HTMLElement): HTMLInputElement | HTMLTextAreaElement | HTMLElement | null {
+    const active = document.activeElement as Element | null;
+    if (!active || !el.contains(active)) return null;
+    if (
+      !active.matches(
+        ".page-web-text-block-subtitle-input, .page-web-text-block-title-input, .page-web-text-block-lead-input, .page-web-elements-announcement-input, .page-web-elements-title-input, .page-web-elements-title2-input, .page-web-elements-subtitle-input, .page-web-elements-description-input",
+      )
+    ) {
+      return null;
+    }
+    if (
+      active instanceof HTMLInputElement ||
+      active instanceof HTMLTextAreaElement ||
+      (active instanceof HTMLElement &&
+        active.matches(".page-web-elements-announcement-input") &&
+        active.getAttribute("contenteditable") === "true")
+    ) {
+      return active as HTMLInputElement | HTMLTextAreaElement | HTMLElement;
+    }
+    return null;
   }
 
   function getSelectedTableCell(): HTMLTableCellElement | null {
@@ -7179,6 +11051,94 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
   function runCommand(command: string, value?: string) {
     const el = editorRef.current;
     if (!el) return;
+    if (command === "justifyLeft" || command === "justifyCenter" || command === "justifyRight") {
+      const align = command === "justifyLeft" ? "left" : command === "justifyCenter" ? "center" : "right";
+      const activeActions =
+        getActiveWebElementsActionsInsideEditor(el) ??
+        (selectedWebElementsActionsRef.current && el.contains(selectedWebElementsActionsRef.current)
+          ? selectedWebElementsActionsRef.current
+          : null);
+      if (activeActions) {
+        const outer = getWebElementsActionsOuterFromFocus(activeActions);
+        if (outer) {
+          applyWebElementsActionsAlign(outer, align);
+          setAlignment(align);
+          scheduleEditorHtmlStateSync(el.innerHTML);
+        }
+        return;
+      }
+      const activeInput = getActiveTextInputInsideEditor(el);
+      if (activeInput) {
+        if (
+          activeInput.matches(".page-web-elements-announcement-input") &&
+          activeInput.getAttribute("contenteditable") === "true"
+        ) {
+          const row = activeInput.closest(".page-web-elements-announcement-row") as HTMLElement | null;
+          if (row) {
+            row.style.textAlign = align;
+            activeInput.style.removeProperty("text-align");
+          } else {
+            activeInput.style.textAlign = align;
+          }
+        } else if (
+          activeInput instanceof HTMLTextAreaElement &&
+          (activeInput.matches(".page-web-elements-subtitle-input") ||
+            activeInput.matches(".page-web-elements-title-input") ||
+            activeInput.matches(".page-web-elements-title2-input") ||
+            activeInput.matches(".page-web-elements-description-input"))
+        ) {
+          const coverBanner = activeInput.closest(".page-web-cover") as HTMLElement | null;
+          const inCoverBanner =
+            !!coverBanner &&
+            el.contains(coverBanner) &&
+            !!activeInput.closest(".page-web-cover-inner");
+          if (inCoverBanner && coverBanner) {
+            const row = activeInput.closest(".page-web-elements-field-row") as HTMLElement | null;
+            row?.style.removeProperty("text-align");
+            if (row) webElementsFieldRowClearFlexJustify(row);
+            activeInput.style.removeProperty("text-align");
+            if (activeInput.matches(".page-web-elements-title-input")) {
+              const titleIsland = activeInput.closest(".page-web-elements.page-web-elements-title") as HTMLElement | null;
+              titleIsland?.setAttribute("data-cover-title-halign", align);
+            } else if (row) {
+              row.style.textAlign = align;
+              webElementsFieldRowSetFlexJustify(row, align);
+            } else {
+              activeInput.style.textAlign = align;
+            }
+          } else {
+            const row = activeInput.closest(".page-web-elements-field-row") as HTMLElement | null;
+            const wpAlignWrap = activeInput.closest(WORK_PRICING_WEB_ELEMENTS_ALIGN_WRAP_SELECTOR) as HTMLElement | null;
+            if (wpAlignWrap?.closest(".page-web-work-pricing")) {
+              wpAlignWrap.setAttribute(WORK_PRICING_WEB_ELEMENTS_HALIGN_ATTR, align);
+              activeInput.style.textAlign = align;
+              if (row) {
+                row.style.removeProperty("text-align");
+                webElementsFieldRowClearFlexJustify(row);
+              }
+            } else if (row) {
+              row.style.textAlign = align;
+              webElementsFieldRowSetFlexJustify(row, align);
+              activeInput.style.textAlign = align;
+            } else {
+              activeInput.style.textAlign = align;
+            }
+            const leadRow = activeInput.closest(".page-web-feature-grid-lead-row") as HTMLElement | null;
+            if (
+              leadRow?.querySelector(":scope > .page-web-feature-grid-message") &&
+              activeInput.closest(".page-web-feature-grid-message")
+            ) {
+              leadRow.setAttribute("data-web-elements-halign", align);
+            }
+          }
+          scheduleEditorHtmlStateSync(el.innerHTML);
+        } else {
+          activeInput.style.textAlign = align;
+        }
+        setAlignment(align);
+        return;
+      }
+    }
 
     el.focus();
 
@@ -7228,6 +11188,25 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       }
       const cover = getWebCoverForContentLayout(el, range ?? null);
       if (cover) {
+        const inner = cover.querySelector(".page-web-cover-inner") as HTMLElement | null;
+        let probeNode: Node | null = range?.commonAncestorContainer ?? null;
+        if (probeNode?.nodeType === Node.TEXT_NODE) probeNode = (probeNode as Text).parentElement;
+        const probeEl = probeNode instanceof Element ? probeNode : null;
+        const actionsOuterFromRange =
+          probeEl && inner?.contains(probeEl)
+            ? (probeEl.closest(".page-web-elements-actions") as HTMLElement | null)
+            : null;
+        if (
+          actionsOuterFromRange &&
+          inner?.contains(actionsOuterFromRange) &&
+          actionsOuterFromRange.closest(".page-web-cover") === cover
+        ) {
+          applyWebElementsActionsAlign(actionsOuterFromRange, align);
+          setAlignment(align);
+          scheduleEditorHtmlStateSync(el.innerHTML);
+          updateToolbarState();
+          return;
+        }
         cover.setAttribute("data-cover-halign", align);
         setContentHtml(el.innerHTML);
         updateToolbarState();
@@ -7536,7 +11515,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
 
   function handleCoverButtonDoubleClick(e: React.MouseEvent): boolean {
     const target = (e.target as HTMLElement).closest?.(
-      ".page-web-cover-el-button, .page-web-cover-el-announcement-learn-more, .page-web-cover-el-learn-more, .page-web-feature-grid-link, .page-web-work-pricing .wue",
+      ".page-web-cover-el-button, .page-web-cover-el-announcement-learn-more, .page-web-cover-el-learn-more, .page-web-elements-announcement-learn-more, .page-web-elements-cta-button, a.page-web-elements-cta-button, .page-web-elements-cta-button-secondary, .page-web-feature-grid-link",
     ) as HTMLElement | null;
     const ed = editorRef.current;
     if (!target || !ed || !ed.contains(target)) return false;
@@ -7547,6 +11526,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       (target.getAttribute("data-href") || "").trim() ||
       (target.tagName === "A" ? (target.getAttribute("href") || "").trim() : "");
     setCoverButtonLinkModalValue(currentLink === "#" ? "" : currentLink);
+    setCoverButtonLinkModalLabelValue(getCoverButtonLinkLabelForModal(target));
     setCoverButtonLinkModalOpen(true);
     return true;
   }
@@ -7599,9 +11579,21 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       if (href) target.setAttribute("data-href", href);
       else target.removeAttribute("data-href");
     }
+    applyCoverButtonLinkLabelToDom(target, coverButtonLinkModalLabelValue);
     setContentHtml(ed.innerHTML);
     setCoverButtonLinkModalOpen(false);
   }
+
+  useLayoutEffect(() => {
+    if (!coverButtonLinkModalOpen) return;
+    const id = window.requestAnimationFrame(() => {
+      const el = coverButtonLinkModalLabelInputRef.current;
+      if (!el) return;
+      el.focus();
+      el.select();
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [coverButtonLinkModalOpen]);
 
   function applyFeatureGridIconAndClose(nextId?: FeatureGridIconPreset["id"]) {
     const ed = editorRef.current;
@@ -7669,8 +11661,24 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       n.removeAttribute(PAGE_EDITOR_FOCUS_TARGET_ATTR),
     );
     if (!stillInsideEditor && !editorSelectionInside()) {
+      syncWebTextBlockV2FieldValuesForSerialization(el, { flushAnnouncementText: true });
       setContentHtml(el.innerHTML);
     }
+  }
+
+  /** Нативные поля + анонс (contenteditable): не перехватывать beforeinput/paste/keydown логикой полотна. */
+  function isEditorNativeFormTextControl(ed: HTMLElement | null, eventTarget: EventTarget | null): boolean {
+    if (!ed) return false;
+    const node = eventTarget instanceof Node ? eventTarget : null;
+    if (!node) return false;
+    if (node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement) return ed.contains(node);
+    const elNode = node.nodeType === Node.TEXT_NODE ? (node as Text).parentElement : (node as Element);
+    const ann = elNode?.closest?.(".page-web-elements-announcement-input") ?? null;
+    return (
+      ann instanceof HTMLElement &&
+      ann.getAttribute("contenteditable") === "true" &&
+      ed.contains(ann)
+    );
   }
 
   function handleEditorBeforeInput(e: React.FormEvent<HTMLDivElement>) {
@@ -7683,6 +11691,12 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
           : "";
     const ed = editorRef.current;
     if (!ed) return;
+    if (
+      isEditorNativeFormTextControl(ed, native.target) ||
+      isEditorNativeFormTextControl(ed, typeof document !== "undefined" ? document.activeElement : null)
+    ) {
+      return;
+    }
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) return;
     const range = sel.getRangeAt(0);
@@ -7748,11 +11762,80 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
     const clickX = e.clientX;
     const clickY = e.clientY;
     const clickedEditableElement = target.closest(
-      ".page-web-cover-el-title, .page-web-cover-el-subtitle, .page-web-cover-el-button-wrap, .page-web-cover-el-announcement-wrap, .page-web-cover-el-learn-more, .page-web-cover-el-announcement-learn-more",
+      ".page-web-elements.page-web-elements-title, .page-web-elements.page-web-elements-description, .page-web-elements.page-web-elements-announcement, .page-web-cover-el-subtitle, .page-web-cover-el-button-wrap, .page-web-cover-el-announcement-wrap, .page-web-cover-el-learn-more, .page-web-cover-el-announcement-learn-more, .page-web-elements-announcement-learn-more, .page-web-elements-actions, .page-web-elements-actions-cluster, .page-web-elements-cta-button, a.page-web-elements-cta-button",
     ) as HTMLElement | null;
     e.preventDefault();
     inner.setAttribute("data-cover-unlocked", "1");
     inner.setAttribute("contenteditable", "true");
+
+    const titleIsland = inner.querySelector(":scope > .page-web-elements.page-web-elements-title") as HTMLElement | null;
+    const titleTa =
+      titleIsland &&
+      clickedEditableElement &&
+      (titleIsland === clickedEditableElement || titleIsland.contains(clickedEditableElement))
+        ? (titleIsland.querySelector(":scope textarea.page-web-elements-title-input") as HTMLTextAreaElement | null)
+        : null;
+    if (titleTa) {
+      requestAnimationFrame(() => {
+        titleTa.focus();
+        const len = titleTa.value.length;
+        titleTa.setSelectionRange(len, len);
+        savedRangeRef.current = null;
+        setTimeout(() => updateToolbarState(), 0);
+      });
+      return;
+    }
+
+    const descIsland = inner.querySelector(
+      ":scope > .page-web-elements.page-web-elements-description",
+    ) as HTMLElement | null;
+    const descTa =
+      descIsland &&
+      clickedEditableElement &&
+      (descIsland === clickedEditableElement || descIsland.contains(clickedEditableElement))
+        ? (descIsland.querySelector(":scope textarea.page-web-elements-description-input") as HTMLTextAreaElement | null)
+        : null;
+    if (descTa) {
+      requestAnimationFrame(() => {
+        descTa.focus();
+        const len = descTa.value.length;
+        descTa.setSelectionRange(len, len);
+        savedRangeRef.current = null;
+        setTimeout(() => updateToolbarState(), 0);
+      });
+      return;
+    }
+
+    const annIsland = inner.querySelector(
+      ":scope > .page-web-elements.page-web-elements-announcement",
+    ) as HTMLElement | null;
+    const annInput =
+      annIsland &&
+      clickedEditableElement &&
+      (annIsland === clickedEditableElement || annIsland.contains(clickedEditableElement))
+        ? (annIsland.querySelector(":scope .page-web-elements-announcement-input") as HTMLElement | null)
+        : null;
+    if (annInput) {
+      requestAnimationFrame(() => {
+        annInput.focus();
+        const sel = window.getSelection();
+        if (sel && ed.contains(annInput)) {
+          const r = document.createRange();
+          r.selectNodeContents(annInput);
+          r.collapse(false);
+          sel.removeAllRanges();
+          try {
+            sel.addRange(r);
+          } catch {
+            // ignore
+          }
+        }
+        savedRangeRef.current = null;
+        setTimeout(() => updateToolbarState(), 0);
+      });
+      return;
+    }
+
     inner.focus();
     requestAnimationFrame(() => {
       const r = document.createRange();
@@ -7918,21 +12001,33 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       const raw = insertCoverElBtn.getAttribute("data-insert-cover-element") ?? "";
       const cover = toolbar.closest(".page-web-cover") as HTMLElement | null;
       if (!cover || !ed.contains(cover)) return;
-      if (
-        raw === "title" ||
-        raw === "subtitle" ||
-        raw === "button" ||
-        raw === "announcement" ||
-        raw === "announcement-learn-more" ||
-        raw === "bottom-learn-more"
-      ) {
+      if (raw === "title" || raw === "subtitle" || raw === "button" || raw === "announcement") {
         const changed = toggleCoverBlockElement(cover, raw, ed);
         closeCoverToolbarMenus(toolbar);
         if (changed) {
-        setContentHtml(ed.innerHTML);
-        setTimeout(() => updateToolbarState(), 0);
+          setContentHtml(ed.innerHTML);
+          setTimeout(() => updateToolbarState(), 0);
         }
       }
+      return;
+    }
+
+    const coverButton2Toggle = target.closest?.("[data-toggle-cover-button2]") as HTMLElement | null;
+    if (coverButton2Toggle && toolbar.contains(coverButton2Toggle)) {
+      e.preventDefault();
+      e.stopPropagation();
+      const cover = toolbar.closest(".page-web-cover") as HTMLElement | null;
+      if (!cover || !ed.contains(cover)) return;
+      const inner = cover.querySelector(".page-web-cover-inner") as HTMLElement | null;
+      const cluster = inner?.querySelector(".page-web-elements-actions .page-web-elements-actions-cluster");
+      if (!inner || !cluster?.querySelector(".page-web-elements-button2")) return;
+      const v = inner.getAttribute("data-cover-show-button2");
+      const visible = v !== "0";
+      inner.setAttribute("data-cover-show-button2", visible ? "0" : "1");
+      syncCoverButton2Toggle(toolbar);
+      closeCoverToolbarMenus(toolbar);
+      setContentHtml(ed.innerHTML);
+      setTimeout(() => updateToolbarState(), 0);
       return;
     }
 
@@ -7990,6 +12085,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       });
       if (!wasOpen) {
         syncCoverElementsMenuLabels(toolbar);
+        syncCoverButton2Toggle(toolbar);
         syncCoverTypeMenuState(toolbar);
         toolbar.setAttribute("data-menu-open", "1");
         positionCoverMenuDropdownFixed(toolbar);
@@ -8216,13 +12312,11 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       const wrap = document.createElement("div");
       wrap.innerHTML =
         '<div class="page-web-timeline-item">' +
-        '<p class="page-web-timeline-term">1 неделя</p>' +
+        getWebTimelineItemTermHtml("1 неделя") +
         '<div class="page-web-timeline-dot" aria-hidden="true"></div>' +
         '<div class="page-web-timeline-content">' +
-        '<p class="page-web-timeline-title">Этап ' +
-        n +
-        '. Новый этап</p>' +
-        '<p class="page-web-timeline-text">Опишите, что происходит на этом этапе.</p>' +
+        getWebTimelineItemTitle2Html("Этап " + n + ". Новый этап") +
+        getWebTimelineItemStepDescriptionHtml("Опишите, что происходит на этом этапе.") +
         "</div></div>";
       const newItem = wrap.firstElementChild as HTMLElement;
       timeline.appendChild(newItem);
@@ -8281,6 +12375,107 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       if (!wasOpen) {
         toolbar.setAttribute("data-menu-open", "1");
         syncTimelineToolbarMenuState(toolbar);
+        positionToolbarDropdownVerticalPlacement(toolbar);
+      }
+    }
+  }
+
+  function handleTextBlockV2ToolbarMouseDown(e: React.MouseEvent) {
+    const target = e.target as HTMLElement;
+    const ed = editorRef.current;
+    const toolbar = target.closest?.(".page-web-text-block-v2-toolbar") as HTMLElement | null;
+    if (!toolbar || !ed?.contains(toolbar)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const block = toolbar.closest(".page-web-text-block-v2") as HTMLElement | null;
+    if (!block || !ed.contains(block)) return;
+
+    const moveBtn = target.closest?.("[data-move-web-block]") as HTMLElement | null;
+    if (moveBtn && toolbar.contains(moveBtn)) {
+      const dir = moveBtn.getAttribute("data-move-web-block");
+      if ((dir === "up" || dir === "down") && moveWebBlockByToolbar(toolbar, dir, ed)) {
+        closeTextBlockV2ToolbarMenus(toolbar);
+        setContentHtml(ed.innerHTML);
+        setTimeout(() => updateToolbarState(), 0);
+      }
+      return;
+    }
+
+    const delBtn = target.closest?.(".page-web-text-block-v2-menu-delete");
+    if (delBtn) {
+      closeTextBlockV2ToolbarMenus(toolbar);
+      removeWebTextBlockV2(block);
+      return;
+    }
+
+    const subTrigger = target.closest?.(".page-web-text-block-menu-sub-trigger") as HTMLElement | null;
+    if (subTrigger && toolbar.contains(subTrigger)) {
+      const sub = subTrigger.closest(".page-web-text-block-menu-sub") as HTMLElement | null;
+      if (sub && toolbar.contains(sub)) {
+        const wasOpen = sub.getAttribute("data-submenu-open") === "1";
+        const sameLevelContainer = sub.parentElement;
+        if (sameLevelContainer) {
+          Array.from(sameLevelContainer.children).forEach((node) => {
+            const el = node as HTMLElement;
+            if (!el.classList?.contains("page-web-text-block-menu-sub")) return;
+            if (el !== sub) el.removeAttribute("data-submenu-open");
+          });
+        }
+        if (wasOpen) sub.removeAttribute("data-submenu-open");
+        else sub.setAttribute("data-submenu-open", "1");
+        toolbar.querySelectorAll(".page-web-text-block-menu-sub-trigger").forEach((tr) => {
+          const parent = tr.closest(".page-web-text-block-menu-sub");
+          const open = parent?.getAttribute("data-submenu-open") === "1";
+          (tr as HTMLElement).setAttribute("aria-expanded", open ? "true" : "false");
+        });
+        positionToolbarSubmenuVerticalPlacement(toolbar);
+      }
+      return;
+    }
+
+    const v2LearnMoreToggle = target.closest?.("[data-toggle-v2-announcement-learn-more]") as HTMLElement | null;
+    if (v2LearnMoreToggle && toolbar.contains(v2LearnMoreToggle)) {
+      if (!isWebTextBlockV2FieldVisible(block, "announcement")) {
+        syncWebTextBlockV2ElementsMenuState(toolbar);
+      } else if (toggleWebTextBlockV2AnnouncementLearnMore(block)) {
+        syncWebTextBlockV2ElementsMenuState(toolbar);
+        setContentHtml(ed.innerHTML);
+        setTimeout(() => updateToolbarState(), 0);
+      } else {
+        syncWebTextBlockV2ElementsMenuState(toolbar);
+      }
+      closeTextBlockV2ToolbarMenus(toolbar);
+      return;
+    }
+
+    const v2FieldToggle = target.closest?.("[data-toggle-v2-field]") as HTMLElement | null;
+    if (v2FieldToggle && toolbar.contains(v2FieldToggle)) {
+      const raw = v2FieldToggle.getAttribute("data-toggle-v2-field");
+      if (isWebTextBlockV2FieldKey(raw) && toggleWebTextBlockV2Field(block, raw)) {
+        syncWebTextBlockV2ElementsMenuState(toolbar);
+        setContentHtml(ed.innerHTML);
+        setTimeout(() => updateToolbarState(), 0);
+      } else {
+        syncWebTextBlockV2ElementsMenuState(toolbar);
+      }
+      closeTextBlockV2ToolbarMenus(toolbar);
+      return;
+    }
+
+    if (target.closest?.(".page-web-text-block-v2-menu-trigger")) {
+      const wasOpen = toolbar.getAttribute("data-menu-open") === "1";
+      ed.querySelectorAll(".page-web-text-block-v2-toolbar").forEach((node) => {
+        closeTextBlockV2ToolbarMenus(node as HTMLElement);
+      });
+      ed.querySelectorAll(".page-web-text-block-toolbar").forEach((node) => {
+        closeTextBlockToolbarMenus(node as HTMLElement);
+      });
+      ed.querySelectorAll(".page-web-spacer-toolbar").forEach((node) => {
+        closeSpacerToolbarMenus(node as HTMLElement);
+      });
+      if (!wasOpen) {
+        toolbar.setAttribute("data-menu-open", "1");
+        syncWebTextBlockV2ElementsMenuState(toolbar);
         positionToolbarDropdownVerticalPlacement(toolbar);
       }
     }
@@ -8388,6 +12583,23 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       const raw = elementBtn.getAttribute("data-toggle-feature-grid-element");
       if (isFeatureGridElementKind(raw) && block.getAttribute("data-text-block-variant") === "feature-grid") {
         if (toggleFeatureGridTextBlockElement(block, raw)) {
+          syncFeatureGridElementsMenuState(toolbar);
+          setContentHtml(ed.innerHTML);
+          setTimeout(() => updateToolbarState(), 0);
+        }
+      }
+      closeTextBlockToolbarMenus(toolbar);
+      return;
+    }
+
+    const featureGridBlockToggleBtn = target.closest?.("[data-feature-grid-block-toggle]") as HTMLElement | null;
+    if (featureGridBlockToggleBtn) {
+      const raw = featureGridBlockToggleBtn.getAttribute("data-feature-grid-block-toggle");
+      if (raw === "cards" && block.getAttribute("data-text-block-variant") === "feature-grid") {
+        const content = block.querySelector(":scope > .page-web-text-block-content") as HTMLElement | null;
+        const root = content?.querySelector(".page-web-feature-grid") as HTMLElement | null;
+        if (root) {
+          toggleFeatureGridBlockCardsList(root);
           syncFeatureGridElementsMenuState(toolbar);
           setContentHtml(ed.innerHTML);
           setTimeout(() => updateToolbarState(), 0);
@@ -8514,25 +12726,58 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       return;
     }
 
-    const cardsDecorActionBtn = target.closest?.("[data-feature-grid-cards-decor-action]") as HTMLElement | null;
-    if (cardsDecorActionBtn) {
+    const cardFieldToggleBtn = target.closest?.("[data-feature-grid-card-field-toggle]") as HTMLElement | null;
+    if (cardFieldToggleBtn) {
       if (block.getAttribute("data-text-block-variant") === "feature-grid") {
-        const action = cardsDecorActionBtn.getAttribute("data-feature-grid-cards-decor-action");
+        const raw = cardFieldToggleBtn.getAttribute("data-feature-grid-card-field-toggle");
         const content = block.querySelector(":scope > .page-web-text-block-content") as HTMLElement | null;
         const root = content?.querySelector(".page-web-feature-grid") as HTMLElement | null;
-        if (root && (action === "description" || action === "icons" || action === "numbers" || action === "learn-more")) {
-          const changed = action === "description"
-            ? toggleFeatureGridCardDescriptions(root)
-            : action === "icons"
-              ? toggleFeatureGridCardIcons(root)
-              : action === "numbers"
-                ? toggleFeatureGridCardNumbers(root)
-              : toggleFeatureGridCardLearnMore(root);
+        if (root && isFeatureGridCardFieldToggleKey(raw)) {
+          const changed = applyFeatureGridCardFieldToggle(root, raw);
           if (changed) {
             syncFeatureGridElementsMenuState(toolbar);
             setContentHtml(ed.innerHTML);
             setTimeout(() => updateToolbarState(), 0);
           }
+        }
+      }
+      closeTextBlockToolbarMenus(toolbar);
+      return;
+    }
+
+    const cardDecorationBtn = target.closest?.("[data-feature-grid-card-decoration]") as HTMLElement | null;
+    if (cardDecorationBtn) {
+      if (block.getAttribute("data-text-block-variant") === "feature-grid") {
+        const raw = cardDecorationBtn.getAttribute("data-feature-grid-card-decoration");
+        const content = block.querySelector(":scope > .page-web-text-block-content") as HTMLElement | null;
+        const root = content?.querySelector(".page-web-feature-grid") as HTMLElement | null;
+        if (root && isFeatureGridCardDecorationKey(raw)) {
+          const changed = setFeatureGridCardDecoration(root, raw);
+          if (changed) {
+            syncFeatureGridElementsMenuState(toolbar);
+            setContentHtml(ed.innerHTML);
+            setTimeout(() => updateToolbarState(), 0);
+          } else {
+            syncFeatureGridElementsMenuState(toolbar);
+          }
+        }
+      }
+      closeTextBlockToolbarMenus(toolbar);
+      return;
+    }
+
+    const plainFieldBtn = target.closest?.("[data-plain-text-block-field]") as HTMLElement | null;
+    if (plainFieldBtn) {
+      if (!block.getAttribute("data-text-block-variant")) {
+        const raw = plainFieldBtn.getAttribute("data-plain-text-block-field");
+        const field =
+          raw === "subtitle" || raw === "title" || raw === "lead"
+            ? raw
+            : null;
+        if (field && applyPlainTextBlockFieldToggle(block, field)) {
+          syncTextBlockToolbarVariantState(toolbar);
+          setContentHtml(ed.innerHTML);
+          setTimeout(() => updateToolbarState(), 0);
         }
       }
       closeTextBlockToolbarMenus(toolbar);
@@ -8570,6 +12815,9 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       logWebMenuDebug("text-block-trigger:click", toolbar, { wasOpen });
       ed.querySelectorAll(".page-web-text-block-toolbar").forEach((node) => {
         closeTextBlockToolbarMenus(node as HTMLElement);
+      });
+      ed.querySelectorAll(".page-web-text-block-v2-toolbar").forEach((node) => {
+        closeTextBlockV2ToolbarMenus(node as HTMLElement);
       });
     ed.querySelectorAll(".page-web-spacer-toolbar").forEach((node) => {
       closeSpacerToolbarMenus(node as HTMLElement);
@@ -8691,6 +12939,285 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
     }
   }
 
+  function pickTextareaInSubtreeFromPoint(
+    doc: Document,
+    clientX: number,
+    clientY: number,
+    subtreeRoot: HTMLElement,
+    ed: HTMLElement,
+  ): HTMLTextAreaElement | null {
+    for (const node of doc.elementsFromPoint(clientX, clientY)) {
+      if (!(node instanceof HTMLTextAreaElement)) continue;
+      if (!ed.contains(node) || !subtreeRoot.contains(node)) continue;
+      return node;
+    }
+    return null;
+  }
+
+  function findFeatureGridItemUnderPoint(
+    block: HTMLElement,
+    clientX: number,
+    clientY: number,
+  ): HTMLElement | null {
+    const content = block.querySelector(":scope > .page-web-text-block-content") as HTMLElement | null;
+    if (!content) return null;
+    const grid = content.querySelector(":scope > .page-web-feature-grid") as HTMLElement | null;
+    if (!grid) return null;
+    const list = grid.querySelector(":scope > .page-web-feature-grid-list") as HTMLElement | null;
+    if (!list) return null;
+    const items = list.querySelectorAll(":scope > .page-web-feature-grid-item");
+    for (let i = items.length - 1; i >= 0; i -= 1) {
+      const n = items[i];
+      if (!(n instanceof HTMLElement)) continue;
+      const r = n.getBoundingClientRect();
+      if (clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom) return n;
+    }
+    return null;
+  }
+
+  function isFeatureGridTextBlockShell(block: HTMLElement): boolean {
+    if (block.getAttribute("data-text-block-variant") === "feature-grid") return true;
+    return !!block.querySelector(":scope > .page-web-text-block-content > .page-web-feature-grid");
+  }
+
+  /** When the head stack paints above the card, `elementsFromPoint` may never list the card textarea; use geometry + DOM fallback. */
+  function pickFeatureGridCardTextareaFromPoint(
+    doc: Document,
+    clientX: number,
+    clientY: number,
+    hitItem: HTMLElement,
+    ed: HTMLElement,
+  ): HTMLTextAreaElement | null {
+    const rectContains = (el: HTMLElement, x: number, y: number) => {
+      const r = el.getBoundingClientRect();
+      return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    };
+    const body = hitItem.querySelector(":scope > .page-web-feature-grid-item-body") as HTMLElement | null;
+    const title = hitItem.querySelector(":scope > .page-web-feature-grid-item-title") as HTMLElement | null;
+    if (body && rectContains(body, clientX, clientY)) {
+      const fromPoint = pickTextareaInSubtreeFromPoint(doc, clientX, clientY, body, ed);
+      if (fromPoint) return fromPoint;
+      return (
+        (body.querySelector("textarea.page-web-elements-description-input") as HTMLTextAreaElement | null) ??
+        (body.querySelector("textarea") as HTMLTextAreaElement | null)
+      );
+    }
+    if (title && rectContains(title, clientX, clientY)) {
+      const fromPoint = pickTextareaInSubtreeFromPoint(doc, clientX, clientY, title, ed);
+      if (fromPoint) return fromPoint;
+      return (
+        (title.querySelector("textarea.page-web-elements-title2-input") as HTMLTextAreaElement | null) ??
+        (title.querySelector("textarea") as HTMLTextAreaElement | null)
+      );
+    }
+    const any = pickTextareaInSubtreeFromPoint(doc, clientX, clientY, hitItem, ed);
+    if (any) return any;
+    return (
+      (hitItem.querySelector(
+        ".page-web-feature-grid-item-body textarea.page-web-elements-description-input",
+      ) as HTMLTextAreaElement | null) ?? (hitItem.querySelector("textarea") as HTMLTextAreaElement | null)
+    );
+  }
+
+  /**
+   * Runs in capture phase before default focus on textarea: event target can be the head field while the
+   * pointer is over a card. Do not wrap in `withPreservedEditorScroll` here — restoring scroll after the head
+   * textarea loses focus fights layout height changes and feels like a jump upward.
+   */
+  function tryFixFeatureGridCardMousedown(
+    e: React.MouseEvent,
+    t: Element | null,
+    ed: HTMLElement | null,
+  ): boolean {
+    if (!ed || !t || !ed.contains(t)) return false;
+    const block = t.closest(".page-web-text-block") as HTMLElement | null;
+    if (!block || !ed.contains(block) || !isFeatureGridTextBlockShell(block)) return false;
+    if (t.closest(".page-web-text-block-toolbar")) return false;
+    const gridRoot = block.querySelector(
+      ":scope > .page-web-text-block-content > .page-web-feature-grid",
+    ) as HTMLElement | null;
+    const headEl = gridRoot?.querySelector(":scope > .page-web-feature-grid-head") as HTMLElement | null;
+    if (headEl) {
+      const hr = headEl.getBoundingClientRect();
+      if (
+        e.clientX >= hr.left &&
+        e.clientX <= hr.right &&
+        e.clientY >= hr.top &&
+        e.clientY <= hr.bottom
+      ) {
+        return false;
+      }
+    }
+    if (
+      t.closest(
+        "a.page-web-feature-grid-link, a.page-web-elements-cta-button, button, [role='button']",
+      )
+    ) {
+      return false;
+    }
+    const hitItem = findFeatureGridItemUnderPoint(block, e.clientX, e.clientY);
+    if (!hitItem) return false;
+    const doc = ed.ownerDocument ?? document;
+    const taPick = pickFeatureGridCardTextareaFromPoint(doc, e.clientX, e.clientY, hitItem, ed);
+    if (!taPick) return false;
+    const taFromTarget = t.closest?.("textarea") as HTMLTextAreaElement | null;
+    if (taFromTarget && hitItem.contains(taFromTarget) && taPick === taFromTarget) return false;
+    e.preventDefault();
+    taPick.focus({ preventScroll: true });
+    try {
+      const len = taPick.value.length;
+      taPick.setSelectionRange(len, len);
+    } catch {
+      // ignore
+    }
+    setTimeout(() => updateToolbarState(), 0);
+    return true;
+  }
+
+  function isWorkPricingTextBlockShell(block: HTMLElement): boolean {
+    if (block.getAttribute("data-text-block-variant") === "work-pricing") return true;
+    return !!block.querySelector(":scope > .page-web-text-block-content > .page-web-work-pricing");
+  }
+
+  function getWorkPricingListUl(block: HTMLElement): HTMLUListElement | null {
+    const content = block.querySelector(":scope > .page-web-text-block-content") as HTMLElement | null;
+    if (!content) return null;
+    const root = (content.querySelector(":scope > .page-web-work-pricing") ??
+      content.querySelector(".page-web-work-pricing")) as HTMLElement | null;
+    if (!root) return null;
+    return root.querySelector(":scope ul.wrf") as HTMLUListElement | null;
+  }
+
+  /**
+   * Resolves which checklist row the pointer belongs to: paint stack first (overlapping title fields),
+   * then li bounds, then nearest li when the click lands in ul padding / grid gaps.
+   */
+  function resolveWorkPricingListItemHit(
+    doc: Document,
+    ed: HTMLElement,
+    block: HTMLElement,
+    clientX: number,
+    clientY: number,
+  ): HTMLElement | null {
+    const ul = getWorkPricingListUl(block);
+    if (!ul || !ed.contains(ul)) return null;
+    const lis = Array.from(ul.children).filter((c): c is HTMLElement => c.tagName === "LI");
+
+    for (const node of doc.elementsFromPoint(clientX, clientY)) {
+      if (!(node instanceof Element) || !ed.contains(node)) continue;
+      const li = node.closest("li");
+      if (li && li.parentElement === ul) return li as HTMLElement;
+    }
+
+    for (let i = lis.length - 1; i >= 0; i -= 1) {
+      const n = lis[i];
+      const r = n.getBoundingClientRect();
+      if (clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom) return n;
+    }
+
+    const ur = ul.getBoundingClientRect();
+    if (clientX < ur.left || clientX > ur.right || clientY < ur.top || clientY > ur.bottom) return null;
+    let best: HTMLElement | null = null;
+    let bestD = Infinity;
+    for (const n of lis) {
+      const r = n.getBoundingClientRect();
+      const cx = Math.min(Math.max(clientX, r.left), r.right);
+      const cy = Math.min(Math.max(clientY, r.top), r.bottom);
+      const d = (clientX - cx) ** 2 + (clientY - cy) ** 2;
+      if (d < bestD) {
+        bestD = d;
+        best = n;
+      }
+    }
+    return best;
+  }
+
+  function pickWorkPricingListItemTextareaFromPoint(
+    doc: Document,
+    clientX: number,
+    clientY: number,
+    hitLi: HTMLElement,
+    ed: HTMLElement,
+  ): HTMLTextAreaElement | null {
+    const fromPoint = pickTextareaInSubtreeFromPoint(doc, clientX, clientY, hitLi, ed);
+    if (fromPoint) return fromPoint;
+    return (
+      (hitLi.querySelector("textarea.page-web-elements-description-input") as HTMLTextAreaElement | null) ??
+      (hitLi.querySelector("textarea") as HTMLTextAreaElement | null)
+    );
+  }
+
+  function tryFixWorkPricingMousedown(
+    e: React.MouseEvent,
+    t: Element | null,
+    ed: HTMLElement | null,
+  ): boolean {
+    if (!ed || !t || !ed.contains(t)) return false;
+    const block = t.closest(".page-web-text-block") as HTMLElement | null;
+    if (!block || !ed.contains(block) || !isWorkPricingTextBlockShell(block)) return false;
+    if (t.closest(".page-web-text-block-toolbar")) return false;
+    if (
+      t.closest(
+        "a.page-web-elements-cta-button, a.page-web-elements-cta-button-secondary, span.page-web-elements-cta-button, span.page-web-elements-cta-button-secondary, button, [role='button'], [data-work-pricing-items-action]",
+      )
+    ) {
+      return false;
+    }
+    const content = block.querySelector(":scope > .page-web-text-block-content") as HTMLElement | null;
+    const wp = (content?.querySelector(":scope > .page-web-work-pricing") ??
+      content?.querySelector(".page-web-work-pricing")) as HTMLElement | null;
+    if (!wp) return false;
+
+    const doc = ed.ownerDocument ?? document;
+    let taPick: HTMLTextAreaElement | null = null;
+    let hitLi: HTMLElement | null = null;
+    const ul = getWorkPricingListUl(block);
+    if (ul) {
+      hitLi = resolveWorkPricingListItemHit(doc, ed, block, e.clientX, e.clientY);
+      if (hitLi) {
+        taPick = pickWorkPricingListItemTextareaFromPoint(doc, e.clientX, e.clientY, hitLi, ed);
+      }
+    }
+    if (!taPick) {
+      taPick = pickTextareaInSubtreeFromPoint(doc, e.clientX, e.clientY, wp, ed);
+    }
+    if (!taPick) return false;
+
+    const taFromTarget = t.closest?.("textarea") as HTMLTextAreaElement | null;
+    if (taFromTarget && taPick === taFromTarget) {
+      if (editorLayoutDebugOn()) {
+        const sc = editorScrollRef.current;
+        logPageEditorLayout("workPricingMousedown:direct-hit-no-intercept", {
+          client: { x: e.clientX, y: e.clientY },
+          ta: summarizeLayoutElement(taPick),
+          hitLi: summarizeLayoutElement(hitLi),
+          ...layoutScrollSnapshot(sc, taPick),
+        });
+      }
+      return false;
+    }
+    if (editorLayoutDebugOn()) {
+      const sc = editorScrollRef.current;
+      logPageEditorLayout("workPricingMousedown:redirect-focus", {
+        client: { x: e.clientX, y: e.clientY },
+        from: summarizeLayoutElement(taFromTarget),
+        to: summarizeLayoutElement(taPick),
+        hitLi: summarizeLayoutElement(hitLi),
+        ...layoutScrollSnapshot(sc, taPick),
+      });
+    }
+    e.preventDefault();
+    taPick.focus({ preventScroll: true });
+    try {
+      const len = taPick.value.length;
+      taPick.setSelectionRange(len, len);
+    } catch {
+      // ignore
+    }
+    setTimeout(() => updateToolbarState(), 0);
+    return true;
+  }
+
   function handleTextBlockEditorMouseDown(e: React.MouseEvent) {
     const rawTarget = e.target as EventTarget | null;
     const target = (rawTarget instanceof Element
@@ -8700,8 +13227,64 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
     const block = target.closest?.(".page-web-text-block") as HTMLElement | null;
     const ed = editorRef.current;
     if (!block || !ed?.contains(block)) return;
+    const doc = ed.ownerDocument ?? document;
     if (target.closest?.(".page-web-text-block-toolbar")) {
       handleTextBlockToolbarMouseDown(e);
+      return;
+    }
+
+    const head = target.closest?.(".page-web-feature-grid-head") as HTMLElement | null;
+    if (head && block.contains(head) && ed.contains(head)) {
+      const clickedTa = target.closest?.("textarea");
+      if (!(clickedTa instanceof HTMLTextAreaElement) || !head.contains(clickedTa)) {
+        const stack = doc.elementsFromPoint(e.clientX, e.clientY);
+        for (const node of stack) {
+          if (!(node instanceof HTMLTextAreaElement)) continue;
+          if (!head.contains(node) || !block.contains(node)) continue;
+          withPreservedEditorScroll(() => {
+            node.focus({ preventScroll: true });
+            const len = node.value.length;
+            try {
+              node.setSelectionRange(len, len);
+            } catch {
+              // ignore
+            }
+          });
+          setTimeout(() => updateToolbarState(), 0);
+          return;
+        }
+      }
+    }
+    setTimeout(() => updateToolbarState(), 0);
+  }
+
+  function handleTextBlockV2EditorMouseDown(e: React.MouseEvent) {
+    const rawTarget = e.target as EventTarget | null;
+    const target = (rawTarget instanceof Element
+      ? rawTarget
+      : (rawTarget as Node | null)?.parentElement ?? null) as HTMLElement | null;
+    if (!target) return;
+    const block = target.closest?.(".page-web-text-block-v2") as HTMLElement | null;
+    const ed = editorRef.current;
+    if (!block || !ed?.contains(block)) return;
+    if (target.closest?.(".page-web-text-block-v2-toolbar")) {
+      handleTextBlockV2ToolbarMouseDown(e);
+      return;
+    }
+    const actionsOuter = target.closest?.(".page-web-elements-actions") as HTMLElement | null;
+    if (actionsOuter && block.contains(actionsOuter) && ed) {
+      e.preventDefault();
+      window.getSelection()?.removeAllRanges();
+      ensureWebElementsActionsCluster(actionsOuter);
+      const cluster = actionsOuter.querySelector(
+        ":scope > .page-web-elements-actions-cluster",
+      ) as HTMLElement | null;
+      const focusEl = cluster ?? actionsOuter;
+      clearPageEditorFocusTargets(ed);
+      selectedWebElementsActionsRef.current = focusEl;
+      focusEl.focus({ preventScroll: true });
+      focusEl.setAttribute(PAGE_EDITOR_FOCUS_TARGET_ATTR, "1");
+      setTimeout(() => updateToolbarState(), 0);
       return;
     }
     setTimeout(() => updateToolbarState(), 0);
@@ -8710,6 +13293,36 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
   function handleKeyDown(e: React.KeyboardEvent) {
     const el = editorRef.current;
     if (!el) return;
+    const kdTarget = e.target instanceof HTMLElement ? e.target : null;
+    const ann = kdTarget?.closest?.(".page-web-elements-announcement-input") ?? null;
+    if (
+      ann instanceof HTMLElement &&
+      ann.getAttribute("contenteditable") === "true" &&
+      el.contains(ann) &&
+      e.key === "Enter"
+    ) {
+      e.preventDefault();
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0 && ann.contains(sel.getRangeAt(0).commonAncestorContainer)) {
+        const range = sel.getRangeAt(0);
+        range.deleteContents();
+        range.insertNode(document.createTextNode("\n"));
+        range.collapse(false);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+      syncWebTextBlockV2FieldValuesForSerialization(el);
+      scheduleEditorHtmlStateSync(el.innerHTML);
+      autosizeWebTextBlockV2Textareas(el);
+      updateToolbarState();
+      return;
+    }
+    if (
+      isEditorNativeFormTextControl(el, e.target) ||
+      isEditorNativeFormTextControl(el, typeof document !== "undefined" ? document.activeElement : null)
+    ) {
+      return;
+    }
     if (e.key === "Backspace" || e.key === "Delete") {
       const selectedImage = selectedImageWrapperRef.current;
       if (selectedImage && el.contains(selectedImage)) {
@@ -9220,6 +13833,40 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
   function handlePaste(e: React.ClipboardEvent) {
     const el = editorRef.current;
     if (!el) return;
+    const rawTarget = e.nativeEvent.target ?? e.target;
+    const ann =
+      rawTarget instanceof Node
+        ? (rawTarget instanceof Element ? rawTarget : (rawTarget as Text).parentElement)?.closest?.(
+            ".page-web-elements-announcement-input",
+          )
+        : null;
+    if (
+      ann instanceof HTMLElement &&
+      ann.getAttribute("contenteditable") === "true" &&
+      el.contains(ann)
+    ) {
+      e.preventDefault();
+      let text = e.clipboardData?.getData("text/plain") || "";
+      text = text
+        .replace(/\u00A0/g, " ")
+        .replace(/[\u200B-\u200D\uFEFF]/g, "")
+        .replace(/\u2028|\u2029/g, "\n");
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0) return;
+      const range = sel.getRangeAt(0);
+      if (!ann.contains(range.commonAncestorContainer)) return;
+      range.deleteContents();
+      range.insertNode(document.createTextNode(text));
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      syncWebTextBlockV2FieldValuesForSerialization(el);
+      scheduleEditorHtmlStateSync(el.innerHTML);
+      autosizeWebTextBlockV2Textareas(el);
+      updateToolbarState();
+      return;
+    }
+    if (isEditorNativeFormTextControl(el, rawTarget)) return;
     const selPaste = window.getSelection();
     const currentPasteRangeRaw =
       selPaste && selPaste.rangeCount > 0 ? selPaste.getRangeAt(0).cloneRange() : null;
@@ -9332,6 +13979,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
 
     try {
       flushScheduledEditorHtmlStateSync();
+      if (editorRef.current) syncWebTextBlockV2FieldValuesForSerialization(editorRef.current, { flushAnnouncementText: true });
       const liveHtml = editorRef.current?.innerHTML ?? contentHtml;
       const liveHtmlWebp = await normalizeHtmlInlineImagesToWebp(liveHtml);
       if (liveHtmlWebp !== liveHtml) {
@@ -9367,6 +14015,12 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
             : "";
       const ed = editorRef.current;
       if (!ed) return;
+      if (
+        isEditorNativeFormTextControl(ed, e.target) ||
+        isEditorNativeFormTextControl(ed, typeof document !== "undefined" ? document.activeElement : null)
+      ) {
+        return;
+      }
       const sel = window.getSelection();
       if (!sel || sel.rangeCount === 0) return;
       const range = sel.getRangeAt(0);
@@ -9391,6 +14045,12 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       if (e.key !== "Backspace" && e.key !== "Delete") return;
       const ed = editorRef.current;
       if (!ed) return;
+      if (
+        isEditorNativeFormTextControl(ed, e.target) ||
+        isEditorNativeFormTextControl(ed, typeof document !== "undefined" ? document.activeElement : null)
+      ) {
+        return;
+      }
       const sel = window.getSelection();
       if (!sel || sel.rangeCount === 0) return;
       const range = sel.getRangeAt(0);
@@ -9620,7 +14280,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
           onClick={() => setCoverButtonLinkModalOpen(false)}
           role="dialog"
           aria-modal="true"
-          aria-label="Ссылка кнопки обложки"
+          aria-label="Ссылка и название кнопки"
         >
           <div
             className="relative w-full max-w-md rounded-2xl bg-white p-4 shadow-xl ring-1 ring-slate-200"
@@ -9635,6 +14295,22 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
               <XMarkIcon className="h-4 w-4 [stroke-width:2.2]" />
             </span>
             <div className="mt-4 grid grid-cols-1 gap-3">
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="font-semibold text-slate-700">Название кнопки</span>
+                <input
+                  ref={coverButtonLinkModalLabelInputRef}
+                  value={coverButtonLinkModalLabelValue}
+                  onChange={(e) => setCoverButtonLinkModalLabelValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      applyCoverButtonLinkAndClose();
+                    }
+                  }}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#496db3] focus:ring-1 focus:ring-[#496db3]"
+                  placeholder="Текст на кнопке"
+                />
+              </label>
               <label className="flex flex-col gap-1 text-sm">
                 <span className="font-semibold text-slate-700">Ссылка кнопки</span>
                 <input
@@ -9837,6 +14513,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       )}
       <style>{`
         ${getSharedWebBlocksCss(".page-editor")}
+        ${getTimelineRenderCss(".page-editor")}
         .page-editor ul { --list-marker-color: #000000; }
         ${LIST_COLORS.filter((c) => c.value).map(
           (c) => `.page-editor ul[data-list-color="${c.value}"] { --list-marker-color: ${c.hex}; }`
@@ -9917,8 +14594,16 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-editor-image-resize-se { bottom: -5px; right: -5px; cursor: se-resize; }
         .page-editor .page-editor-image-resize-sw { bottom: -5px; left: -5px; cursor: sw-resize; }
         ${getPageShowRenderCss(".page-editor")}
+        /* Публичный getPageShowRenderCss рассчитан на .page-content с боковыми отступами: margin -1rem и width +2rem компенсируют их. На полотне редактора этих отступов нет — обложка уезжает влево вместе со стрелками и меню. */
+        .page-editor .page-web-cover {
+          width: 100% !important;
+          max-width: 100% !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          border-radius: 0 !important;
+        }
         .page-editor .page-web-timeline[data-timeline-show-term="0"] .page-web-timeline-term { display: none !important; }
-        .page-editor .page-web-timeline[data-timeline-show-title="0"] .page-web-timeline-title { display: none !important; }
+        .page-editor .page-web-timeline[data-timeline-show-title="0"] .page-web-timeline-content > .page-web-elements.page-web-elements-title2 { display: none !important; }
         .page-editor .page-web-timeline[data-timeline-show-text="0"] .page-web-timeline-text { display: none !important; }
         .page-editor .page-web-timeline { --timeline-dot-size: 0.8rem; --timeline-line-size: 2px; --timeline-gap: 0.9rem; position: relative; width: 100%; margin: 0 0 1rem; padding-top: 1rem; display: grid; grid-template-columns: repeat(var(--timeline-cols, 3), minmax(0, 1fr)); gap: 0.7rem var(--timeline-gap); box-sizing: border-box; }
         .page-editor .page-web-timeline-head { grid-column: 1 / -1; margin: 0 0 0.6rem; display: grid; gap: 0; text-align: center; }
@@ -9937,19 +14622,52 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
           max-width: 100%;
           box-sizing: border-box;
         }
-        .page-editor .page-web-feature-grid-subtitle {
+        .page-editor .page-web-feature-grid-head > .page-web-elements-subtitle {
           position: relative;
           z-index: 2;
-          display: inline-block;
-          max-width: 100%;
+          width: 100%;
+          min-width: 0;
           margin-top: -0.2rem;
           padding: 0.15em 0 0.55em;
           box-sizing: border-box;
+        }
+        .page-editor .page-web-feature-grid-head .page-web-elements-subtitle-input {
+          max-width: 100%;
         }
         .page-editor .page-web-timeline-heading { margin: 0; color: #496db3; font-size: 2.25rem; line-height: 1; font-weight: 600; letter-spacing: -0.02em; position: relative; z-index: 1; }
         .page-editor .page-web-timeline-subtitle + .page-web-timeline-heading { margin-top: var(--site-red-blue-gap, -0.375rem); }
         .page-editor .page-web-timeline-description { margin: 0; color: #64748b; font-size: inherit; line-height: 1.5; }
         .page-editor .page-web-timeline-heading + .page-web-timeline-description { margin-top: 1rem; }
+        .page-editor .page-web-timeline-head > .page-web-text-block-v2-fields > .page-web-elements.page-web-elements-subtitle {
+          position: relative;
+          z-index: 2;
+          width: 100%;
+          min-width: 0;
+          margin: 0;
+          margin-top: -0.2rem;
+          padding: 0.15em 0 0.55em;
+          box-sizing: border-box;
+        }
+        .page-editor .page-web-timeline-head > .page-web-text-block-v2-fields > .page-web-elements.page-web-elements-title {
+          margin: 0;
+          position: relative;
+          z-index: 1;
+          width: 100%;
+          min-width: 0;
+          box-sizing: border-box;
+        }
+        .page-editor .page-web-timeline-head > .page-web-text-block-v2-fields > .page-web-elements.page-web-elements-subtitle + .page-web-elements.page-web-elements-title {
+          margin-top: var(--site-red-blue-gap, -0.375rem);
+        }
+        .page-editor .page-web-timeline-head > .page-web-text-block-v2-fields > .page-web-elements.page-web-elements-description {
+          margin: 0;
+          width: 100%;
+          min-width: 0;
+          box-sizing: border-box;
+        }
+        .page-editor .page-web-timeline-head > .page-web-text-block-v2-fields > .page-web-elements.page-web-elements-title + .page-web-elements.page-web-elements-description {
+          margin-top: 1rem;
+        }
         .page-editor .page-web-timeline-item {
           position: relative;
           min-height: 0;
@@ -9988,7 +14706,8 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-timeline-content {
           display: flex;
           flex-direction: column;
-          align-items: center;
+          align-items: stretch;
+          justify-content: flex-start;
           gap: 0.2rem;
           padding: 0.6rem 0.7rem;
           margin: 0;
@@ -10014,50 +14733,47 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
           align-self: stretch;
           margin: 0;
         }
-        .page-editor .page-web-timeline-title { margin: 0; font-size: inherit; font-weight: 700; color: #0f172a; line-height: 1.5; text-align: center; }
+        .page-editor .page-web-timeline-content > .page-web-elements.page-web-elements-title2 { margin: 0; width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; }
+        .page-editor .page-web-timeline-content .page-web-elements-title2-input { text-align: center; margin: 0; padding: 0; }
+        .page-editor .page-web-timeline-content > .page-web-elements.page-web-elements-title2 { margin: 0; padding: 0; }
+        .page-editor .page-web-timeline-item > .page-web-timeline-term.page-web-elements-subtitle .page-web-elements-subtitle-input { color: #64748b !important; font-weight: 600; width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; margin: 0; padding: 0; background: transparent; border: none; resize: none; text-align: inherit; }
+        .page-editor .page-web-timeline-content > .page-web-elements.page-web-elements-description.page-web-timeline-text { margin: 0; width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; }
+        .page-editor .page-web-timeline-content .page-web-elements-description.page-web-timeline-text .page-web-elements-description-input { width: 100%; min-width: 0; margin: 0; padding: 0; background: transparent; border: none; resize: none; color: #475569; box-sizing: border-box; font-size: inherit; line-height: inherit; }
         .page-editor .page-web-timeline-text { margin: 0; font-size: inherit; color: #475569; line-height: 1.5; text-align: center; }
-        @media (max-width: 1205px) {
-          .page-editor .page-web-timeline { grid-template-columns: 1fr; --timeline-gap: 0.65rem; --timeline-term-col: 4.6rem; gap: var(--timeline-gap); position: relative; }
-          .page-editor .page-web-timeline::before {
-            content: "";
-            position: absolute;
-            left: var(--timeline-line-left, calc(var(--timeline-term-col) + 0.35rem + 0.95rem));
-            top: var(--timeline-line-top, 3.1rem);
-            bottom: var(--timeline-line-bottom, 0.8rem);
-            right: auto;
-            transform: translateX(-50%);
-            width: var(--timeline-line-size);
-            height: auto;
-            background: #cbd5e1;
-            pointer-events: none;
-            z-index: 1;
-          }
-          .page-editor .page-web-timeline-item { min-height: 0; padding-top: 0; padding-left: 0; display: grid; grid-template-columns: var(--timeline-term-col) 1.9rem minmax(0, 1fr); column-gap: 0.35rem; grid-template-rows: none; row-gap: 0; align-items: center; position: relative; z-index: 2; }
-          .page-editor .page-web-timeline[data-timeline-show-term="0"] .page-web-timeline-item { grid-template-columns: 0 1.9rem minmax(0, 1fr); }
-          .page-editor .page-web-timeline-item::before,
-          .page-editor .page-web-timeline-item::after { content: none; display: none; }
-          .page-editor .page-web-timeline-item:not(:last-of-type)::before,
-          .page-editor .page-web-timeline-item:not(:first-of-type)::after { content: none !important; display: none !important; width: 0 !important; height: 0 !important; }
-          .page-editor .page-web-timeline-dot { position: static; left: auto; top: auto; transform: none; grid-column: 2; grid-row: 1; justify-self: center; align-self: center; z-index: 3; }
-          .page-editor .page-web-timeline-term { position: static; transform: none; margin: 0; padding: 0 0.1rem 0 0; background: transparent; grid-column: 1; grid-row: 1; align-self: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right; display: inline-flex; align-items: center; justify-content: flex-end; justify-self: end; min-height: 0; height: auto; width: 100%; max-width: var(--timeline-term-col); }
-          .page-editor .page-web-timeline-content { grid-column: 3; grid-row: 1; align-self: center; align-items: flex-start; text-align: left; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 0.6rem 0.7rem; box-sizing: border-box; }
-          .page-editor .page-web-timeline-item:nth-of-type(odd):not(:first-of-type) > .page-web-timeline-term { grid-row: 1; align-self: center; margin: 0; align-items: center; }
-          .page-editor .page-web-timeline-item:nth-of-type(odd):not(:first-of-type) > .page-web-timeline-content { grid-row: 1; align-self: center; justify-self: stretch; margin: 0; }
-          .page-editor .page-web-timeline-title,
-          .page-editor .page-web-timeline-text { text-align: left; }
+        .page-editor .page-web-timeline textarea.page-web-elements-subtitle-input,
+        .page-editor .page-web-timeline textarea.page-web-elements-title2-input,
+        .page-editor .page-web-timeline textarea.page-web-elements-description-input {
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+          overflow-wrap: break-word !important;
+          word-break: normal !important;
         }
-        .page-editor .page-web-timeline-toolbar { position: absolute; left: -8px; right: auto; top: 50%; z-index: 80; width: max-content; pointer-events: auto; user-select: none; -webkit-user-select: none; transform: translateY(-50%); }
+        @media (max-width: 1205px) {
+          .page-editor .page-web-timeline-item[data-timeline-has-next="1"]::before,
+          .page-editor .page-web-timeline-item[data-timeline-has-next="0"]::before {
+            content: none !important;
+            display: none !important;
+            width: 0 !important;
+            height: 0 !important;
+          }
+          .page-editor .page-web-timeline-content { align-items: flex-start; }
+          .page-editor .page-web-timeline-content .page-web-elements-title2-input { text-align: left; }
+        }
+        .page-editor .page-web-timeline-toolbar { position: absolute; left: 0.75rem; right: auto; top: 50%; width: max-content; pointer-events: auto; user-select: none; -webkit-user-select: none; transform: translateY(-50%); }
         .page-editor .page-web-cover-toolbar,
         .page-editor .page-web-carousel-toolbar,
         .page-editor .page-web-timeline-toolbar,
         .page-editor .page-web-text-media-toolbar,
         .page-editor .page-web-text-block-toolbar,
+        .page-editor .page-web-text-block-v2-toolbar,
         .page-editor .page-web-spacer-toolbar { display: flex; flex-direction: column; align-items: center; gap: 4px; }
         .page-editor .page-web-cover,
         .page-editor .page-web-carousel,
         .page-editor .page-web-timeline,
         .page-editor .page-web-text-media,
         .page-editor .page-web-text-block,
+        .page-editor .page-web-text-block-v2,
         .page-editor .page-web-spacer { position: relative; }
         .page-editor .page-web-insert-handle { position: absolute; left: 50%; bottom: -14px; transform: translateX(-50%); z-index: 75; opacity: 0; pointer-events: none; transition: opacity 0.15s ease; }
         .page-editor .page-web-insert-handle-btn { pointer-events: auto; display: inline-flex; align-items: center; gap: 6px; border-radius: 9999px; border: 1px solid #cbd5e1; background: rgba(255,255,255,0.98); color: #475569; font-size: 11px; font-weight: 600; line-height: 1; padding: 5px 10px; box-shadow: 0 4px 12px rgba(15,23,42,0.08); cursor: pointer; white-space: nowrap; }
@@ -10073,6 +14789,8 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-text-media:focus-within > .page-web-insert-handle,
         .page-editor .page-web-text-block:hover > .page-web-insert-handle,
         .page-editor .page-web-text-block:focus-within > .page-web-insert-handle,
+        .page-editor .page-web-text-block-v2:hover > .page-web-insert-handle,
+        .page-editor .page-web-text-block-v2:focus-within > .page-web-insert-handle,
         .page-editor .page-web-spacer:hover > .page-web-insert-handle,
         .page-editor .page-web-spacer:focus-within > .page-web-insert-handle { opacity: 1; }
         .page-editor .page-web-block-move-btn { display: flex; width: 28px; height: 28px; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid #cbd5e1; background: rgba(255,255,255,0.95); color: #64748b; cursor: pointer; padding: 0; }
@@ -10081,12 +14799,13 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-timeline-menu-trigger { display: flex; width: 28px; height: 28px; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid #cbd5e1; background: rgba(255,255,255,0.95); color: #64748b; cursor: pointer; padding: 0; }
         .page-editor .page-web-timeline-menu-trigger:hover { border-color: #94a3b8; color: #0f172a; background: #fff; }
         .page-editor .page-web-timeline-menu-dots::before { content: "\\22EE"; font-size: 1rem; line-height: 1; }
-        .page-editor .page-web-timeline-menu-dropdown { display: none; position: absolute; left: calc(100% + 4px); right: auto; top: 32px; min-width: 14rem; padding: 4px 0; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 10px 24px rgba(15,23,42,0.12); z-index: 90; }
+        .page-editor .page-web-timeline-menu-dropdown { display: none; position: absolute; left: calc(100% + 4px); right: auto; top: 32px; min-width: 14rem; padding: 4px 0; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 10px 24px rgba(15,23,42,0.12); z-index: 130; }
         .page-editor .page-web-timeline-toolbar[data-menu-open="1"] .page-web-timeline-menu-dropdown { display: block; }
         .page-editor .page-web-cover-toolbar[data-menu-drop="up"] > .page-web-cover-menu-dropdown,
         .page-editor .page-web-timeline-toolbar[data-menu-drop="up"] > .page-web-timeline-menu-dropdown,
         .page-editor .page-web-text-media-toolbar[data-menu-drop="up"] > .page-web-text-media-menu-dropdown,
         .page-editor .page-web-text-block-toolbar[data-menu-drop="up"] > .page-web-text-block-menu-dropdown,
+        .page-editor .page-web-text-block-v2-toolbar[data-menu-drop="up"] > .page-web-text-block-v2-menu-dropdown,
         .page-editor .page-web-spacer-toolbar[data-menu-drop="up"] > .page-web-spacer-menu-dropdown {
           top: auto !important;
           bottom: 32px !important;
@@ -10095,6 +14814,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-timeline-toolbar[data-menu-drop="down"] > .page-web-timeline-menu-dropdown,
         .page-editor .page-web-text-media-toolbar[data-menu-drop="down"] > .page-web-text-media-menu-dropdown,
         .page-editor .page-web-text-block-toolbar[data-menu-drop="down"] > .page-web-text-block-menu-dropdown,
+        .page-editor .page-web-text-block-v2-toolbar[data-menu-drop="down"] > .page-web-text-block-v2-menu-dropdown,
         .page-editor .page-web-spacer-toolbar[data-menu-drop="down"] > .page-web-spacer-menu-dropdown {
           top: 32px;
           bottom: auto;
@@ -10109,7 +14829,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-timeline-menu-delete { display: block; width: 100%; box-sizing: border-box; text-align: left; padding: 8px 12px; font-size: 13px; font-weight: 500; color: #b91c1c; background: transparent; border: none; cursor: pointer; border-radius: 4px; white-space: nowrap; }
         .page-editor .page-web-timeline-menu-delete:hover { background: #fef2f2; }
         /* Поверх градиента обложки, вне потока — не сдвигает текст редактора */
-        .page-editor .page-web-cover-toolbar { position: absolute; left: 8px; top: 50%; right: auto; margin: 0; z-index: 10040; transform: translateY(-50%); width: max-content; pointer-events: auto; user-select: none; -webkit-user-select: none; }
+        .page-editor .page-web-cover-toolbar { position: absolute; left: 0.75rem; top: 50%; right: auto; margin: 0; padding: 0; z-index: 10040; transform: translateY(-50%); width: max-content; pointer-events: auto; user-select: none; -webkit-user-select: none; align-items: flex-start; }
         .page-editor .page-web-cover-menu-trigger { display: flex; width: 28px; height: 28px; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid #cbd5e1; background: rgba(255,255,255,0.95); color: #64748b; cursor: pointer; user-select: none; -webkit-user-select: none; padding: 0; }
         .page-editor .page-web-cover-menu-trigger:hover { border-color: #94a3b8; color: #0f172a; background: #fff; }
         .page-editor .page-web-cover-menu-dots { display: inline-block; font-size: 1rem; line-height: 1; transform: translateY(-1px); }
@@ -10136,20 +14856,30 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-cover-menu-type-label { flex: 1; min-width: 0; }
         .page-editor .page-web-cover-elements-panel { display: none; flex-direction: column; gap: 2px; padding: 6px; min-width: 11rem; box-sizing: border-box; }
         .page-editor .page-web-cover-toolbar[data-menu-open="1"] .page-web-cover-menu-sub[data-submenu-open="1"] > .page-web-cover-menu-sub-panel .page-web-cover-elements-panel { display: flex; }
-        .page-editor .page-web-cover-menu-insert-cover-el { display: block; width: 100%; box-sizing: border-box; text-align: left; padding: 8px 12px; font-size: 13px; font-weight: 500; color: #0f172a; background: transparent; border: none; cursor: pointer; border-radius: 4px; white-space: nowrap; }
+        .page-editor .page-web-cover-menu-insert-cover-el { display: flex; width: 100%; box-sizing: border-box; align-items: center; gap: 8px; text-align: left; padding: 8px 10px; font-size: 13px; font-weight: 500; color: #0f172a; background: transparent; border: none; cursor: pointer; border-radius: 6px; white-space: nowrap; }
         .page-editor .page-web-cover-menu-insert-cover-el:hover { background: #f1f5f9; }
-        .page-editor .page-web-cover .page-web-cover-el-title[data-placeholder-visible="1"],
+        .page-editor .page-web-cover .page-web-cover-inner > .page-web-elements.page-web-elements-title[data-placeholder-visible="1"],
+        .page-editor .page-web-cover .page-web-cover-inner > .page-web-elements.page-web-elements-description[data-placeholder-visible="1"],
+        .page-editor .page-web-cover .page-web-cover-inner > .page-web-elements-actions[data-placeholder-visible="1"],
         .page-editor .page-web-cover .page-web-cover-el-subtitle[data-placeholder-visible="1"],
         .page-editor .page-web-cover .page-web-cover-el-button-wrap[data-placeholder-visible="1"] {
           position: relative;
         }
-        .page-editor .page-web-cover .page-web-cover-el-title[data-placeholder-visible="1"]::before,
+        .page-editor .page-web-cover .page-web-cover-inner > .page-web-elements.page-web-elements-title[data-placeholder-visible="1"]::before,
+        .page-editor .page-web-cover .page-web-cover-inner > .page-web-elements.page-web-elements-description[data-placeholder-visible="1"]::before,
+        .page-editor .page-web-cover .page-web-cover-inner > .page-web-elements-actions[data-placeholder-visible="1"]::before,
         .page-editor .page-web-cover .page-web-cover-el-subtitle[data-placeholder-visible="1"]::before,
         .page-editor .page-web-cover .page-web-cover-el-button-wrap[data-placeholder-visible="1"]::before {
           content: attr(data-placeholder);
           color: #94a3b8;
           font-weight: 500;
           pointer-events: none;
+        }
+        .page-editor .page-web-cover .page-web-cover-inner > .page-web-elements.page-web-elements-title:has(textarea.page-web-elements-title-input)::before,
+        .page-editor .page-web-cover .page-web-cover-inner > .page-web-elements.page-web-elements-description:has(textarea.page-web-elements-description-input)::before,
+        .page-editor .page-web-cover .page-web-cover-inner > .page-web-elements-actions:has(.page-web-elements-cta-button)::before,
+        .page-editor .page-web-cover .page-web-cover-inner > .page-web-elements-actions:has(a.page-web-elements-cta-button)::before {
+          content: none !important;
         }
         .page-editor .page-web-cover-inner[data-cover-unlocked="1"] { outline: none !important; box-shadow: none !important; }
         .page-editor .page-web-cover-inner[data-cover-unlocked="1"],
@@ -10158,8 +14888,11 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-timeline-subtitle,
         .page-editor .page-web-timeline-heading,
         .page-editor .page-web-timeline-description,
+        .page-editor .page-web-timeline-head > .page-web-text-block-v2-fields > .page-web-elements.page-web-elements-subtitle,
+        .page-editor .page-web-timeline-head > .page-web-text-block-v2-fields > .page-web-elements.page-web-elements-title,
+        .page-editor .page-web-timeline-head > .page-web-text-block-v2-fields > .page-web-elements.page-web-elements-description,
         .page-editor .page-web-timeline-term,
-        .page-editor .page-web-timeline-title,
+        .page-editor .page-web-timeline-content > .page-web-elements.page-web-elements-title2,
         .page-editor .page-web-timeline-text {
           min-width: 0;
           max-width: 100%;
@@ -10173,23 +14906,40 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-timeline-subtitle > *,
         .page-editor .page-web-timeline-heading > *,
         .page-editor .page-web-timeline-description > *,
+        .page-editor .page-web-timeline-head > .page-web-text-block-v2-fields > .page-web-elements.page-web-elements-subtitle > *,
+        .page-editor .page-web-timeline-head > .page-web-text-block-v2-fields > .page-web-elements.page-web-elements-title > *,
+        .page-editor .page-web-timeline-head > .page-web-text-block-v2-fields > .page-web-elements.page-web-elements-description > *,
         .page-editor .page-web-timeline-term > *,
-        .page-editor .page-web-timeline-title > *,
+        .page-editor .page-web-timeline-content > .page-web-elements.page-web-elements-title2 > *,
         .page-editor .page-web-timeline-text > * {
           max-width: 100%;
           box-sizing: border-box;
         }
         /* Активная область редактирования: один атрибут data-editor-focus-target + переменные на .page-editor */
-        .page-editor .page-web-cover-inner [data-editor-focus-target="1"],
-        .page-editor .page-web-text-block-content [data-editor-focus-target="1"],
-        .page-editor .page-web-work-pricing [data-editor-focus-target="1"],
+        .page-editor .page-web-cover-inner [data-editor-focus-target="1"]:not(textarea):not(input):not(.page-web-elements-actions-cluster):not(.page-web-elements-cta-button):not(.page-web-elements-cta-button-secondary):not(a.page-web-elements-cta-button):not(a.page-web-elements-cta-button-secondary),
+        .page-editor .page-web-text-block-subtitle-input[data-editor-focus-target="1"],
+        .page-editor .page-web-text-block-title-input[data-editor-focus-target="1"],
+        .page-editor .page-web-text-block-lead-input[data-editor-focus-target="1"],
+        .page-editor .page-web-text-block-content [data-editor-focus-target="1"]:not(textarea):not(input):not(a.page-web-elements-cta-button):not(a.page-web-elements-cta-button-secondary):not(span.page-web-elements-cta-button):not(span.page-web-elements-cta-button-secondary):not(p.page-web-elements-cta-wrap),
+        .page-editor .page-web-work-pricing [data-editor-focus-target="1"]:not(textarea):not(input):not(a.page-web-elements-cta-button):not(a.page-web-elements-cta-button-secondary):not(span.page-web-elements-cta-button):not(span.page-web-elements-cta-button-secondary):not(p.page-web-elements-cta-wrap),
         .page-editor .page-web-text-media-col[data-editor-focus-target="1"],
         .page-editor .page-web-text-media-col [data-editor-focus-target="1"],
         .page-editor .page-web-timeline [data-editor-focus-target="1"] {
           padding-inline: var(--page-editor-focus-pad-inline);
+          padding-block: var(--page-editor-focus-pad-block);
           margin-inline: var(--page-editor-focus-margin-inline);
+          margin-block: var(--page-editor-focus-margin-block);
           box-shadow: var(--page-editor-focus-shadow);
           border-radius: var(--page-editor-focus-radius);
+          transition: box-shadow 0.12s ease;
+        }
+        .page-editor a.page-web-elements-cta-button[data-editor-focus-target="1"],
+        .page-editor a.page-web-elements-cta-button-secondary[data-editor-focus-target="1"],
+        .page-editor span.page-web-elements-cta-button[data-editor-focus-target="1"],
+        .page-editor span.page-web-elements-cta-button-secondary[data-editor-focus-target="1"] {
+          outline: none !important;
+          border-radius: 0.625rem;
+          box-shadow: var(--page-editor-focus-shadow);
           transition: box-shadow 0.12s ease;
         }
         .page-editor .page-web-text-block-content { outline: none !important; }
@@ -10198,6 +14948,74 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
           text-decoration: none !important;
           box-decoration-break: clone;
           -webkit-box-decoration-break: clone;
+        }
+        .page-editor .page-web-text-block-subtitle-input[data-editor-focus-target="1"],
+        .page-editor .page-web-text-block-title-input[data-editor-focus-target="1"],
+        .page-editor .page-web-text-block-lead-input[data-editor-focus-target="1"],
+        .page-editor .page-web-elements-title2-input[data-editor-focus-target="1"],
+        .page-editor .page-web-elements-subtitle-input[data-editor-focus-target="1"],
+        .page-editor .page-web-elements-description-input[data-editor-focus-target="1"] {
+          padding: 0.25rem 0.45rem;
+          margin: 0;
+          border-radius: 8px;
+          box-sizing: border-box;
+          box-shadow: var(--page-editor-focus-shadow);
+          transition: box-shadow 0.12s ease;
+        }
+        .page-editor .page-web-elements-title-input[data-editor-focus-target="1"] {
+          padding: 0.15rem 0.45rem;
+          margin: 0;
+          border-radius: 8px;
+          box-sizing: border-box;
+          line-height: 1.2 !important;
+          box-shadow: var(--page-editor-focus-shadow);
+          transition: box-shadow 0.12s ease;
+        }
+        .page-editor .page-web-feature-grid-message textarea.page-web-elements-title2-input.page-web-feature-grid-message-title[data-editor-focus-target="1"],
+        .page-editor .page-web-feature-grid-message textarea.page-web-elements-description-input.page-web-feature-grid-message-body[data-editor-focus-target="1"] {
+          padding: 0 !important;
+        }
+        .page-editor .page-web-work-pricing textarea.page-web-elements-title-input[data-editor-focus-target="1"] {
+          padding: 0.15rem 0.45rem;
+          margin: 0;
+          border-radius: 8px;
+          box-sizing: border-box;
+          line-height: 1.2 !important;
+          outline: none !important;
+          box-shadow: var(--page-editor-focus-shadow);
+          transition: box-shadow 0.12s ease;
+        }
+        .page-editor .page-web-work-pricing textarea.page-web-elements-title2-input[data-editor-focus-target="1"],
+        .page-editor .page-web-work-pricing textarea.page-web-elements-subtitle-input[data-editor-focus-target="1"],
+        .page-editor .page-web-work-pricing textarea.page-web-elements-description-input[data-editor-focus-target="1"] {
+          padding: 0.25rem 0.45rem;
+          margin: 0;
+          border-radius: 8px;
+          box-sizing: border-box;
+          outline: none !important;
+          box-shadow: var(--page-editor-focus-shadow);
+          transition: box-shadow 0.12s ease;
+        }
+        .page-editor .page-web-elements-actions-cluster[data-editor-focus-target="1"] {
+          outline: none !important;
+          padding: 0.2rem 0.35rem;
+          margin: 0;
+          box-shadow: var(--page-editor-focus-shadow);
+          border-radius: 8px;
+          transition: box-shadow 0.12s ease;
+          box-sizing: border-box;
+        }
+        .page-editor .page-web-elements-actions-cluster .page-web-elements-cta-button:focus,
+        .page-editor .page-web-elements-actions-cluster a.page-web-elements-cta-button:focus,
+        .page-editor .page-web-elements-actions-cluster a.page-web-elements-cta-button-secondary:focus {
+          outline: none !important;
+        }
+        .page-editor .page-web-elements-actions[data-editor-focus-target="1"]:not(:has(.page-web-elements-actions-cluster)) {
+          outline: none !important;
+          box-shadow: var(--page-editor-focus-shadow);
+          border-radius: 8px;
+          transition: box-shadow 0.12s ease;
+          box-sizing: border-box;
         }
         .page-editor .page-web-timeline .page-web-timeline-subtitle[data-editor-focus-target="1"],
         .page-editor .page-web-timeline .page-web-timeline-heading[data-editor-focus-target="1"] {
@@ -10226,7 +15044,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-cover-menu-delete { display: block; width: 100%; box-sizing: border-box; text-align: left; padding: 8px 12px; font-size: 13px; font-weight: 500; color: #b91c1c; background: transparent; border: none; cursor: pointer; border-radius: 4px; white-space: nowrap; }
         .page-editor .page-web-cover-menu-delete:hover { background: #fef2f2; }
         .page-editor .page-web-text-media { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1rem; width: 100%; margin: 1rem 0; }
-        .page-editor .page-web-text-media-toolbar { position: absolute; left: -8px; top: 50%; z-index: 80; width: max-content; pointer-events: auto; user-select: none; -webkit-user-select: none; transform: translateY(-50%); }
+        .page-editor .page-web-text-media-toolbar { position: absolute; left: 0.75rem; top: 50%; z-index: 80; width: max-content; pointer-events: auto; user-select: none; -webkit-user-select: none; transform: translateY(-50%); }
         .page-editor .page-web-text-media-menu-trigger { display: flex; width: 28px; height: 28px; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid #cbd5e1; background: rgba(255,255,255,0.95); color: #64748b; cursor: pointer; padding: 0; }
         .page-editor .page-web-text-media-menu-trigger:hover { border-color: #94a3b8; color: #0f172a; background: #fff; }
         .page-editor .page-web-text-media-menu-dots::before { content: "\\22EE"; font-size: 1rem; line-height: 1; }
@@ -10235,16 +15053,59 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-text-media-menu-delete { display: block; width: 100%; box-sizing: border-box; text-align: left; padding: 8px 12px; font-size: 13px; font-weight: 500; color: #b91c1c; background: transparent; border: none; cursor: pointer; border-radius: 4px; white-space: nowrap; }
         .page-editor .page-web-text-media-menu-delete:hover { background: #fef2f2; }
         .page-editor .page-web-text-block { position: relative; width: 100%; margin: 1rem 0; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; padding: 1rem; box-sizing: border-box; }
-        .page-editor .page-web-text-block-toolbar { position: absolute; left: -8px; top: 50%; z-index: 80; width: max-content; pointer-events: auto; user-select: none; -webkit-user-select: none; transform: translateY(-50%); }
+        .page-editor .page-web-text-block-toolbar { position: absolute; left: 0.75rem; top: 50%; z-index: 80; width: max-content; pointer-events: auto; user-select: none; -webkit-user-select: none; transform: translateY(-50%); }
         .page-editor .page-web-text-block-menu-trigger { display: flex; width: 28px; height: 28px; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid #cbd5e1; background: rgba(255,255,255,0.95); color: #64748b; cursor: pointer; padding: 0; }
         .page-editor .page-web-text-block-menu-trigger:hover { border-color: #94a3b8; color: #0f172a; background: #fff; }
         .page-editor .page-web-text-block-menu-dots::before { content: "\\22EE"; font-size: 1rem; line-height: 1; }
         .page-editor .page-web-text-block-menu-dropdown { display: none; position: absolute; left: calc(100% + 4px); right: auto; top: 32px; min-width: 11.5rem; padding: 4px 0; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 10px 24px rgba(15,23,42,0.12); z-index: 90; transform: translateZ(0); -webkit-transform: translateZ(0); backface-visibility: hidden; -webkit-backface-visibility: hidden; }
         .page-editor .page-web-text-block-menu-dropdown[data-force-hidden="1"] { display: none !important; visibility: hidden !important; opacity: 0 !important; pointer-events: none !important; }
         .page-editor .page-web-text-block-toolbar[data-menu-open="1"] .page-web-text-block-menu-dropdown { display: block; }
-        .page-editor .page-web-text-block-menu-sub { position: relative; display: none; }
-        .page-editor .page-web-text-block-toolbar[data-text-block-variant="feature-grid"] .page-web-text-block-menu-sub--feature-grid-elements { display: block; }
+        .page-editor .page-web-text-block-toolbar[data-text-block-variant="feature-grid"] .page-web-text-block-menu-sub--feature-grid-block-elements,
+        .page-editor .page-web-text-block-toolbar[data-text-block-variant="feature-grid"] .page-web-text-block-menu-sub--feature-grid-card-elements,
         .page-editor .page-web-text-block-toolbar[data-text-block-variant="feature-grid"] .page-web-text-block-menu-sub--feature-grid-extra { display: block; }
+        .page-editor .page-web-text-block-menu-sub { position: relative; display: none; }
+        .page-editor .page-web-text-block-menu-plain-fields,
+        .page-editor .page-web-text-block-menu-sep--plain-fields { display: none; }
+        .page-editor .page-web-text-block-toolbar[data-text-block-variant=""] .page-web-text-block-menu-plain-fields,
+        .page-editor .page-web-text-block-toolbar[data-text-block-variant=""] .page-web-text-block-menu-sep--plain-fields { display: block; }
+        .page-editor .page-web-text-block-fields { display: flex; flex-direction: column; gap: 0.65rem; margin: 0 0 0.85rem; box-sizing: border-box; }
+        .page-editor .page-web-text-block-subtitle-input,
+        .page-editor .page-web-text-block-title-input,
+        .page-editor .page-web-text-block-lead-input {
+          width: 100%;
+          max-width: 100%;
+          box-sizing: border-box;
+          margin: 0;
+          font: inherit;
+          color: #0f172a;
+          background: #fff;
+          border: 1px solid #cbd5e1;
+          border-radius: 8px;
+          padding: 0.25rem 0.45rem;
+          outline: none;
+        }
+        .page-editor .page-web-text-block-subtitle-input {
+          font-size: 1rem;
+          font-weight: 600;
+          line-height: 1.2;
+          color: #b91c1c;
+        }
+        .page-editor .page-web-text-block-title-input {
+          font-size: 1.2rem;
+          font-weight: 600;
+          line-height: 1.25;
+          color: #0f172a;
+        }
+        .page-editor .page-web-text-block-lead-input {
+          line-height: 1.5;
+          color: #475569;
+        }
+        .page-editor .page-web-text-block[data-text-block-has-subtitle="0"] .page-web-text-block-subtitle-field-wrap { display: none !important; }
+        .page-editor .page-web-text-block[data-text-block-has-title="0"] .page-web-text-block-title-field-wrap { display: none !important; }
+        .page-editor .page-web-text-block[data-text-block-has-lead="0"] .page-web-text-block-lead-field-wrap { display: none !important; }
+        .page-editor .page-web-text-block[data-text-block-has-subtitle="0"] .page-web-elements-subtitle { display: none !important; }
+        .page-editor .page-web-text-block[data-text-block-has-title="0"] .page-web-elements-title { display: none !important; }
+        .page-editor .page-web-text-block[data-text-block-has-lead="0"] .page-web-elements-description { display: none !important; }
         .page-editor .page-web-text-block-menu-sub-panel .page-web-text-block-menu-sub { display: block; }
         .page-editor .page-web-text-block-menu-sub-trigger { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; font-size: 13px; font-weight: 500; color: #0f172a; background: transparent; border: none; cursor: pointer; border-radius: 4px; text-align: left; }
         .page-editor .page-web-text-block-menu-sub-trigger:hover { background: #f1f5f9; }
@@ -10274,11 +15135,339 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-text-block-menu-sub-panel .page-web-text-block-menu-sep { display: block; margin: 6px 0; }
         .page-editor .page-web-text-block-menu-delete { display: block; width: 100%; box-sizing: border-box; text-align: left; padding: 8px 12px; font-size: 13px; font-weight: 500; color: #b91c1c; background: transparent; border: none; cursor: pointer; border-radius: 4px; white-space: nowrap; }
         .page-editor .page-web-text-block-menu-delete:hover { background: #fef2f2; }
+        .page-editor .page-web-text-block-v2 { position: relative; width: 100%; margin: 1rem 0; border: none; background: transparent; padding: 1rem; box-sizing: border-box; }
+        .page-editor .page-web-text-block-v2-toolbar { position: absolute; left: 0.75rem; top: 50%; z-index: 80; width: max-content; pointer-events: auto; user-select: none; -webkit-user-select: none; transform: translateY(-50%); }
+        .page-editor .page-web-text-block-v2-menu-trigger { display: flex; width: 28px; height: 28px; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid #cbd5e1; background: rgba(255,255,255,0.95); color: #64748b; cursor: pointer; padding: 0; }
+        .page-editor .page-web-text-block-v2-menu-trigger:hover { border-color: #94a3b8; color: #0f172a; background: #fff; }
+        .page-editor .page-web-text-block-v2-menu-dots::before { content: "\\22EE"; font-size: 1rem; line-height: 1; }
+        .page-editor .page-web-text-block-v2-menu-dropdown { display: none; position: absolute; left: calc(100% + 4px); right: auto; top: 32px; min-width: 11.5rem; padding: 4px 0; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 10px 24px rgba(15,23,42,0.12); z-index: 90; }
+        .page-editor .page-web-text-block-v2-toolbar[data-menu-open="1"] .page-web-text-block-v2-menu-dropdown { display: block; }
+        .page-editor .page-web-text-block-v2-menu-delete { display: block; width: 100%; box-sizing: border-box; text-align: left; padding: 8px 12px; font-size: 13px; font-weight: 500; color: #b91c1c; background: transparent; border: none; cursor: pointer; border-radius: 4px; white-space: nowrap; }
+        .page-editor .page-web-text-block-v2-menu-delete:hover { background: #fef2f2; }
+        .page-editor .page-web-text-block-v2-toolbar .page-web-text-block-menu-sub--v2-elements { display: block; }
+        .page-editor .page-web-text-block-v2-toolbar:not([data-menu-open="1"]) .page-web-text-block-menu-sub-panel {
+          display: none !important;
+          visibility: hidden !important;
+          pointer-events: none !important;
+        }
+        .page-editor .page-web-text-block-v2-toolbar[data-menu-open="1"] .page-web-text-block-menu-sub:not([data-submenu-open="1"]) > .page-web-text-block-menu-sub-panel {
+          display: none !important;
+        }
+        .page-editor .page-web-text-block-v2-toolbar[data-menu-open="1"] .page-web-text-block-menu-sub[data-submenu-open="1"] > .page-web-text-block-menu-sub-panel { display: block; }
+        .page-editor .page-web-text-block-v2-toolbar[data-menu-open="1"] .page-web-text-block-menu-sub[data-submenu-open="1"] > .page-web-text-block-menu-sub-trigger .page-web-text-block-menu-chevron { transform: rotate(90deg); }
+        .page-editor .page-web-text-block-v2-menu-sep { display: block; margin: 6px 8px; }
+        .page-editor .page-web-text-block-menu-element.page-web-text-block-v2-field-toggle {
+          display: flex !important;
+          flex-direction: row;
+          flex-wrap: nowrap;
+          align-items: center;
+          white-space: nowrap;
+        }
+        .page-editor .page-web-text-block-v2-field-toggle[aria-checked="true"] .page-web-text-block-v2-field-toggle-box {
+          border-color: #496db3;
+          background-color: #496db3;
+          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+        }
+        .page-editor .page-web-text-block-v2-field-toggle[aria-checked="true"] .page-web-text-block-v2-field-toggle-box::after {
+          content: "";
+          display: block;
+          width: 4px;
+          height: 8px;
+          border: solid #fff;
+          border-width: 0 2px 2px 0;
+          transform: rotate(45deg) translate(-0.5px, -1px);
+        }
+        .page-editor .page-web-text-block-v2-field-toggle:focus-visible {
+          outline: 2px solid #496db3;
+          outline-offset: 2px;
+        }
+        .page-editor .page-web-text-block-v2-fields { display: flex; flex-direction: column; gap: 0; margin: 0; box-sizing: border-box; width: 100%; }
+        .page-editor .page-web-elements-announcement {
+          display: block;
+          width: 100%;
+          min-width: 0;
+          box-sizing: border-box;
+        }
+        .page-editor .page-web-elements-announcement-row {
+          display: block;
+          width: 100%;
+          margin: 0;
+          padding: 0.25rem 0;
+          box-sizing: border-box;
+        }
+        .page-editor .page-web-elements-field-row {
+          display: block;
+          width: 100%;
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+          text-align: left;
+        }
+        .page-editor .page-web-elements-announcement-input-shell {
+          display: block;
+          width: 100%;
+          min-height: calc(1.5em + 0.35rem);
+          box-sizing: border-box;
+          padding: 0.15rem 0;
+          text-align: inherit;
+          background: transparent;
+          border: none;
+          cursor: text;
+        }
+        .page-editor .page-web-elements-announcement-strip {
+          display: inline-flex;
+          flex-wrap: nowrap;
+          align-items: center;
+          gap: 0.35rem 0.12rem;
+          width: max-content;
+          max-width: 100%;
+          box-sizing: border-box;
+          vertical-align: baseline;
+          padding: 0.18em 0.6em;
+          background: #eff6ff;
+          border: 1px solid #bfdbfe;
+          border-radius: 9999px;
+        }
+        .page-editor .page-web-elements-announcement-strip:has(.page-web-elements-announcement-input[contenteditable="true"]:focus) {
+          box-shadow: var(--page-editor-focus-shadow);
+          transition: box-shadow 0.12s ease;
+        }
+        .page-editor .page-web-elements-announcement-learn-more {
+          display: inline-flex;
+          align-items: center;
+          flex-shrink: 0;
+          margin: 0;
+          padding: 0;
+          border: none;
+          font-size: 1rem;
+          line-height: 1.5;
+          font-weight: 700;
+          letter-spacing: -0.02em;
+          color: #496db3;
+          cursor: pointer;
+          user-select: none;
+          -webkit-user-select: none;
+          transition: color 0.12s ease;
+        }
+        .page-editor .page-web-elements-announcement-learn-more:hover {
+          color: #b91c1c;
+        }
+        .page-editor .page-web-elements-subtitle,
+        .page-editor .page-web-elements-title,
+        .page-editor .page-web-elements-title2,
+        .page-editor .page-web-elements-description,
+        .page-editor .page-web-elements-button,
+        .page-editor .page-web-elements-button2 {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          width: 100%;
+          min-width: 0;
+          box-sizing: border-box;
+        }
+        .page-editor .page-web-elements-actions {
+          display: block;
+          width: 100%;
+          min-width: 0;
+          box-sizing: border-box;
+          margin: 0.4rem 0 0;
+          padding: 0;
+          text-align: left;
+        }
+        .page-editor .page-web-elements-actions-cluster {
+          display: inline-flex;
+          flex-direction: row;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 0.5rem;
+          max-width: 100%;
+          min-width: 0;
+          box-sizing: border-box;
+          vertical-align: baseline;
+        }
+        .page-editor .page-web-elements-actions .page-web-elements-button,
+        .page-editor .page-web-elements-actions .page-web-elements-button2 {
+          width: auto;
+          flex: 0 0 auto;
+          max-width: 100%;
+        }
+        .page-editor .page-web-cover-inner > .page-web-elements-actions .page-web-elements-button,
+        .page-editor .page-web-cover-inner > .page-web-elements-actions .page-web-elements-button2 {
+          width: auto;
+          max-width: 100%;
+          align-self: inherit;
+        }
+        .page-editor .page-web-elements-actions .page-web-elements-cta-wrap {
+          margin: 0;
+        }
+        .page-editor .page-web-elements-title-input,
+        .page-editor .page-web-elements-title2-input,
+        .page-editor .page-web-elements-subtitle-input {
+          display: inline-block;
+          min-width: 0;
+          width: max-content;
+          max-width: 100%;
+          box-sizing: border-box;
+          margin: 0;
+          font: inherit;
+          color: #0f172a;
+          background: transparent;
+          border: none;
+          border-radius: 0;
+          padding: 0.25rem 0.45rem;
+          outline: none;
+          box-shadow: none;
+          appearance: none;
+          -webkit-appearance: none;
+          resize: none;
+          overflow: hidden;
+          vertical-align: top;
+          white-space: pre-wrap;
+          word-break: break-word;
+          overflow-wrap: anywhere;
+        }
+        .page-editor .page-web-elements-subtitle-input {
+          font-size: 1rem;
+          font-weight: 600;
+          line-height: 1.2;
+          color: #b91c1c;
+        }
+        .page-editor .page-web-elements-title-input {
+          padding-top: 0;
+          padding-bottom: 0.25rem;
+          font-size: var(--site-blue-title-fs) !important;
+          font-weight: 600;
+          line-height: var(--site-blue-title-lh) !important;
+          letter-spacing: -0.02em;
+          color: #496db3;
+          text-wrap: wrap;
+        }
+        .page-editor .page-web-elements-title2-input {
+          font-size: 1rem;
+          font-weight: 600;
+          line-height: 1.2;
+          color: #0f172a;
+        }
+        .page-editor .page-web-elements-description-input {
+          display: inline-block;
+          min-width: 0;
+          width: max-content;
+          max-width: 100%;
+          box-sizing: border-box;
+          margin: 0;
+          padding: 0.25rem 0.45rem;
+          font: inherit;
+          font-size: 1rem;
+          line-height: 1.5;
+          color: #475569;
+          background: transparent;
+          border: none;
+          border-radius: 0;
+          outline: none;
+          box-shadow: none;
+          appearance: none;
+          -webkit-appearance: none;
+          resize: none;
+          overflow: hidden;
+          vertical-align: top;
+          white-space: pre-wrap;
+          word-break: break-word;
+          overflow-wrap: anywhere;
+        }
+        .page-editor .page-web-feature-grid-message .page-web-elements-title2-input.page-web-feature-grid-message-title {
+          color: var(--feature-grid-message-text);
+        }
+        .page-editor .page-web-feature-grid-message textarea.page-web-elements-description-input.page-web-feature-grid-message-body {
+          color: var(--feature-grid-message-text);
+        }
+        .page-editor .page-web-elements-cta-wrap {
+          margin: 0.4rem 0 0;
+          padding: 0;
+          max-width: 100%;
+          box-sizing: border-box;
+        }
+        .page-editor .page-web-elements-cta-button,
+        .page-editor .page-web-elements-cta-button-secondary {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          box-sizing: border-box;
+          margin: 0;
+          padding: 0.65rem 1.35rem;
+          font-size: 1.0625rem;
+          font-weight: 600;
+          line-height: 1.3;
+          text-decoration: none;
+          border-radius: 0.625rem;
+          cursor: pointer;
+          user-select: none;
+          -webkit-user-select: none;
+          transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+        }
+        .page-editor .page-web-elements-cta-button {
+          color: #fff;
+          background: #496db3;
+          border: 1px solid #3d5fa0;
+        }
+        .page-editor .page-web-elements-cta-button:hover {
+          background: #3d5fa0;
+          border-color: #35548f;
+        }
+        .page-editor .page-web-elements-cta-button-secondary {
+          color: #496db3;
+          background: #fff;
+          border: 1px solid #bfdbfe;
+        }
+        .page-editor .page-web-elements-cta-button-secondary:hover {
+          background: #eff6ff;
+          border-color: #93c5fd;
+        }
+        .page-editor .page-web-elements-announcement-input {
+          display: inline-block;
+          width: auto;
+          min-width: min-content;
+          max-width: none;
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+          vertical-align: baseline;
+          font: inherit;
+          font-size: 1rem;
+          line-height: 1.5;
+          font-weight: 500;
+          letter-spacing: -0.02em;
+          color: #496db3;
+          white-space: pre;
+          word-break: normal;
+          overflow-wrap: normal;
+          background: transparent;
+          border: none;
+          border-radius: 0;
+          outline: none;
+          box-shadow: none;
+          cursor: text;
+        }
+        .page-editor .page-web-elements-announcement-strip > .page-web-elements-announcement-input {
+          flex: 0 0 auto;
+          min-width: auto;
+        }
+        .page-editor .page-web-elements-announcement-input[data-placeholder-visible="1"]::before,
+        .page-editor .page-web-elements-announcement-input:empty::before {
+          content: attr(data-placeholder);
+          color: rgba(73, 109, 179, 0.42);
+          pointer-events: none;
+        }
+        .page-editor .page-web-elements-announcement-input[contenteditable="true"]:focus {
+          background: transparent;
+          border: none;
+          border-radius: 0;
+          box-shadow: none;
+        }
         .page-editor .page-web-spacer { width: 100%; margin: 0.5rem 0; border: none; border-radius: 0; background: transparent; box-sizing: border-box; }
         .page-editor .page-web-spacer[data-spacer-size="sm"] { height: 1.5rem; }
         .page-editor .page-web-spacer[data-spacer-size="md"] { height: 2.5rem; }
         .page-editor .page-web-spacer[data-spacer-size="lg"] { height: 4rem; }
-        .page-editor .page-web-spacer-toolbar { position: absolute; left: -8px; top: 50%; z-index: 80; width: max-content; pointer-events: auto; user-select: none; -webkit-user-select: none; transform: translateY(-50%); }
+        .page-editor .page-web-spacer-toolbar { position: absolute; left: 0.75rem; top: 50%; z-index: 80; width: max-content; pointer-events: auto; user-select: none; -webkit-user-select: none; transform: translateY(-50%); }
         .page-editor .page-web-spacer-menu-trigger { display: flex; width: 28px; height: 28px; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid #cbd5e1; background: rgba(255,255,255,0.95); color: #64748b; cursor: pointer; padding: 0; }
         .page-editor .page-web-spacer-menu-trigger:hover { border-color: #94a3b8; color: #0f172a; background: #fff; }
         .page-editor .page-web-spacer-menu-dots::before { content: "\\22EE"; font-size: 1rem; line-height: 1; }
@@ -10293,11 +15482,52 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-spacer-menu-delete { display: block; width: 100%; box-sizing: border-box; text-align: left; padding: 8px 10px; font-size: 13px; font-weight: 500; color: #b91c1c; background: transparent; border: none; cursor: pointer; border-radius: 6px; white-space: nowrap; }
         .page-editor .page-web-spacer-menu-delete:hover { background: #fef2f2; }
         .page-editor .page-web-text-block-content { outline: none; }
-        .page-editor .page-web-text-block-content h3 { margin: 0 0 0.55rem; font-size: 1.2rem; line-height: 1.2; color: #0f172a; }
-        .page-editor .page-web-text-block-content p { margin: 0; color: #475569; line-height: 1.55; }
+        .page-editor .page-web-text-block-content > h1,
+        .page-editor .page-web-text-block-content > h2,
+        .page-editor .page-web-text-block-content > h3,
+        .page-editor .page-web-text-block-content > h4,
+        .page-editor .page-web-text-block-content > h5,
+        .page-editor .page-web-text-block-content > h6 { margin: 0 0 0.55rem; font-size: 1.2rem; line-height: 1.2; color: #0f172a; }
+        .page-editor .page-web-text-block-content p:not(.page-web-elements-cta-wrap) { margin: 0 0 0.5rem; color: #475569; line-height: 1.55; }
+        .page-editor .page-web-text-block-content p:not(.page-web-elements-cta-wrap):last-child { margin-bottom: 0; }
+        .page-editor .page-web-text-block-content p.page-web-elements-cta-wrap { margin: 0.4rem 0 0; color: inherit; line-height: normal; }
         ${getWorkPricingRenderCss(".page-editor")}
-        /* Иначе box-shadow подсветки фокуса обрезается у полей внутри карточки (.wtt задаёт overflow: hidden в getWorkPricingRenderCss). */
-        .page-editor .page-web-work-pricing .wtt { overflow: visible; }
+        /* Рамка .wtt с радиусом: overflow:hidden обрезает дочерний фон по скруглению; иначе .wrd перекрывает дугу синей обводки по углам. В редакторе — лёгкий padding, чтобы тень фокуса не резалась. */
+        .page-editor .page-web-work-pricing .wrc.wse.wtt {
+          overflow: hidden;
+          box-sizing: border-box;
+          padding: 3px;
+        }
+        .page-editor .page-web-work-pricing .wsp > .page-web-elements.page-web-elements-title { position: relative; z-index: 0; }
+        .page-editor .page-web-work-pricing .wsp ul.wrf { position: relative; z-index: 2; }
+        .page-editor .page-web-work-pricing .page-web-elements.page-web-elements-title,
+        .page-editor .page-web-work-pricing .page-web-elements.page-web-elements-title2,
+        .page-editor .page-web-work-pricing .page-web-elements.page-web-elements-subtitle,
+        .page-editor .page-web-work-pricing .page-web-elements.page-web-elements-description {
+          min-width: 0;
+          max-width: 100%;
+          box-sizing: border-box;
+        }
+        .page-editor .page-web-work-pricing .page-web-elements-field-row {
+          min-width: 0;
+          max-width: 100%;
+        }
+        .page-editor .page-web-work-pricing textarea.page-web-elements-title-input,
+        .page-editor .page-web-work-pricing textarea.page-web-elements-title2-input,
+        .page-editor .page-web-work-pricing textarea.page-web-elements-subtitle-input {
+          display: inline-block;
+          width: max-content;
+          min-width: 0;
+          max-width: 100%;
+          box-sizing: border-box;
+        }
+        .page-editor .page-web-work-pricing textarea.page-web-elements-description-input {
+          display: inline-block;
+          width: max-content;
+          min-width: 0;
+          max-width: 100%;
+          box-sizing: border-box;
+        }
         .page-editor .page-web-text-media-col { min-height: 210px; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; padding: 1rem; box-sizing: border-box; outline: none; }
         .page-editor .page-web-text-media-col--media { background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%); display: flex; align-items: center; justify-content: center; text-align: center; color: #64748b; }
         .page-editor .page-web-text-media-col h3 { margin: 0 0 0.55rem; font-size: 1.2rem; line-height: 1.2; color: #0f172a; }
@@ -10412,7 +15642,9 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
           --site-blue-title-lh: 2.25rem;
           --site-red-blue-gap: -0.375rem;
           --page-editor-focus-pad-inline: 0.2em;
+          --page-editor-focus-pad-block: 0.2em;
           --page-editor-focus-margin-inline: -0.2em;
+          --page-editor-focus-margin-block: -0.2em;
           --page-editor-focus-radius: 9px;
           --page-editor-focus-shadow:
             0 0 0 6px rgba(73, 109, 179, 0.12),
@@ -10426,9 +15658,12 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
             --site-red-blue-gap: -0.5rem;
           }
         }
-        .page-editor .page-web-cover .page-web-cover-el-title,
-        .page-editor .page-web-feature-grid .page-web-feature-grid-title,
+        .page-editor .page-web-cover .page-web-cover-inner > .page-web-elements.page-web-elements-title,
+        .page-editor .page-web-cover .page-web-cover-inner > .page-web-elements.page-web-elements-title textarea.page-web-elements-title-input,
+        .page-editor .page-web-feature-grid-head .page-web-elements-title-input,
         .page-editor .page-web-timeline .page-web-timeline-heading,
+        .page-editor .page-web-timeline-head .page-web-text-block-v2-fields .page-web-elements.page-web-elements-title textarea.page-web-elements-title-input,
+        .page-editor .page-web-work-pricing .page-web-elements-title .page-web-elements-title-input,
         .page-editor .page-web-work-pricing .wsx,
         .page-editor .page-web-work-pricing .wsy,
         .page-editor .page-web-text-block h3,
@@ -10436,14 +15671,25 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
           font-size: var(--site-blue-title-fs) !important;
           line-height: var(--site-blue-title-lh) !important;
         }
-        .page-editor .page-web-feature-grid-subtitle + .page-web-feature-grid-title,
-        .page-editor .page-web-timeline-subtitle + .page-web-timeline-heading {
+        .page-editor .page-web-feature-grid-head > .page-web-elements-subtitle + .page-web-elements-title,
+        .page-editor .page-web-timeline-subtitle + .page-web-timeline-heading,
+        .page-editor .page-web-timeline-head > .page-web-text-block-v2-fields > .page-web-elements.page-web-elements-subtitle + .page-web-elements.page-web-elements-title {
           margin-top: var(--site-red-blue-gap, -0.375rem) !important;
         }
-        .page-editor .page-web-feature-grid .page-web-feature-grid-title {
+        .page-editor .page-web-feature-grid-head > .page-web-elements-title {
           position: relative;
           z-index: 1;
         }
+        /* В textarea line-height: 1 (как у синего заголовка сайта) даёт лишний верх и «провал» строки вниз; blur/focus совпадают с блоком ниже. */
+        .page-editor .page-web-cover .page-web-cover-inner > .page-web-elements.page-web-elements-title textarea.page-web-elements-title-input,
+        .page-editor .page-web-feature-grid-head .page-web-elements.page-web-elements-title textarea.page-web-elements-title-input,
+        .page-editor .page-web-work-pricing .page-web-elements.page-web-elements-title textarea.page-web-elements-title-input,
+        .page-editor .page-web-elements.page-web-elements-title textarea.page-web-elements-title-input {
+          line-height: 1.2 !important;
+          padding: 0.15rem 0.45rem !important;
+          text-wrap: wrap !important;
+        }
+        ${getPageEditorWebToolbarCss()}
       `}</style>
       <div
         className="flex min-h-screen transition-[filter] duration-150"
@@ -10454,8 +15700,8 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         <div className="flex min-h-0 flex-1 flex-col lg:ml-64 h-screen overflow-hidden">
           <AdminTopBar />
 
-          <main className="flex min-h-0 flex-1 flex-col overflow-hidden px-6 py-6 lg:px-10">
-            <div className="flex min-h-0 flex-1 flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6">
+          <main className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 py-6 lg:px-6">
+            <div className="flex min-h-0 flex-1 flex-col gap-4 rounded-2xl border border-slate-200 bg-white py-6 px-4 sm:px-5 lg:px-6">
               <div className="flex shrink-0 items-center justify-between">
                 <h1 className="text-sm font-semibold text-slate-900">
                   {title || "Без названия"}
@@ -11230,15 +16476,25 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
 
                 <div
                   ref={editorScrollRef}
-                  className="relative z-0 min-h-0 flex-1 overflow-y-auto"
+                  className="relative z-0 min-h-0 flex-1 overflow-y-auto [overflow-anchor:none]"
                 >
                   <div
                     ref={editorWrapperRef}
-                    className="page-editor relative min-h-[calc(100vh-12rem)] w-full px-4 pb-4 pt-0 text-[12px] text-slate-900 outline-none [&_ul]:list-disc [&_ul]:list-outside [&_ul]:pl-6 [&_ul]:my-0 [&_ol]:pl-6 [&_ol]:my-0 [&_ol_ol]:pl-6 [&_ol_ol_ol]:pl-6 [&_li]:pl-1 [&_li]:my-0"
+                    className="page-editor relative min-h-[calc(100vh-12rem)] w-full px-0 pb-4 pt-0 text-[12px] text-slate-900 outline-none [&_ul]:list-disc [&_ul]:list-outside [&_ul]:pl-6 [&_ul]:my-0 [&_ol]:pl-6 [&_ol]:my-0 [&_ol_ol]:pl-6 [&_ol_ol_ol]:pl-6 [&_li]:pl-1 [&_li]:my-0"
                   >
                     <div
                       ref={editorRef}
                       suppressContentEditableWarning
+                      onMouseDownCapture={(e) => {
+                        const ed = editorRef.current;
+                        const rawTarget = e.target as EventTarget | null;
+                        const t =
+                          rawTarget instanceof Element
+                            ? rawTarget
+                            : (rawTarget as Node | null)?.parentElement ?? null;
+                        if (tryFixFeatureGridCardMousedown(e, t, ed)) return;
+                        if (tryFixWorkPricingMousedown(e, t, ed)) return;
+                      }}
                       onMouseDown={(e) => {
                         if (handleWebInsertHandleMouseDown(e)) return;
                         const ed = editorRef.current;
@@ -11247,6 +16503,13 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
                           rawTarget instanceof Element
                             ? rawTarget
                             : (rawTarget as Node | null)?.parentElement ?? null;
+                        if (!t?.closest?.(".page-web-elements-actions")) {
+                          selectedWebElementsActionsRef.current = null;
+                        }
+                        if (ed && isEditorNativeFormTextControl(ed, t)) {
+                          setTimeout(() => updateToolbarState(), 0);
+                          return;
+                        }
                         const nativePath =
                           typeof e.nativeEvent.composedPath === "function"
                             ? e.nativeEvent.composedPath()
@@ -11280,6 +16543,11 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
                             closeTextBlockToolbarMenus(node as HTMLElement);
                           });
                         }
+                        if (ed && !t?.closest?.(".page-web-text-block-v2-toolbar")) {
+                          ed.querySelectorAll(".page-web-text-block-v2-toolbar").forEach((node) => {
+                            closeTextBlockV2ToolbarMenus(node as HTMLElement);
+                          });
+                        }
                         if (ed && !t?.closest?.(".page-web-spacer-toolbar")) {
                           ed.querySelectorAll(".page-web-spacer-toolbar").forEach((node) => {
                             closeSpacerToolbarMenus(node as HTMLElement);
@@ -11289,6 +16557,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
                         handleTimelineToolbarMouseDown(e);
                         handleTextMediaEditorMouseDown(e);
                         handleTextBlockEditorMouseDown(e);
+                        handleTextBlockV2EditorMouseDown(e);
                         handleSpacerToolbarMouseDown(e);
                         handleCoverSurfaceMouseDown(e);
                         handleCoverToolbarMouseDown(e);
@@ -11302,20 +16571,96 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
                         handleTableCellDoubleClick(e);
                       }}
                       onBlur={handleEditorFocusOut}
+                      onFocusCapture={(e) => {
+                        const ed = editorRef.current;
+                        if (ed && isEditorNativeFormTextControl(ed, e.target)) {
+                          const anchor =
+                            e.target instanceof HTMLElement
+                              ? e.target
+                              : ((e.target as Node | null)?.parentElement ?? null);
+                          const autosizeRoot = resolveWebBlockAutosizeRoot(anchor, ed);
+                          withPreservedScrollPortAnchor(
+                            anchor,
+                            () => {
+                              const target = e.target as EventTarget | null;
+                              if (editorLayoutDebugOn()) {
+                                logPageEditorLayout("focusCapture:autosize-start", {
+                                  anchor: summarizeLayoutElement(anchor),
+                                  autosizeRoot: summarizeLayoutElement(autosizeRoot),
+                                  textareasInScope: autosizeRoot.querySelectorAll(
+                                    WEB_ELEMENTS_V2_TEXTAREA_LAYOUT_SELECTOR,
+                                  ).length,
+                                  inWorkPricing: !!anchor?.closest?.(".page-web-work-pricing"),
+                                });
+                              }
+                              if (target instanceof HTMLTextAreaElement) {
+                                target.style.height = "auto";
+                                target.style.height = `${target.scrollHeight}px`;
+                              }
+                              autosizeWebTextBlockV2Textareas(autosizeRoot);
+                              if (editorLayoutDebugOn() && target instanceof HTMLTextAreaElement) {
+                                logPageEditorLayout("focusCapture:autosize-done", {
+                                  styleHeight: target.style.height,
+                                  scrollHeight: target.scrollHeight,
+                                });
+                              }
+                            },
+                            "focusCapture-native",
+                          );
+                          updateToolbarState();
+                        }
+                      }}
                       onBeforeInput={handleEditorBeforeInput}
                       onKeyDown={handleKeyDown}
                       onPaste={handlePaste}
                       onInput={(e) => {
                         const ed = e.currentTarget;
+                        if (isEditorNativeFormTextControl(ed, e.target)) {
+                          syncWebTextBlockV2FieldValuesForSerialization(ed);
+                          scheduleEditorHtmlStateSync(ed.innerHTML);
+                          const anchor =
+                            e.target instanceof HTMLElement
+                              ? e.target
+                              : ((e.target as Node | null)?.parentElement ?? null);
+                          const autosizeRoot = resolveWebBlockAutosizeRoot(anchor, ed);
+                          withPreservedScrollPortAnchor(
+                            anchor,
+                            () => {
+                              const target = e.target as EventTarget | null;
+                              if (editorLayoutDebugOn()) {
+                                logPageEditorLayout("input-native:autosize-start", {
+                                  anchor: summarizeLayoutElement(anchor),
+                                  autosizeRoot: summarizeLayoutElement(autosizeRoot),
+                                  textareasInScope: autosizeRoot.querySelectorAll(
+                                    WEB_ELEMENTS_V2_TEXTAREA_LAYOUT_SELECTOR,
+                                  ).length,
+                                  inWorkPricing: !!anchor?.closest?.(".page-web-work-pricing"),
+                                });
+                              }
+                              if (target instanceof HTMLTextAreaElement) {
+                                target.style.height = "auto";
+                                target.style.height = `${target.scrollHeight}px`;
+                              }
+                              autosizeWebTextBlockV2Textareas(autosizeRoot);
+                            },
+                            "input-native",
+                          );
+                          updateToolbarState();
+                          return;
+                        }
                         ensureWorkPricingListItemCheckmarks(ed);
                         scheduleEditorHtmlStateSync(ed.innerHTML);
                         syncMarkerBold();
                       }}
-                      onKeyUp={() => {
+                      onKeyUp={(e) => {
+                        const ed = editorRef.current;
+                        if (ed && isEditorNativeFormTextControl(ed, e.target)) return;
                         saveSelectionFromEditor();
                         updateToolbarState();
                       }}
-                      onMouseUp={() => {
+                      onMouseUp={(e) => {
+                        const ed = editorRef.current;
+                        if (ed && isEditorNativeFormTextControl(ed, e.target)) return;
                         saveSelectionFromEditor();
                         updateToolbarState();
                       }}
