@@ -27,6 +27,12 @@ export function getPageEditorWebToolbarCss(): string {
 .page-editor .page-web-cover > .page-web-cover-toolbar {
   z-index: 10040 !important;
 }
+.page-editor .page-web-cover > .page-web-cover-toolbar[data-menu-open="1"] {
+  z-index: 10150 !important;
+}
+.page-editor .page-web-cover:has(> .page-web-cover-toolbar[data-menu-open="1"]) > .page-web-cover-inner {
+  z-index: 0 !important;
+}
 .page-editor .page-web-text-media > .page-web-text-media-toolbar,
 .page-editor .page-web-spacer > .page-web-spacer-toolbar,
 .page-editor .page-web-timeline .page-web-timeline-toolbar,

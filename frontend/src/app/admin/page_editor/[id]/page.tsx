@@ -9374,20 +9374,88 @@ export default function PageEditorDetailsPage() {
     });
   }
 
-  /** Возвращаем баннерное меню к CSS-якорю рядом с кнопкой тулбара. */
+  /** Меню ⋮ в слое fixed — иначе `.page-web-cover-inner` (z-index: 2) перекрывает absolute-выпадашку. */
   function positionCoverMenuDropdownFixed(toolbar: HTMLElement) {
-    resetCoverMenuDropdownStyles(toolbar);
+    const dd = toolbar.querySelector(".page-web-cover-menu-dropdown") as HTMLElement | null;
+    const trig = toolbar.querySelector(".page-web-cover-menu-trigger") as HTMLElement | null;
+    if (!dd || !trig) return;
+    if (toolbar.getAttribute("data-menu-open") !== "1") {
+      resetCoverMenuDropdownStyles(toolbar);
+      return;
+    }
+    const apply = () => {
+      const r = trig.getBoundingClientRect();
+      const viewportW = window.innerWidth;
+      const viewportH = window.innerHeight;
+      dd.style.position = "fixed";
+      dd.style.left = `${r.right + 4}px`;
+      dd.style.top = `${r.top}px`;
+      dd.style.right = "auto";
+      dd.style.transform = "none";
+      dd.style.zIndex = "10100";
+      dd.style.minWidth = "11.5rem";
+      const ddRect = dd.getBoundingClientRect();
+      const leftIfRight = r.right + 4;
+      const leftIfLeft = r.left - ddRect.width - 4;
+      const clampedLeft =
+        leftIfRight + ddRect.width <= viewportW - 8 ? leftIfRight : Math.max(8, leftIfLeft);
+      const clampedTop = Math.max(8, Math.min(r.top, viewportH - ddRect.height - 8));
+      dd.style.left = `${clampedLeft}px`;
+      dd.style.top = `${clampedTop}px`;
+    };
+    requestAnimationFrame(() => {
+      requestAnimationFrame(apply);
+    });
   }
 
   function positionCoverSubmenuPanelsFixed(toolbar: HTMLElement) {
     toolbar.querySelectorAll(".page-web-cover-menu-sub-panel").forEach((node) => {
       const panel = node as HTMLElement;
-      panel.style.removeProperty("position");
-      panel.style.removeProperty("left");
-      panel.style.removeProperty("top");
-      panel.style.removeProperty("right");
-      panel.style.removeProperty("transform");
-      panel.style.removeProperty("z-index");
+      const sub = panel.closest(".page-web-cover-menu-sub") as HTMLElement | null;
+      const open = sub?.getAttribute("data-submenu-open") === "1";
+      if (!open || toolbar.getAttribute("data-menu-open") !== "1") {
+        panel.style.removeProperty("position");
+        panel.style.removeProperty("left");
+        panel.style.removeProperty("top");
+        panel.style.removeProperty("right");
+        panel.style.removeProperty("bottom");
+        panel.style.removeProperty("transform");
+        panel.style.removeProperty("z-index");
+        return;
+      }
+      const trigger = sub.querySelector(
+        ":scope > .page-web-cover-menu-sub-trigger",
+      ) as HTMLElement | null;
+      if (!trigger) return;
+      const apply = () => {
+        const r = trigger.getBoundingClientRect();
+        const viewportW = window.innerWidth;
+        const viewportH = window.innerHeight;
+        panel.style.position = "fixed";
+        panel.style.right = "auto";
+        panel.style.transform = "none";
+        panel.style.zIndex = "10110";
+        const drop = sub.getAttribute("data-submenu-drop") === "up" ? "up" : "down";
+        let top = drop === "up" ? r.bottom : r.top;
+        panel.style.left = `${r.right + 4}px`;
+        panel.style.top = `${top}px`;
+        panel.style.bottom = "auto";
+        const pr = panel.getBoundingClientRect();
+        const leftIfRight = r.right + 4;
+        const leftIfLeft = r.left - pr.width - 4;
+        const clampedLeft =
+          leftIfRight + pr.width <= viewportW - 8 ? leftIfRight : Math.max(8, leftIfLeft);
+        let clampedTop = top;
+        if (drop === "up") {
+          clampedTop = r.bottom - pr.height;
+        }
+        clampedTop = Math.max(8, Math.min(clampedTop, viewportH - pr.height - 8));
+        panel.style.left = `${clampedLeft}px`;
+        panel.style.top = `${clampedTop}px`;
+      };
+      requestAnimationFrame(() => {
+        requestAnimationFrame(apply);
+      });
     });
   }
 
@@ -14758,7 +14826,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-feature-grid-head .page-web-elements-subtitle-input {
           max-width: 100%;
         }
-        /* Карточки: клик в свою ячейку — JS (ownerFeatureGridItem); отступы как на сайте (0.9rem в shared CSS) */
+        /* Карточки: клик в свою ячейку — JS (ownerFeatureGridItem); отступы как на сайте (shared CSS) */
         .page-editor .page-web-feature-grid-list > .page-web-feature-grid-item {
           position: relative;
           isolation: isolate;
@@ -14976,6 +15044,9 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-timeline-menu-delete:hover { background: #fef2f2; }
         /* Поверх градиента обложки, вне потока — не сдвигает текст редактора */
         .page-editor .page-web-cover-toolbar { position: absolute; left: 0.75rem; top: 50%; right: auto; margin: 0; padding: 0; z-index: 10040; transform: translateY(-50%); width: max-content; pointer-events: auto; user-select: none; -webkit-user-select: none; align-items: flex-start; }
+        .page-editor .page-web-cover:has(> .page-web-cover-toolbar[data-menu-open="1"]) > .page-web-cover-inner {
+          z-index: 0;
+        }
         .page-editor .page-web-cover-menu-trigger { display: flex; width: 28px; height: 28px; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid #cbd5e1; background: rgba(255,255,255,0.95); color: #64748b; cursor: pointer; user-select: none; -webkit-user-select: none; padding: 0; }
         .page-editor .page-web-cover-menu-trigger:hover { border-color: #94a3b8; color: #0f172a; background: #fff; }
         .page-editor .page-web-cover-menu-dots { display: inline-block; font-size: 1rem; line-height: 1; transform: translateY(-1px); }
