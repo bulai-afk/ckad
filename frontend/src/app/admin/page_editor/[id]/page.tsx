@@ -4601,6 +4601,11 @@ function resolveWebBlockAutosizeRoot(anchor: HTMLElement | null, ed: HTMLElement
   return (root as HTMLElement | null) ?? ed;
 }
 
+/** Поля карточек feature-grid: пересчёт всего блока при фокусе двигает соседние карточки и `withPreservedScrollPortAnchor` крутит скролл. */
+function isFeatureGridCardTextarea(el: EventTarget | null): el is HTMLTextAreaElement {
+  return el instanceof HTMLTextAreaElement && !!el.closest(".page-web-feature-grid-item");
+}
+
 export default function PageEditorDetailsPage() {
   const params = useParams<{ id?: string | string[] }>();
   const pageId = useMemo(() => adminPageIdFromParams(params ?? null), [params]);
@@ -12945,13 +12950,26 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
     clientY: number,
     subtreeRoot: HTMLElement,
     ed: HTMLElement,
+    ownerFeatureGridItem?: HTMLElement | null,
   ): HTMLTextAreaElement | null {
     for (const node of doc.elementsFromPoint(clientX, clientY)) {
       if (!(node instanceof HTMLTextAreaElement)) continue;
       if (!ed.contains(node) || !subtreeRoot.contains(node)) continue;
+      if (ownerFeatureGridItem) {
+        const item = node.closest(".page-web-feature-grid-item") as HTMLElement | null;
+        if (item !== ownerFeatureGridItem) continue;
+      }
       return node;
     }
     return null;
+  }
+
+  function getFeatureGridListFromBlock(block: HTMLElement): HTMLElement | null {
+    const content = block.querySelector(":scope > .page-web-text-block-content") as HTMLElement | null;
+    if (!content) return null;
+    const grid = content.querySelector(":scope > .page-web-feature-grid") as HTMLElement | null;
+    if (!grid) return null;
+    return grid.querySelector(":scope > .page-web-feature-grid-list") as HTMLElement | null;
   }
 
   function findFeatureGridItemUnderPoint(
@@ -12959,20 +12977,36 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
     clientX: number,
     clientY: number,
   ): HTMLElement | null {
-    const content = block.querySelector(":scope > .page-web-text-block-content") as HTMLElement | null;
-    if (!content) return null;
-    const grid = content.querySelector(":scope > .page-web-feature-grid") as HTMLElement | null;
-    if (!grid) return null;
-    const list = grid.querySelector(":scope > .page-web-feature-grid-list") as HTMLElement | null;
+    const list = getFeatureGridListFromBlock(block);
     if (!list) return null;
-    const items = list.querySelectorAll(":scope > .page-web-feature-grid-item");
-    for (let i = items.length - 1; i >= 0; i -= 1) {
-      const n = items[i];
-      if (!(n instanceof HTMLElement)) continue;
-      const r = n.getBoundingClientRect();
-      if (clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom) return n;
+    const doc = list.ownerDocument ?? document;
+    for (const node of doc.elementsFromPoint(clientX, clientY)) {
+      if (!(node instanceof Element)) continue;
+      const item = node.closest(".page-web-feature-grid-item") as HTMLElement | null;
+      if (item && list.contains(item)) return item;
     }
-    return null;
+    const items = Array.from(list.querySelectorAll(":scope > .page-web-feature-grid-item")).filter(
+      (n): n is HTMLElement => n instanceof HTMLElement,
+    );
+    for (let i = items.length - 1; i >= 0; i -= 1) {
+      const r = items[i].getBoundingClientRect();
+      if (clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom) return items[i];
+    }
+    const lr = list.getBoundingClientRect();
+    if (clientX < lr.left || clientX > lr.right || clientY < lr.top || clientY > lr.bottom) return null;
+    let best: HTMLElement | null = null;
+    let bestD = Infinity;
+    for (const n of items) {
+      const r = n.getBoundingClientRect();
+      const cx = Math.min(Math.max(clientX, r.left), r.right);
+      const cy = Math.min(Math.max(clientY, r.top), r.bottom);
+      const d = (clientX - cx) ** 2 + (clientY - cy) ** 2;
+      if (d < bestD) {
+        bestD = d;
+        best = n;
+      }
+    }
+    return best;
   }
 
   function isFeatureGridTextBlockShell(block: HTMLElement): boolean {
@@ -12994,23 +13028,43 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
     };
     const body = hitItem.querySelector(":scope > .page-web-feature-grid-item-body") as HTMLElement | null;
     const title = hitItem.querySelector(":scope > .page-web-feature-grid-item-title") as HTMLElement | null;
+    const descWrap = body?.querySelector(
+      ":scope > .page-web-elements.page-web-elements-description",
+    ) as HTMLElement | null;
+    if (descWrap && rectContains(descWrap, clientX, clientY)) {
+      const fromPoint = pickTextareaInSubtreeFromPoint(doc, clientX, clientY, descWrap, ed, hitItem);
+      if (fromPoint) return fromPoint;
+      return descWrap.querySelector(
+        "textarea.page-web-elements-description-input",
+      ) as HTMLTextAreaElement | null;
+    }
     if (body && rectContains(body, clientX, clientY)) {
-      const fromPoint = pickTextareaInSubtreeFromPoint(doc, clientX, clientY, body, ed);
+      const fromPoint = pickTextareaInSubtreeFromPoint(doc, clientX, clientY, body, ed, hitItem);
       if (fromPoint) return fromPoint;
       return (
         (body.querySelector("textarea.page-web-elements-description-input") as HTMLTextAreaElement | null) ??
         (body.querySelector("textarea") as HTMLTextAreaElement | null)
       );
     }
+    const title2Wrap = title?.querySelector(
+      ":scope > .page-web-elements.page-web-elements-title2",
+    ) as HTMLElement | null;
+    if (title2Wrap && rectContains(title2Wrap, clientX, clientY)) {
+      const fromPoint = pickTextareaInSubtreeFromPoint(doc, clientX, clientY, title2Wrap, ed, hitItem);
+      if (fromPoint) return fromPoint;
+      return title2Wrap.querySelector(
+        "textarea.page-web-elements-title2-input",
+      ) as HTMLTextAreaElement | null;
+    }
     if (title && rectContains(title, clientX, clientY)) {
-      const fromPoint = pickTextareaInSubtreeFromPoint(doc, clientX, clientY, title, ed);
+      const fromPoint = pickTextareaInSubtreeFromPoint(doc, clientX, clientY, title, ed, hitItem);
       if (fromPoint) return fromPoint;
       return (
         (title.querySelector("textarea.page-web-elements-title2-input") as HTMLTextAreaElement | null) ??
         (title.querySelector("textarea") as HTMLTextAreaElement | null)
       );
     }
-    const any = pickTextareaInSubtreeFromPoint(doc, clientX, clientY, hitItem, ed);
+    const any = pickTextareaInSubtreeFromPoint(doc, clientX, clientY, hitItem, ed, hitItem);
     if (any) return any;
     return (
       (hitItem.querySelector(
@@ -13033,21 +13087,6 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
     const block = t.closest(".page-web-text-block") as HTMLElement | null;
     if (!block || !ed.contains(block) || !isFeatureGridTextBlockShell(block)) return false;
     if (t.closest(".page-web-text-block-toolbar")) return false;
-    const gridRoot = block.querySelector(
-      ":scope > .page-web-text-block-content > .page-web-feature-grid",
-    ) as HTMLElement | null;
-    const headEl = gridRoot?.querySelector(":scope > .page-web-feature-grid-head") as HTMLElement | null;
-    if (headEl) {
-      const hr = headEl.getBoundingClientRect();
-      if (
-        e.clientX >= hr.left &&
-        e.clientX <= hr.right &&
-        e.clientY >= hr.top &&
-        e.clientY <= hr.bottom
-      ) {
-        return false;
-      }
-    }
     if (
       t.closest(
         "a.page-web-feature-grid-link, a.page-web-elements-cta-button, button, [role='button']",
@@ -13061,7 +13100,12 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
     const taPick = pickFeatureGridCardTextareaFromPoint(doc, e.clientX, e.clientY, hitItem, ed);
     if (!taPick) return false;
     const taFromTarget = t.closest?.("textarea") as HTMLTextAreaElement | null;
-    if (taFromTarget && hitItem.contains(taFromTarget) && taPick === taFromTarget) return false;
+    if (taFromTarget && hitItem.contains(taFromTarget) && taPick === taFromTarget) {
+      e.preventDefault();
+      taFromTarget.focus({ preventScroll: true });
+      setTimeout(() => updateToolbarState(), 0);
+      return true;
+    }
     e.preventDefault();
     taPick.focus({ preventScroll: true });
     try {
@@ -13231,6 +13275,54 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
     if (target.closest?.(".page-web-text-block-toolbar")) {
       handleTextBlockToolbarMouseDown(e);
       return;
+    }
+
+    const cardItem = target.closest?.(".page-web-feature-grid-item") as HTMLElement | null;
+    if (cardItem && block.contains(cardItem) && ed.contains(cardItem)) {
+      const focusCardTextarea = (ta: HTMLTextAreaElement, moveCaretToEnd = false) => {
+        e.preventDefault();
+        ta.focus({ preventScroll: true });
+        if (moveCaretToEnd) {
+          try {
+            const len = ta.value.length;
+            ta.setSelectionRange(len, len);
+          } catch {
+            // ignore
+          }
+        }
+        setTimeout(() => updateToolbarState(), 0);
+      };
+      const clickedTa = target.closest("textarea");
+      if (clickedTa instanceof HTMLTextAreaElement && cardItem.contains(clickedTa)) {
+        e.preventDefault();
+        clickedTa.focus({ preventScroll: true });
+        setTimeout(() => updateToolbarState(), 0);
+        return;
+      }
+      const descWrap = target.closest(
+        ".page-web-feature-grid-item-body .page-web-elements.page-web-elements-description",
+      ) as HTMLElement | null;
+      if (descWrap && cardItem.contains(descWrap)) {
+        const ta = descWrap.querySelector(
+          "textarea.page-web-elements-description-input",
+        ) as HTMLTextAreaElement | null;
+        if (ta) {
+          focusCardTextarea(ta, true);
+          return;
+        }
+      }
+      const title2Wrap = target.closest(
+        ".page-web-feature-grid-item-title .page-web-elements.page-web-elements-title2",
+      ) as HTMLElement | null;
+      if (title2Wrap && cardItem.contains(title2Wrap)) {
+        const ta = title2Wrap.querySelector(
+          "textarea.page-web-elements-title2-input",
+        ) as HTMLTextAreaElement | null;
+        if (ta) {
+          focusCardTextarea(ta, true);
+          return;
+        }
+      }
     }
 
     const head = target.closest?.(".page-web-feature-grid-head") as HTMLElement | null;
@@ -14633,6 +14725,24 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         }
         .page-editor .page-web-feature-grid-head .page-web-elements-subtitle-input {
           max-width: 100%;
+        }
+        /* Карточки: клик в свою ячейку — JS (ownerFeatureGridItem); overflow:hidden + padding — как у .wtt, чтобы тень фокуса не резалась */
+        .page-editor .page-web-feature-grid-list > .page-web-feature-grid-item {
+          position: relative;
+          isolation: isolate;
+          overflow: hidden;
+          box-sizing: border-box;
+          padding: calc(0.9rem + 10px);
+        }
+        .page-editor .page-web-feature-grid-item-title,
+        .page-editor .page-web-feature-grid-item-body {
+          min-width: 0;
+          overflow: visible;
+        }
+        .page-editor .page-web-feature-grid-item-body > .page-web-elements.page-web-elements-description {
+          width: 100%;
+          max-width: 100%;
+          cursor: text;
         }
         .page-editor .page-web-timeline-heading { margin: 0; color: #496db3; font-size: 2.25rem; line-height: 1; font-weight: 600; letter-spacing: -0.02em; position: relative; z-index: 1; }
         .page-editor .page-web-timeline-subtitle + .page-web-timeline-heading { margin-top: var(--site-red-blue-gap, -0.375rem); }
@@ -16578,6 +16688,12 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
                       onFocusCapture={(e) => {
                         const ed = editorRef.current;
                         if (ed && isEditorNativeFormTextControl(ed, e.target)) {
+                          const target = e.target as EventTarget | null;
+                          if (isFeatureGridCardTextarea(target)) {
+                            layoutWebTextBlockV2TextareaHeightOnly(target);
+                            updateToolbarState();
+                            return;
+                          }
                           const anchor =
                             e.target instanceof HTMLElement
                               ? e.target
@@ -16586,7 +16702,6 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
                           withPreservedScrollPortAnchor(
                             anchor,
                             () => {
-                              const target = e.target as EventTarget | null;
                               if (editorLayoutDebugOn()) {
                                 logPageEditorLayout("focusCapture:autosize-start", {
                                   anchor: summarizeLayoutElement(anchor),
@@ -16622,6 +16737,20 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
                         if (isEditorNativeFormTextControl(ed, e.target)) {
                           syncWebTextBlockV2FieldValuesForSerialization(ed);
                           scheduleEditorHtmlStateSync(ed.innerHTML);
+                          const target = e.target as EventTarget | null;
+                          if (isFeatureGridCardTextarea(target)) {
+                            withPreservedScrollPortAnchor(
+                              target,
+                              () => {
+                                target.style.height = "auto";
+                                target.style.height = `${target.scrollHeight}px`;
+                                layoutWebTextBlockV2TextareaHeightOnly(target);
+                              },
+                              "input-native-feature-grid-card",
+                            );
+                            updateToolbarState();
+                            return;
+                          }
                           const anchor =
                             e.target instanceof HTMLElement
                               ? e.target
@@ -16630,7 +16759,6 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
                           withPreservedScrollPortAnchor(
                             anchor,
                             () => {
-                              const target = e.target as EventTarget | null;
                               if (editorLayoutDebugOn()) {
                                 logPageEditorLayout("input-native:autosize-start", {
                                   anchor: summarizeLayoutElement(anchor),
