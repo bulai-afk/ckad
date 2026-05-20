@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiDelete, apiGet, apiPost, apiPut, formatApiErrorForUi } from "@/lib/api";
 import {
@@ -208,6 +208,53 @@ function getFolderAncestors(folderSlug: string): string[] {
   return out;
 }
 
+/** Страница лежит прямо в текущей папке (не во вложенной подпапке). */
+function pageIsDirectChildOfFolder(
+  page: PageSummary,
+  folderKey: string,
+  sectionRoot: string,
+): boolean {
+  const key = normalizeUrlSlugPath(folderKey);
+  const root = normalizeUrlSlugPath(sectionRoot);
+  const pageFolder = getFolderPathFromPageSlug(page.slug);
+  if (key === root) {
+    return pageFolder === root;
+  }
+  return pageFolder === key;
+}
+
+function collectDirectChildFolderSlugs(
+  parentFolderKey: string,
+  sectionRoot: string,
+  sectionPages: PageSummary[],
+  folders: CustomFolder[],
+): string[] {
+  const root = normalizeUrlSlugPath(sectionRoot);
+  const parent = normalizeUrlSlugPath(parentFolderKey || root);
+  const prefix = `${parent}/`;
+  const out = new Set<string>();
+
+  for (const f of folders) {
+    const s = normalizeUrlSlugPath(f.slug);
+    if (s === parent) continue;
+    if (!s.startsWith(prefix)) continue;
+    const seg = s.slice(prefix.length).split("/").filter(Boolean)[0];
+    if (seg) out.add(`${parent}/${seg}`);
+  }
+
+  for (const p of sectionPages) {
+    const s = normalizeUrlSlugPath(p.slug);
+    if (!s.startsWith(prefix)) continue;
+    const rest = s.slice(prefix.length);
+    const parts = rest.split("/").filter(Boolean);
+    if (parts.length > 1) {
+      out.add(`${parent}/${parts[0]}`);
+    }
+  }
+
+  return Array.from(out).sort((a, b) => a.localeCompare(b, "ru"));
+}
+
 type PageSummary = {
   id: number;
   title: string;
@@ -342,9 +389,9 @@ export default function AdminPage() {
   /** После GET папок не делаем немедленный PUT — иначе каждое открытие /admin бьёт в запись и при EACCES на сервере даёт 500. */
   const omitNextFoldersPersistRef = useRef(false);
 
-  async function loadPages() {
+  async function loadPages(options?: { silent?: boolean }) {
     try {
-      setLoading(true);
+      if (!options?.silent) setLoading(true);
       setError(null);
       const [data, orderPayload] = await Promise.all([
         apiGet<PageSummary[]>("/api/pages"),
@@ -361,7 +408,7 @@ export default function AdminPage() {
       // eslint-disable-next-line no-console
       console.error(e);
     } finally {
-      setLoading(false);
+      if (!options?.silent) setLoading(false);
     }
   }
 
@@ -607,7 +654,7 @@ export default function AdminPage() {
       setEditingPageId(null);
       setIsAddPageModalOpen(false);
       try {
-        await loadPages();
+        await loadPages({ silent: true });
       } catch (reloadErr) {
         // eslint-disable-next-line no-console
         console.error(reloadErr);
@@ -849,11 +896,30 @@ export default function AdminPage() {
     return s === currentSectionRoot || s.startsWith(`${currentSectionRoot}/`);
   });
 
-  const currentFolderKey = currentSectionRoot;
-  const parentFolderForQuickDrop: string | null = null;
-  const childFolders: string[] = [];
+  const currentFolderKey =
+    currentFolder && currentFolder !== "__root"
+      ? normalizeUrlSlugPath(currentFolder)
+      : currentSectionRoot;
+  const parentFolderForQuickDrop =
+    draggedPageId !== null
+      ? getFolderPathFromPageSlug(
+          pages.find((p) => p.id === draggedPageId)?.slug ?? "",
+        )
+      : null;
+  const childFolders = useMemo(
+    () =>
+      collectDirectChildFolderSlugs(
+        currentFolderKey,
+        currentSectionRoot,
+        sectionPages,
+        customFolders,
+      ),
+    [currentFolderKey, currentSectionRoot, sectionPages, customFolders],
+  );
   const visiblePages = sortBySectionDisplayOrder(
-    sectionPages,
+    sectionPages.filter((p) =>
+      pageIsDirectChildOfFolder(p, currentFolderKey, currentSectionRoot),
+    ),
     currentSectionRoot,
     (page) => normalizeUrlSlugPath(page.slug),
     pageOrderBySection,
@@ -1355,7 +1421,21 @@ export default function AdminPage() {
                     <h2 className="truncate text-sm font-semibold text-slate-900">
                     {activeTabConfig.label}
                     </h2>
-                  <div className="mt-1 text-xs text-slate-500">{currentSectionRoot}</div>
+                  <div className="mt-1 text-xs text-slate-500">
+                    {currentFolderKey}
+                    {currentFolderKey !== currentSectionRoot ? (
+                      <button
+                        type="button"
+                        className="ml-2 text-[#496db3] hover:underline"
+                        onClick={() => setCurrentFolder(currentSectionRoot)}
+                      >
+                        ← {activeTabConfig.label}
+                      </button>
+                    ) : null}
+                  </div>
+                  <p className="mt-1 text-[11px] text-amber-800/90">
+                    На сайте видны только опубликованные страницы (кнопка «Опубликовать» на карточке).
+                  </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                     <button

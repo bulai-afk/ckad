@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { backendApiUrl } from "@/lib/backendApiUrl";
+import { isAdminSessionRequest, upstreamPagesListInit } from "@/lib/bffUpstreamFetch";
 
-/** Список страниц для публичного навбара (клиент ходит сюда same-origin). */
-export async function GET() {
+/** Список страниц (публичный навбар; админка — без кэша по cookie admin_auth). */
+export async function GET(req: NextRequest) {
   try {
     const url = `${backendApiUrl()}/api/pages`;
     const res = await fetch(url, {
       method: "GET",
-      cache: "force-cache",
-      next: { revalidate: 120 },
-      headers: { Accept: "application/json" },
+      ...upstreamPagesListInit(req),
     });
     if (!res.ok) {
       return NextResponse.json([], {
@@ -19,13 +18,13 @@ export async function GET() {
     }
     const data = (await res.json()) as unknown;
     const upstreamCc = res.headers.get("cache-control");
+    const cacheControl = isAdminSessionRequest(req)
+      ? "no-store, max-age=0"
+      : upstreamCc && upstreamCc.trim().length > 0
+        ? upstreamCc
+        : "public, s-maxage=120, stale-while-revalidate=600";
     return NextResponse.json(Array.isArray(data) ? data : [], {
-      headers: {
-        "Cache-Control":
-          upstreamCc && upstreamCc.trim().length > 0
-            ? upstreamCc
-            : "public, s-maxage=120, stale-while-revalidate=600",
-      },
+      headers: { "Cache-Control": cacheControl },
     });
   } catch {
     return NextResponse.json([], {
