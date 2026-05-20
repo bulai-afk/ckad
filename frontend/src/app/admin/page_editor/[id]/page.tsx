@@ -14758,18 +14758,22 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-feature-grid-head .page-web-elements-subtitle-input {
           max-width: 100%;
         }
-        /* Карточки: клик в свою ячейку — JS (ownerFeatureGridItem); overflow:hidden + padding — как у .wtt, чтобы тень фокуса не резалась */
+        /* Карточки: клик в свою ячейку — JS (ownerFeatureGridItem); отступы как на сайте (0.9rem в shared CSS) */
         .page-editor .page-web-feature-grid-list > .page-web-feature-grid-item {
           position: relative;
           isolation: isolate;
-          overflow: hidden;
-          box-sizing: border-box;
-          padding: calc(0.9rem + 10px);
+          overflow: visible;
         }
         .page-editor .page-web-feature-grid-item-title,
         .page-editor .page-web-feature-grid-item-body {
           min-width: 0;
           overflow: visible;
+        }
+        .page-editor .page-web-feature-grid-item-body textarea.page-web-elements-description-input[data-editor-focus-target="1"],
+        .page-editor .page-web-feature-grid-item-title textarea.page-web-elements-title2-input[data-editor-focus-target="1"] {
+          box-shadow:
+            inset 0 0 0 2px rgba(73, 109, 179, 0.42),
+            0 0 0 1px rgba(73, 109, 179, 0.14);
         }
         .page-editor .page-web-feature-grid-item-body > .page-web-elements.page-web-elements-description {
           width: 100%;
