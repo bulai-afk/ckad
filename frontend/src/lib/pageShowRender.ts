@@ -808,6 +808,7 @@ ${scope} .page-web-cover .page-web-cover-inner > .page-web-elements-actions {
   align-items: inherit;
   text-align: inherit;
   margin: 0;
+  max-width: var(--wb-cover-copy-max, 100%);
 }
 ${scope} .page-web-elements-actions-cluster {
   display: inline-flex;

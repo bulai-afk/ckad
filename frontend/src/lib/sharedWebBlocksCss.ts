@@ -23,7 +23,7 @@ ${scope} .page-web-text-media,
 ${scope} .page-web-text-block,
 ${scope} .page-web-text-block-v2,
 ${scope} .page-web-spacer { font-size: var(--wb-body-fs); line-height: var(--wb-body-lh); }
-${scope} .page-web-cover { position: relative; display: flex; flex-direction: column; width: 100%; max-width: 100%; margin: 1.25rem 0; padding: 0; border-radius: 16px; background: #f1f5f9; box-sizing: border-box; overflow: visible; container-type: inline-size; --wb-cover-copy-max: min(96%, 60rem); }
+${scope} .page-web-cover { position: relative; display: flex; flex-direction: column; width: 100%; max-width: 100%; margin: 1.25rem 0; padding: 0; border-radius: 16px; background: #f1f5f9; box-sizing: border-box; overflow: visible; container-type: inline-size; --wb-cover-copy-max: 100%; }
 ${scope} .page-web-cover.page-web-cover-has-bg { background-color: #e2e8f0; }
 ${scope} .page-web-cover[data-cover-type="image"] .page-web-cover-bg { display: none; }
 ${scope} .page-web-cover[data-cover-type="split"].page-web-cover-has-bg { background: #f1f5f9 !important; }
@@ -83,12 +83,20 @@ ${scope} .page-web-cover-el-title > .page-web-elements-field-row {
 ${scope} .page-web-cover-inner > .page-web-elements.page-web-elements-title[data-cover-title-halign="left"] > .page-web-elements-field-row { justify-content: flex-start; text-align: left; }
 ${scope} .page-web-cover-inner > .page-web-elements.page-web-elements-title[data-cover-title-halign="center"] > .page-web-elements-field-row { justify-content: center; text-align: center; }
 ${scope} .page-web-cover-inner > .page-web-elements.page-web-elements-title[data-cover-title-halign="right"] > .page-web-elements-field-row { justify-content: flex-end; text-align: right; }
+${scope} .page-web-cover[data-cover-halign="left"] .page-web-cover-inner > .page-web-elements.page-web-elements-title:not([data-cover-title-halign]) > .page-web-elements-field-row,
+${scope} .page-web-cover[data-cover-halign="left"] .page-web-cover-inner > .page-web-elements.page-web-elements-description > .page-web-elements-field-row { justify-content: flex-start; text-align: left; }
+${scope} .page-web-cover[data-cover-halign="center"] .page-web-cover-inner > .page-web-elements.page-web-elements-title:not([data-cover-title-halign]) > .page-web-elements-field-row,
+${scope} .page-web-cover[data-cover-halign="center"] .page-web-cover-inner > .page-web-elements.page-web-elements-description > .page-web-elements-field-row { justify-content: center; text-align: center; }
+${scope} .page-web-cover[data-cover-halign="right"] .page-web-cover-inner > .page-web-elements.page-web-elements-title:not([data-cover-title-halign]) > .page-web-elements-field-row,
+${scope} .page-web-cover[data-cover-halign="right"] .page-web-cover-inner > .page-web-elements.page-web-elements-description > .page-web-elements-field-row { justify-content: flex-end; text-align: right; }
+${scope} .page-web-cover:not([data-cover-halign]) .page-web-cover-inner > .page-web-elements.page-web-elements-title:not([data-cover-title-halign]) > .page-web-elements-field-row,
+${scope} .page-web-cover:not([data-cover-halign]) .page-web-cover-inner > .page-web-elements.page-web-elements-description > .page-web-elements-field-row { justify-content: center; text-align: center; }
 ${scope} .page-web-cover-inner > .page-web-elements.page-web-elements-title textarea.page-web-elements-title-input,
 ${scope} .page-web-cover-el-title textarea.page-web-elements-title-input {
   flex: 0 1 auto;
   min-width: 0;
-  max-width: var(--wb-cover-copy-max);
-  width: max-content;
+  max-width: 100%;
+  width: 100%;
   box-sizing: border-box;
   margin: 0;
   padding: 0.15rem 0.45rem;
@@ -135,8 +143,8 @@ ${scope} .page-web-cover-inner > .page-web-elements.page-web-elements-descriptio
 ${scope} .page-web-cover-inner > .page-web-elements.page-web-elements-description textarea.page-web-elements-description-input {
   flex: 0 1 auto;
   min-width: 0;
-  max-width: var(--wb-cover-copy-max);
-  width: max-content;
+  max-width: 100%;
+  width: 100%;
   box-sizing: border-box;
   margin: 0;
   padding: 0.15rem 0.45rem;
@@ -158,7 +166,7 @@ ${scope} .page-web-cover-el-button-wrap { margin: 0; display: flex; align-items:
 ${scope} .page-web-cover-inner > .page-web-elements-actions {
   margin: 0;
   width: 100%;
-  max-width: 100%;
+  max-width: var(--wb-cover-copy-max);
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
