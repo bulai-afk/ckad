@@ -77,7 +77,7 @@ install -m 0644 "${SCRIPT_DIR}/systemd/ckad-frontend.service" /etc/systemd/syste
 systemctl daemon-reload
 systemctl enable ckad-backend ckad-frontend
 
-mkdir -p "${APP_ROOT}/backend/data"
+mkdir -p "${APP_ROOT}/backend/data/uploads/inline"
 chown -R www-data:www-data "${APP_ROOT}/backend/data" 2>/dev/null || true
 chmod -R u+rwX "${APP_ROOT}/backend/data" 2>/dev/null || true
 

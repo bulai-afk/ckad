@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiDelete, apiGet, apiPost, apiPut } from "@/lib/api";
+import { apiDelete, apiGet, apiPost, apiPut, formatApiErrorForUi } from "@/lib/api";
 import {
   NAV_FOLDERS_COOKIE_NAME,
   serializeNavFoldersCookie,
@@ -301,6 +301,7 @@ export default function AdminPage() {
   const [editingPageId, setEditingPageId] = useState<number | null>(null);
   const [pageToDelete, setPageToDelete] = useState<PageSummary | null>(null);
   const [isDeletingPage, setIsDeletingPage] = useState(false);
+  const [isSavingPage, setIsSavingPage] = useState(false);
   const [publishingPageId, setPublishingPageId] = useState<number | null>(null);
   const [articleKindSavingId, setArticleKindSavingId] = useState<number | null>(null);
   const [isPageSlugEdited, setIsPageSlugEdited] =
@@ -550,7 +551,11 @@ export default function AdminPage() {
         ? `${currentFolder}/${slug}`
         : slug;
 
+    const postTimeoutMs =
+      pagePreview.length > 500_000 ? 120_000 : pagePreview.length > 100_000 ? 60_000 : 30_000;
+
     try {
+      setIsSavingPage(true);
       setError(null);
       const articlesKindPayload =
         activeTab === "articles"
@@ -563,28 +568,36 @@ export default function AdminPage() {
           : {};
 
       if (editingPageId) {
-        await apiPut(`/api/pages/${editingPageId}`, {
-          title: title.trim().slice(0, PAGE_TITLE_MAX),
-          slug: fullSlug,
-          description: text.trim().slice(0, PAGE_DESCRIPTION_MAX),
-          keywords: keywords.trim().slice(0, PAGE_KEYWORDS_MAX),
-          seoTitle: title.trim().slice(0, PAGE_TITLE_MAX),
-          seoDescription: text.trim().slice(0, PAGE_DESCRIPTION_MAX),
-          preview: pagePreview.trim(),
-          ...articlesKindPayload,
-        });
+        await apiPut(
+          `/api/pages/${editingPageId}`,
+          {
+            title: title.trim().slice(0, PAGE_TITLE_MAX),
+            slug: fullSlug,
+            description: text.trim().slice(0, PAGE_DESCRIPTION_MAX),
+            keywords: keywords.trim().slice(0, PAGE_KEYWORDS_MAX),
+            seoTitle: title.trim().slice(0, PAGE_TITLE_MAX),
+            seoDescription: text.trim().slice(0, PAGE_DESCRIPTION_MAX),
+            preview: pagePreview.trim(),
+            ...articlesKindPayload,
+          },
+          postTimeoutMs,
+        );
       } else {
-      await apiPost("/api/pages", {
-        title: title.trim().slice(0, PAGE_TITLE_MAX),
-          slug: fullSlug,
-        status: "DRAFT",
-        description: text.trim().slice(0, PAGE_DESCRIPTION_MAX),
-        keywords: keywords.trim().slice(0, PAGE_KEYWORDS_MAX),
-        seoTitle: title.trim().slice(0, PAGE_TITLE_MAX),
-        seoDescription: text.trim().slice(0, PAGE_DESCRIPTION_MAX),
-        preview: pagePreview.trim(),
-        ...articlesKindPayload,
-      });
+        await apiPost(
+          "/api/pages",
+          {
+            title: title.trim().slice(0, PAGE_TITLE_MAX),
+            slug: fullSlug,
+            status: "DRAFT",
+            description: text.trim().slice(0, PAGE_DESCRIPTION_MAX),
+            keywords: keywords.trim().slice(0, PAGE_KEYWORDS_MAX),
+            seoTitle: title.trim().slice(0, PAGE_TITLE_MAX),
+            seoDescription: text.trim().slice(0, PAGE_DESCRIPTION_MAX),
+            preview: pagePreview.trim(),
+            ...articlesKindPayload,
+          },
+          postTimeoutMs,
+        );
       }
       setTitle("");
       setSlug("");
@@ -593,15 +606,26 @@ export default function AdminPage() {
       setPagePreview("");
       setEditingPageId(null);
       setIsAddPageModalOpen(false);
-      await loadPages();
+      try {
+        await loadPages();
+      } catch (reloadErr) {
+        // eslint-disable-next-line no-console
+        console.error(reloadErr);
+        setError("Страница сохранена, но список не обновился — обновите страницу в браузере.");
+      }
     } catch (e) {
       setError(
-        editingPageId
-          ? "Ошибка при редактировании страницы"
-          : "Ошибка при создании страницы",
+        formatApiErrorForUi(
+          e,
+          editingPageId
+            ? "Ошибка при редактировании страницы"
+            : "Ошибка при создании страницы",
+        ),
       );
       // eslint-disable-next-line no-console
       console.error(e);
+    } finally {
+      setIsSavingPage(false);
     }
   }
 
@@ -2433,9 +2457,9 @@ export default function AdminPage() {
                 type="button"
                 className="inline-flex items-center rounded-full bg-[#496db3] px-4 py-1.5 text-xs font-medium text-white hover:brightness-105 disabled:opacity-60"
                 onClick={() => void handleCreate()}
-                disabled={loading || !title || !slug}
+                disabled={loading || isSavingPage || !title || !slug}
               >
-                {loading
+                {isSavingPage
                   ? editingPageId
                     ? "Сохранение…"
                     : "Создание…"
