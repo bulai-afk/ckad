@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { adminAuthCookieSecure } from "@/lib/adminAuthCookie";
 import { backendApiUrl } from "@/lib/backendApiUrl";
 
 export async function POST(req: Request) {
@@ -42,7 +43,7 @@ export async function POST(req: Request) {
     res.cookies.set("admin_auth", "1", {
       httpOnly: true,
       sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
+      secure: adminAuthCookieSecure(req),
       path: "/",
       maxAge: 60 * 60 * 24 * 7,
     });

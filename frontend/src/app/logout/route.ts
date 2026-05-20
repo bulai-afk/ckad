@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { adminAuthCookieSecure } from "@/lib/adminAuthCookie";
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -7,7 +8,7 @@ export async function GET(req: Request) {
   res.cookies.set("admin_auth", "", {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: adminAuthCookieSecure(req),
     path: "/",
     maxAge: 0,
   });
