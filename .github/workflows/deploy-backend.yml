@@ -52,6 +52,8 @@ jobs:
     timeout-minutes: 30
     env:
       DEPLOY_APP_ROOT: ${{ vars.DEPLOY_APP_ROOT }}
+      DEPLOY_HOST: 77.223.99.120
+      DEPLOY_USER: root
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -60,14 +62,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ -z "${{ secrets.DEPLOY_HOST }}" ]; then
-            echo "::error title=Missing secret::DEPLOY_HOST is not set in repo secrets"
-            exit 1
-          fi
-          if [ -z "${{ secrets.DEPLOY_USER }}" ]; then
-            echo "::error title=Missing secret::DEPLOY_USER is not set in repo secrets"
-            exit 1
-          fi
           if [ -z "${{ secrets.DEPLOY_SSH_KEY }}" ]; then
             echo "::error title=Missing secret::DEPLOY_SSH_KEY is not set in repo secrets"
             exit 1
@@ -81,7 +75,7 @@ jobs:
           chmod 700 ~/.ssh
           echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+          ssh-keyscan -H "${DEPLOY_HOST}" >> ~/.ssh/known_hosts 2>/dev/null
           printf "\nHost *\n  StrictHostKeyChecking yes\n  IdentityFile ~/.ssh/id_ed25519\n" >> ~/.ssh/config
 
       - name: Rsync — backend code to server
@@ -89,21 +83,21 @@ jobs:
         run: |
           set -euo pipefail
           APP="${DEPLOY_APP_ROOT:-/opt/ckad/current}"
-          echo "::notice::Deploy backend path (APP)=$APP"
-          ssh "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" "mkdir -p \"${APP}/backend\""
+          echo "::notice::Deploy backend to ${DEPLOY_USER}@${DEPLOY_HOST} path (APP)=$APP"
+          ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "mkdir -p \"${APP}/backend\""
           rsync -az --delete \
             --exclude ".env" \
             --exclude ".env.*" \
             --exclude "node_modules" \
             --exclude "dist" \
             --exclude "data/" \
-            ./backend/ "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${APP}/backend/"
+            ./backend/ "${DEPLOY_USER}@${DEPLOY_HOST}:${APP}/backend/"
 
       - name: SSH — ensure swap
         shell: bash
         run: |
           set -euo pipefail
-          ssh "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" "set -euo pipefail
+          ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "set -euo pipefail
             if ! swapon --show | grep -q '/swapfile'; then
               echo '[deploy] no swapfile, creating 4G swap...'
               fallocate -l 4G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=4096
@@ -120,7 +114,7 @@ jobs:
         run: |
           set -euo pipefail
           APP="${DEPLOY_APP_ROOT:-/opt/ckad/current}"
-          ssh "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" "set -euo pipefail
+          ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "set -euo pipefail
             ROOT=\"$APP\"
             cd \"\$ROOT/backend\"
             npm ci --no-audit --no-fund
