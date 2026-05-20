@@ -6229,7 +6229,28 @@ export default function PageEditorDetailsPage() {
       inputSyncTimerRef.current = null;
     }
     pendingInputHtmlRef.current = null;
+    syncWebTextBlockV2FieldValuesForSerialization(ed);
     setContentHtml(ed.innerHTML);
+  }
+
+  const WEB_CTA_LINK_MODAL_TARGET_SELECTOR =
+    "a.page-web-elements-cta-button, span.page-web-elements-cta-button, a.page-web-elements-cta-button-secondary, span.page-web-elements-cta-button-secondary, .page-web-cover-el-button, a.page-web-cover-el-button, .page-web-work-pricing a.wrg.wri.wro.wsf.wsl.wsq.wst.wsw.wtc.wtg.wtr.wts.wua.wub.wuc.wue";
+
+  function openCtaButtonLinkModal(target: HTMLElement) {
+    const ed = editorRef.current;
+    if (!ed || !ed.contains(target)) return;
+    if (inputSyncTimerRef.current !== null) {
+      window.clearTimeout(inputSyncTimerRef.current);
+      inputSyncTimerRef.current = null;
+    }
+    pendingInputHtmlRef.current = null;
+    coverButtonLinkTargetRef.current = target;
+    const currentLink =
+      (target.getAttribute("data-href") || "").trim() ||
+      (target.tagName === "A" ? (target.getAttribute("href") || "").trim() : "");
+    setCoverButtonLinkModalValue(currentLink === "#" ? "" : currentLink);
+    setCoverButtonLinkModalLabelValue(getCoverButtonLinkLabelForModal(target));
+    setCoverButtonLinkModalOpen(true);
   }
 
   function isWebTextBlockV2AnnouncementVisuallyEmpty(el: HTMLElement): boolean {
@@ -9374,88 +9395,21 @@ export default function PageEditorDetailsPage() {
     });
   }
 
-  /** Меню ⋮ в слое fixed — иначе `.page-web-cover-inner` (z-index: 2) перекрывает absolute-выпадашку. */
+  /** Возвращаем баннерное меню к CSS-якорю рядом с кнопкой ⋮ (absolute от тулбара). */
   function positionCoverMenuDropdownFixed(toolbar: HTMLElement) {
-    const dd = toolbar.querySelector(".page-web-cover-menu-dropdown") as HTMLElement | null;
-    const trig = toolbar.querySelector(".page-web-cover-menu-trigger") as HTMLElement | null;
-    if (!dd || !trig) return;
-    if (toolbar.getAttribute("data-menu-open") !== "1") {
-      resetCoverMenuDropdownStyles(toolbar);
-      return;
-    }
-    const apply = () => {
-      const r = trig.getBoundingClientRect();
-      const viewportW = window.innerWidth;
-      const viewportH = window.innerHeight;
-      dd.style.position = "fixed";
-      dd.style.left = `${r.right + 4}px`;
-      dd.style.top = `${r.top}px`;
-      dd.style.right = "auto";
-      dd.style.transform = "none";
-      dd.style.zIndex = "10100";
-      dd.style.minWidth = "11.5rem";
-      const ddRect = dd.getBoundingClientRect();
-      const leftIfRight = r.right + 4;
-      const leftIfLeft = r.left - ddRect.width - 4;
-      const clampedLeft =
-        leftIfRight + ddRect.width <= viewportW - 8 ? leftIfRight : Math.max(8, leftIfLeft);
-      const clampedTop = Math.max(8, Math.min(r.top, viewportH - ddRect.height - 8));
-      dd.style.left = `${clampedLeft}px`;
-      dd.style.top = `${clampedTop}px`;
-    };
-    requestAnimationFrame(() => {
-      requestAnimationFrame(apply);
-    });
+    resetCoverMenuDropdownStyles(toolbar);
   }
 
   function positionCoverSubmenuPanelsFixed(toolbar: HTMLElement) {
     toolbar.querySelectorAll(".page-web-cover-menu-sub-panel").forEach((node) => {
       const panel = node as HTMLElement;
-      const sub = panel.closest(".page-web-cover-menu-sub") as HTMLElement | null;
-      const open = sub?.getAttribute("data-submenu-open") === "1";
-      if (!open || toolbar.getAttribute("data-menu-open") !== "1") {
-        panel.style.removeProperty("position");
-        panel.style.removeProperty("left");
-        panel.style.removeProperty("top");
-        panel.style.removeProperty("right");
-        panel.style.removeProperty("bottom");
-        panel.style.removeProperty("transform");
-        panel.style.removeProperty("z-index");
-        return;
-      }
-      const trigger = sub.querySelector(
-        ":scope > .page-web-cover-menu-sub-trigger",
-      ) as HTMLElement | null;
-      if (!trigger) return;
-      const apply = () => {
-        const r = trigger.getBoundingClientRect();
-        const viewportW = window.innerWidth;
-        const viewportH = window.innerHeight;
-        panel.style.position = "fixed";
-        panel.style.right = "auto";
-        panel.style.transform = "none";
-        panel.style.zIndex = "10110";
-        const drop = sub.getAttribute("data-submenu-drop") === "up" ? "up" : "down";
-        let top = drop === "up" ? r.bottom : r.top;
-        panel.style.left = `${r.right + 4}px`;
-        panel.style.top = `${top}px`;
-        panel.style.bottom = "auto";
-        const pr = panel.getBoundingClientRect();
-        const leftIfRight = r.right + 4;
-        const leftIfLeft = r.left - pr.width - 4;
-        const clampedLeft =
-          leftIfRight + pr.width <= viewportW - 8 ? leftIfRight : Math.max(8, leftIfLeft);
-        let clampedTop = top;
-        if (drop === "up") {
-          clampedTop = r.bottom - pr.height;
-        }
-        clampedTop = Math.max(8, Math.min(clampedTop, viewportH - pr.height - 8));
-        panel.style.left = `${clampedLeft}px`;
-        panel.style.top = `${clampedTop}px`;
-      };
-      requestAnimationFrame(() => {
-        requestAnimationFrame(apply);
-      });
+      panel.style.removeProperty("position");
+      panel.style.removeProperty("left");
+      panel.style.removeProperty("top");
+      panel.style.removeProperty("right");
+      panel.style.removeProperty("bottom");
+      panel.style.removeProperty("transform");
+      panel.style.removeProperty("z-index");
     });
   }
 
@@ -11603,19 +11557,13 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
 
   function handleCoverButtonDoubleClick(e: React.MouseEvent): boolean {
     const target = (e.target as HTMLElement).closest?.(
-      ".page-web-cover-el-button, .page-web-cover-el-announcement-learn-more, .page-web-cover-el-learn-more, .page-web-elements-announcement-learn-more, .page-web-elements-cta-button, a.page-web-elements-cta-button, .page-web-elements-cta-button-secondary, .page-web-feature-grid-link",
+      ".page-web-cover-el-button, .page-web-cover-el-announcement-learn-more, .page-web-cover-el-learn-more, .page-web-elements-announcement-learn-more, .page-web-elements-cta-button, a.page-web-elements-cta-button, .page-web-elements-cta-button-secondary, a.page-web-elements-cta-button-secondary, .page-web-feature-grid-link, .page-web-work-pricing a.wrg.wri.wro.wsf.wsl.wsq.wst.wsw.wtc.wtg.wtr.wts.wua.wub.wuc.wue",
     ) as HTMLElement | null;
     const ed = editorRef.current;
     if (!target || !ed || !ed.contains(target)) return false;
     e.preventDefault();
     e.stopPropagation();
-    coverButtonLinkTargetRef.current = target;
-    const currentLink =
-      (target.getAttribute("data-href") || "").trim() ||
-      (target.tagName === "A" ? (target.getAttribute("href") || "").trim() : "");
-    setCoverButtonLinkModalValue(currentLink === "#" ? "" : currentLink);
-    setCoverButtonLinkModalLabelValue(getCoverButtonLinkLabelForModal(target));
-    setCoverButtonLinkModalOpen(true);
+    openCtaButtonLinkModal(target);
     return true;
   }
 
@@ -11846,21 +11794,13 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
     const inner = target.closest?.(".page-web-cover-inner") as HTMLElement | null;
     const ed = editorRef.current;
     if (!inner || !ed?.contains(inner)) return;
-    const coverCtaBtn = target.closest(
-      "a.page-web-elements-cta-button, span.page-web-elements-cta-button, a.page-web-elements-cta-button-secondary, span.page-web-elements-cta-button-secondary, .page-web-cover-el-button, a.page-web-cover-el-button",
-    ) as HTMLElement | null;
+    const coverCtaBtn = target.closest(WEB_CTA_LINK_MODAL_TARGET_SELECTOR) as HTMLElement | null;
     if (coverCtaBtn && inner.contains(coverCtaBtn)) {
       e.preventDefault();
       e.stopPropagation();
       inner.setAttribute("data-cover-unlocked", "1");
       inner.setAttribute("contenteditable", "true");
-      coverButtonLinkTargetRef.current = coverCtaBtn;
-      const currentLink =
-        (coverCtaBtn.getAttribute("data-href") || "").trim() ||
-        (coverCtaBtn.tagName === "A" ? (coverCtaBtn.getAttribute("href") || "").trim() : "");
-      setCoverButtonLinkModalValue(currentLink === "#" ? "" : currentLink);
-      setCoverButtonLinkModalLabelValue(getCoverButtonLinkLabelForModal(coverCtaBtn));
-      setCoverButtonLinkModalOpen(true);
+      openCtaButtonLinkModal(coverCtaBtn);
       return;
     }
     if (inner.getAttribute("data-cover-unlocked") === "1") return;
@@ -13375,6 +13315,19 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
     if (target.closest?.(".page-web-text-block-toolbar")) {
       handleTextBlockToolbarMouseDown(e);
       return;
+    }
+
+    if (isWorkPricingTextBlockShell(block)) {
+      const content = block.querySelector(":scope > .page-web-text-block-content") as HTMLElement | null;
+      const wp = (content?.querySelector(":scope > .page-web-work-pricing") ??
+        content?.querySelector(".page-web-work-pricing")) as HTMLElement | null;
+      const wpCtaBtn = target.closest(WEB_CTA_LINK_MODAL_TARGET_SELECTOR) as HTMLElement | null;
+      if (wp && wpCtaBtn && wp.contains(wpCtaBtn)) {
+        e.preventDefault();
+        e.stopPropagation();
+        openCtaButtonLinkModal(wpCtaBtn);
+        return;
+      }
     }
 
     const cardItem = target.closest?.(".page-web-feature-grid-item") as HTMLElement | null;
@@ -15044,8 +14997,10 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-timeline-menu-delete:hover { background: #fef2f2; }
         /* Поверх градиента обложки, вне потока — не сдвигает текст редактора */
         .page-editor .page-web-cover-toolbar { position: absolute; left: 0.75rem; top: 50%; right: auto; margin: 0; padding: 0; z-index: 10040; transform: translateY(-50%); width: max-content; pointer-events: auto; user-select: none; -webkit-user-select: none; align-items: flex-start; }
-        .page-editor .page-web-cover:has(> .page-web-cover-toolbar[data-menu-open="1"]) > .page-web-cover-inner {
-          z-index: 0;
+        .page-editor .page-web-cover-toolbar[data-menu-open="1"] { z-index: 10150; }
+        .page-editor .page-web-cover-toolbar[data-menu-open="1"] .page-web-cover-menu-dropdown,
+        .page-editor .page-web-cover-toolbar[data-menu-open="1"] .page-web-cover-menu-sub-panel {
+          z-index: 10100;
         }
         .page-editor .page-web-cover-menu-trigger { display: flex; width: 28px; height: 28px; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid #cbd5e1; background: rgba(255,255,255,0.95); color: #64748b; cursor: pointer; user-select: none; -webkit-user-select: none; padding: 0; }
         .page-editor .page-web-cover-menu-trigger:hover { border-color: #94a3b8; color: #0f172a; background: #fff; }
@@ -15269,8 +15224,12 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-text-media-toolbar[data-menu-open="1"] .page-web-text-media-menu-dropdown { display: block; }
         .page-editor .page-web-text-media-menu-delete { display: block; width: 100%; box-sizing: border-box; text-align: left; padding: 8px 12px; font-size: 13px; font-weight: 500; color: #b91c1c; background: transparent; border: none; cursor: pointer; border-radius: 4px; white-space: nowrap; }
         .page-editor .page-web-text-media-menu-delete:hover { background: #fef2f2; }
-        .page-editor .page-web-text-block { position: relative; width: 100%; margin: 1rem 0; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; padding: 1rem; box-sizing: border-box; }
-        .page-editor .page-web-text-block-toolbar { position: absolute; left: 0.75rem; top: 50%; z-index: 80; width: max-content; pointer-events: auto; user-select: none; -webkit-user-select: none; transform: translateY(-50%); }
+        .page-editor .page-web-text-block { position: relative; width: 100%; margin: 1rem 0; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; padding: 1rem; box-sizing: border-box; overflow: visible; }
+        .page-editor .page-web-text-block:has(> .page-web-text-block-toolbar[data-menu-open="1"]) { z-index: 100; }
+        .page-editor .page-web-text-block-toolbar { position: absolute; left: 0.75rem; top: 50%; z-index: 10040; width: max-content; pointer-events: auto; user-select: none; -webkit-user-select: none; transform: translateY(-50%); }
+        .page-editor .page-web-text-block-toolbar[data-menu-open="1"] { z-index: 10150; }
+        .page-editor .page-web-text-block-toolbar[data-menu-open="1"] .page-web-text-block-menu-dropdown,
+        .page-editor .page-web-text-block-toolbar[data-menu-open="1"] .page-web-text-block-menu-sub-panel { z-index: 10100; }
         .page-editor .page-web-text-block-menu-trigger { display: flex; width: 28px; height: 28px; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid #cbd5e1; background: rgba(255,255,255,0.95); color: #64748b; cursor: pointer; padding: 0; }
         .page-editor .page-web-text-block-menu-trigger:hover { border-color: #94a3b8; color: #0f172a; background: #fff; }
         .page-editor .page-web-text-block-menu-dots::before { content: "\\22EE"; font-size: 1rem; line-height: 1; }
@@ -15352,8 +15311,12 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-text-block-menu-sub-panel .page-web-text-block-menu-sep { display: block; margin: 6px 0; }
         .page-editor .page-web-text-block-menu-delete { display: block; width: 100%; box-sizing: border-box; text-align: left; padding: 8px 12px; font-size: 13px; font-weight: 500; color: #b91c1c; background: transparent; border: none; cursor: pointer; border-radius: 4px; white-space: nowrap; }
         .page-editor .page-web-text-block-menu-delete:hover { background: #fef2f2; }
-        .page-editor .page-web-text-block-v2 { position: relative; width: 100%; margin: 1rem 0; border: none; background: transparent; padding: 1rem; box-sizing: border-box; }
-        .page-editor .page-web-text-block-v2-toolbar { position: absolute; left: 0.75rem; top: 50%; z-index: 80; width: max-content; pointer-events: auto; user-select: none; -webkit-user-select: none; transform: translateY(-50%); }
+        .page-editor .page-web-text-block-v2 { position: relative; width: 100%; margin: 1rem 0; border: none; background: transparent; padding: 1rem; box-sizing: border-box; overflow: visible; }
+        .page-editor .page-web-text-block-v2:has(> .page-web-text-block-v2-toolbar[data-menu-open="1"]) { z-index: 100; }
+        .page-editor .page-web-text-block-v2-toolbar { position: absolute; left: 0.75rem; top: 50%; z-index: 10040; width: max-content; pointer-events: auto; user-select: none; -webkit-user-select: none; transform: translateY(-50%); }
+        .page-editor .page-web-text-block-v2-toolbar[data-menu-open="1"] { z-index: 10150; }
+        .page-editor .page-web-text-block-v2-toolbar[data-menu-open="1"] .page-web-text-block-v2-menu-dropdown,
+        .page-editor .page-web-text-block-v2-toolbar[data-menu-open="1"] .page-web-text-block-menu-sub-panel { z-index: 10100; }
         .page-editor .page-web-text-block-v2-menu-trigger { display: flex; width: 28px; height: 28px; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid #cbd5e1; background: rgba(255,255,255,0.95); color: #64748b; cursor: pointer; padding: 0; }
         .page-editor .page-web-text-block-v2-menu-trigger:hover { border-color: #94a3b8; color: #0f172a; background: #fff; }
         .page-editor .page-web-text-block-v2-menu-dots::before { content: "\\22EE"; font-size: 1rem; line-height: 1; }
