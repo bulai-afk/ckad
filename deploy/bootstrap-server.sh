@@ -20,6 +20,20 @@ fi
 
 echo "[bootstrap] node $(node -v) npm $(npm -v)"
 
+if ! command -v nginx >/dev/null 2>&1; then
+  echo "[bootstrap] installing nginx"
+  apt-get install -y -qq nginx
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+install -m 0644 "${SCRIPT_DIR}/nginx/ckad.conf" /etc/nginx/sites-available/ckad.conf
+ln -sf /etc/nginx/sites-available/ckad.conf /etc/nginx/sites-enabled/ckad.conf
+rm -f /etc/nginx/sites-enabled/default
+nginx -t
+systemctl enable --now nginx
+systemctl reload nginx
+echo "[bootstrap] nginx listening on :80"
+
 if ! command -v mysql >/dev/null 2>&1; then
   echo "[bootstrap] installing MariaDB"
   apt-get install -y -qq mariadb-server
@@ -58,7 +72,6 @@ EOF
   echo "[bootstrap] wrote ${FRONT_ENV}"
 fi
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 install -m 0644 "${SCRIPT_DIR}/systemd/ckad-backend.service" /etc/systemd/system/ckad-backend.service
 install -m 0644 "${SCRIPT_DIR}/systemd/ckad-frontend.service" /etc/systemd/system/ckad-frontend.service
 systemctl daemon-reload
@@ -68,4 +81,4 @@ mkdir -p "${APP_ROOT}/backend/data"
 chown -R www-data:www-data "${APP_ROOT}/backend/data" 2>/dev/null || true
 chmod -R u+rwX "${APP_ROOT}/backend/data" 2>/dev/null || true
 
-echo "[bootstrap] done — Node, MariaDB, env files, systemd units"
+echo "[bootstrap] done — Node, MariaDB, nginx :80, env files, systemd units"
