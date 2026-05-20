@@ -23,7 +23,7 @@ ${scope} .page-web-text-media,
 ${scope} .page-web-text-block,
 ${scope} .page-web-text-block-v2,
 ${scope} .page-web-spacer { font-size: var(--wb-body-fs); line-height: var(--wb-body-lh); }
-${scope} .page-web-cover { position: relative; display: flex; flex-direction: column; width: 100%; max-width: 100%; margin: 1.25rem 0; padding: 0; border-radius: 16px; background: #f1f5f9; box-sizing: border-box; overflow: visible; container-type: inline-size; --wb-cover-copy-max: 100%; }
+${scope} .page-web-cover { position: relative; display: flex; flex-direction: column; width: 100%; max-width: 100%; margin: 1.25rem 0; padding: 0; border-radius: 16px; background: #f1f5f9; box-sizing: border-box; overflow: visible; container-type: inline-size; --wb-cover-copy-max: 100%; --wb-cover-title-lh: 1; }
 ${scope} .page-web-cover.page-web-cover-has-bg { background-color: #e2e8f0; }
 ${scope} .page-web-cover[data-cover-type="image"] .page-web-cover-bg { display: none; }
 ${scope} .page-web-cover[data-cover-type="split"].page-web-cover-has-bg { background: #f1f5f9 !important; }
@@ -106,7 +106,7 @@ ${scope} .page-web-cover-el-title textarea.page-web-elements-title-input {
   font: inherit;
   font-size: inherit;
   font-weight: 600;
-  line-height: 1.2;
+  line-height: var(--wb-cover-title-lh, 1);
   letter-spacing: inherit;
   text-wrap: wrap;
   text-align: inherit;

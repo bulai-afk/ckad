@@ -15681,7 +15681,11 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
           z-index: 1;
         }
         /* В textarea line-height: 1 (как у синего заголовка сайта) даёт лишний верх и «провал» строки вниз; blur/focus совпадают с блоком ниже. */
-        .page-editor .page-web-cover .page-web-cover-inner > .page-web-elements.page-web-elements-title textarea.page-web-elements-title-input,
+        .page-editor .page-web-cover .page-web-cover-inner > .page-web-elements.page-web-elements-title textarea.page-web-elements-title-input {
+          line-height: 1 !important;
+          padding: 0.15rem 0.45rem !important;
+          text-wrap: wrap !important;
+        }
         .page-editor .page-web-feature-grid-head .page-web-elements.page-web-elements-title textarea.page-web-elements-title-input,
         .page-editor .page-web-work-pricing .page-web-elements.page-web-elements-title textarea.page-web-elements-title-input,
         .page-editor .page-web-elements.page-web-elements-title textarea.page-web-elements-title-input {

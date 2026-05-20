@@ -345,7 +345,7 @@ export function PageSlugClient({ slugParts, page, serviceFolderHub }: PageSlugCl
           }
           .service-page-content-root .page-content .page-web-cover .page-web-cover-inner > .page-web-elements.page-web-elements-title textarea.page-web-elements-title-input,
           .service-page-content-root .page-content .page-web-cover .page-web-cover-el-title textarea.page-web-elements-title-input {
-            line-height: 1.2 !important;
+            line-height: 1 !important;
             padding: 0.15rem 0.45rem !important;
             text-wrap: wrap !important;
           }
