@@ -6220,6 +6220,18 @@ export default function PageEditorDetailsPage() {
     }, 120);
   }
 
+  /** Сбрасывает отложенный sync полотна — иначе правки другого блока (напр. кнопка 2-го баннера) затираются старым HTML. */
+  function commitEditorDomToContentHtml() {
+    const ed = editorRef.current;
+    if (!ed) return;
+    if (inputSyncTimerRef.current !== null) {
+      window.clearTimeout(inputSyncTimerRef.current);
+      inputSyncTimerRef.current = null;
+    }
+    pendingInputHtmlRef.current = null;
+    setContentHtml(ed.innerHTML);
+  }
+
   function isWebTextBlockV2AnnouncementVisuallyEmpty(el: HTMLElement): boolean {
     const raw = (el.innerText ?? "").replace(/\r\n/g, "\n").replace(/\u200b/g, "");
     return raw.replace(/[\n\r\t\f\v \u00A0]/g, "").length === 0;
@@ -9727,13 +9739,16 @@ export default function PageEditorDetailsPage() {
       if (actionsWrap && (actionsWrap === probe || actionsWrap.contains(probe))) {
         if (
           probe instanceof HTMLElement &&
-          (probe.matches(".page-web-elements-cta-button") || probe.matches("a.page-web-elements-cta-button"))
+          (probe.matches(".page-web-elements-cta-button") ||
+            probe.matches("a.page-web-elements-cta-button") ||
+            probe.matches(".page-web-elements-cta-button-secondary") ||
+            probe.matches("a.page-web-elements-cta-button-secondary"))
         ) {
           return probe;
         }
         return (
           (actionsWrap.querySelector(
-            ".page-web-elements-cta-button, a.page-web-elements-cta-button",
+            ".page-web-elements-cta-button, a.page-web-elements-cta-button, .page-web-elements-cta-button-secondary, a.page-web-elements-cta-button-secondary",
           ) as HTMLElement | null) ?? actionsWrap
         );
       }
@@ -9979,7 +9994,7 @@ export default function PageEditorDetailsPage() {
         ? current
         : ((current.querySelector(".page-web-cover-el-button") as HTMLElement | null) ??
           (current.querySelector(
-            ".page-web-elements-cta-button, a.page-web-elements-cta-button",
+            ".page-web-elements-cta-button, a.page-web-elements-cta-button, .page-web-elements-cta-button-secondary, a.page-web-elements-cta-button-secondary",
           ) as HTMLElement | null));
     const atCurrentStart = isRangeAtElementStart(range, current) || isRangeAtElementStartLenient(range, current);
     const atButtonStart = !!buttonInCurrent && (
@@ -11585,7 +11600,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       else target.removeAttribute("data-href");
     }
     applyCoverButtonLinkLabelToDom(target, coverButtonLinkModalLabelValue);
-    setContentHtml(ed.innerHTML);
+    commitEditorDomToContentHtml();
     setCoverButtonLinkModalOpen(false);
   }
 
@@ -11618,7 +11633,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
     }
     const iconId = (nextId ?? featureGridIconPickerValue) as FeatureGridIconPreset["id"];
     target.outerHTML = getFeatureGridIconWrapHtml(iconId);
-    setContentHtml(ed.innerHTML);
+    commitEditorDomToContentHtml();
     closeFeatureGridIconPicker();
   }
 
@@ -11763,11 +11778,28 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
     const inner = target.closest?.(".page-web-cover-inner") as HTMLElement | null;
     const ed = editorRef.current;
     if (!inner || !ed?.contains(inner)) return;
+    const coverCtaBtn = target.closest(
+      "a.page-web-elements-cta-button, span.page-web-elements-cta-button, a.page-web-elements-cta-button-secondary, span.page-web-elements-cta-button-secondary, .page-web-cover-el-button, a.page-web-cover-el-button",
+    ) as HTMLElement | null;
+    if (coverCtaBtn && inner.contains(coverCtaBtn)) {
+      e.preventDefault();
+      e.stopPropagation();
+      inner.setAttribute("data-cover-unlocked", "1");
+      inner.setAttribute("contenteditable", "true");
+      coverButtonLinkTargetRef.current = coverCtaBtn;
+      const currentLink =
+        (coverCtaBtn.getAttribute("data-href") || "").trim() ||
+        (coverCtaBtn.tagName === "A" ? (coverCtaBtn.getAttribute("href") || "").trim() : "");
+      setCoverButtonLinkModalValue(currentLink === "#" ? "" : currentLink);
+      setCoverButtonLinkModalLabelValue(getCoverButtonLinkLabelForModal(coverCtaBtn));
+      setCoverButtonLinkModalOpen(true);
+      return;
+    }
     if (inner.getAttribute("data-cover-unlocked") === "1") return;
     const clickX = e.clientX;
     const clickY = e.clientY;
     const clickedEditableElement = target.closest(
-      ".page-web-elements.page-web-elements-title, .page-web-elements.page-web-elements-description, .page-web-elements.page-web-elements-announcement, .page-web-cover-el-subtitle, .page-web-cover-el-button-wrap, .page-web-cover-el-announcement-wrap, .page-web-cover-el-learn-more, .page-web-cover-el-announcement-learn-more, .page-web-elements-announcement-learn-more, .page-web-elements-actions, .page-web-elements-actions-cluster, .page-web-elements-cta-button, a.page-web-elements-cta-button",
+      ".page-web-elements.page-web-elements-title, .page-web-elements.page-web-elements-description, .page-web-elements.page-web-elements-announcement, .page-web-cover-el-subtitle, .page-web-cover-el-button-wrap, .page-web-cover-el-announcement-wrap, .page-web-cover-el-learn-more, .page-web-cover-el-announcement-learn-more, .page-web-elements-announcement-learn-more, .page-web-elements-actions, .page-web-elements-actions-cluster, .page-web-elements-cta-button, a.page-web-elements-cta-button, .page-web-elements-cta-button-secondary, a.page-web-elements-cta-button-secondary",
     ) as HTMLElement | null;
     e.preventDefault();
     inner.setAttribute("data-cover-unlocked", "1");
