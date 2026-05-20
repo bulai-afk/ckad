@@ -1,0 +1,15 @@
+[Unit]
+Description=CKAD site (Next.js)
+After=network.target ckad-backend.service
+Wants=ckad-backend.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/ckad/current/frontend
+EnvironmentFile=/opt/ckad/shared/env/frontend.env
+ExecStart=/usr/bin/npm run start -- -p 3000
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

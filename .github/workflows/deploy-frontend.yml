@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "frontend/**"
+      - "deploy/**"
       - ".github/workflows/deploy-frontend.yml"
 
 concurrency:
@@ -72,6 +73,13 @@ jobs:
           ssh-keyscan -H "${DEPLOY_HOST}" >> ~/.ssh/known_hosts 2>/dev/null
           printf "\nHost *\n  StrictHostKeyChecking yes\n  IdentityFile ~/.ssh/id_ed25519\n" >> ~/.ssh/config
 
+      - name: SSH — bootstrap server (Node, DB, systemd)
+        shell: bash
+        run: |
+          set -euo pipefail
+          rsync -az ./deploy/ "${DEPLOY_USER}@${DEPLOY_HOST}:/opt/ckad/deploy/"
+          ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "bash /opt/ckad/deploy/bootstrap-server.sh"
+
       - name: Rsync — frontend code to server
         shell: bash
         run: |
@@ -108,9 +116,13 @@ jobs:
           set -euo pipefail
           APP="${DEPLOY_APP_ROOT:-/opt/ckad/current}"
           ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "set -euo pipefail
+            export PATH=\"/usr/local/bin:/usr/bin:\$PATH\"
             ROOT=\"$APP\"
             cd \"\$ROOT/frontend\"
             npm ci --no-audit --no-fund
+            set -a
+            . /opt/ckad/shared/env/frontend.env
+            set +a
             npm run build
             systemctl restart ckad-frontend
             systemctl --no-pager -l status ckad-frontend

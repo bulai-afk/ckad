@@ -1,0 +1,15 @@
+[Unit]
+Description=CKAD API (Express)
+After=network.target mariadb.service
+Wants=mariadb.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/ckad/current/backend
+EnvironmentFile=/opt/ckad/shared/env/backend.env
+ExecStart=/usr/bin/node dist/src/index.js
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
