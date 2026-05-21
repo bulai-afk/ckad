@@ -10,7 +10,13 @@ import {
   type PageDisplayOrderMap,
 } from "@/lib/pageDisplayOrder";
 import { CallbackRequestModal } from "@/components/CallbackRequestModal";
+import { SiteDocumentHtmlDialog } from "@/components/SiteDocumentHtmlDialog";
 import type { FolderNavItem } from "@/lib/navFoldersCookie";
+import {
+  normalizeSiteDocumentsList,
+  siteDocumentDisplayName,
+  type SiteDocumentItem,
+} from "@/lib/siteDocumentLink";
 
 type PageSummary = {
   title: string;
@@ -37,7 +43,11 @@ const TOP_BANNER_MESSAGES = [
   "Поможем подобрать формат обучения для вашей команды.",
 ];
 
-const DESKTOP_NAV_POPOVER_IDS = ["desktop-menu-catalog", "desktop-menu-study"] as const;
+const DESKTOP_NAV_POPOVER_IDS = [
+  "desktop-menu-catalog",
+  "desktop-menu-study",
+  "desktop-menu-documents",
+] as const;
 let tailwindElementsLoadPromise: Promise<unknown> | null = null;
 
 function ensureTailwindElementsLoaded(): Promise<unknown> {
@@ -112,6 +122,7 @@ type SiteNavbarProps = {
     phone?: string;
     email?: string;
     topRibbonMessages?: string[];
+    documents?: SiteDocumentItem[];
   } | null;
 };
 
@@ -148,6 +159,10 @@ export function SiteNavbar({
   const [topBannerIndex, setTopBannerIndex] = useState(0);
   const [isTopBannerFlipping, setIsTopBannerFlipping] = useState(false);
   const [callbackModalOpen, setCallbackModalOpen] = useState(false);
+  const [navDocuments, setNavDocuments] = useState<SiteDocumentItem[]>(() =>
+    normalizeSiteDocumentsList(siteSettings?.documents),
+  );
+  const [documentPreviewIndex, setDocumentPreviewIndex] = useState<number | null>(null);
   const topRibbonMessagesRaw = Array.isArray(siteSettings?.topRibbonMessages)
     ? siteSettings.topRibbonMessages
         .filter((item): item is string => typeof item === "string")
@@ -226,6 +241,35 @@ export function SiteNavbar({
     hideDesktopNavPopovers();
   }, [pathname]);
 
+  useEffect(() => {
+    if (navDocuments.length > 0) return;
+    let cancelled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+    const run = () => {
+      void apiGet<{ settings?: { documents?: unknown } }>("/api/pages/site-settings", 10_000)
+        .then((payload) => {
+          if (cancelled) return;
+          setNavDocuments(normalizeSiteDocumentsList(payload?.settings?.documents));
+        })
+        .catch(() => {
+          /* no-op */
+        });
+    };
+
+    const w = window as Window & { requestIdleCallback?: (cb: () => void) => number };
+    if (typeof w.requestIdleCallback === "function") {
+      w.requestIdleCallback(run);
+    } else {
+      timeoutId = globalThis.setTimeout(run, 1200);
+    }
+
+    return () => {
+      cancelled = true;
+      if (timeoutId !== undefined) globalThis.clearTimeout(timeoutId);
+    };
+  }, [navDocuments.length]);
+
   const catalogLinks = useMemo(() => {
     const fallback = buildFallbackSectionLinks(initialFolderNavItems, CATALOG_ROOT);
     if (!isNavPagesLoaded || !pages || pages.length === 0) return fallback;
@@ -258,12 +302,18 @@ export function SiteNavbar({
     setCallbackModalOpen(true);
   }
 
+  function openDocumentFromNav(index: number) {
+    closeMobileMenu();
+    hideDesktopNavPopovers();
+    setDocumentPreviewIndex(index);
+  }
+
   if (pathname?.startsWith("/admin")) return null;
 
   return (
     <>
       <header className="fixed top-0 right-0 left-0 z-50" suppressHydrationWarning>
-        <div className="flex h-7 items-center justify-center bg-[#496db3] px-6 text-white shadow-sm ring-1 ring-[#3f5f9d]/60 sm:px-3.5">
+        <div className="flex h-7 items-center justify-center bg-[#496db3] px-6 text-white shadow-sm ring-1 ring-[#3f5f9d]/60 sm:px-3.5 min-[1206px]:px-3 min-[1400px]:px-4">
             <div className="flex items-center justify-center">
               <p className="top-info-cube whitespace-nowrap text-center text-xs font-medium text-white/95 sm:text-sm">
                 <span
@@ -279,7 +329,7 @@ export function SiteNavbar({
         <div className="bg-white shadow-md shadow-black/8">
         <nav
           aria-label="Global"
-          className="relative mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 min-[1206px]:justify-start min-[1206px]:gap-4 min-[1206px]:px-8 min-[1206px]:py-3.5"
+          className="relative mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 min-[1206px]:grid min-[1206px]:max-w-none min-[1206px]:grid-cols-[auto_1fr_auto] min-[1206px]:items-center min-[1206px]:gap-x-1.5 min-[1400px]:gap-x-2.5 min-[1206px]:px-3 min-[1400px]:px-4 min-[1206px]:py-3"
         >
           <div className="flex min-w-0 shrink-0 items-center">
             <Link
@@ -311,13 +361,13 @@ export function SiteNavbar({
               </svg>
               </button>
             </div>
-          <div className="hidden min-w-0 flex-1 items-center justify-center px-1 min-[1206px]:flex">
-            <el-popover-group className="block w-full min-w-0 max-w-4xl">
-            <div className="flex w-full flex-wrap items-center justify-center gap-x-6 gap-y-2 xl:gap-x-8">
+          <div className="hidden min-w-0 items-center justify-center min-[1206px]:flex">
+            <el-popover-group className="block min-w-0">
+            <div className="flex flex-nowrap items-center justify-center gap-x-2 min-[1280px]:gap-x-3 min-[1400px]:gap-x-4 xl:gap-x-5 2xl:gap-x-6">
             <div className="relative">
-              <button popoverTarget="desktop-menu-catalog" onPointerEnter={() => { void ensureTailwindElementsLoaded(); }} className="flex items-center gap-x-1 whitespace-nowrap py-1 text-sm/6 font-semibold text-[#496db3] transition hover:text-red-600">
+              <button popoverTarget="desktop-menu-catalog" onPointerEnter={() => { void ensureTailwindElementsLoaded(); }} className="flex items-center gap-x-0.5 whitespace-nowrap py-1 text-[13px]/5 font-semibold text-[#496db3] transition hover:text-red-600 min-[1400px]:gap-x-1 min-[1400px]:text-sm/6">
                 Каталогизация
-                <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className="size-5 flex-none text-gray-400">
+                <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className="size-4 flex-none text-gray-400 min-[1400px]:size-5">
                   <path d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" fillRule="evenodd" />
                 </svg>
             </button>
@@ -339,9 +389,9 @@ export function SiteNavbar({
         </div>
 
             <div className="relative">
-              <button popoverTarget="desktop-menu-study" onPointerEnter={() => { void ensureTailwindElementsLoaded(); }} className="flex items-center gap-x-1 whitespace-nowrap py-1 text-sm/6 font-semibold text-[#496db3] transition hover:text-red-600">
+              <button popoverTarget="desktop-menu-study" onPointerEnter={() => { void ensureTailwindElementsLoaded(); }} className="flex items-center gap-x-0.5 whitespace-nowrap py-1 text-[13px]/5 font-semibold text-[#496db3] transition hover:text-red-600 min-[1400px]:gap-x-1 min-[1400px]:text-sm/6">
                 Учебный центр
-                <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className="size-5 flex-none text-gray-400">
+                <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className="size-4 flex-none text-gray-400 min-[1400px]:size-5">
                   <path d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" fillRule="evenodd" />
         </svg>
       </button>
@@ -364,37 +414,76 @@ export function SiteNavbar({
 
             <Link
               href={NAV_OTHER_SERVICES_HREF}
-              className="whitespace-nowrap py-1 text-sm/6 font-semibold text-[#496db3] transition hover:text-[#e53935]"
+              className="whitespace-nowrap py-1 text-[13px]/5 font-semibold text-[#496db3] transition hover:text-[#e53935] min-[1400px]:text-sm/6"
             >
               Прочие услуги
             </Link>
 
             <Link
               href={NAV_NEWS_HREF}
-              className="whitespace-nowrap py-1 text-sm/6 font-semibold text-[#496db3] transition hover:text-[#e53935]"
+              className="whitespace-nowrap py-1 text-[13px]/5 font-semibold text-[#496db3] transition hover:text-[#e53935] min-[1400px]:text-sm/6"
             >
               Новости
             </Link>
+
+            <div className="relative">
+              <button
+                popoverTarget="desktop-menu-documents"
+                onPointerEnter={() => {
+                  void ensureTailwindElementsLoaded();
+                }}
+                className="flex items-center gap-x-0.5 whitespace-nowrap py-1 text-[13px]/5 font-semibold text-[#496db3] transition hover:text-red-600 min-[1400px]:gap-x-1 min-[1400px]:text-sm/6"
+              >
+                Документы
+                <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className="size-4 flex-none text-gray-400 min-[1400px]:size-5">
+                  <path
+                    d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"
+                    clipRule="evenodd"
+                    fillRule="evenodd"
+                  />
+                </svg>
+              </button>
+              <el-popover
+                id="desktop-menu-documents"
+                anchor="bottom"
+                popover=""
+                className="w-72 overflow-hidden rounded-2xl bg-white shadow-lg outline-1 outline-gray-900/5 transition transition-discrete [--anchor-gap:--spacing(3)] backdrop:bg-transparent open:block data-closed:translate-y-1 data-closed:opacity-0 data-enter:duration-200 data-enter:ease-out data-leave:duration-150 data-leave:ease-in"
+              >
+                <div className="p-2">
+                  {navDocuments.map((doc, index) => (
+                    <button
+                      key={`desktop-doc-${doc.name}-${index}`}
+                      type="button"
+                      onClick={() => openDocumentFromNav(index)}
+                      className="block w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-[#496db3] hover:bg-gray-50"
+                    >
+                      {siteDocumentDisplayName(doc.name)}
+                    </button>
+                  ))}
+                </div>
+              </el-popover>
+            </div>
+
             <Link
               href={NAV_ABOUT_HREF}
-              className="whitespace-nowrap py-1 text-sm/6 font-semibold text-[#496db3] transition hover:text-[#e53935]"
+              className="whitespace-nowrap py-1 text-[13px]/5 font-semibold text-[#496db3] transition hover:text-[#e53935] min-[1400px]:text-sm/6"
             >
               О компании
             </Link>
             </div>
           </el-popover-group>
           </div>
-          <div className="hidden shrink-0 items-center gap-3 min-[1206px]:flex">
+          <div className="hidden shrink-0 items-center justify-end gap-2 min-[1206px]:flex min-[1400px]:gap-3">
             {navPhone ? (
               navPhoneHref ? (
                 <a
                   href={navPhoneHref}
-                  className="shrink-0 whitespace-nowrap text-base/6 font-extrabold text-[#496db3] transition-colors hover:text-red-600"
+                  className="shrink-0 whitespace-nowrap text-sm/6 font-extrabold text-[#496db3] transition-colors hover:text-red-600 min-[1400px]:text-base/6"
                 >
                   {navPhone}
                 </a>
               ) : (
-                <span className="shrink-0 whitespace-nowrap text-base/6 font-extrabold text-[#496db3]">
+                <span className="shrink-0 whitespace-nowrap text-sm/6 font-extrabold text-[#496db3] min-[1400px]:text-base/6">
                   {navPhone}
                 </span>
               )
@@ -402,7 +491,7 @@ export function SiteNavbar({
               <button
                 type="button"
                 onClick={() => setCallbackModalOpen(true)}
-              className="inline-flex shrink-0 items-center justify-center rounded-md bg-[#496db3] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#3f5f9d]"
+              className="inline-flex shrink-0 items-center justify-center rounded-md bg-[#496db3] px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#3f5f9d] min-[1400px]:px-4 min-[1400px]:py-2.5 min-[1400px]:text-sm"
               >
                 Обратный звонок
               </button>
@@ -488,6 +577,40 @@ export function SiteNavbar({
                     >
                       Новости
                     </Link>
+                    <div className="-mx-3">
+                      <button
+                        type="button"
+                        command="--toggle"
+                        commandfor="mobile-documents"
+                        className="flex w-full items-center justify-between rounded-lg py-2 pr-3.5 pl-3 text-base/7 font-semibold text-[#496db3] hover:bg-gray-50"
+                      >
+                        Документы
+                        <svg
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                          aria-hidden="true"
+                          className="size-5 flex-none in-aria-expanded:rotate-180"
+                        >
+                          <path
+                            d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"
+                            clipRule="evenodd"
+                            fillRule="evenodd"
+                          />
+                        </svg>
+                      </button>
+                      <el-disclosure id="mobile-documents" hidden className="mt-2 block space-y-2">
+                        {navDocuments.map((doc, index) => (
+                          <button
+                            key={`mobile-doc-${doc.name}-${index}`}
+                            type="button"
+                            onClick={() => openDocumentFromNav(index)}
+                            className="block w-full rounded-lg py-2 pr-3 pl-6 text-left text-sm/7 font-semibold text-[#496db3] hover:bg-gray-50"
+                          >
+                            {siteDocumentDisplayName(doc.name)}
+                          </button>
+                        ))}
+                      </el-disclosure>
+                    </div>
                     <Link
                       href={NAV_ABOUT_HREF}
                       onClick={closeMobileMenu}
@@ -501,7 +624,7 @@ export function SiteNavbar({
                   <div className="flex w-full flex-col items-center gap-2.5">
                     <a
                       href={`mailto:${navEmail}`}
-                      className="max-w-full break-all text-center text-sm/6 font-semibold text-[#496db3] transition-colors hover:text-red-600"
+                      className="max-w-full break-all text-center text-base/7 font-extrabold text-[#496db3] transition-colors hover:text-red-600"
                     >
                       {navEmail}
                     </a>
@@ -538,6 +661,12 @@ export function SiteNavbar({
         open={callbackModalOpen}
         onClose={() => setCallbackModalOpen(false)}
         sourceMessage='Заявка из кнопки «Обратный звонок» в шапке сайта.'
+      />
+      <SiteDocumentHtmlDialog
+        open={documentPreviewIndex !== null}
+        onClose={() => setDocumentPreviewIndex(null)}
+        documentIndex={documentPreviewIndex}
+        documents={navDocuments}
       />
     </>
   );
