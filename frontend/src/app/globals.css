@@ -441,7 +441,7 @@ body::-webkit-scrollbar:horizontal {
   box-sizing: border-box;
   -webkit-hyphens: auto;
   hyphens: auto;
-  hyphenate-limit-chars: 6 4 3;
+  hyphenate-limit-chars: 5 3 2;
 }
 
 /* Перенос по слогам: основной текст и заголовки */
@@ -496,16 +496,34 @@ body::-webkit-scrollbar:horizontal {
   line-height: 1.35;
 }
 
-/* Табуляция Word: узкий span 7pt между «2.» и текстом (иначе nbsp = ширина заголовка 14pt) */
-.policy-html-document span[style*="mso-list:Ignore"] span[style*="7.0pt"],
-.policy-html-document span[style*="mso-list:Ignore"] span[style*="font-size:7pt"],
-.policy-html-document span[style*="mso-list:Ignore"] span[style*="font-size: 7pt"],
-.policy-html-document span[style*="mso-list:Ignore"] span[style*="font-size:7.0pt"],
-.policy-html-document span[style*="mso-list:Ignore"] span[style*="font-size: 7.0pt"] {
-  font-size: 7pt !important;
-  font-family: "Times New Roman", Times, serif;
-  white-space: pre;
-  line-height: normal;
+/* Нумерованный заголовок Word: без justify и без лишнего отступа (как абзацы, text-indent:0) */
+.policy-html-document :is(h1, h2, h3, h4).word-doc-numbered-heading,
+.policy-html-document :is(h1, h2, h3, h4)[style*="mso-list:"] {
+  text-align: left !important;
+  text-justify: auto;
+  margin-left: 0 !important;
+  padding-left: 0 !important;
+  text-indent: 0 !important;
+  word-spacing: normal;
+}
+
+.policy-html-document .word-doc-numbered-heading.word-doc-blue-title,
+.policy-html-document :is(h1, h2, h3, h4).word-doc-blue-title[style*="mso-list:"] {
+  -webkit-hyphens: auto !important;
+  hyphens: auto !important;
+}
+
+/* Выравнивание по ширине: чуть чаще перенос по слогам вместо разъезжающихся пробелов */
+.policy-html-document .word-doc-justify,
+.policy-html-document [align="justify"],
+.policy-html-document [align="both"],
+.policy-html-document [style*="text-align:justify"],
+.policy-html-document [style*="text-align: justify"] {
+  -webkit-hyphens: auto;
+  hyphens: auto;
+  hyphenate-limit-chars: 5 3 2;
+  text-wrap: pretty;
+  word-spacing: normal;
 }
 
 .policy-html-document h1,
@@ -522,6 +540,8 @@ body::-webkit-scrollbar:horizontal {
 .policy-html-document h2,
 .policy-html-document h3,
 .policy-html-document h4 {
+  margin: 0;
+  padding: 0;
   text-wrap: pretty;
 }
 
@@ -559,10 +579,10 @@ body::-webkit-scrollbar:horizontal {
   text-align: right !important;
 }
 
-.policy-html-document [align="justify"],
-.policy-html-document [align="both"],
-.policy-html-document [style*="text-align:justify"],
-.policy-html-document [style*="text-align: justify"] {
+.policy-html-document [align="justify"]:not(.word-doc-numbered-heading),
+.policy-html-document [align="both"]:not(.word-doc-numbered-heading),
+.policy-html-document [style*="text-align:justify"]:not(.word-doc-numbered-heading),
+.policy-html-document [style*="text-align: justify"]:not(.word-doc-numbered-heading) {
   text-align: justify !important;
 }
 

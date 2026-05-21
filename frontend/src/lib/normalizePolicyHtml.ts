@@ -208,26 +208,14 @@ function normalizeWordFontShorthandInStyles(html: string): string {
 }
 
 /**
- * Word: между «1.» и текстом — цепочка &amp;nbsp; в узком span 7pt (табуляция списка).
- * Убираем служебные \\r\\n; приводим font:7pt к font-size для браузера.
+ * Word: между «1.» и текстом — служебная цепочка &amp;nbsp; в span 7pt (табуляция).
+ * В браузере даёт разные «рваные» пробелы; заменяем на один обычный пробел, как после «1.1.».
  */
 function sanitizeWordListMarkerSpan(span: string): string {
   let out = span.replace(/<br\s*\/?>/gi, "");
-  out = out.replace(/\bstyle\s*=\s*(['"])([\s\S]*?)\1/gi, (full, quote: string, styleBody: string) => {
-    if (!/\bfont:\s*[\d.]+pt/i.test(styleBody) && !/\bfont-size:\s*7/i.test(styleBody)) return full;
-    return `style=${quote}${expandWordFontShorthandInStyle(styleBody)}${quote}`;
-  });
-  out = out.replace(
-    /(<span\b[^>]*\bfont-size:\s*7(?:\.0)?pt[^>]*>)([\s\S]*?)(<\/span>)/gi,
-    (_full, open: string, inner: string, close: string) => {
-      const cleaned = inner
-        .replace(/[\r\n\u2028\u2029\t\f\v]+/g, "")
-        .replace(/(?:&nbsp;|\u00a0)\s*(?:&nbsp;|\u00a0)/g, (m: string) =>
-          m.replace(/\s+/g, ""),
-        );
-      return `${open}${cleaned}${close}`;
-    },
-  );
+  out = out.replace(/<span\b[^>]*\bfont:\s*7(?:\.0)?pt[^>]*>[\s\S]*?<\/span>/gi, " ");
+  out = out.replace(/<span\b[^>]*\bfont-size:\s*7(?:\.0)?pt[^>]*>[\s\S]*?<\/span>/gi, " ");
+  out = out.replace(/(?:&nbsp;|\u00a0){2,}/g, " ");
   return out.replace(/>([^<]*?)</g, (full, text: string) => {
     if (!/[\r\n\u2028\u2029]/.test(text)) return full;
     const cleaned = text.replace(/[\r\n\u2028\u2029]+/g, "");
@@ -398,6 +386,42 @@ function markWordBlueTitleBlocks(html: string): string {
   });
 }
 
+function blockHasWordListMarker(attrs: string, inner: string): boolean {
+  return /\bmso-list:/i.test(attrs) || /mso-list:Ignore/i.test(inner);
+}
+
+function stripJustifyFromStyle(attrs: string): string {
+  return attrs
+    .replace(/text-align\s*:\s*justify/gi, "text-align:left")
+    .replace(/text-justify\s*:\s*[^;]+;?/gi, "")
+    .replace(/\balign\s*=\s*(['"])justify\1/gi, "align=$1left$1")
+    .replace(/\balign\s*=\s*justify\b/gi, 'align="left"');
+}
+
+/**
+ * Нумерованные заголовки Word (1., 2., …): justify в HTML растягивает пробелы на короткой строке.
+ * Выравнивание слева + висячий отступ, как в Word.
+ */
+function markWordNumberedHeadingBlocks(html: string): string {
+  return html.replace(/<(h[1-6])\b([^>]*)>([\s\S]*?)<\/\1>/gi, (full, tag: string, attrs: string, inner: string) => {
+    if (!blockHasWordListMarker(attrs, inner)) return full;
+    const newAttrs = appendClassNameToAttrs(stripJustifyFromStyle(attrs), "word-doc-numbered-heading");
+    return `<${tag}${newAttrs}>${inner}</${tag}>`;
+  });
+}
+
+/** Абзацы и заголовки с text-align:justify — усиленный перенос по слогам в CSS. */
+function markWordJustifyBlocks(html: string): string {
+  return html.replace(/<(p|h[1-6])\b([^>]*)>/gi, (full, tag: string, attrs: string) => {
+    const hasJustify =
+      /text-align\s*:\s*justify/i.test(attrs) ||
+      /\balign\s*=\s*(['"])?(?:justify|both)\1/i.test(attrs);
+    if (!hasJustify) return full;
+    if (/\bword-doc-numbered-heading\b/.test(attrs)) return full;
+    return `<${tag}${appendClassNameToAttrs(attrs, "word-doc-justify")}>`;
+  });
+}
+
 /** Стили и разметка Word HTML → то, что понимают браузеры. */
 function enhanceWordExportedHtml(html: string): string {
   let out = inlineStylesheetTextAlign(html);
@@ -409,6 +433,8 @@ function enhanceWordExportedHtml(html: string): string {
   out = stripTextIndentOnCenteredBlocks(out);
   out = normalizeCenteredAndHeadingLineBreaks(out);
   out = markWordBlueTitleBlocks(out);
+  out = markWordNumberedHeadingBlocks(out);
+  out = markWordJustifyBlocks(out);
   out = stripWordBookmarkSpans(out);
   out = collapseLineBreaksBetweenParagraphs(out);
   out = out.replace(/mso-bidi-font-weight\s*:\s*bold\b/gi, "font-weight:bold");
