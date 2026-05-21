@@ -285,8 +285,7 @@ type SiteSettings = {
   };
   documents: {
     name: string;
-    size: number;
-    dataUrl: string;
+    html: string;
   }[];
   privacyPolicyHtml: string;
   /** Отдельный HTML-документ: согласие на обработку персональных данных (загрузка в админке, как политика). */
@@ -306,7 +305,7 @@ type SiteSettings = {
 };
 
 const SITE_DOCUMENTS_MAX = 3;
-const SITE_DOCUMENT_MAX_BYTES = 20 * 1024 * 1024;
+const SITE_DOCUMENT_HTML_MAX_BYTES = 2 * 1024 * 1024;
 const TOP_RIBBON_MESSAGES_MAX = 8;
 const TOP_RIBBON_MESSAGE_MAX_LEN = 58;
 const TOP_RIBBON_ALLOWED_RE = /[^0-9A-Za-zА-Яа-яЁё\s.,:;!?()[\]{}"'`«»\-_/+&@#%№]/g;
@@ -355,20 +354,15 @@ function sanitizeSiteDocuments(value: unknown): SiteSettings["documents"] {
   for (const raw of value) {
     if (out.length >= SITE_DOCUMENTS_MAX) break;
     if (typeof raw !== "object" || raw === null) continue;
-    const item = raw as { name?: unknown; size?: unknown; dataUrl?: unknown };
+    const item = raw as { name?: unknown; html?: unknown };
     const name = typeof item.name === "string" ? item.name.trim() : "";
-    const sizeNum = typeof item.size === "number" ? item.size : Number(item.size);
-    const dataUrl = typeof item.dataUrl === "string" ? item.dataUrl.trim() : "";
-    if (!name || !Number.isFinite(sizeNum) || sizeNum <= 0 || sizeNum > SITE_DOCUMENT_MAX_BYTES) continue;
-    if (!/^data:application\/pdf;base64,/i.test(dataUrl)) continue;
-    const key = `${name}:${Math.round(sizeNum)}`;
+    const html = sanitizePrivacyPolicyHtml(item.html);
+    if (!name || !html) continue;
+    if (Buffer.byteLength(html, "utf8") > SITE_DOCUMENT_HTML_MAX_BYTES) continue;
+    const key = name.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push({
-      name,
-      size: Math.round(sizeNum),
-      dataUrl,
-    });
+    out.push({ name, html });
   }
   return out;
 }

@@ -428,6 +428,53 @@ body::-webkit-scrollbar:horizontal {
   min-height: 0;
 }
 
+/* HTML правовых документов (политика, согласие) — экспорт из Word */
+.policy-html-document > *:first-child {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+.policy-html-document h1,
+.policy-html-document h2,
+.policy-html-document h3,
+.policy-html-document h4,
+.policy-html-document b,
+.policy-html-document strong,
+.policy-html-document .a0 {
+  font-weight: 700;
+}
+
+.policy-html-document [style*="font-weight:bold"],
+.policy-html-document [style*="font-weight: bold"] {
+  font-weight: 700 !important;
+}
+
+.policy-html-document [align="left"],
+.policy-html-document [style*="text-align:left"],
+.policy-html-document [style*="text-align: left"] {
+  text-align: left !important;
+}
+
+.policy-html-document [align="center"],
+.policy-html-document [style*="text-align:center"],
+.policy-html-document [style*="text-align: center"] {
+  text-align: center !important;
+}
+
+.policy-html-document [align="right"],
+.policy-html-document [style*="text-align:right"],
+.policy-html-document [style*="text-align: right"] {
+  text-align: right !important;
+}
+
+.policy-html-document [align="justify"],
+.policy-html-document [align="both"],
+.policy-html-document [style*="text-align:justify"],
+.policy-html-document [style*="text-align: justify"] {
+  text-align: justify !important;
+  text-justify: inter-word;
+}
+
 /* Главная — блок «Наши услуги»: телефоны и узкие планшеты (сетка карточек) */
 @media (max-width: 767px) {
   .services-home-categories-shell {

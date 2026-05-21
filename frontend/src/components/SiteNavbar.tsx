@@ -157,6 +157,9 @@ export function SiteNavbar({
   const topRibbonMessages =
     topRibbonMessagesRaw.length > 0 ? topRibbonMessagesRaw : TOP_BANNER_MESSAGES;
   const navEmail = (siteSettings?.email || "").trim() || "info@центр-каталогизации.рф";
+  const navPhone = (siteSettings?.phone || "").trim();
+  const navPhoneDigits = navPhone.replace(/[^\d+]/g, "");
+  const navPhoneHref = navPhoneDigits ? `tel:${navPhoneDigits}` : null;
 
   const flipSwapTimeoutRef = useRef<number | null>(null);
   const flipResetTimeoutRef = useRef<number | null>(null);
@@ -382,12 +385,20 @@ export function SiteNavbar({
           </el-popover-group>
           </div>
           <div className="hidden shrink-0 items-center gap-3 min-[1206px]:flex">
-            <a
-              href="tel:+74951234567"
-              className="shrink-0 whitespace-nowrap text-base/6 font-extrabold text-[#496db3] transition-colors hover:text-red-600"
-            >
-              +7 (495) 123-45-67
-              </a>
+            {navPhone ? (
+              navPhoneHref ? (
+                <a
+                  href={navPhoneHref}
+                  className="shrink-0 whitespace-nowrap text-base/6 font-extrabold text-[#496db3] transition-colors hover:text-red-600"
+                >
+                  {navPhone}
+                </a>
+              ) : (
+                <span className="shrink-0 whitespace-nowrap text-base/6 font-extrabold text-[#496db3]">
+                  {navPhone}
+                </span>
+              )
+            ) : null}
               <button
                 type="button"
                 onClick={() => setCallbackModalOpen(true)}
@@ -494,12 +505,20 @@ export function SiteNavbar({
                     >
                       {navEmail}
                     </a>
-                    <a
-                      href="tel:+74951234567"
-                      className="min-w-0 text-center text-base/7 font-extrabold text-[#496db3] transition-colors hover:text-red-600"
-                    >
-                      +7 (495) 123-45-67
-                    </a>
+                    {navPhone ? (
+                      navPhoneHref ? (
+                        <a
+                          href={navPhoneHref}
+                          className="min-w-0 text-center text-base/7 font-extrabold text-[#496db3] transition-colors hover:text-red-600"
+                        >
+                          {navPhone}
+                        </a>
+                      ) : (
+                        <span className="min-w-0 text-center text-base/7 font-extrabold text-[#496db3]">
+                          {navPhone}
+                        </span>
+                      )
+                    ) : null}
                     <button
                       type="button"
                       onClick={openCallbackFromNav}

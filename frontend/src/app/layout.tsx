@@ -50,8 +50,7 @@ type SiteSettings = {
   };
   documents?: {
     name: string;
-    size: number;
-    dataUrl: string;
+    html: string;
   }[];
   topRibbonMessages?: string[];
 };

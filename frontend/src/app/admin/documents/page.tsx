@@ -14,7 +14,7 @@ export default function AdminDocumentsPage() {
             <div className="rounded-2xl border border-slate-200 bg-white p-6">
               <div className="text-sm font-medium text-slate-900">Документы</div>
               <p className="mt-2 text-sm text-slate-600">
-                Элемент добавления PDF-документов перенесен в раздел «Настройки».
+                Загрузка HTML-документов для подвала сайта — в разделе «Настройки сайта».
               </p>
               <p className="mt-1 text-sm text-slate-500">
                 Здесь позже можно разместить список опубликованных документов и категории.

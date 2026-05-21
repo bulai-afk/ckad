@@ -5,20 +5,15 @@ export async function GET() {
   try {
     const res = await fetch(`${backendApiUrl()}/api/pages/site-settings`, {
       method: "GET",
-      cache: "force-cache",
-      next: { revalidate: 300 },
+      cache: "no-store",
       headers: { Accept: "application/json" },
     });
     const text = await res.text();
-    const upstreamCacheControl = res.headers.get("cache-control");
     return new NextResponse(text, {
       status: res.status,
       headers: {
         "Content-Type": "application/json",
-        "Cache-Control":
-          upstreamCacheControl && upstreamCacheControl.trim()
-            ? upstreamCacheControl
-            : "public, s-maxage=300, stale-while-revalidate=600",
+        "Cache-Control": "no-store",
       },
     });
   } catch {

@@ -12,7 +12,9 @@ import {
   AdminDirectorEditor,
   type AdminDirector,
 } from "@/components/admin/AdminDirectorEditor";
+import { invalidateSiteSettingsHtmlCache } from "@/components/PolicyHtmlDialogLink";
 import { apiGet, apiPut } from "@/lib/api";
+import { normalizePolicyHtml, POLICY_HTML_DOCUMENT_CLASS } from "@/lib/normalizePolicyHtml";
 
 type SiteSettings = {
   email: string;
@@ -52,14 +54,6 @@ const emptySettings: SiteSettings = {
 
 const PRIVACY_HTML_MAX_BYTES = 2 * 1024 * 1024;
 
-function normalizePolicyHtml(html: string): string {
-  const raw = String(html || "").trim();
-  if (!raw) return "";
-  const bodyMatch = raw.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-  if (bodyMatch?.[1]) return bodyMatch[1].trim();
-  return raw;
-}
-
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState<SiteSettings>(emptySettings);
   const [loading, setLoading] = useState(true);
@@ -85,9 +79,22 @@ export default function AdminSettingsPage() {
             }
           ).teamMembers;
           const legacyDirector = Array.isArray(legacyTeamMembers) ? legacyTeamMembers[0] ?? null : null;
+          const documents = Array.isArray(incoming.documents)
+            ? incoming.documents
+                .map((raw) => {
+                  const item = raw as { name?: unknown; html?: unknown };
+                  if (typeof item.name !== "string" || typeof item.html !== "string") return null;
+                  const html = item.html.trim();
+                  if (!html) return null;
+                  return { name: item.name.trim(), html };
+                })
+                .filter((doc): doc is AdminDocumentItem => doc !== null)
+            : [];
+
           setSettings({
             ...emptySettings,
             ...incoming,
+            documents,
             social: { ...emptySettings.social, ...(incoming.social ?? {}) },
             requisites: { ...emptySettings.requisites, ...(incoming.requisites ?? {}) },
             director: {
@@ -140,7 +147,8 @@ export default function AdminSettingsPage() {
     }
     try {
       const html = await file.text();
-      const normalized = normalizePolicyHtml(html);
+      const baseOrigin = typeof window !== "undefined" ? window.location.origin : "";
+      const normalized = normalizePolicyHtml(html, baseOrigin);
       if (kind === "privacy") {
         setSettings((s) => ({ ...s, privacyPolicyHtml: normalized }));
         setTone("success");
@@ -169,6 +177,7 @@ export default function AdminSettingsPage() {
         30_000,
       );
       if (res?.settings) setSettings(res.settings);
+      invalidateSiteSettingsHtmlCache();
       setTone("success");
       setMsg("Сохранено.");
       window.setTimeout(() => setMsg(null), 1600);
@@ -321,7 +330,7 @@ export default function AdminSettingsPage() {
                       >
                         Документы и правовые тексты
                       </div>
-                      <div className="grid w-full grid-cols-1 items-stretch gap-4 md:grid-cols-3">
+                      <div className="grid w-full grid-cols-1 items-stretch gap-4 md:grid-cols-3 xl:grid-cols-1">
                         <div className="flex min-h-0 min-w-0 w-full">
                           <AdminDocumentsUploadCard
                             documents={settings.documents}
@@ -335,9 +344,6 @@ export default function AdminSettingsPage() {
                         </div>
                         <div className="flex min-h-0 min-w-0 flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ring-slate-900/5">
                           <div className="text-sm font-semibold text-slate-900">Политика конфиденциальности</div>
-                          <p className="mt-0.5 text-xs leading-snug text-slate-500">
-                            Загрузка файла .html/.htm (до 2 МБ)
-                          </p>
                           <label
                             htmlFor="privacy-policy-html-upload"
                             className="mt-3 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/80 px-3 py-4 text-center transition hover:border-[#496db3]/40 hover:bg-slate-50"
@@ -391,11 +397,8 @@ export default function AdminSettingsPage() {
                         </div>
                         <div className="flex min-h-0 min-w-0 flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ring-slate-900/5">
                           <div className="text-sm font-semibold text-slate-900">
-                            Согласие на обработку персональных данных
+                            Обработка персональных данных
                           </div>
-                          <p className="mt-0.5 text-xs leading-snug text-slate-500">
-                            Отдельный документ, .html/.htm (до 2 МБ)
-                          </p>
                           <label
                             htmlFor="personal-data-consent-html-upload"
                             className="mt-3 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/80 px-3 py-4 text-center transition hover:border-[#496db3]/40 hover:bg-slate-50"
@@ -421,7 +424,7 @@ export default function AdminSettingsPage() {
                                   type="button"
                                   onClick={() => setConsentPreviewOpen(true)}
                                   className="flex min-w-0 items-center gap-1 rounded p-0.5 text-left font-medium text-[#496db3] hover:bg-slate-200/70"
-                                  title="Открыть предпросмотр согласия на обработку персональных данных"
+                                  title="Открыть предпросмотр обработки персональных данных"
                                 >
                                   <EyeIcon className="h-3.5 w-3.5 shrink-0" />
                                   <span className="min-w-0 truncate">personal-data-consent.html</span>
@@ -576,8 +579,13 @@ export default function AdminSettingsPage() {
             </div>
             <div className="flex-1 overflow-auto bg-white p-5">
               <div
-                className="min-w-0 w-full max-w-full text-sm leading-relaxed text-slate-700 [overflow-wrap:anywhere] [&_*]:max-w-full [&_*]:[overflow-wrap:anywhere] [&_*]:!ml-0 [&_*]:!mr-0 [&_*]:!left-auto [&_*]:!right-auto [&_*]:!translate-x-0 [&_*]:!transform-none [&_*]:!indent-0"
-                dangerouslySetInnerHTML={{ __html: settings.privacyPolicyHtml }}
+                className={POLICY_HTML_DOCUMENT_CLASS}
+                dangerouslySetInnerHTML={{
+                  __html: normalizePolicyHtml(
+                    settings.privacyPolicyHtml,
+                    typeof window !== "undefined" ? window.location.origin : "",
+                  ),
+                }}
               />
             </div>
           </div>
@@ -589,7 +597,7 @@ export default function AdminSettingsPage() {
           className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/55 p-4 backdrop-blur-[1px]"
           role="dialog"
           aria-modal="true"
-          aria-label="Предпросмотр согласия на обработку персональных данных"
+          aria-label="Предпросмотр обработки персональных данных"
           onClick={() => setConsentPreviewOpen(false)}
         >
           <div
@@ -608,8 +616,13 @@ export default function AdminSettingsPage() {
             </div>
             <div className="flex-1 overflow-auto bg-white p-5">
               <div
-                className="min-w-0 w-full max-w-full text-sm leading-relaxed text-slate-700 [overflow-wrap:anywhere] [&_*]:max-w-full [&_*]:[overflow-wrap:anywhere] [&_*]:!ml-0 [&_*]:!mr-0 [&_*]:!left-auto [&_*]:!right-auto [&_*]:!translate-x-0 [&_*]:!transform-none [&_*]:!indent-0"
-                dangerouslySetInnerHTML={{ __html: settings.personalDataConsentHtml }}
+                className={POLICY_HTML_DOCUMENT_CLASS}
+                dangerouslySetInnerHTML={{
+                  __html: normalizePolicyHtml(
+                    settings.personalDataConsentHtml,
+                    typeof window !== "undefined" ? window.location.origin : "",
+                  ),
+                }}
               />
             </div>
           </div>

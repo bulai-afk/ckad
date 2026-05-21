@@ -259,8 +259,7 @@ export function CallbackRequestModal({
                     />
                   </button>
                   <span id="callback-pd-text" className="text-sm/[1.35] text-gray-600">
-                    Подтверждаю согласие на обработку персональных данных в целях рассмотрения обращения и связи со мной.
-                    Условия и цели обработки указаны в{" "}
+                    Соглашаюсь на{" "}
                     <PersonalDataConsentDialogLink className="font-semibold whitespace-nowrap text-[#496db3] underline decoration-[#496db3]/35 underline-offset-2 hover:text-red-600" />
                     .
                   </span>

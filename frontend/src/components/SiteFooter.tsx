@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { XMarkIcon } from "@heroicons/react/24/outline";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
+import { normalizePolicyHtml, POLICY_HTML_DOCUMENT_CLASS } from "@/lib/normalizePolicyHtml";
 import {
   normalizePageDisplayOrderMap,
   sortBySectionDisplayOrder,
@@ -74,10 +75,6 @@ const footerLinkClass =
   "text-sm leading-[1.2] text-gray-600 transition hover:text-red-600 min-h-0 inline-flex items-center rounded-md py-0 sm:min-h-0 sm:py-0";
 const footerDocumentLinkClass =
   "text-sm font-semibold leading-[1.2] text-[#496db3] transition hover:text-red-600 min-h-0 inline-flex items-center rounded-md py-0 sm:min-h-0 sm:py-0";
-const PDF_WORKER_SRC = new URL(
-  "pdfjs-dist/build/pdf.worker.min.mjs",
-  import.meta.url,
-).toString();
 
 type SiteSettings = {
   email: string;
@@ -97,15 +94,13 @@ type SiteSettings = {
   };
   documents?: {
     name: string;
-    size: number;
-    dataUrl: string;
+    html: string;
   }[];
 };
 
 type FooterDocument = {
   name: string;
-  size: number;
-  dataUrl: string;
+  html: string;
 };
 
 type FooterPageRow = {
@@ -208,13 +203,10 @@ function filenameWithoutExtension(name: string): string {
   return name.replace(/\.[^/.]+$/, "");
 }
 
-function dataUrlToUint8Array(dataUrl: string): Uint8Array {
-  const comma = dataUrl.indexOf(",");
-  const base64 = comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl;
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-  return bytes;
+function isFooterHtmlDocument(doc: unknown): doc is FooterDocument {
+  if (typeof doc !== "object" || doc === null) return false;
+  const item = doc as { name?: unknown; html?: unknown };
+  return typeof item.name === "string" && typeof item.html === "string" && item.html.trim().length > 0;
 }
 
 export function SiteFooter({
@@ -227,8 +219,6 @@ export function SiteFooter({
   initialOrderBySection?: PageDisplayOrderMap;
 }) {
   const pathname = usePathname();
-  const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([]);
-  const previewViewportRef = useRef<HTMLDivElement>(null);
   const initialPageRows = initialPages.filter((row) => typeof row?.slug === "string" && row.slug.trim() !== "");
   const initialCatalogLinks = buildFooterSectionLinks(initialPageRows, CATALOG_ROOT, initialOrderBySection);
   const initialTrainingLinks = buildFooterSectionLinks(initialPageRows, TRAINING_ROOT, initialOrderBySection);
@@ -240,16 +230,8 @@ export function SiteFooter({
     initialTrainingLinks.length > 0 ? initialTrainingLinks : toNavItems(FALLBACK_TRAINING_LINKS),
   );
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
-  const [pdfLoadState, setPdfLoadState] = useState<"idle" | "loading" | "error" | "ready">("idle");
-  const [pageCount, setPageCount] = useState(0);
   const [footerDocuments, setFooterDocuments] = useState<FooterDocument[]>(() =>
-    (siteSettings?.documents ?? [])
-      .filter(
-        (doc): doc is FooterDocument =>
-          typeof doc?.name === "string" &&
-          /^data:application\/pdf;base64,/i.test(String(doc?.dataUrl ?? "")),
-      )
-      .slice(0, 3),
+    (siteSettings?.documents ?? []).filter(isFooterHtmlDocument).slice(0, 3),
   );
 
   const hidden = useMemo(() => pathname?.startsWith("/admin"), [pathname]);
@@ -322,6 +304,10 @@ export function SiteFooter({
   })).filter((i) => i.href);
 
   const previewFile = previewIndex !== null ? footerDocuments[previewIndex] ?? null : null;
+  const previewHtml =
+    previewFile && typeof window !== "undefined"
+      ? normalizePolicyHtml(previewFile.html, window.location.origin)
+      : previewFile?.html ?? "";
 
   useEffect(() => {
     if (hidden) return;
@@ -334,13 +320,7 @@ export function SiteFooter({
         .then(async (res) => {
           if (!res.ok) return;
           const payload = (await res.json()) as { settings?: SiteSettings };
-          const docs = (payload.settings?.documents ?? [])
-            .filter(
-              (doc): doc is FooterDocument =>
-                typeof doc?.name === "string" &&
-                /^data:application\/pdf;base64,/i.test(String(doc?.dataUrl ?? "")),
-            )
-            .slice(0, 3);
+          const docs = (payload.settings?.documents ?? []).filter(isFooterHtmlDocument).slice(0, 3);
           if (!cancelled) setFooterDocuments(docs);
         })
         .catch(() => {
@@ -366,74 +346,6 @@ export function SiteFooter({
     if (previewIndex < footerDocuments.length) return;
     setPreviewIndex(null);
   }, [previewIndex, footerDocuments.length]);
-
-  useEffect(() => {
-    if (!previewFile) return;
-    let disposed = false;
-    let loadingTask: { promise: Promise<unknown>; destroy?: () => Promise<void> } | null = null;
-    let loadedPdf: {
-      numPages: number;
-      destroy?: () => Promise<void>;
-      getPage: (num: number) => Promise<{
-        getViewport: (params: { scale: number }) => { width: number; height: number };
-        render: (params: {
-          canvasContext: CanvasRenderingContext2D;
-          viewport: { width: number; height: number };
-        }) => { promise: Promise<unknown> };
-      }>;
-    } | null = null;
-
-    const renderPdf = async () => {
-      try {
-        setPdfLoadState("loading");
-        const pdfjs = await import("pdfjs-dist/build/pdf.mjs");
-        pdfjs.GlobalWorkerOptions.workerSrc = PDF_WORKER_SRC;
-        const data = dataUrlToUint8Array(previewFile.dataUrl);
-        loadingTask = pdfjs.getDocument({ data });
-        loadedPdf = (await loadingTask.promise) as NonNullable<typeof loadedPdf>;
-        if (disposed || !loadedPdf) return;
-
-        const nextPageCount = Number(loadedPdf.numPages || 0);
-        canvasRefs.current = [];
-        setPageCount(nextPageCount);
-        setPdfLoadState("ready");
-
-        await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
-        await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
-        if (disposed) return;
-
-        const hostWidth = previewViewportRef.current?.clientWidth ?? window.innerWidth;
-        const targetWidth = Math.max(320, Math.min(980, Math.floor(hostWidth - 24)));
-
-        for (let pageNum = 1; pageNum <= nextPageCount; pageNum += 1) {
-          if (disposed) break;
-          const page = await loadedPdf.getPage(pageNum);
-          const baseViewport = page.getViewport({ scale: 1 });
-          const scale = targetWidth / baseViewport.width;
-          const viewport = page.getViewport({ scale });
-          const canvas = canvasRefs.current[pageNum - 1];
-          if (!canvas) continue;
-          const context = canvas.getContext("2d", { alpha: false });
-          if (!context) continue;
-          canvas.width = Math.floor(viewport.width);
-          canvas.height = Math.floor(viewport.height);
-          await page.render({ canvasContext: context, viewport }).promise;
-        }
-      } catch {
-        if (!disposed) setPdfLoadState("error");
-      }
-    };
-
-    void renderPdf();
-
-    return () => {
-      disposed = true;
-      setPdfLoadState("idle");
-      setPageCount(0);
-      void loadingTask?.destroy?.();
-      void loadedPdf?.destroy?.();
-    };
-  }, [previewFile]);
 
   useEffect(() => {
     if (previewIndex === null) return;
@@ -464,7 +376,7 @@ export function SiteFooter({
               <p className={`hidden sm:block ${colHeadingClass}`}>Документы</p>
               <ul className="mt-1 space-y-0" role="list">
                 {footerDocuments.map((doc, i) => (
-                  <li key={`${doc.name}-${doc.size}`}>
+                  <li key={`${doc.name}-${i}`}>
                     <button
                       type="button"
                       onClick={() => setPreviewIndex(i)}
@@ -532,9 +444,6 @@ export function SiteFooter({
                 {email}
               </a>
               <p className="max-w-xs text-sm leading-[1.2] text-gray-600">{address}</p>
-              <Link href="/about" className={`${footerLinkClass} !hidden min-h-0 py-0 font-semibold sm:!inline-flex`}>
-                О компании
-              </Link>
               <div className="hidden sm:block">
                 <FooterSocialList items={socialItems} />
               </div>
@@ -574,26 +483,15 @@ export function SiteFooter({
               </button>
             </div>
 
-            <div ref={previewViewportRef} className="flex-1 overflow-y-auto bg-white p-3">
-              {pdfLoadState === "loading" ? (
-                <p className="py-10 text-center text-sm text-slate-500">Загрузка документа...</p>
-              ) : null}
-              {pdfLoadState === "error" ? (
-                <p className="py-10 text-center text-sm text-red-600">Не удалось отобразить PDF.</p>
-              ) : null}
-              {pdfLoadState === "ready" && pageCount > 0 ? (
-                <div className="mx-auto flex w-full max-w-[980px] flex-col gap-3">
-                  {Array.from({ length: pageCount }, (_, idx) => (
-                    <canvas
-                      key={idx + 1}
-                      ref={(node) => {
-                        canvasRefs.current[idx] = node;
-                      }}
-                      className="w-full bg-white"
-                    />
-                  ))}
-                </div>
-              ) : null}
+            <div className="flex-1 overflow-auto bg-white p-5">
+              {previewHtml.trim() ? (
+                <div
+                  className={POLICY_HTML_DOCUMENT_CLASS}
+                  dangerouslySetInnerHTML={{ __html: previewHtml }}
+                />
+              ) : (
+                <p className="text-sm text-slate-600">Документ пустой.</p>
+              )}
             </div>
           </div>
         </div>
