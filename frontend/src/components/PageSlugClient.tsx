@@ -6,6 +6,8 @@ import { ChevronRightIcon, HomeIcon } from "@heroicons/react/20/solid";
 import { PublicCarouselViewportSync } from "@/components/PublicCarouselViewportSync";
 import { HomeServicesFolderCards } from "@/components/HomeServicesFolderCards";
 import { CallbackRequestModal } from "@/components/CallbackRequestModal";
+import { SiteDocumentHtmlDialog } from "@/components/SiteDocumentHtmlDialog";
+import { isCallbackFormLink, parseSiteDocumentLinkIndex } from "@/lib/siteDocumentLink";
 import { getSharedWebBlocksCss } from "@/lib/sharedWebBlocksCss";
 import {
   ensureCoverBgLayers,
@@ -20,8 +22,6 @@ import {
 import { stripLegacyTimelineDomInRoot } from "@/lib/stripLegacyTimelineDom";
 import { syncWebElementsFieldRowJustifyInRoot } from "@/lib/webElementsFieldRowJustify";
 import type { ServiceTreeNode } from "@/lib/serviceTree";
-
-const CALLBACK_FORM_LINK = "callback://open";
 
 const PUBLIC_LIST_MARKER_SVG = {
   disc: encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="white"><circle cx="10" cy="10" r="3.5"/></svg>'),
@@ -87,6 +87,7 @@ export function PageSlugClient({ slugParts, page, serviceFolderHub }: PageSlugCl
   const isArticlesPage = slugParts[0] === "articles";
   const contentRootRef = useRef<HTMLElement | null>(null);
   const [callbackModalOpen, setCallbackModalOpen] = useState(false);
+  const [documentDialogIndex, setDocumentDialogIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (isArticlesPage || !page) return;
@@ -229,11 +230,17 @@ export function PageSlugClient({ slugParts, page, serviceFolderHub }: PageSlugCl
             onClick={(e) => {
               const target = e.target as HTMLElement;
               const link = target.closest?.(
-                "a.page-web-cover-el-button, a.page-web-elements-cta-button",
+                "a.page-web-cover-el-button, a.page-web-elements-cta-button, a.page-web-elements-cta-button-secondary",
               ) as HTMLAnchorElement | null;
               if (!link) return;
-              const href = (link.getAttribute("href") || "").trim();
-              if (href !== CALLBACK_FORM_LINK) return;
+              const href = (link.getAttribute("href") || link.getAttribute("data-href") || "").trim();
+              const documentIndex = parseSiteDocumentLinkIndex(href);
+              if (documentIndex !== null) {
+                e.preventDefault();
+                setDocumentDialogIndex(documentIndex);
+                return;
+              }
+              if (!isCallbackFormLink(href)) return;
               e.preventDefault();
               setCallbackModalOpen(true);
             }}
@@ -269,6 +276,11 @@ export function PageSlugClient({ slugParts, page, serviceFolderHub }: PageSlugCl
             open={callbackModalOpen}
             onClose={() => setCallbackModalOpen(false)}
             sourceMessage="Заявка из кнопки обложки страницы."
+          />
+          <SiteDocumentHtmlDialog
+            open={documentDialogIndex !== null}
+            onClose={() => setDocumentDialogIndex(null)}
+            documentIndex={documentDialogIndex}
           />
           <style>{`
           ${getSharedWebBlocksCss(".page-content")}

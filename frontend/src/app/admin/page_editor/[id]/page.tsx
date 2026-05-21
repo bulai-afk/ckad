@@ -5,6 +5,14 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ApiRequestError, apiGet, apiPut, isPageByIdApiPath } from "@/lib/api";
+import {
+  buildSiteDocumentLink,
+  CALLBACK_FORM_LINK,
+  normalizeSiteDocumentsList,
+  parseSiteDocumentLinkIndex,
+  siteDocumentDisplayName,
+  type SiteDocumentItem,
+} from "@/lib/siteDocumentLink";
 import { adminPageIdFromParams } from "@/lib/adminPageIdFromParams";
 import { getSharedWebBlocksCss } from "@/lib/sharedWebBlocksCss";
 import { getPageEditorWebToolbarCss } from "@/lib/pageEditorWebToolbarCss";
@@ -782,8 +790,6 @@ const LIST_STYLE_OL = [
   { value: "lower-roman", label: "i." },
   { value: "upper-roman", label: "I." },
 ] as const;
-
-const CALLBACK_FORM_LINK = "callback://open";
 
 function pluralRowsInsert(n: number): string {
   if (n === 1) return "1 строку";
@@ -4657,6 +4663,8 @@ export default function PageEditorDetailsPage() {
   const [coverButtonLinkModalOpen, setCoverButtonLinkModalOpen] = useState(false);
   const [coverButtonLinkModalLabelValue, setCoverButtonLinkModalLabelValue] = useState("");
   const [coverButtonLinkModalValue, setCoverButtonLinkModalValue] = useState("");
+  const [ctaLinkModalDocuments, setCtaLinkModalDocuments] = useState<SiteDocumentItem[]>([]);
+  const [ctaLinkModalDocumentsLoading, setCtaLinkModalDocumentsLoading] = useState(false);
   const [featureGridIconPickerOpen, setFeatureGridIconPickerOpen] = useState(false);
   const [featureGridIconPickerValue, setFeatureGridIconPickerValue] = useState<FeatureGridIconPreset["id"]>("bolt");
   const [tableWidthSubmenuOpen, setTableWidthSubmenuOpen] = useState(false);
@@ -11631,6 +11639,26 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
     return () => window.cancelAnimationFrame(id);
   }, [coverButtonLinkModalOpen]);
 
+  useEffect(() => {
+    if (!coverButtonLinkModalOpen) return;
+    let cancelled = false;
+    setCtaLinkModalDocumentsLoading(true);
+    void apiGet<{ settings?: { documents?: unknown } }>("/api/pages/site-settings")
+      .then((data) => {
+        if (cancelled) return;
+        setCtaLinkModalDocuments(normalizeSiteDocumentsList(data?.settings?.documents));
+      })
+      .catch(() => {
+        if (!cancelled) setCtaLinkModalDocuments([]);
+      })
+      .finally(() => {
+        if (!cancelled) setCtaLinkModalDocumentsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [coverButtonLinkModalOpen]);
+
   function applyFeatureGridIconAndClose(nextId?: FeatureGridIconPreset["id"]) {
     const ed = editorRef.current;
     const marked = ed?.querySelector(
@@ -14469,16 +14497,49 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
                     }
                   }}
                   className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#496db3] focus:ring-1 focus:ring-[#496db3]"
-                  placeholder="https://example.com или callback://open"
+                  placeholder="https://example.com, callback://open или document://0"
                 />
               </label>
-              <button
-                type="button"
-                className="inline-flex w-fit rounded-full border border-[#496db3]/30 bg-[#496db3]/5 px-3 py-1.5 text-xs font-semibold text-[#496db3] hover:bg-[#496db3]/10"
-                onClick={() => setCoverButtonLinkModalValue(CALLBACK_FORM_LINK)}
-              >
-                Подключить форму обратной связи
-              </button>
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  className="inline-flex w-fit rounded-full border border-[#496db3]/30 bg-[#496db3]/5 px-3 py-1.5 text-xs font-semibold text-[#496db3] hover:bg-[#496db3]/10"
+                  onClick={() => setCoverButtonLinkModalValue(CALLBACK_FORM_LINK)}
+                >
+                  Подключить форму обратной связи
+                </button>
+                <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-2.5">
+                  <p className="text-xs font-semibold text-slate-700">Документ из «Настройки сайта»</p>
+                  {ctaLinkModalDocumentsLoading ? (
+                    <p className="mt-1.5 text-xs text-slate-500">Загрузка списка…</p>
+                  ) : ctaLinkModalDocuments.length > 0 ? (
+                    <div className="mt-1.5 flex flex-col gap-1">
+                      {ctaLinkModalDocuments.map((doc, index) => {
+                        const link = buildSiteDocumentLink(index);
+                        const selected = parseSiteDocumentLinkIndex(coverButtonLinkModalValue) === index;
+                        return (
+                          <button
+                            key={`${doc.name}-${index}`}
+                            type="button"
+                            className={`inline-flex w-full rounded-md border px-2.5 py-1.5 text-left text-xs font-medium transition ${
+                              selected
+                                ? "border-[#496db3]/50 bg-[#496db3]/10 text-[#496db3]"
+                                : "border-slate-200 bg-white text-slate-700 hover:border-[#496db3]/35 hover:bg-slate-50"
+                            }`}
+                            onClick={() => setCoverButtonLinkModalValue(link)}
+                          >
+                            {siteDocumentDisplayName(doc.name)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="mt-1.5 text-xs text-slate-500">
+                      Нет загруженных HTML-документов. Добавьте их в «Настройки сайта» → Документы.
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
             <div className="mt-5 flex items-center justify-end gap-2">
               <button

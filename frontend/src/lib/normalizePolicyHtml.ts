@@ -1,16 +1,210 @@
 /** Класс обёртки для HTML правовых документов (диалог и предпросмотр в админке). */
 export const POLICY_HTML_DOCUMENT_CLASS =
-  "policy-html-document min-w-0 w-full max-w-full text-sm leading-relaxed text-slate-700 [overflow-wrap:anywhere] [&_*]:max-w-full [&_*]:[overflow-wrap:anywhere] [&_*]:!ml-0 [&_*]:!mr-0 [&_*]:!left-auto [&_*]:!right-auto [&_*]:!translate-x-0 [&_*]:!transform-none";
+  "policy-html-document min-w-0 w-full max-w-full text-slate-700 [overflow-wrap:break-word] [&_*]:max-w-full [&_*]:box-border";
 
 function isEmptyWordParagraph(paragraphHtml: string): boolean {
   const inner = paragraphHtml
     .replace(/^<p\b[^>]*>/i, "")
     .replace(/<\/p>\s*$/i, "")
+    .replace(/<br\s*\/?>/gi, "")
     .replace(/<o:p>[\s\S]*?<\/o:p>/gi, "")
     .replace(/<[^>]+>/g, "")
     .replace(/&nbsp;|\u00a0/g, " ")
     .trim();
   return inner.length === 0;
+}
+
+function appendClassNameToAttrs(attrs: string, className: string): string {
+  const classMatch = attrs.match(/\bclass\s*=\s*(?:"([^"]*)"|'([^']*)'|(\S+))/i);
+  if (classMatch) {
+    const quote = classMatch[0].includes('"') ? '"' : classMatch[0].includes("'") ? "'" : "";
+    const existing = (classMatch[1] || classMatch[2] || classMatch[3] || "").trim();
+    if (existing.split(/\s+/).includes(className)) return attrs;
+    const joined = existing ? `${existing} ${className}` : className;
+    if (quote) {
+      return attrs.replace(classMatch[0], `class=${quote}${joined}${quote}`);
+    }
+    return attrs.replace(classMatch[0], `class="${joined}"`);
+  }
+  return `${attrs} class="${className}"`;
+}
+
+/** Пустой абзац Word (Enter без текста) — видимая пустая строка в документе. */
+function formatWordEmptyLineSpacer(attrs: string): string {
+  return `<p${appendClassNameToAttrs(attrs, "word-doc-spacer")}>&nbsp;</p>`;
+}
+
+/** Сохраняет намеренные пустые строки Word между заголовками и абзацами. */
+function preserveWordEmptyLineParagraphs(html: string): string {
+  return html.replace(/<p\b([^>]*)>([\s\S]*?)<\/p>/gi, (full, attrs: string) => {
+    if (!isEmptyWordParagraph(full)) return full;
+    return formatWordEmptyLineSpacer(attrs);
+  });
+}
+
+const PRESERVE_HTML_BLOCK_PLACEHOLDER = "\uE000PHB";
+const WORD_LIST_MARKER_PLACEHOLDER = "\uE000WLM";
+
+/** Не трогаем &lt;style&gt;/&lt;script&gt; — иначе &lt;br&gt; попадают в CSS и ломают отступы Word. */
+function maskNonTextHtmlBlocks(html: string): { html: string; blocks: string[] } {
+  const blocks: string[] = [];
+  const masked = html.replace(/<(style|script)\b[^>]*>[\s\S]*?<\/\1>/gi, (block) => {
+    const index = blocks.length;
+    blocks.push(block);
+    return `${PRESERVE_HTML_BLOCK_PLACEHOLDER}${index}\uE001`;
+  });
+  return { html: masked, blocks };
+}
+
+function unmaskNonTextHtmlBlocks(html: string, blocks: string[]): string {
+  if (!blocks.length) return html;
+  return html.replace(
+    new RegExp(`${PRESERVE_HTML_BLOCK_PLACEHOLDER}(\\d+)\uE001`, "g"),
+    (_full, index: string) => blocks[Number(index)] ?? "",
+  );
+}
+
+/** Текстовый узел без видимых символов (в т.ч. &amp;nbsp; как пробелы Word). */
+function htmlTextNodeIsWhitespaceOnly(text: string): boolean {
+  const normalized = text
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&#x0*a0;/gi, " ")
+    .replace(/&#160;/g, " ")
+    .replace(/\u00a0/g, " ");
+  return !/[^\s]/.test(normalized);
+}
+
+/**
+ * Word переносит длинные строки в .html файле через \\r\\n — это не Shift+Enter.
+ * В потоковом тексте заменяем на пробел, иначе ломается выравнивание по ширине.
+ */
+function collapseWordHtmlSourceLineWraps(html: string): string {
+  const { html: masked, blocks } = maskNonTextHtmlBlocks(html);
+  const { html: masked2, markers } = maskWordListMarkerSpans(masked);
+  const out = masked2.replace(/>([^<]*?)</g, (_full, text: string) => {
+    if (!/[\r\n\u2028\u2029]/.test(text)) return _full;
+    if (htmlTextNodeIsWhitespaceOnly(text)) return _full;
+    const next = text.replace(/[\r\n\u2028\u2029]+/g, " ");
+    return `>${next}<`;
+  });
+  return unmaskWordListMarkerSpans(unmaskNonTextHtmlBlocks(out, blocks), markers);
+}
+
+/** Пустые закладки Word между абзацами дают лишние строки при <br> между тегами. */
+function stripWordBookmarkSpans(html: string): string {
+  return html.replace(/<span\b[^>]*\bmso-bookmark:[^>]*>\s*<\/span>/gi, "");
+}
+
+/** Убирает &lt;br&gt;, вставленные между блочными абзацами при экспорте Word. */
+function collapseLineBreaksBetweenParagraphs(html: string): string {
+  return html.replace(/<\/p>(?:\s*<br\s*\/?>\s*)+(?=<p\b)/gi, "</p>");
+}
+
+function isCenteredBlockAttrs(attrs: string): boolean {
+  return (
+    /\balign\s*=\s*(?:"center"|'center'|center\b)/i.test(attrs) ||
+    /text-align\s*:\s*center/i.test(attrs)
+  );
+}
+
+/** У центрированных блоков Word не должно быть text-indent — иначе «пустое место» справа. */
+function stripTextIndentOnCenteredBlocks(html: string): string {
+  return html.replace(/<(p|h[1-6])\b([^>]*)>/gi, (full, tag: string, attrs: string) => {
+    if (!isCenteredBlockAttrs(attrs) || !/text-indent\s*:/i.test(attrs)) return full;
+    const newAttrs = attrs.replace(/text-indent\s*:\s*[^;]+;?/gi, "text-indent:0;");
+    return `<${tag}${newAttrs}>`;
+  });
+}
+
+/**
+ * В заголовках и центрированных строках \\r\\n из HTML-файла — не Shift+Enter:
+ * в Word это одна строка с переносом по ширине, не принудительный &lt;br&gt;.
+ */
+function normalizeCenteredAndHeadingLineBreaks(html: string): string {
+  return html.replace(/<(h[1-6]|p)\b([^>]*)>([\s\S]*?)<\/\1>/gi, (full, tag: string, attrs: string, inner: string) => {
+    const centered = isCenteredBlockAttrs(attrs);
+    const isHeading = /^h[1-6]$/i.test(tag);
+    if (!centered && !isHeading) return full;
+
+    let fixed = inner
+      .replace(/<br\s*\/?>/gi, " ")
+      .replace(/>([^<]*?)</g, (segment, text: string) => {
+        if (!/[\r\n\u2028\u2029]/.test(text)) return segment;
+        if (htmlTextNodeIsWhitespaceOnly(text)) return segment;
+        return `>${text.replace(/[\r\n\u2028\u2029]+/g, " ")}<`;
+      })
+      .replace(/\s{2,}/g, " ");
+
+    if (centered) {
+      fixed = fixed.replace(/\s+$/g, "");
+    }
+
+    return `<${tag}${attrs}>${fixed}</${tag}>`;
+  });
+}
+
+/** Word: &lt;o:p&gt; и &lt;br&gt; — только явный Shift+Enter; хвостовой &lt;o:p&gt; у абзаца не трогаем. */
+function convertWordLineBreakTags(html: string): string {
+  const endOfRun = String.raw`(\s*(?:</span>|</a>|</b>|</strong>|</p>))`;
+  return html
+    .replace(/<br\b[^>]*>/gi, "<br />")
+    .replace(new RegExp(`<o:p>\\s*(?:&nbsp;|\\u00a0)?\\s*</o:p>${endOfRun}`, "gi"), "$1")
+    .replace(new RegExp(`<o:p>\\s*</o:p>${endOfRun}`, "gi"), "$1")
+    .replace(/<o:p>\s*(?:&nbsp;|\u00a0)?\s*<\/o:p>/gi, "<br />")
+    .replace(/<o:p>\s*<\/o:p>/gi, "<br />");
+}
+
+/** Лишний &lt;br&gt; в конце обычного абзаца (после &lt;o:p&gt; Word) ломает justify. */
+function stripTrailingBreaksInFlowParagraphs(html: string): string {
+  return html.replace(/<p\b([^>]*)>([\s\S]*?)<\/p>/gi, (full, attrs: string, inner: string) => {
+    if (isCenteredBlockAttrs(attrs)) return full;
+    const fixed = inner
+      .replace(/<br\s*\/?>(\s*(?:<\/span>|<\/a>|<\/b>|<\/strong>))+(?=\s*<\/p>)/gi, "$1")
+      .replace(/<br\s*\/?>\s*$/i, "");
+    const next = fixed === inner ? full : `<p${attrs}>${fixed}</p>`;
+    if (isEmptyWordParagraph(next)) return formatWordEmptyLineSpacer(attrs);
+    return next;
+  });
+}
+
+/** Маркеры списков Word (1. + цепочка &amp;nbsp;) — не трогать при обработке переносов. */
+function maskWordListMarkerSpans(html: string): { html: string; markers: string[] } {
+  const markers: string[] = [];
+  const masked = html.replace(/<span\b[^>]*\bmso-list:Ignore\b[^>]*>[\s\S]*?<\/span>/gi, (span) => {
+    const index = markers.length;
+    markers.push(span);
+    return `${WORD_LIST_MARKER_PLACEHOLDER}${index}\uE001`;
+  });
+  return { html: masked, markers };
+}
+
+function unmaskWordListMarkerSpans(html: string, markers: string[]): string {
+  if (!markers.length) return html;
+  return html.replace(
+    new RegExp(`${WORD_LIST_MARKER_PLACEHOLDER}(\\d+)\uE001`, "g"),
+    (_full, index: string) => sanitizeWordListMarkerSpan(markers[Number(index)] ?? ""),
+  );
+}
+
+/**
+ * Word: между «1.» и текстом — &amp;nbsp; фиксированной ширины (как пробел в «1.1»), не Enter.
+ * Убираем только служебный \\r\\n из HTML-файла; &amp;nbsp; и font:7pt Times New Roman не меняем.
+ */
+function sanitizeWordListMarkerSpan(span: string): string {
+  return span
+    .replace(/<br\s*\/?>/gi, "")
+    .replace(/>([^<]*?)</g, (full, text: string) => {
+      if (!/[\r\n\u2028\u2029]/.test(text)) return full;
+      const cleaned = text.replace(/[\r\n\u2028\u2029]+/g, "");
+      return cleaned === text ? full : `>${cleaned}<`;
+    });
+}
+
+function applyLineBreakTransforms(html: string): string {
+  let out = collapseWordHtmlSourceLineWraps(html);
+  const { html: masked, markers } = maskWordListMarkerSpans(out);
+  out = convertWordLineBreakTags(masked);
+  return unmaskWordListMarkerSpans(out, markers);
 }
 
 function stripLeadingEmptyWordParagraphs(html: string): string {
@@ -158,10 +352,14 @@ function enhanceWordExportedHtml(html: string): string {
   let out = inlineStylesheetTextAlign(html);
   out = convertLegacyAlignAttributes(out);
   out = normalizeInlineStyleAttributes(out);
-  out = out
-    .replace(/mso-bidi-font-weight\s*:\s*bold\b/gi, "font-weight:bold")
-    .replace(/<o:p>\s*(?:&nbsp;|\u00a0)?\s*<\/o:p>/gi, "")
-    .replace(/<o:p>\s*<\/o:p>/gi, "");
+  out = applyLineBreakTransforms(out);
+  out = stripTrailingBreaksInFlowParagraphs(out);
+  out = stripTextIndentOnCenteredBlocks(out);
+  out = normalizeCenteredAndHeadingLineBreaks(out);
+  out = stripWordBookmarkSpans(out);
+  out = collapseLineBreaksBetweenParagraphs(out);
+  out = out.replace(/mso-bidi-font-weight\s*:\s*bold\b/gi, "font-weight:bold");
+  out = preserveWordEmptyLineParagraphs(out);
   out = stripLeadingEmptyWordParagraphs(out);
   return out.trim();
 }
