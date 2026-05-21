@@ -1293,6 +1293,87 @@ function escapeWebBlockHtmlAttr(s: string): string {
   return escapeWebBlockHtmlText(s).replace(/'/g, "&#39;");
 }
 
+/** Пока открыт диалог «Ссылка и название кнопки» — маркер на живой кнопке (после a→span ref иначе «отваливается»). */
+const CTA_LINK_EDIT_ATTR = "data-cta-link-edit";
+
+const CTA_LINK_MODAL_BUTTON_SELECTOR =
+  "a.page-web-elements-cta-button, span.page-web-elements-cta-button, a.page-web-elements-cta-button-secondary, span.page-web-elements-cta-button-secondary, .page-web-cover-el-button, a.page-web-cover-el-button, .page-web-work-pricing a.wrg.wri.wro.wsf.wsl.wsq.wst.wsw.wtc.wtg.wtr.wts.wua.wub.wuc.wue";
+
+function resolveCtaLinkModalTarget(from: HTMLElement): HTMLElement | null {
+  if (from.matches(CTA_LINK_MODAL_BUTTON_SELECTOR)) return from;
+  const viaClosest = from.closest(CTA_LINK_MODAL_BUTTON_SELECTOR) as HTMLElement | null;
+  if (viaClosest) return viaClosest;
+  const actions = from.closest(".page-web-elements-actions") as HTMLElement | null;
+  if (actions) {
+    const fromButton2 = from.closest(".page-web-elements-button2");
+    if (fromButton2) {
+      const secondary =
+        (actions.querySelector(".page-web-elements-button2 .page-web-elements-cta-button-secondary") as HTMLElement | null) ??
+        (actions.querySelector(".page-web-elements-button2 a.page-web-elements-cta-button-secondary") as HTMLElement | null);
+      if (secondary) return secondary;
+    }
+    const primary =
+      (actions.querySelector(".page-web-elements-button .page-web-elements-cta-button") as HTMLElement | null) ??
+      (actions.querySelector(".page-web-elements-button a.page-web-elements-cta-button") as HTMLElement | null) ??
+      (actions.querySelector(".page-web-elements-cta-button") as HTMLElement | null) ??
+      (actions.querySelector("a.page-web-elements-cta-button") as HTMLElement | null);
+    if (primary) return primary;
+  }
+  const legacyWrap = from.closest(".page-web-cover-el-button-wrap") as HTMLElement | null;
+  if (legacyWrap) {
+    const legacyBtn =
+      (legacyWrap.querySelector(".page-web-cover-el-button") as HTMLElement | null) ??
+      (legacyWrap.querySelector("a.page-web-cover-el-button") as HTMLElement | null);
+    if (legacyBtn) return legacyBtn;
+  }
+  return null;
+}
+
+function convertSingleWebCtaAnchorToSpan(anchor: HTMLAnchorElement): HTMLSpanElement {
+  const span = document.createElement("span");
+  span.className = anchor.className;
+  span.setAttribute("role", "button");
+  const href = (anchor.getAttribute("href") || "").trim();
+  if (href && href !== "#" && !href.toLowerCase().startsWith("javascript:")) {
+    span.setAttribute("data-href", href);
+  }
+  if (
+    span.classList.contains("page-web-elements-announcement-learn-more") ||
+    span.classList.contains("page-web-elements-cta-button") ||
+    span.classList.contains("page-web-elements-cta-button-secondary")
+  ) {
+    span.setAttribute("contenteditable", "false");
+    span.setAttribute("tabindex", "-1");
+  }
+  if (anchor.hasAttribute(CTA_LINK_EDIT_ATTR)) {
+    span.setAttribute(CTA_LINK_EDIT_ATTR, anchor.getAttribute(CTA_LINK_EDIT_ATTR) || "1");
+  }
+  while (anchor.firstChild) span.appendChild(anchor.firstChild);
+  anchor.parentNode?.replaceChild(span, anchor);
+  return span;
+}
+
+function ensureEditorCtaControlIsSpan(el: HTMLElement): HTMLElement {
+  if (el instanceof HTMLAnchorElement && el.matches(CTA_LINK_MODAL_BUTTON_SELECTOR)) {
+    return convertSingleWebCtaAnchorToSpan(el);
+  }
+  return el;
+}
+
+function clearCtaLinkEditMarkers(root: HTMLElement): void {
+  root.querySelectorAll(`[${CTA_LINK_EDIT_ATTR}]`).forEach((node) => {
+    (node as HTMLElement).removeAttribute(CTA_LINK_EDIT_ATTR);
+  });
+}
+
+function syncCtaActionsPlaceholderFromButton(cta: HTMLElement): void {
+  const actions = cta.closest(".page-web-elements-actions") as HTMLElement | null;
+  if (!actions) return;
+  const raw = (cta.textContent || "").replace(/\u200b/g, "");
+  const visible = raw.replace(/[\s\u00a0]+/g, "").length === 0 ? "1" : "0";
+  actions.setAttribute("data-placeholder-visible", visible);
+}
+
 function getCoverButtonLinkLabelForModal(target: HTMLElement): string {
   if (target.matches(".page-web-feature-grid-link")) {
     const clone = target.cloneNode(true) as HTMLElement;
@@ -1310,6 +1391,7 @@ function applyCoverButtonLinkLabelToDom(target: HTMLElement, labelRaw: string): 
     return;
   }
   target.textContent = label;
+  syncCtaActionsPlaceholderFromButton(target);
 }
 
 type GetTextBlockHtmlOptions = { contentOnly?: boolean };
@@ -6241,17 +6323,19 @@ export default function PageEditorDetailsPage() {
     setContentHtml(ed.innerHTML);
   }
 
-  const WEB_CTA_LINK_MODAL_TARGET_SELECTOR =
-    "a.page-web-elements-cta-button, span.page-web-elements-cta-button, a.page-web-elements-cta-button-secondary, span.page-web-elements-cta-button-secondary, .page-web-cover-el-button, a.page-web-cover-el-button, .page-web-work-pricing a.wrg.wri.wro.wsf.wsl.wsq.wst.wsw.wtc.wtg.wtr.wts.wua.wub.wuc.wue";
-
-  function openCtaButtonLinkModal(target: HTMLElement) {
+  function openCtaButtonLinkModal(rawTarget: HTMLElement) {
     const ed = editorRef.current;
-    if (!ed || !ed.contains(target)) return;
+    if (!ed || !ed.contains(rawTarget)) return;
+    const resolved = resolveCtaLinkModalTarget(rawTarget);
+    if (!resolved || !ed.contains(resolved)) return;
     if (inputSyncTimerRef.current !== null) {
       window.clearTimeout(inputSyncTimerRef.current);
       inputSyncTimerRef.current = null;
     }
     pendingInputHtmlRef.current = null;
+    clearCtaLinkEditMarkers(ed);
+    const target = ensureEditorCtaControlIsSpan(resolved);
+    target.setAttribute(CTA_LINK_EDIT_ATTR, "1");
     coverButtonLinkTargetRef.current = target;
     const currentLink =
       (target.getAttribute("data-href") || "").trim() ||
@@ -8928,6 +9012,9 @@ export default function PageEditorDetailsPage() {
       ) {
         span.setAttribute("contenteditable", "false");
         span.setAttribute("tabindex", "-1");
+      }
+      if (a.hasAttribute(CTA_LINK_EDIT_ATTR)) {
+        span.setAttribute(CTA_LINK_EDIT_ATTR, a.getAttribute(CTA_LINK_EDIT_ATTR) || "1");
       }
       while (a.firstChild) span.appendChild(a.firstChild);
       a.parentNode?.replaceChild(span, a);
@@ -11610,8 +11697,17 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
 
   function applyCoverButtonLinkAndClose() {
     const ed = editorRef.current;
-    const target = coverButtonLinkTargetRef.current;
-    if (!ed || !target || !ed.contains(target)) {
+    let target = coverButtonLinkTargetRef.current;
+    if (ed) {
+      if (!target || !ed.contains(target)) {
+        target =
+          (ed.querySelector(`[${CTA_LINK_EDIT_ATTR}="1"]`) as HTMLElement | null) ??
+          null;
+      }
+      if (target && !ed.contains(target)) target = null;
+    }
+    if (!ed || !target) {
+      if (ed) clearCtaLinkEditMarkers(ed);
       setCoverButtonLinkModalOpen(false);
       return;
     }
@@ -11624,9 +11720,19 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       else target.removeAttribute("data-href");
     }
     applyCoverButtonLinkLabelToDom(target, coverButtonLinkModalLabelValue);
+    target.removeAttribute(CTA_LINK_EDIT_ATTR);
+    coverButtonLinkTargetRef.current = null;
     commitEditorDomToContentHtml();
     setCoverButtonLinkModalOpen(false);
   }
+
+  useEffect(() => {
+    if (coverButtonLinkModalOpen) return;
+    const ed = editorRef.current;
+    if (!ed) return;
+    clearCtaLinkEditMarkers(ed);
+    coverButtonLinkTargetRef.current = null;
+  }, [coverButtonLinkModalOpen]);
 
   useLayoutEffect(() => {
     if (!coverButtonLinkModalOpen) return;
@@ -11822,7 +11928,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
     const inner = target.closest?.(".page-web-cover-inner") as HTMLElement | null;
     const ed = editorRef.current;
     if (!inner || !ed?.contains(inner)) return;
-    const coverCtaBtn = target.closest(WEB_CTA_LINK_MODAL_TARGET_SELECTOR) as HTMLElement | null;
+    const coverCtaBtn = target.closest(CTA_LINK_MODAL_BUTTON_SELECTOR) as HTMLElement | null;
     if (coverCtaBtn && inner.contains(coverCtaBtn)) {
       e.preventDefault();
       e.stopPropagation();
@@ -13349,7 +13455,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       const content = block.querySelector(":scope > .page-web-text-block-content") as HTMLElement | null;
       const wp = (content?.querySelector(":scope > .page-web-work-pricing") ??
         content?.querySelector(".page-web-work-pricing")) as HTMLElement | null;
-      const wpCtaBtn = target.closest(WEB_CTA_LINK_MODAL_TARGET_SELECTOR) as HTMLElement | null;
+      const wpCtaBtn = target.closest(CTA_LINK_MODAL_BUTTON_SELECTOR) as HTMLElement | null;
       if (wp && wpCtaBtn && wp.contains(wpCtaBtn)) {
         e.preventDefault();
         e.stopPropagation();
@@ -13442,6 +13548,13 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
     if (!block || !ed?.contains(block)) return;
     if (target.closest?.(".page-web-text-block-v2-toolbar")) {
       handleTextBlockV2ToolbarMouseDown(e);
+      return;
+    }
+    const v2CtaBtn = target.closest(CTA_LINK_MODAL_BUTTON_SELECTOR) as HTMLElement | null;
+    if (v2CtaBtn && block.contains(v2CtaBtn)) {
+      e.preventDefault();
+      e.stopPropagation();
+      openCtaButtonLinkModal(v2CtaBtn);
       return;
     }
     const actionsOuter = target.closest?.(".page-web-elements-actions") as HTMLElement | null;
