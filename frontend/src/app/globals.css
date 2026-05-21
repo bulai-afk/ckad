@@ -439,6 +439,41 @@ body::-webkit-scrollbar:horizontal {
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
+  -webkit-hyphens: auto;
+  hyphens: auto;
+  hyphenate-limit-chars: 6 4 3;
+}
+
+/* Перенос по слогам: основной текст и заголовки */
+.policy-html-document p,
+.policy-html-document li,
+.policy-html-document :is(h1, h2, h3, h4) {
+  -webkit-hyphens: auto;
+  hyphens: auto;
+  text-wrap: pretty;
+}
+
+/* Синие заголовки Word (#4472C4), часто по центру — перенос обязателен */
+.policy-html-document .word-doc-blue-title,
+.policy-html-document p:has([style*="4472C4"]),
+.policy-html-document p:has([style*="4472c4"]),
+.policy-html-document p:has([style*="rgb(68, 114, 196)"]),
+.policy-html-document p:has([style*="rgb(68,114,196)"]),
+.policy-html-document :is(h1, h2, h3, h4):has([style*="4472C4"]),
+.policy-html-document :is(h1, h2, h3, h4):has([style*="4472c4"]),
+.policy-html-document :is(h1, h2, h3, h4):has([style*="rgb(68, 114, 196)"]),
+.policy-html-document :is(h1, h2, h3, h4):has([style*="rgb(68,114,196)"]) {
+  -webkit-hyphens: auto !important;
+  hyphens: auto !important;
+  text-wrap: pretty;
+}
+
+/* Прочий центрированный текст (не синий заголовок) — без переноса */
+.policy-html-document p[align="center"]:not(.word-doc-blue-title):not(:has([style*="4472C4"])):not(:has([style*="4472c4"])),
+.policy-html-document p[style*="text-align:center"]:not(.word-doc-blue-title):not(:has([style*="4472C4"])):not(:has([style*="4472c4"])),
+.policy-html-document p[style*="text-align: center"]:not(.word-doc-blue-title):not(:has([style*="4472C4"])):not(:has([style*="4472c4"])) {
+  -webkit-hyphens: manual;
+  hyphens: manual;
 }
 
 .policy-html-document .WordSection1,
@@ -461,9 +496,16 @@ body::-webkit-scrollbar:horizontal {
   line-height: 1.35;
 }
 
-/* Табуляция Word: только узкий span с цепочкой &nbsp; (7pt), не весь пункт */
-.policy-html-document span[style*="mso-list:Ignore"] span[style*="7.0pt"] {
+/* Табуляция Word: узкий span 7pt между «2.» и текстом (иначе nbsp = ширина заголовка 14pt) */
+.policy-html-document span[style*="mso-list:Ignore"] span[style*="7.0pt"],
+.policy-html-document span[style*="mso-list:Ignore"] span[style*="font-size:7pt"],
+.policy-html-document span[style*="mso-list:Ignore"] span[style*="font-size: 7pt"],
+.policy-html-document span[style*="mso-list:Ignore"] span[style*="font-size:7.0pt"],
+.policy-html-document span[style*="mso-list:Ignore"] span[style*="font-size: 7.0pt"] {
+  font-size: 7pt !important;
+  font-family: "Times New Roman", Times, serif;
   white-space: pre;
+  line-height: normal;
 }
 
 .policy-html-document h1,

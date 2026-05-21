@@ -14,7 +14,11 @@ import {
 } from "@/components/admin/AdminDirectorEditor";
 import { invalidateSiteSettingsHtmlCache } from "@/components/PolicyHtmlDialogLink";
 import { apiGet, apiPut } from "@/lib/api";
-import { normalizePolicyHtml, POLICY_HTML_DOCUMENT_CLASS } from "@/lib/normalizePolicyHtml";
+import {
+  normalizePolicyHtml,
+  POLICY_HTML_DOCUMENT_CLASS,
+  POLICY_HTML_DOCUMENT_LANG,
+} from "@/lib/normalizePolicyHtml";
 
 type SiteSettings = {
   email: string;
@@ -579,6 +583,7 @@ export default function AdminSettingsPage() {
             </div>
             <div className="flex-1 overflow-auto bg-white p-5">
               <div
+                lang={POLICY_HTML_DOCUMENT_LANG}
                 className={POLICY_HTML_DOCUMENT_CLASS}
                 dangerouslySetInnerHTML={{
                   __html: normalizePolicyHtml(
@@ -616,6 +621,7 @@ export default function AdminSettingsPage() {
             </div>
             <div className="flex-1 overflow-auto bg-white p-5">
               <div
+                lang={POLICY_HTML_DOCUMENT_LANG}
                 className={POLICY_HTML_DOCUMENT_CLASS}
                 dangerouslySetInnerHTML={{
                   __html: normalizePolicyHtml(

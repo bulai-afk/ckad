@@ -2,6 +2,9 @@
 export const POLICY_HTML_DOCUMENT_CLASS =
   "policy-html-document min-w-0 w-full max-w-full text-slate-700 [overflow-wrap:break-word] [&_*]:max-w-full [&_*]:box-border";
 
+/** Язык для автоматического переноса по слогам (`hyphens: auto` в CSS). */
+export const POLICY_HTML_DOCUMENT_LANG = "ru";
+
 function isEmptyWordParagraph(paragraphHtml: string): boolean {
   const inner = paragraphHtml
     .replace(/^<p\b[^>]*>/i, "")
@@ -186,18 +189,50 @@ function unmaskWordListMarkerSpans(html: string, markers: string[]): string {
   );
 }
 
+/** Word: `font:7.0pt "Times New Roman"` — не валидный CSS; без этого nbsp-табуляция рендерится крупным шрифтом пункта. */
+function expandWordFontShorthandInStyle(style: string): string {
+  return style.replace(
+    /\bfont:\s*([\d.]+)pt(?:\s+("[^"]*"|'[^']*'|([^;"']+)))?/gi,
+    (_full, pt: string, quoted?: string, bare?: string) => {
+      const famRaw = (quoted || (bare ? `"${bare.trim()}"` : '"Times New Roman"')).trim();
+      return `font-size:${pt}pt;font-family:${famRaw}`;
+    },
+  );
+}
+
+function normalizeWordFontShorthandInStyles(html: string): string {
+  return html.replace(/\bstyle\s*=\s*(['"])([\s\S]*?)\1/gi, (full, quote: string, styleBody: string) => {
+    if (!/\bfont:\s*[\d.]+pt/i.test(styleBody)) return full;
+    return `style=${quote}${expandWordFontShorthandInStyle(styleBody)}${quote}`;
+  });
+}
+
 /**
- * Word: между «1.» и текстом — &amp;nbsp; фиксированной ширины (как пробел в «1.1»), не Enter.
- * Убираем только служебный \\r\\n из HTML-файла; &amp;nbsp; и font:7pt Times New Roman не меняем.
+ * Word: между «1.» и текстом — цепочка &amp;nbsp; в узком span 7pt (табуляция списка).
+ * Убираем служебные \\r\\n; приводим font:7pt к font-size для браузера.
  */
 function sanitizeWordListMarkerSpan(span: string): string {
-  return span
-    .replace(/<br\s*\/?>/gi, "")
-    .replace(/>([^<]*?)</g, (full, text: string) => {
-      if (!/[\r\n\u2028\u2029]/.test(text)) return full;
-      const cleaned = text.replace(/[\r\n\u2028\u2029]+/g, "");
-      return cleaned === text ? full : `>${cleaned}<`;
-    });
+  let out = span.replace(/<br\s*\/?>/gi, "");
+  out = out.replace(/\bstyle\s*=\s*(['"])([\s\S]*?)\1/gi, (full, quote: string, styleBody: string) => {
+    if (!/\bfont:\s*[\d.]+pt/i.test(styleBody) && !/\bfont-size:\s*7/i.test(styleBody)) return full;
+    return `style=${quote}${expandWordFontShorthandInStyle(styleBody)}${quote}`;
+  });
+  out = out.replace(
+    /(<span\b[^>]*\bfont-size:\s*7(?:\.0)?pt[^>]*>)([\s\S]*?)(<\/span>)/gi,
+    (_full, open: string, inner: string, close: string) => {
+      const cleaned = inner
+        .replace(/[\r\n\u2028\u2029\t\f\v]+/g, "")
+        .replace(/(?:&nbsp;|\u00a0)\s*(?:&nbsp;|\u00a0)/g, (m: string) =>
+          m.replace(/\s+/g, ""),
+        );
+      return `${open}${cleaned}${close}`;
+    },
+  );
+  return out.replace(/>([^<]*?)</g, (full, text: string) => {
+    if (!/[\r\n\u2028\u2029]/.test(text)) return full;
+    const cleaned = text.replace(/[\r\n\u2028\u2029]+/g, "");
+    return cleaned === text ? full : `>${cleaned}<`;
+  });
 }
 
 function applyLineBreakTransforms(html: string): string {
@@ -347,15 +382,33 @@ function convertLegacyAlignAttributes(html: string): string {
   );
 }
 
+const WORD_BLUE_TITLE_COLOR = /#4472C4/i;
+const WORD_BLUE_TITLE_RGB = /rgb\s*\(\s*68\s*,\s*114\s*,\s*196\s*\)/i;
+
+function paragraphContainsWordBlueTitle(attrs: string, inner: string): boolean {
+  const blob = `${attrs}${inner}`;
+  return WORD_BLUE_TITLE_COLOR.test(blob) || WORD_BLUE_TITLE_RGB.test(blob);
+}
+
+/** Синие заголовки Word (#4472C4) — отдельный класс для переноса по слогам в CSS. */
+function markWordBlueTitleBlocks(html: string): string {
+  return html.replace(/<(p|h[1-6])\b([^>]*)>([\s\S]*?)<\/\1>/gi, (full, tag: string, attrs: string, inner: string) => {
+    if (!paragraphContainsWordBlueTitle(attrs, inner)) return full;
+    return `<${tag}${appendClassNameToAttrs(attrs, "word-doc-blue-title")}>${inner}</${tag}>`;
+  });
+}
+
 /** Стили и разметка Word HTML → то, что понимают браузеры. */
 function enhanceWordExportedHtml(html: string): string {
   let out = inlineStylesheetTextAlign(html);
   out = convertLegacyAlignAttributes(out);
   out = normalizeInlineStyleAttributes(out);
+  out = normalizeWordFontShorthandInStyles(out);
   out = applyLineBreakTransforms(out);
   out = stripTrailingBreaksInFlowParagraphs(out);
   out = stripTextIndentOnCenteredBlocks(out);
   out = normalizeCenteredAndHeadingLineBreaks(out);
+  out = markWordBlueTitleBlocks(out);
   out = stripWordBookmarkSpans(out);
   out = collapseLineBreaksBetweenParagraphs(out);
   out = out.replace(/mso-bidi-font-weight\s*:\s*bold\b/gi, "font-weight:bold");

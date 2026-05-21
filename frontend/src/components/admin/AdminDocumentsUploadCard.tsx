@@ -2,7 +2,11 @@
 
 import { EyeIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { useCallback, useEffect, useId, useState } from "react";
-import { normalizePolicyHtml, POLICY_HTML_DOCUMENT_CLASS } from "@/lib/normalizePolicyHtml";
+import {
+  normalizePolicyHtml,
+  POLICY_HTML_DOCUMENT_CLASS,
+  POLICY_HTML_DOCUMENT_LANG,
+} from "@/lib/normalizePolicyHtml";
 
 const ACCEPT = ".html,.htm,text/html,application/xhtml+xml";
 const HTML_MAX_BYTES = 2 * 1024 * 1024;
@@ -250,6 +254,7 @@ export function AdminDocumentsUploadCard({
             <div className="flex-1 overflow-auto bg-white p-5">
               {previewHtml.trim() ? (
                 <div
+                  lang={POLICY_HTML_DOCUMENT_LANG}
                   className={POLICY_HTML_DOCUMENT_CLASS}
                   dangerouslySetInnerHTML={{ __html: previewHtml }}
                 />

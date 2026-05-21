@@ -5,7 +5,11 @@ import { usePathname } from "next/navigation";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
-import { normalizePolicyHtml, POLICY_HTML_DOCUMENT_CLASS } from "@/lib/normalizePolicyHtml";
+import {
+  normalizePolicyHtml,
+  POLICY_HTML_DOCUMENT_CLASS,
+  POLICY_HTML_DOCUMENT_LANG,
+} from "@/lib/normalizePolicyHtml";
 import {
   normalizePageDisplayOrderMap,
   sortBySectionDisplayOrder,
@@ -486,6 +490,7 @@ export function SiteFooter({
             <div className="flex-1 overflow-auto bg-white p-5">
               {previewHtml.trim() ? (
                 <div
+                  lang={POLICY_HTML_DOCUMENT_LANG}
                   className={POLICY_HTML_DOCUMENT_CLASS}
                   dangerouslySetInnerHTML={{ __html: previewHtml }}
                 />

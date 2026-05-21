@@ -4,7 +4,11 @@ import { XMarkIcon } from "@heroicons/react/24/outline";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
-import { normalizePolicyHtml, POLICY_HTML_DOCUMENT_CLASS } from "@/lib/normalizePolicyHtml";
+import {
+  normalizePolicyHtml,
+  POLICY_HTML_DOCUMENT_CLASS,
+  POLICY_HTML_DOCUMENT_LANG,
+} from "@/lib/normalizePolicyHtml";
 
 type SiteSettingsHtmlPayload = {
   settings?: {
@@ -153,6 +157,7 @@ export function PolicyHtmlDialogLink({
                     <p className="text-sm leading-relaxed text-slate-600">Загрузка документа…</p>
                   ) : hasContent ? (
                     <div
+                      lang={POLICY_HTML_DOCUMENT_LANG}
                       className={POLICY_HTML_DOCUMENT_CLASS}
                       dangerouslySetInnerHTML={{ __html: html }}
                     />

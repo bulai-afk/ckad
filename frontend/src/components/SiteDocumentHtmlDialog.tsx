@@ -4,7 +4,11 @@ import { XMarkIcon } from "@heroicons/react/24/outline";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
-import { normalizePolicyHtml, POLICY_HTML_DOCUMENT_CLASS } from "@/lib/normalizePolicyHtml";
+import {
+  normalizePolicyHtml,
+  POLICY_HTML_DOCUMENT_CLASS,
+  POLICY_HTML_DOCUMENT_LANG,
+} from "@/lib/normalizePolicyHtml";
 import {
   normalizeSiteDocumentsList,
   siteDocumentDisplayName,
@@ -109,7 +113,11 @@ export function SiteDocumentHtmlDialog({
           {loading ? (
             <p className="text-sm text-slate-600">Загрузка документа…</p>
           ) : doc && html.trim() ? (
-            <div className={POLICY_HTML_DOCUMENT_CLASS} dangerouslySetInnerHTML={{ __html: html }} />
+            <div
+              lang={POLICY_HTML_DOCUMENT_LANG}
+              className={POLICY_HTML_DOCUMENT_CLASS}
+              dangerouslySetInnerHTML={{ __html: html }}
+            />
           ) : (
             <p className="text-sm text-slate-600">
               Документ не найден. Загрузите HTML-файлы в разделе «Настройки сайта».
