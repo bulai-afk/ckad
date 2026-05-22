@@ -5,15 +5,22 @@ export function getBannerCoverPublicChromeCss(scope: string): string {
   const s = scope.trim();
   return `
 ${s} {
-  --site-blue-title-fs: 2.25rem;
+  /* Как :root / .about-template-fallback__title на главной */
+  --site-blue-title-fs: 1.875rem;
   --site-blue-title-lh: 2.25rem;
   --site-red-blue-gap: -0.375rem;
 }
 @media (min-width: 640px) {
   ${s} {
-    --site-blue-title-fs: 3.5rem;
+    --site-blue-title-fs: 3rem;
     --site-blue-title-lh: 1;
     --site-red-blue-gap: -0.5rem;
+  }
+}
+@media (min-width: 1206px) {
+  ${s} {
+    --site-blue-title-fs: 3.5rem;
+    --site-blue-title-lh: 1;
   }
 }
 ${s} .page-web-cover { position: relative; width: 100%; margin: 0 !important; max-width: 100% !important; border-radius: inherit; box-sizing: border-box; }
@@ -28,12 +35,12 @@ ${s} .page-web-cover .page-web-cover-inner > .page-web-elements.page-web-element
 ${s} .page-web-cover .page-web-cover-inner > .page-web-elements.page-web-elements-title .page-web-elements-title-input,
 ${s} .page-web-cover .page-web-cover-el-title { font-size: var(--site-blue-title-fs) !important; line-height: var(--site-blue-title-lh) !important; }
 ${s} .page-web-cover .page-web-cover-inner > .page-web-elements.page-web-elements-title .page-web-elements-title-input {
-  line-height: 1 !important;
-  padding: 0.15rem 0.45rem !important;
+  line-height: var(--site-blue-title-lh) !important;
+  padding: 0 !important;
   text-wrap: wrap !important;
   font-weight: 600;
   color: #496db3;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
   white-space: pre-wrap;
   word-break: break-word;
 }

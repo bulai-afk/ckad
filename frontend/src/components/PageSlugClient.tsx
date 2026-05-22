@@ -8,6 +8,7 @@ import { HomeServicesFolderCards } from "@/components/HomeServicesFolderCards";
 import { CallbackRequestModal } from "@/components/CallbackRequestModal";
 import { SiteDocumentHtmlDialog } from "@/components/SiteDocumentHtmlDialog";
 import { isCallbackFormLink, parseSiteDocumentLinkIndex } from "@/lib/siteDocumentLink";
+import { getSiteBlueTitleUnifiedCss } from "@/lib/siteBlueTitleCss";
 import { getSharedWebBlocksCss } from "@/lib/sharedWebBlocksCss";
 import {
   ensureCoverBgLayers,
@@ -321,46 +322,8 @@ export function PageSlugClient({ slugParts, page, serviceFolderHub }: PageSlugCl
           .article-page-content .page-web-elements-announcement-input[data-placeholder-visible="1"]::before {
             content: none !important;
           }
-          /* Service pages: keep content headings same size as site blue headings */
-          .service-page-content-root .page-content h1,
-          .service-page-content-root .page-content h2,
-          .service-page-content-root .page-content h3 {
-            font-size: var(--site-blue-title-fs) !important;
-            line-height: var(--site-blue-title-lh) !important;
-          }
-          .service-page-content-root .page-content .page-web-cover-inner > .page-web-elements.page-web-elements-title {
-            font-size: var(--site-blue-title-fs) !important;
-            line-height: 0 !important;
-          }
-          .service-page-content-root .page-content .page-web-cover-el-title,
-          .service-page-content-root .page-content .page-web-elements-title-input,
-          .service-page-content-root .page-content .page-web-timeline-heading,
-          .service-page-content-root .page-content .page-web-work-pricing .page-web-elements-title .page-web-elements-title-input,
-          .service-page-content-root .page-content .page-web-work-pricing .wsx,
-          .service-page-content-root .page-content .page-web-work-pricing .wsy,
-          .service-page-content-root .page-content .page-web-work-pricing .wti,
-          .service-page-content-root .page-content .page-web-text-block h3,
-          .service-page-content-root .page-content .page-web-text-media .page-web-text-media-col h3 {
-            font-size: var(--site-blue-title-fs) !important;
-            line-height: var(--site-blue-title-lh) !important;
-          }
-          @media (max-width: 1205px) {
-            .service-page-content-root .page-content {
-              --site-blue-title-fs: 2.25rem;
-              --site-blue-title-lh: 2.25rem;
-              --site-red-blue-gap: -0.375rem;
-            }
-          }
-          /* Cover: wrapper line-height 0 (no strut); textarea carries line-height (see sharedWebBlocksCss). */
-          .service-page-content-root .page-content .page-web-cover .page-web-cover-inner > .page-web-elements.page-web-elements-title {
-            line-height: 0 !important;
-          }
-          .service-page-content-root .page-content .page-web-cover .page-web-cover-inner > .page-web-elements.page-web-elements-title textarea.page-web-elements-title-input,
-          .service-page-content-root .page-content .page-web-cover .page-web-cover-el-title textarea.page-web-elements-title-input {
-            line-height: 1 !important;
-            padding: 0.15rem 0.45rem !important;
-            text-wrap: wrap !important;
-          }
+          /* Страницы услуг: синие заголовки = :root (--site-blue-title-fs), без увеличения до 2.25rem на ≤1205px */
+          ${getSiteBlueTitleUnifiedCss(".service-page-content-root .page-content")}
           .service-page-content-root .page-content .page-web-cover .page-web-cover-inner > .page-web-elements.page-web-elements-description textarea.page-web-elements-description-input {
             line-height: 1.5 !important;
             padding: 0.15rem 0.45rem !important;

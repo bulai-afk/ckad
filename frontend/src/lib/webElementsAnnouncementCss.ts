@@ -10,7 +10,8 @@ export function getWebElementsAnnouncementStripMobileCss(
   const mq = `@media (max-width: ${BANNER_COVER_MOBILE_MAX_WIDTH_PX}px)`;
   return `
 ${mq} {
-  ${s} .page-web-elements-announcement-learn-more {
+  /* Только плашка анонса в баннере/обложке — не «Подробнее» в карточках feature-grid */
+  ${s} .page-web-elements-announcement-strip .page-web-elements-announcement-learn-more {
     display: none${i};
   }
 }

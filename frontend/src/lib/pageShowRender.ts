@@ -1,3 +1,4 @@
+import { getSiteBlueTitleUnifiedCss } from "./siteBlueTitleCss";
 import { getTimelineMobileRailCss } from "./timelineMobileRailCss";
 import { getWebElementsAnnouncementStripMobileCss } from "./webElementsAnnouncementCss";
 
@@ -669,7 +670,7 @@ ${scope} .page-web-cover[data-cover-type="image"]::after {
 }
 ${scope} .page-web-cover-inner > .page-web-elements.page-web-elements-title {
   font-size: var(--site-blue-title-fs, 2.25rem);
-  line-height: 0;
+  line-height: var(--site-blue-title-lh, 2.25rem);
 }
 ${scope} .page-web-cover-el-title { font-size: var(--site-blue-title-fs, 2.25rem); line-height: var(--site-blue-title-lh, 2.25rem); }
 ${scope} .page-web-cover-inner > .page-web-elements.page-web-elements-description,
@@ -1083,7 +1084,7 @@ ${scope} .page-web-cover[data-cover-type="image"] { aspect-ratio: auto; }
 ${scope} .page-web-cover[data-cover-type="hero"] .page-web-cover-inner > .page-web-elements.page-web-elements-title,
 ${scope} .page-web-cover[data-cover-type="image"] .page-web-cover-inner > .page-web-elements.page-web-elements-title {
   font-size: var(--site-blue-title-fs, 2.25rem);
-  line-height: 0;
+  line-height: var(--site-blue-title-lh, 2.25rem);
 }
 ${scope} .page-web-cover[data-cover-type="hero"] .page-web-cover-el-title,
 ${scope} .page-web-cover[data-cover-type="image"] .page-web-cover-el-title { font-size: var(--site-blue-title-fs, 2.25rem); line-height: var(--site-blue-title-lh, 2.25rem); }
@@ -1097,7 +1098,7 @@ ${scope} .page-web-cover[data-cover-type="hero"] .page-web-cover-el-button,
 ${scope} .page-web-cover[data-cover-type="image"] .page-web-cover-el-button { font-size: 0.875rem; padding: 0.625rem 1rem; border-radius: 0.375rem; }
 ${scope} .page-web-cover[data-cover-type="split"] .page-web-cover-inner > .page-web-elements.page-web-elements-title {
   font-size: var(--site-blue-title-fs, 2.25rem);
-  line-height: 0;
+  line-height: var(--site-blue-title-lh, 2.25rem);
 }
 ${scope} .page-web-cover[data-cover-type="split"] .page-web-cover-el-title { font-size: var(--site-blue-title-fs, 2.25rem); line-height: var(--site-blue-title-lh, 2.25rem); }
 ${scope} .page-web-cover[data-cover-type="split"] .page-web-cover-inner > .page-web-elements.page-web-elements-description,
@@ -1166,6 +1167,7 @@ ${scope} .page-web-work-pricing *,
 ${scope} .page-web-feature-grid * {
   font-size: inherit !important;
 }
+${getSiteBlueTitleUnifiedCss(scope)}
 ${scope} .page-web-timeline-content textarea.page-web-elements-title2-input,
 ${scope} .page-web-timeline-content .page-web-elements-title2-input {
   display: block;
