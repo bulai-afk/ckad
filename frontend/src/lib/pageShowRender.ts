@@ -1,4 +1,5 @@
 import { getTimelineMobileRailCss } from "./timelineMobileRailCss";
+import { getWebElementsAnnouncementStripMobileCss } from "./webElementsAnnouncementCss";
 
 const TIMELINE_MOBILE_MQL = "(max-width: 1205px)";
 
@@ -951,8 +952,9 @@ ${scope} .page-web-elements-announcement-strip {
   border-radius: 9999px;
 }
 ${scope} .page-web-elements-announcement-strip > .page-web-elements-announcement-input {
-  flex: 0 0 auto;
-  min-width: auto;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: none;
 }
 ${scope} .page-web-elements-announcement-learn-more {
   display: inline-flex;
@@ -974,9 +976,9 @@ ${scope} .page-web-elements-announcement-learn-more:hover {
   color: #b91c1c;
 }
 ${scope} .page-web-elements-announcement-input {
-  display: inline-block;
+  display: block;
   width: auto;
-  min-width: min-content;
+  min-width: 0;
   max-width: none;
   margin: 0;
   padding: 0;
@@ -988,9 +990,9 @@ ${scope} .page-web-elements-announcement-input {
   font-weight: 500;
   letter-spacing: -0.02em;
   color: #496db3;
-  white-space: pre;
-  word-break: normal;
-  overflow-wrap: normal;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
   background: transparent;
   border: none;
   border-radius: 0;
@@ -1170,6 +1172,7 @@ ${scope} .page-web-timeline-content .page-web-elements-title2-input {
   max-width: 100%;
   box-sizing: border-box;
 }
+${getWebElementsAnnouncementStripMobileCss(scope)}
 `;
 }
 

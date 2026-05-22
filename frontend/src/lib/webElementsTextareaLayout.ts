@@ -98,7 +98,7 @@ export function syncAnnouncementInputFromModel(
   layoutWebElementsAnnouncementInput(el);
 }
 
-/** Плашка анонса (contenteditable div): чистим инлайновую ширину, чтобы работал CSS `width:max-content`. */
+/** Плашка анонса (contenteditable): чистим инлайновую ширину, перенос задаёт CSS strip/input. */
 export function layoutWebElementsAnnouncementInput(el: HTMLElement): void {
   if (!el.matches(".page-web-elements-announcement-input")) return;
   if (el instanceof HTMLTextAreaElement) {

@@ -98,7 +98,10 @@ export function BannerCoverReadonlySlide({
   const announcementHref = (slide.announcementLearnMoreHref || "#").trim() || "#";
 
   return (
-    <div data-home-banner-cover className="home-banner-cover-root @container h-full w-full">
+    <div
+      data-home-banner-cover
+      className="home-banner-cover-root @container h-auto min-h-0 w-full min-[1206px]:h-full"
+    >
       <style>{`
         ${getSharedWebBlocksCss(HOME_BANNER_SCOPE)}
         ${getPageShowRenderCss(HOME_BANNER_SCOPE)}
@@ -106,10 +109,10 @@ export function BannerCoverReadonlySlide({
         ${HOME_BANNER_SCOPE} .page-content { width: 100%; height: 100%; }
         ${HOME_BANNER_SCOPE} .page-web-cover { width: 100% !important; margin: 0 !important; }
       `}</style>
-      <div className="page-content h-full">
+      <div className="page-content h-auto min-h-0 min-[1206px]:h-full">
         <div
           ref={coverRef}
-          className="page-web-cover h-full"
+          className="page-web-cover h-auto min-h-0 min-[1206px]:h-full"
           data-web-element="cover"
           data-cover-type={slide.bannerType}
           data-cover-aspect={coverAspect}

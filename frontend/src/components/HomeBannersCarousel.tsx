@@ -136,7 +136,7 @@ export function HomeBannersCarousel({
 
   const runtimeSlides = slides.length > 0 ? slides : fetchedSlides;
   const coverAspect = slides.length > 0 ? coverAspectProp : fetchedCoverAspect;
-  const aspectClassName = getCoverAspectCarouselClassName(coverAspect);
+  const aspectClassName = getCoverAspectCarouselClassName(coverAspect, "home");
 
   const normalized = useMemo(
     () =>
@@ -319,10 +319,11 @@ export function HomeBannersCarousel({
           swipeProps={bannerSwipe}
           roundedClassName={frameClass}
           aspectClassName={aspectClassName}
+          mobileDynamicHeight
           renderSlide={(slide, idx) => (
-            <div className="relative h-full min-h-0 w-full min-w-0 max-w-full overflow-hidden bg-slate-100">
+            <div className="relative max-[1205px]:h-auto min-[1206px]:h-full min-h-0 w-full min-w-0 max-w-full overflow-hidden bg-slate-100">
               <div
-                className="flex h-full min-h-0 w-full min-w-0 flex-col"
+                className="flex max-[1205px]:h-auto min-[1206px]:h-full min-h-0 w-full min-w-0 flex-col"
                 style={
                   fullWidth && mainVisualScale !== 1
                     ? { transform: `scale(${mainVisualScale})`, transformOrigin: "center center" }

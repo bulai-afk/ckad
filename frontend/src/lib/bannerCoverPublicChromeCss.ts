@@ -1,3 +1,5 @@
+import { getWebElementsAnnouncementStripMobileCss } from "./webElementsAnnouncementCss";
+
 /** Типографика и переменные cover на публичной главной (без меню редактора и фокуса). */
 export function getBannerCoverPublicChromeCss(scope: string): string {
   const s = scope.trim();
@@ -14,7 +16,14 @@ ${s} {
     --site-red-blue-gap: -0.5rem;
   }
 }
-${s} .page-web-cover { position: relative; height: 100%; width: 100%; margin: 0 !important; max-width: 100% !important; aspect-ratio: unset !important; border-radius: inherit; overflow: visible; }
+${s} .page-web-cover { position: relative; width: 100%; margin: 0 !important; max-width: 100% !important; border-radius: inherit; box-sizing: border-box; }
+@media (min-width: 1206px) {
+  ${s} .page-web-cover { height: 100% !important; max-height: 100% !important; aspect-ratio: unset !important; overflow: visible; }
+}
+@media (max-width: 1205px) {
+  ${s} .page-web-cover { height: auto !important; max-height: none !important; aspect-ratio: auto !important; min-height: max-content; overflow: visible; }
+  ${s} .page-web-cover .page-web-cover-inner { overflow: visible; }
+}
 ${s} .page-web-cover .page-web-cover-inner > .page-web-elements.page-web-elements-title,
 ${s} .page-web-cover .page-web-cover-inner > .page-web-elements.page-web-elements-title .page-web-elements-title-input,
 ${s} .page-web-cover .page-web-cover-el-title { font-size: var(--site-blue-title-fs) !important; line-height: var(--site-blue-title-lh) !important; }
@@ -44,5 +53,26 @@ ${s} .page-web-cover[data-cover-show-overlay="0"][data-cover-type="image"]::afte
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
+${s} .page-web-elements-announcement-strip {
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  width: max-content !important;
+  max-width: 100% !important;
+}
+${s} .page-web-elements-announcement-strip > .page-web-elements-announcement-input {
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  display: block !important;
+}
+${s} .page-web-elements-announcement-input {
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+}
+${s} .page-web-elements-announcement-learn-more {
+  flex-shrink: 0 !important;
+}
+${getWebElementsAnnouncementStripMobileCss(s, true)}
 `;
 }

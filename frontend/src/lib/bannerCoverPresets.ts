@@ -16,16 +16,44 @@ export const COVER_ASPECT_PRESETS = [
 
 export type CoverAspectPresetId = (typeof COVER_ASPECT_PRESETS)[number]["id"];
 
+/** Как на публичных страницах клиента (`pageShowRender` @media max-width 1205px). */
+export const BANNER_COVER_MOBILE_MAX_WIDTH_PX = 1205;
+
+/** Полные строки классов — иначе Tailwind JIT не подхватывает динамические `min-[1206px]:${aspect}`. */
+const COVER_CAROUSEL_HOME_1_8 =
+  "w-full min-h-px max-[1205px]:h-auto min-[1206px]:aspect-[2/1]";
+const COVER_CAROUSEL_HOME_1_4 =
+  "w-full min-h-px max-[1205px]:h-auto min-[1206px]:aspect-[4/1]";
+const COVER_CAROUSEL_HOME_6_1 =
+  "w-full min-h-px max-[1205px]:h-auto min-[1206px]:aspect-[6/1]";
+const COVER_CAROUSEL_ADMIN_1_8 = "w-full min-h-px aspect-[2/1]";
+const COVER_CAROUSEL_ADMIN_1_4 = "w-full min-h-px aspect-[4/1]";
+const COVER_CAROUSEL_ADMIN_6_1 = "w-full min-h-px aspect-[6/1]";
+
 /** Классы высоты/пропорций карусели баннеров (общие для всех слайдов). */
-export function getCoverAspectCarouselClassName(aspect: CoverAspectPresetId): string {
+export function getCoverAspectCarouselClassName(
+  aspect: CoverAspectPresetId,
+  variant: "home" | "admin" = "admin",
+): string {
+  if (variant === "home") {
+    switch (aspect) {
+      case "1-4":
+        return COVER_CAROUSEL_HOME_1_4;
+      case "6-1":
+        return COVER_CAROUSEL_HOME_6_1;
+      case "1-8":
+      default:
+        return COVER_CAROUSEL_HOME_1_8;
+    }
+  }
   switch (aspect) {
     case "1-4":
-      return "aspect-[4/1] w-full";
+      return COVER_CAROUSEL_ADMIN_1_4;
     case "6-1":
-      return "aspect-[6/1] w-full";
+      return COVER_CAROUSEL_ADMIN_6_1;
     case "1-8":
     default:
-      return "h-[100vw] sm:h-[50vw]";
+      return COVER_CAROUSEL_ADMIN_1_8;
   }
 }
 

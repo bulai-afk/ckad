@@ -1,4 +1,5 @@
 import { getPageEditorWebToolbarCss } from "./pageEditorWebToolbarCss";
+import { getWebElementsAnnouncementStripMobileCss } from "./webElementsAnnouncementCss";
 
 /** Стили бокового меню баннера, фокуса полей и типографики — как на полотне `page_editor`. */
 export function getBannerCoverEditorChromeCss(scope: string): string {
@@ -128,6 +129,27 @@ ${s} .page-web-cover[data-cover-show-overlay="0"][data-cover-type="image"]::afte
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
+${s} .page-web-elements-announcement-strip {
+  flex-wrap: nowrap !important;
+  width: max-content !important;
+  max-width: 100% !important;
+}
+${s} .page-web-elements-announcement-strip > .page-web-elements-announcement-input {
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  display: block !important;
+}
+${s} .page-web-elements-announcement-input {
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+  min-width: 0 !important;
+}
+${s} .page-web-elements-announcement-learn-more {
+  flex-shrink: 0 !important;
+}
+${getWebElementsAnnouncementStripMobileCss(s, true)}
 `;
 }
 

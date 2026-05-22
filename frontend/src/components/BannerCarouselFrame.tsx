@@ -13,6 +13,8 @@ type BannerCarouselFrameProps<TSlide extends SlideWithId> = {
   swipeProps?: HTMLAttributes<HTMLDivElement>;
   roundedClassName?: string;
   aspectClassName?: string;
+  /** На главной ≤1205px — высота cover по контенту, как на странице клиента. */
+  mobileDynamicHeight?: boolean;
   renderSlide: (slide: TSlide, index: number) => ReactNode;
 };
 
@@ -22,9 +24,19 @@ export function BannerCarouselFrame<TSlide extends SlideWithId>({
   onSelectSlide,
   swipeProps,
   roundedClassName = "rounded-xl",
-  aspectClassName = "h-[100vw] sm:h-[50vw]",
+  aspectClassName = "aspect-[2/1] w-full min-h-px",
+  mobileDynamicHeight = false,
   renderSlide,
 }: BannerCarouselFrameProps<TSlide>) {
+  const swipeShellClass = mobileDynamicHeight
+    ? "max-[1205px]:relative max-[1205px]:h-auto max-[1205px]:overflow-visible min-[1206px]:absolute min-[1206px]:inset-0 min-[1206px]:min-h-0 min-[1206px]:overflow-hidden"
+    : "absolute inset-0 min-h-0 overflow-hidden";
+  const trackClass = mobileDynamicHeight
+    ? "flex max-[1205px]:h-auto min-[1206px]:h-full min-h-0 w-full min-w-0 max-w-none transition-transform duration-300 ease-out"
+    : "flex h-full min-h-0 w-full min-w-0 max-w-none transition-transform duration-300 ease-out";
+  const slideShellClass = mobileDynamicHeight
+    ? "box-border max-[1205px]:h-auto min-[1206px]:h-full min-h-0 min-w-0 shrink-0 overflow-hidden"
+    : "box-border h-full min-h-0 min-w-0 shrink-0 overflow-hidden";
   const aspectRef = useRef<HTMLDivElement>(null);
   const n = slides.length;
   /** Явная ширина полосы и слайдов — в Safari иначе flex-% часто даёт 0 высоты у aspect-ratio внутри. */
@@ -66,7 +78,7 @@ export function BannerCarouselFrame<TSlide extends SlideWithId>({
             width: Math.round(r.width),
             height: Math.round(r.height),
             widthOverHeight: Math.round((r.width / h) * 1000) / 1000,
-            expectWidthOverHeight: "mobile: h=200vw (1/2), tablet/desktop: h=50vw (2/1)",
+            expectWidthOverHeight: "mobile: dynamic/auto, desktop: aspect-ratio from data-cover-aspect",
             computedAspectRatio: cs.aspectRatio,
             computedPaddingBottom: cs.paddingBottom,
             boxSizing: cs.boxSizing,
@@ -94,18 +106,12 @@ export function BannerCarouselFrame<TSlide extends SlideWithId>({
         ref={aspectRef}
         className={`relative isolate w-full min-h-px min-w-0 max-w-full max-h-[calc(100dvh-var(--site-header-offset)-env(safe-area-inset-bottom,0px)-0.5rem)] overflow-hidden bg-slate-100 ${aspectClassName} ${aspectRoundedClass}`}
       >
-        <div
-          className="absolute inset-0 min-w-0 touch-pan-y overflow-hidden"
-          {...swipeProps}
-        >
-          <div
-            className="flex h-full min-h-0 w-full min-w-0 max-w-none transition-transform duration-300 ease-out"
-            style={trackStyle}
-          >
+        <div className={`min-w-0 touch-pan-y ${swipeShellClass}`} {...swipeProps}>
+          <div className={trackClass} style={trackStyle}>
             {slides.map((slide, idx) => (
               <div
                 key={slide.id}
-                className="box-border h-full min-h-0 min-w-0 shrink-0 overflow-hidden"
+                className={slideShellClass}
                 style={{ width: `${slideBasisPct}%` }}
               >
                 {renderSlide(slide, idx)}
