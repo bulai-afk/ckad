@@ -125,7 +125,7 @@ export default async function Home() {
     <div className="min-h-screen bg-slate-100 text-slate-900">
       <HomeBannersCarouselGate slides={homeBanners} coverAspect={homeBannersCoverAspect} />
       <section className="bg-transparent py-8 sm:py-10 about-template-fallback">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl home-section-inline-padding">
           <div className="mx-auto mt-0 max-w-3xl text-center">
             <h2 className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-base font-semibold text-[#b91c1c]">
               О нас
@@ -166,7 +166,7 @@ export default async function Home() {
       </section>
 
       <section className="bg-transparent py-6 sm:py-10 about-template-fallback">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl home-section-inline-padding">
           <div className="mx-auto mt-0 max-w-3xl text-center">
             <h2 className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-base font-semibold text-[#b91c1c]">
               Наши услуги

@@ -12,6 +12,43 @@ import { apiBaseUrl } from "@/lib/apiBaseUrl";
 import { sanitizePublicAssetUrl } from "@/lib/publicAssetUrl";
 
 const AUTOPLAY_INTERVAL_MS = 5500;
+/** Сколько последних новостей показывать в карусели на главной. */
+const HOME_NEWS_CAROUSEL_LIMIT = 6;
+
+function isPublishedHomeNewsSlide(p: HomeArticleSlide): boolean {
+  const status = String(p.status ?? "").toUpperCase();
+  if (status === "PUBLISHED") return true;
+  return process.env.NODE_ENV === "development";
+}
+
+function isArticlesSlug(slug: string): boolean {
+  return slug
+    .trim()
+    .replace(/\\/g, "/")
+    .replace(/\/+/g, "/")
+    .replace(/^\/+|\/+$/g, "")
+    .toLowerCase()
+    .startsWith("articles/");
+}
+
+function isNewsKind(p: HomeArticleSlide): boolean {
+  return (p.articleKind ?? "news") === "news";
+}
+
+function sortSlidesByDateDesc(a: HomeArticleSlide, b: HomeArticleSlide): number {
+  const ad = new Date(a.updatedAt || a.createdAt || 0).getTime();
+  const bd = new Date(b.updatedAt || b.createdAt || 0).getTime();
+  return bd - ad;
+}
+
+function pickHomeNewsSlides(items: HomeArticleSlide[]): HomeArticleSlide[] {
+  return items
+    .filter(isPublishedHomeNewsSlide)
+    .filter((p) => isArticlesSlug(String(p.slug || "")))
+    .filter(isNewsKind)
+    .sort(sortSlidesByDateDesc)
+    .slice(0, HOME_NEWS_CAROUSEL_LIMIT);
+}
 
 export type HomeArticleSlide = {
   id: number;
@@ -43,28 +80,7 @@ export function HomeArticlesCarousel({ slides }: Props) {
         });
         if (!res.ok) return;
         const data = (await res.json()) as HomeArticleSlide[];
-        const normalized = (Array.isArray(data) ? data : [])
-          .filter((p) => {
-            const status = String(p.status ?? "").toUpperCase();
-            if (status === "PUBLISHED") return true;
-            return process.env.NODE_ENV === "development";
-          })
-          .filter((p) =>
-            String(p.slug || "")
-              .trim()
-              .replace(/\\/g, "/")
-              .replace(/\/+/g, "/")
-              .replace(/^\/+|\/+$/g, "")
-              .toLowerCase()
-              .startsWith("articles/"),
-          )
-          .sort((a, b) => {
-            const ad = new Date(a.updatedAt || a.createdAt || 0).getTime();
-            const bd = new Date(b.updatedAt || b.createdAt || 0).getTime();
-            return bd - ad;
-          })
-          .slice(0, 10);
-        setFetchedSlides(normalized);
+        setFetchedSlides(pickHomeNewsSlides(Array.isArray(data) ? data : []));
       } catch {
         setFetchedSlides([]);
       }
@@ -78,9 +94,9 @@ export function HomeArticlesCarousel({ slides }: Props) {
 
   const normalized = useMemo(
     () =>
-      runtimeSlides
-        .filter((s) => s && typeof s.id === "number" && typeof s.slug === "string")
-        .slice(0, 10),
+      pickHomeNewsSlides(
+        runtimeSlides.filter((s) => s && typeof s.id === "number" && typeof s.slug === "string"),
+      ),
     [runtimeSlides],
   );
 
@@ -137,7 +153,7 @@ export function HomeArticlesCarousel({ slides }: Props) {
 
   return (
     <section className="bg-transparent py-8 sm:py-10 about-template-fallback">
-      <div className="mx-auto max-w-7xl px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl home-section-inline-padding">
         <div className="mx-auto mt-0 max-w-3xl text-center">
           <h2 className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-base font-semibold text-[#b91c1c]">
             Новости

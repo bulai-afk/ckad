@@ -265,6 +265,17 @@ body::-webkit-scrollbar:horizontal {
   opacity: 0;
 }
 
+/* Главная: боковые отступы секций — как у блоков на страницах услуг (≤1205px: 0.625rem, ≥1206px: 1rem). */
+.home-section-inline-padding {
+  padding-inline: 0.625rem;
+}
+
+@media (min-width: 1206px) {
+  .home-section-inline-padding {
+    padding-inline: 1rem;
+  }
+}
+
 /* Главная: было в page.tsx как <style> — инлайн-стиль в дереве React давал hydration mismatch (SSR vs клиент). */
 .about-template-fallback {
   background: transparent;

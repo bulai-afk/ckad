@@ -24,7 +24,7 @@ ${scope} .page-web-timeline { --timeline-rail-width: 1.75rem; }
 ${scope} .page-web-timeline::before {
   content: "";
   position: absolute;
-  left: calc(var(--timeline-rail-width) / 2) !important;
+  left: calc(var(--timeline-side-inset, 0.625rem) + var(--timeline-rail-width) / 2) !important;
   top: var(--timeline-line-top, 3.1rem) !important;
   height: var(--timeline-line-height, 0px) !important;
   bottom: auto !important;

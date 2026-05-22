@@ -147,7 +147,7 @@ export function HomeReviewsCarousel({ slides }: HomeReviewsCarouselProps) {
 
   return (
     <section className="bg-transparent py-8 sm:py-10 about-template-fallback">
-      <div className="mx-auto max-w-7xl px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl home-section-inline-padding">
         {headingBlock}
         <div className="mt-8 max-w-none">
           <div

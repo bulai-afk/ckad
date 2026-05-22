@@ -211,7 +211,7 @@ const timelineMeasureRafByRoot = new WeakMap<object, number>();
 
 export function getTimelineRenderCss(scope: string): string {
   return `
-${scope} .page-web-timeline { --timeline-dot-size: 0.8rem; --timeline-line-size: 2px; --timeline-gap: 1rem; position: relative; width: 100%; margin: 0 0 1.25rem; padding-top: 1rem; display: grid; grid-template-columns: repeat(var(--timeline-cols, 3), minmax(0, 1fr)); gap: 0.7rem var(--timeline-gap); box-sizing: border-box; }
+${scope} .page-web-timeline { --timeline-dot-size: 0.8rem; --timeline-line-size: 2px; --timeline-gap: 1rem; --timeline-side-inset: 1rem; position: relative; width: 100%; margin: 0 0 1.25rem; padding: 1rem var(--timeline-side-inset) 1.25rem; display: grid; grid-template-columns: repeat(var(--timeline-cols, 3), minmax(0, 1fr)); gap: 0.7rem var(--timeline-gap); box-sizing: border-box; }
 @media (min-width: 1206px) {
 ${scope} .page-web-timeline::before { content: ""; position: absolute; left: var(--timeline-line-left, 0); right: var(--timeline-line-right, 0); top: var(--timeline-line-top, 50%); height: var(--timeline-line-size); transform: translateY(-50%); background: #cbd5e1; pointer-events: none; z-index: 0; }
 }
@@ -320,7 +320,7 @@ ${scope} .page-web-timeline textarea.page-web-elements-description-input {
   word-break: normal !important;
 }
 @media (max-width: 1205px) {
-${scope} .page-web-timeline { grid-template-columns: minmax(0, 1fr) !important; grid-auto-flow: row; width: 100%; max-width: 100%; min-width: 0; --timeline-gap: 0.65rem; gap: var(--timeline-gap); position: relative; box-sizing: border-box; }
+${scope} .page-web-timeline { grid-template-columns: minmax(0, 1fr) !important; grid-auto-flow: row; width: 100%; max-width: 100%; min-width: 0; --timeline-gap: 0.65rem; --timeline-side-inset: 0.625rem; gap: var(--timeline-gap); position: relative; box-sizing: border-box; padding-inline: var(--timeline-side-inset); padding-block: 0.75rem 1rem; }
 ${scope} .page-web-timeline > .page-web-timeline-head,
 ${scope} .page-web-timeline > .page-web-timeline-item { grid-column: 1 / -1; width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; }
 ${scope} .page-web-timeline-head { width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; }
@@ -542,10 +542,11 @@ ${scope} .page-web-work-pricing .wub { text-decoration: none; }
 ${scope} .page-web-work-pricing .wuc { padding: 0.625rem 1rem; }
 ${scope} .page-web-work-pricing .wte { margin-top: 0.85rem; font-size: 0.88rem; line-height: 1.5; color: #6b7280; }
 @media (max-width: 1205px) {
-${scope} .page-web-work-pricing .wrc { width: calc(100% - 0.5rem); max-width: none; margin-inline: 0.25rem; }
+${scope} .page-web-work-pricing .wrc { width: 100%; max-width: none; margin-inline: 0; }
 ${scope} .page-web-work-pricing .wrp { max-width: none; }
 ${scope} .page-web-work-pricing .wrf { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.85rem 0.9rem; }
-${scope} .page-web-work-pricing .wsp { padding: 1.5rem 1.15rem; position: relative; z-index: 1; }
+${scope} .page-web-work-pricing .wsp { padding: 1.25rem 0.875rem; position: relative; z-index: 1; }
+${scope} .page-web-work-pricing .wux { padding: 1rem 0.75rem; }
 ${scope} .page-web-work-pricing .wrd { padding: 0.8rem; position: relative; z-index: 0; }
 ${scope} .page-web-work-pricing .page-web-elements.page-web-elements-title textarea.page-web-elements-title-input,
 ${scope} .page-web-work-pricing .wsx { font-size: var(--site-blue-title-fs, 2.25rem); line-height: var(--site-blue-title-lh, 2.25rem); }
