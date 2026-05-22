@@ -7,17 +7,22 @@ import {
   parseBannerTextBand,
 } from "@/lib/bannerElementPosition";
 import { normalizeFontSizeToPercent } from "@/lib/bannerFontSize";
-import { BannerPreviewReadonly } from "@/components/BannerPreviewReadonly";
+import { BannerCoverReadonlySlide } from "@/components/BannerCoverReadonlySlide";
 import { BannerCarouselFrame } from "@/components/BannerCarouselFrame";
 import { CallbackRequestModal } from "@/components/CallbackRequestModal";
+import { SiteDocumentHtmlDialog } from "@/components/SiteDocumentHtmlDialog";
+import {
+  getCoverAspectCarouselClassName,
+  type CoverAspectPresetId,
+} from "@/lib/bannerCoverPresets";
+import { parseBannersApiPayload } from "@/lib/bannersPayload";
+import { bannerSlideToCoverModel } from "@/lib/bannerSlideToCoverModel";
 import {
   bannerDebugEnabled,
   describeBannerImageRef,
   logBannerDebug,
 } from "@/lib/bannerDebugLog";
 
-const CALLBACK_FORM_LINK = "callback://open";
-const DEFAULT_ANNOUNCEMENT_TEXT = "Announcing our next round of funding.";
 const DEFAULT_LEARN_MORE_TEXT = "Learn more";
 
 function normalizeLearnMoreText(value: unknown): string {
@@ -81,6 +86,8 @@ export type BannerSlide = {
 type HomeBannersCarouselProps = {
   /** Если не передать — данные подгружаются с API на клиенте (рекомендуется для главной). */
   slides?: BannerSlide[];
+  /** Общий размер баннеров из админки (2∶1 / 4∶1 / 6∶1). */
+  coverAspect?: CoverAspectPresetId;
   /** Переносы строк в заголовке (символы \\n из API / админки), как на /admin/banners */
   preserveBannerTitleLineBreaks?: boolean;
   /** Во всю ширину viewport (главная): без бокового скругления у секции. */
@@ -91,11 +98,14 @@ type HomeBannersCarouselProps = {
 
 export function HomeBannersCarousel({
   slides = [],
+  coverAspect: coverAspectProp = "1-8",
   preserveBannerTitleLineBreaks = true,
   fullWidth = false,
   mainVisualScale = 1,
 }: HomeBannersCarouselProps) {
   const [fetchedSlides, setFetchedSlides] = useState<BannerSlide[]>([]);
+  const [fetchedCoverAspect, setFetchedCoverAspect] =
+    useState<CoverAspectPresetId>(coverAspectProp);
   /** Пока баннеры подгружаются с API (главная без SSR-слайдов) — не показываем текст без стилей (FOUC). */
   const [clientBannerFetchDone, setClientBannerFetchDone] = useState(slides.length > 0);
 
@@ -110,9 +120,11 @@ export function HomeBannersCarousel({
           cache: "no-store",
         });
         if (!res.ok) return;
-        const data = (await res.json()) as { slides?: BannerSlide[] };
-        if (Array.isArray(data.slides) && data.slides.length > 0) {
-          setFetchedSlides(data.slides);
+        const data = await res.json();
+        const { coverAspect, slides: apiSlides } = parseBannersApiPayload(data);
+        setFetchedCoverAspect(coverAspect);
+        if (Array.isArray(apiSlides) && apiSlides.length > 0) {
+          setFetchedSlides(apiSlides as BannerSlide[]);
         }
       } catch {
         /* оставляем пусто */
@@ -123,6 +135,8 @@ export function HomeBannersCarousel({
   }, [slides]);
 
   const runtimeSlides = slides.length > 0 ? slides : fetchedSlides;
+  const coverAspect = slides.length > 0 ? coverAspectProp : fetchedCoverAspect;
+  const aspectClassName = getCoverAspectCarouselClassName(coverAspect);
 
   const normalized = useMemo(
     () =>
@@ -144,9 +158,23 @@ export function HomeBannersCarousel({
               : null,
         title: typeof s.title === "string" ? s.title : "",
         announcementText:
-          typeof s.announcementText === "string" && s.announcementText.trim().length > 0
-            ? s.announcementText
-            : DEFAULT_ANNOUNCEMENT_TEXT,
+          typeof s.announcementText === "string" ? s.announcementText : "",
+        titleAlign:
+          s.titleAlign === "left" || s.titleAlign === "right" || s.titleAlign === "center"
+            ? s.titleAlign
+            : undefined,
+        subtitleAlign:
+          s.subtitleAlign === "left" || s.subtitleAlign === "right" || s.subtitleAlign === "center"
+            ? s.subtitleAlign
+            : undefined,
+        buttonAlign:
+          s.buttonAlign === "left" || s.buttonAlign === "right" || s.buttonAlign === "center"
+            ? s.buttonAlign
+            : undefined,
+        showTitle: typeof s.showTitle === "boolean" ? s.showTitle : true,
+        showButton: typeof s.showButton === "boolean" ? s.showButton : true,
+        buttonText: typeof s.buttonText === "string" ? s.buttonText : "",
+        buttonHref: typeof s.buttonHref === "string" ? s.buttonHref : "#",
         bannerType:
           s.bannerType === "hero" || s.bannerType === "image" || s.bannerType === "split"
             ? s.bannerType
@@ -238,6 +266,7 @@ export function HomeBannersCarousel({
 
   const [index, setIndex] = useState(0);
   const [callbackModalOpen, setCallbackModalOpen] = useState(false);
+  const [documentDialogIndex, setDocumentDialogIndex] = useState<number | null>(null);
   const canUse = normalized.length > 0;
 
   useEffect(() => {
@@ -289,6 +318,7 @@ export function HomeBannersCarousel({
           onSelectSlide={setIndex}
           swipeProps={bannerSwipe}
           roundedClassName={frameClass}
+          aspectClassName={aspectClassName}
           renderSlide={(slide, idx) => (
             <div className="relative h-full min-h-0 w-full min-w-0 max-w-full overflow-hidden bg-slate-100">
               <div
@@ -299,12 +329,12 @@ export function HomeBannersCarousel({
                     : undefined
                 }
               >
-                <BannerPreviewReadonly
-                  slide={slide}
-                  preserveBannerTitleLineBreaks={preserveBannerTitleLineBreaks}
-                  callbackFormLink={CALLBACK_FORM_LINK}
+                <BannerCoverReadonlySlide
+                  slide={bannerSlideToCoverModel(slide)}
+                  coverAspect={coverAspect}
+                  preserveTitleLineBreaks={preserveBannerTitleLineBreaks}
                   onPrimaryClick={() => setCallbackModalOpen(true)}
-                  prioritizeImageLoading={idx === 0}
+                  onDocumentClick={(index) => setDocumentDialogIndex(index)}
                 />
               </div>
             </div>
@@ -316,6 +346,11 @@ export function HomeBannersCarousel({
         open={callbackModalOpen}
         onClose={() => setCallbackModalOpen(false)}
         sourceMessage="Заявка из кнопки баннера."
+      />
+      <SiteDocumentHtmlDialog
+        open={documentDialogIndex !== null}
+        onClose={() => setDocumentDialogIndex(null)}
+        documentIndex={documentDialogIndex}
       />
     </div>
   );

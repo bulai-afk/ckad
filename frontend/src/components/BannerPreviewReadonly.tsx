@@ -7,6 +7,12 @@ import {
   describeBannerImageRef,
   logBannerDebug,
 } from "@/lib/bannerDebugLog";
+import {
+  BANNER_COVER_DEFAULT_CONTENT,
+  normalizeBannerCoverAnnouncementLearnMore,
+  normalizeBannerCoverAnnouncementText,
+  normalizeBannerCoverButtonSecondary,
+} from "@/lib/bannerCoverDefaults";
 
 type BannerPreviewSlide = {
   id: string;
@@ -39,9 +45,6 @@ type BannerPreviewReadonlyProps = {
   onPrimaryClick?: () => void;
   prioritizeImageLoading?: boolean;
 };
-
-const DEFAULT_ANNOUNCEMENT_TEXT = "Announcing our next round of funding.";
-const DEFAULT_LEARN_MORE_TEXT = "Learn more";
 
 function bannerTitleToNodes(text: string) {
   const normalized = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
@@ -88,13 +91,13 @@ export function BannerPreviewReadonly({
         {slide.showAnnouncement !== false ? (
           <div className="hidden sm:mb-6 sm:flex sm:justify-center">
             <div className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs text-slate-600 ring-1 ring-slate-900/10 sm:text-sm">
-              <span>{slide.announcementText || DEFAULT_ANNOUNCEMENT_TEXT}</span>
+              <span>{normalizeBannerCoverAnnouncementText(slide.announcementText)}</span>
               {slide.showAnnouncementLearnMore !== false ? (
                 <a
                   href={slide.announcementLearnMoreHref || "#"}
                   className="font-semibold text-[#496db3] no-underline hover:text-[#3f5f9d]"
                 >
-                  {slide.announcementLearnMoreText || DEFAULT_LEARN_MORE_TEXT}
+                  {normalizeBannerCoverAnnouncementLearnMore(slide.announcementLearnMoreText)}
                 </a>
               ) : null}
             </div>
@@ -130,7 +133,7 @@ export function BannerPreviewReadonly({
               }}
               className="rounded-md bg-[#496db3] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#3f5f9d]"
             >
-              {slide.buttonText || "Get started"}
+              {(slide.buttonText?.trim() || BANNER_COVER_DEFAULT_CONTENT.button)}
             </a>
           ) : null}
           {slide.showBottomLearnMore !== false ? (
@@ -138,7 +141,7 @@ export function BannerPreviewReadonly({
               href={slide.buttonHref || "#"}
               className="text-sm font-semibold text-[#496db3] no-underline hover:text-[#3f5f9d]"
             >
-              {slide.learnMoreText || DEFAULT_LEARN_MORE_TEXT}
+              {normalizeBannerCoverButtonSecondary(slide.learnMoreText)}
             </a>
           ) : null}
         </div>
@@ -266,13 +269,13 @@ export function BannerPreviewReadonly({
               {slide.showAnnouncement !== false ? (
                 <div className="hidden sm:mb-6 sm:flex sm:justify-start">
                   <div className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs text-slate-600 ring-1 ring-slate-900/10 sm:text-sm">
-                    <span>{slide.announcementText || DEFAULT_ANNOUNCEMENT_TEXT}</span>
+                    <span>{normalizeBannerCoverAnnouncementText(slide.announcementText)}</span>
                     {slide.showAnnouncementLearnMore !== false ? (
                       <a
                         href={slide.announcementLearnMoreHref || "#"}
                         className="font-semibold text-[#496db3] no-underline hover:text-[#3f5f9d]"
                       >
-                        {slide.announcementLearnMoreText || DEFAULT_LEARN_MORE_TEXT}
+                        {normalizeBannerCoverAnnouncementLearnMore(slide.announcementLearnMoreText)}
                       </a>
                     ) : null}
                   </div>
@@ -305,7 +308,7 @@ export function BannerPreviewReadonly({
                     }}
                     className="rounded-md bg-[#496db3] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#3f5f9d]"
                   >
-                    {slide.buttonText || "Get started"}
+                    {(slide.buttonText?.trim() || BANNER_COVER_DEFAULT_CONTENT.button)}
                   </a>
                 ) : null}
                 {slide.showBottomLearnMore !== false ? (
@@ -313,7 +316,7 @@ export function BannerPreviewReadonly({
                     href={slide.buttonHref || "#"}
                     className="text-sm font-semibold text-[#496db3] no-underline hover:text-[#3f5f9d]"
                   >
-                    {slide.learnMoreText || DEFAULT_LEARN_MORE_TEXT}
+                    {normalizeBannerCoverButtonSecondary(slide.learnMoreText)}
                   </a>
                 ) : null}
               </div>
@@ -347,13 +350,13 @@ export function BannerPreviewReadonly({
           {slide.showAnnouncement !== false ? (
             <div className="hidden sm:mb-6 sm:flex sm:justify-center">
               <div className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs text-slate-600 ring-1 ring-slate-900/10 sm:text-sm">
-                <span>{slide.announcementText || DEFAULT_ANNOUNCEMENT_TEXT}</span>
+                <span>{normalizeBannerCoverAnnouncementText(slide.announcementText)}</span>
                 {slide.showAnnouncementLearnMore !== false ? (
                   <a
                     href={slide.announcementLearnMoreHref || "#"}
                     className="font-semibold text-[#496db3] no-underline hover:text-[#3f5f9d]"
                   >
-                    {slide.announcementLearnMoreText || DEFAULT_LEARN_MORE_TEXT}
+                    {normalizeBannerCoverAnnouncementLearnMore(slide.announcementLearnMoreText)}
                   </a>
                 ) : null}
               </div>
@@ -386,7 +389,7 @@ export function BannerPreviewReadonly({
                 }}
                 className="rounded-md bg-[#496db3] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#3f5f9d]"
               >
-                {slide.buttonText || "Get started"}
+                {(slide.buttonText?.trim() || BANNER_COVER_DEFAULT_CONTENT.button)}
               </a>
             ) : null}
             {slide.showBottomLearnMore !== false ? (
@@ -394,7 +397,7 @@ export function BannerPreviewReadonly({
                 href={slide.buttonHref || "#"}
                 className="text-sm font-semibold text-[#496db3] no-underline hover:text-[#3f5f9d]"
               >
-                {slide.learnMoreText || DEFAULT_LEARN_MORE_TEXT}
+                {normalizeBannerCoverButtonSecondary(slide.learnMoreText)}
               </a>
             ) : null}
           </div>

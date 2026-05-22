@@ -84,7 +84,7 @@ export default async function Home() {
       clearTimeout(timeoutId);
     }
   };
-  type BannersPayload = { slides?: BannerSlide[] };
+  type BannersPayload = { coverAspect?: string; slides?: BannerSlide[] };
 
   const [foldersRes, bannersRes] = await Promise.allSettled([
     /* Превью папок — файлы в uploads, не data URL; кэш 120 c — быстрее главная, обновление с задержкой до 2 мин. */
@@ -96,10 +96,16 @@ export default async function Home() {
     foldersRes.status === "fulfilled" && Array.isArray(foldersRes.value?.folders)
       ? foldersRes.value.folders
       : [];
-  const homeBanners =
-    bannersRes.status === "fulfilled" && Array.isArray(bannersRes.value?.slides)
-      ? bannersRes.value.slides
-      : [];
+  const homeBannersPayload =
+    bannersRes.status === "fulfilled" ? bannersRes.value : null;
+  const homeBanners = Array.isArray(homeBannersPayload?.slides)
+    ? homeBannersPayload.slides
+    : [];
+  const homeBannersCoverAspect =
+    homeBannersPayload?.coverAspect === "1-4" ||
+    homeBannersPayload?.coverAspect === "6-1"
+      ? homeBannersPayload.coverAspect
+      : "1-8";
 
   const folderMetaBySlug = new Map<string, ServiceFolderMeta>();
   for (const f of folders) {
@@ -117,7 +123,7 @@ export default async function Home() {
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
-      <HomeBannersCarouselGate slides={homeBanners} />
+      <HomeBannersCarouselGate slides={homeBanners} coverAspect={homeBannersCoverAspect} />
       <section className="bg-transparent py-8 sm:py-10 about-template-fallback">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto mt-0 max-w-3xl text-center">

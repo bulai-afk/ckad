@@ -83,14 +83,24 @@ ${scope} .page-web-cover-el-title > .page-web-elements-field-row {
 ${scope} .page-web-cover-inner > .page-web-elements.page-web-elements-title[data-cover-title-halign="left"] > .page-web-elements-field-row { justify-content: flex-start; text-align: left; }
 ${scope} .page-web-cover-inner > .page-web-elements.page-web-elements-title[data-cover-title-halign="center"] > .page-web-elements-field-row { justify-content: center; text-align: center; }
 ${scope} .page-web-cover-inner > .page-web-elements.page-web-elements-title[data-cover-title-halign="right"] > .page-web-elements-field-row { justify-content: flex-end; text-align: right; }
+${scope} .page-web-cover-inner > .page-web-elements.page-web-elements-description[data-cover-description-halign="left"] > .page-web-elements-field-row { justify-content: flex-start; text-align: left; }
+${scope} .page-web-cover-inner > .page-web-elements.page-web-elements-description[data-cover-description-halign="center"] > .page-web-elements-field-row { justify-content: center; text-align: center; }
+${scope} .page-web-cover-inner > .page-web-elements.page-web-elements-description[data-cover-description-halign="right"] > .page-web-elements-field-row { justify-content: flex-end; text-align: right; }
+${scope} .page-web-cover-inner > .page-web-elements-actions[data-cover-actions-halign="left"] { align-items: flex-start; text-align: left; }
+${scope} .page-web-cover-inner > .page-web-elements-actions[data-cover-actions-halign="center"] { align-items: center; text-align: center; }
+${scope} .page-web-cover-inner > .page-web-elements-actions[data-cover-actions-halign="right"] { align-items: flex-end; text-align: right; }
+${scope} .page-web-cover[data-cover-halign="left"] .page-web-cover-inner > .page-web-elements-actions:not([data-cover-actions-halign]) { align-items: flex-start; text-align: left; }
+${scope} .page-web-cover[data-cover-halign="center"] .page-web-cover-inner > .page-web-elements-actions:not([data-cover-actions-halign]) { align-items: center; text-align: center; }
+${scope} .page-web-cover[data-cover-halign="right"] .page-web-cover-inner > .page-web-elements-actions:not([data-cover-actions-halign]) { align-items: flex-end; text-align: right; }
+${scope} .page-web-cover:not([data-cover-halign]) .page-web-cover-inner > .page-web-elements-actions:not([data-cover-actions-halign]) { align-items: center; text-align: center; }
 ${scope} .page-web-cover[data-cover-halign="left"] .page-web-cover-inner > .page-web-elements.page-web-elements-title:not([data-cover-title-halign]) > .page-web-elements-field-row,
-${scope} .page-web-cover[data-cover-halign="left"] .page-web-cover-inner > .page-web-elements.page-web-elements-description > .page-web-elements-field-row { justify-content: flex-start; text-align: left; }
+${scope} .page-web-cover[data-cover-halign="left"] .page-web-cover-inner > .page-web-elements.page-web-elements-description:not([data-cover-description-halign]) > .page-web-elements-field-row { justify-content: flex-start; text-align: left; }
 ${scope} .page-web-cover[data-cover-halign="center"] .page-web-cover-inner > .page-web-elements.page-web-elements-title:not([data-cover-title-halign]) > .page-web-elements-field-row,
-${scope} .page-web-cover[data-cover-halign="center"] .page-web-cover-inner > .page-web-elements.page-web-elements-description > .page-web-elements-field-row { justify-content: center; text-align: center; }
+${scope} .page-web-cover[data-cover-halign="center"] .page-web-cover-inner > .page-web-elements.page-web-elements-description:not([data-cover-description-halign]) > .page-web-elements-field-row { justify-content: center; text-align: center; }
 ${scope} .page-web-cover[data-cover-halign="right"] .page-web-cover-inner > .page-web-elements.page-web-elements-title:not([data-cover-title-halign]) > .page-web-elements-field-row,
-${scope} .page-web-cover[data-cover-halign="right"] .page-web-cover-inner > .page-web-elements.page-web-elements-description > .page-web-elements-field-row { justify-content: flex-end; text-align: right; }
+${scope} .page-web-cover[data-cover-halign="right"] .page-web-cover-inner > .page-web-elements.page-web-elements-description:not([data-cover-description-halign]) > .page-web-elements-field-row { justify-content: flex-end; text-align: right; }
 ${scope} .page-web-cover:not([data-cover-halign]) .page-web-cover-inner > .page-web-elements.page-web-elements-title:not([data-cover-title-halign]) > .page-web-elements-field-row,
-${scope} .page-web-cover:not([data-cover-halign]) .page-web-cover-inner > .page-web-elements.page-web-elements-description > .page-web-elements-field-row { justify-content: center; text-align: center; }
+${scope} .page-web-cover:not([data-cover-halign]) .page-web-cover-inner > .page-web-elements.page-web-elements-description:not([data-cover-description-halign]) > .page-web-elements-field-row { justify-content: center; text-align: center; }
 ${scope} .page-web-cover-inner > .page-web-elements.page-web-elements-title textarea.page-web-elements-title-input,
 ${scope} .page-web-cover-el-title textarea.page-web-elements-title-input {
   flex: 0 1 auto;

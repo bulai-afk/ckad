@@ -3,8 +3,28 @@ import { AdminTopBar } from "@/components/admin/AdminTopBar";
 import { BannersEditorCarousel } from "@/components/admin/BannersEditorCarousel";
 import { ReviewsVerticalCarousel } from "@/components/admin/ReviewsVerticalCarousel";
 import { TopRibbonMessagesEditor } from "@/components/admin/TopRibbonMessagesEditor";
+import { apiBaseUrl } from "@/lib/apiBaseUrl";
+import { parseBannersApiPayload } from "@/lib/bannersPayload";
+import type { CoverAspectPresetId } from "@/lib/bannerCoverPresets";
 
-export default function AdminBannersPage() {
+async function loadBannersForAdmin() {
+  try {
+    const res = await fetch(`${apiBaseUrl()}/api/pages/banners`, {
+      cache: "no-store",
+      headers: { Accept: "application/json" },
+    });
+    if (!res.ok) return null;
+    return parseBannersApiPayload(await res.json());
+  } catch {
+    return null;
+  }
+}
+
+export default async function AdminBannersPage() {
+  const banners = await loadBannersForAdmin();
+  const initialCoverAspect: CoverAspectPresetId = banners?.coverAspect ?? "1-8";
+  const initialSlidesFromApi = banners?.slides?.length ? banners.slides : undefined;
+
   return (
     <div className="min-h-screen bg-white">
       <div className="flex min-h-screen">
@@ -23,7 +43,10 @@ export default function AdminBannersPage() {
                   Здесь можно настраивать банеры для клиентских страниц.
                 </p>
               </div>
-              <BannersEditorCarousel />
+              <BannersEditorCarousel
+                initialCoverAspect={initialCoverAspect}
+                initialSlidesFromApi={initialSlidesFromApi}
+              />
               <ReviewsVerticalCarousel />
               <ReviewsVerticalCarousel title="Партнеры" apiPath="/api/pages/partners" aspect="square" />
               <TopRibbonMessagesEditor />
@@ -34,4 +57,3 @@ export default function AdminBannersPage() {
     </div>
   );
 }
-

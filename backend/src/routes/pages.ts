@@ -182,6 +182,18 @@ type BannerSlide = {
   textBand?: "full" | "left" | "right";
 };
 
+type BannersCoverAspectId = "1-8" | "1-4" | "6-1";
+
+type BannersFilePayload = {
+  coverAspect: BannersCoverAspectId;
+  slides: BannerSlide[];
+};
+
+function pickBannersCoverAspect(value: unknown): BannersCoverAspectId {
+  if (value === "1-4" || value === "6-1") return value;
+  return "1-8";
+}
+
 type ReviewSlide = {
   id: string;
   image: string | null;
@@ -964,14 +976,29 @@ async function buildBannerSlidesFromInput(input: unknown[]): Promise<BannerSlide
   return slides;
 }
 
-async function readBannersFromFile(): Promise<BannerSlide[]> {
+async function readBannersFromFile(): Promise<BannersFilePayload> {
+  const empty: BannersFilePayload = { coverAspect: "1-8", slides: [] };
   try {
     const raw = await fs.readFile(BANNERS_DATA_PATH, "utf-8");
     const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    const slides = parsed
-      .filter((item): item is Record<string, unknown> => isBannerSlideLike(item))
-      .map((item) => sanitizeBannerSlide(item));
+    let coverAspect: BannersCoverAspectId = "1-8";
+    let slideRows: Record<string, unknown>[] = [];
+    if (Array.isArray(parsed)) {
+      slideRows = parsed.filter((item): item is Record<string, unknown> =>
+        isBannerSlideLike(item),
+      );
+    } else if (parsed && typeof parsed === "object") {
+      const row = parsed as { coverAspect?: unknown; slides?: unknown };
+      coverAspect = pickBannersCoverAspect(row.coverAspect);
+      if (Array.isArray(row.slides)) {
+        slideRows = row.slides.filter((item): item is Record<string, unknown> =>
+          isBannerSlideLike(item),
+        );
+      }
+    } else {
+      return empty;
+    }
+    const slides = slideRows.map((item) => sanitizeBannerSlide(item));
 
     // Lazy migration for old non-webp data URLs in existing banners file.
     let changed = false;
@@ -982,19 +1009,26 @@ async function readBannersFromFile(): Promise<BannerSlide[]> {
       normalizedSlides.push({ ...slide, image: nextImage });
     }
     if (changed) {
-      await writeBannersToFile(normalizedSlides);
+      await writeBannersToFile({ coverAspect, slides: normalizedSlides });
     }
-    return normalizedSlides;
+    return { coverAspect, slides: normalizedSlides };
   } catch {
-    return [];
+    return empty;
   }
 }
 
-async function writeBannersToFile(slides: BannerSlide[]): Promise<void> {
+async function writeBannersToFile(payload: BannersFilePayload): Promise<void> {
   await fs.mkdir(path.dirname(BANNERS_DATA_PATH), { recursive: true });
   await fs.writeFile(
     BANNERS_DATA_PATH,
-    JSON.stringify(slides, null, 2),
+    JSON.stringify(
+      {
+        coverAspect: pickBannersCoverAspect(payload.coverAspect),
+        slides: payload.slides,
+      },
+      null,
+      2,
+    ),
     "utf-8",
   );
 }
@@ -1280,18 +1314,14 @@ async function writeSiteSettingsToFile(settings: SiteSettings): Promise<void> {
 }
 
 pagesRouter.get("/banners", async (_req, res) => {
-  const slides = await readBannersFromFile();
+  const { coverAspect, slides } = await readBannersFromFile();
   // eslint-disable-next-line no-console
   console.log(
     "[BANNERS_API] GET",
-    slides.map((s) => ({
-      id: s.id,
-      showOverlay: s.showOverlay,
-      textBand: s.textBand,
-    })),
+    { coverAspect, slides: slides.map((s) => ({ id: s.id, showOverlay: s.showOverlay, textBand: s.textBand })) },
   );
   res.set("Cache-Control", "no-store, max-age=0");
-  return res.json({ slides });
+  return res.json({ coverAspect, slides });
 });
 
 pagesRouter.put("/banners", async (req, res) => {
@@ -1303,13 +1333,14 @@ pagesRouter.put("/banners", async (req, res) => {
     }
 
     const slides = await buildBannerSlidesFromInput(input);
-    await writeBannersToFile(slides);
+    const coverAspect = pickBannersCoverAspect((body as { coverAspect?: unknown }).coverAspect);
+    await writeBannersToFile({ coverAspect, slides });
     // eslint-disable-next-line no-console
     console.log(
       "[BANNERS_API] PUT",
-      slides.map((s) => ({ id: s.id, showOverlay: s.showOverlay })),
+      { coverAspect, slides: slides.map((s) => ({ id: s.id, showOverlay: s.showOverlay })) },
     );
-    return res.json({ ok: true, slides });
+    return res.json({ ok: true, coverAspect, slides });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     // eslint-disable-next-line no-console
@@ -1800,7 +1831,7 @@ pagesRouter.post("/uploads/inline/cleanup", async (_req, res) => {
       if (rel) referenced.add(rel);
     }
 
-    const bannerSlides = await readBannersFromFile();
+    const { slides: bannerSlides } = await readBannersFromFile();
     for (const slide of bannerSlides) {
       const rel = normalizeInlineUploadPathFromUrl(typeof slide.image === "string" ? slide.image : "");
       if (rel) referenced.add(rel);

@@ -64,6 +64,40 @@ function measureWebElementsTextareaContentWidthPx(textarea: HTMLTextAreaElement)
   return Math.ceil(maxW);
 }
 
+export function isAnnouncementInputVisuallyEmpty(el: HTMLElement): boolean {
+  const raw = (el.innerText ?? el.textContent ?? "").replace(/\u200b/g, "");
+  return raw.replace(/[\s\u00a0]+/g, "").length === 0;
+}
+
+/** Подсказка `data-placeholder` — как в редакторе страниц (через ::before). */
+export function syncAnnouncementInputPlaceholder(el: HTMLElement): void {
+  if (!el.matches(".page-web-elements-announcement-input")) return;
+  if (isAnnouncementInputVisuallyEmpty(el)) {
+    el.setAttribute("data-placeholder-visible", "1");
+  } else {
+    el.removeAttribute("data-placeholder-visible");
+  }
+}
+
+/**
+ * Подставляет текст анонса в contenteditable до отрисовки.
+ * React при ре-рендере без children очищает contentEditable — вызывать в useLayoutEffect на каждый commit.
+ */
+export function syncAnnouncementInputFromModel(
+  el: HTMLElement | null,
+  text: string,
+): void {
+  if (!el || !el.matches(".page-web-elements-announcement-input")) return;
+  if (document.activeElement === el) return;
+  const next = text.trim();
+  const current = (el.textContent ?? "").replace(/\u200b/g, "").trim();
+  if (current !== next) {
+    el.textContent = next;
+  }
+  syncAnnouncementInputPlaceholder(el);
+  layoutWebElementsAnnouncementInput(el);
+}
+
 /** Плашка анонса (contenteditable div): чистим инлайновую ширину, чтобы работал CSS `width:max-content`. */
 export function layoutWebElementsAnnouncementInput(el: HTMLElement): void {
   if (!el.matches(".page-web-elements-announcement-input")) return;
@@ -80,6 +114,7 @@ export function layoutWebElementsAnnouncementInput(el: HTMLElement): void {
   if (strip instanceof HTMLElement) {
     strip.style.removeProperty("width");
   }
+  syncAnnouncementInputPlaceholder(el);
 }
 
 export function layoutWebElementsAnnouncementInputsInRoot(root: ParentNode): void {

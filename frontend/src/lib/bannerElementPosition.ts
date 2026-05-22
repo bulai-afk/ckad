@@ -32,24 +32,30 @@ export function bannerHToAlignSelf(h: BannerHAlign): "flex-start" | "center" | "
 }
 
 export function resolveTitleHAlign(s: {
-  align: BannerHAlign;
   titleAlign?: BannerHAlign;
 }): BannerHAlign {
-  return s.titleAlign ?? s.align;
+  return s.titleAlign ?? "center";
 }
 
 export function resolveSubtitleHAlign(s: {
-  align: BannerHAlign;
   subtitleAlign?: BannerHAlign;
 }): BannerHAlign {
-  return s.subtitleAlign ?? s.align;
+  return s.subtitleAlign ?? "center";
 }
 
 export function resolveButtonHAlign(s: {
-  align: BannerHAlign;
   buttonAlign?: BannerHAlign;
 }): BannerHAlign {
-  return s.buttonAlign ?? s.align;
+  return s.buttonAlign ?? "center";
+}
+
+/** Горизонталь колонки баннера (не путать с выравниванием отдельных полей). */
+export function resolveCoverLayoutHAlign(s: {
+  bannerType?: string;
+  textBand?: BannerTextBand;
+}): BannerHAlign {
+  if (s.bannerType === "split" || s.textBand === "left") return "left";
+  return "center";
 }
 
 /**
