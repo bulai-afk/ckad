@@ -6,7 +6,9 @@ import {
   normalizePolicyHtml,
   POLICY_HTML_DOCUMENT_CLASS,
   POLICY_HTML_DOCUMENT_LANG,
+  POLICY_HTML_DOCUMENT_VIEWPORT_CLASS,
 } from "@/lib/normalizePolicyHtml";
+import { readUploadedHtmlFile } from "@/lib/readUploadedHtmlFile";
 
 const ACCEPT = ".html,.htm,text/html,application/xhtml+xml";
 const HTML_MAX_BYTES = 2 * 1024 * 1024;
@@ -108,7 +110,7 @@ export function AdminDocumentsUploadCard({
       const baseOrigin = typeof window !== "undefined" ? window.location.origin : "";
       const loaded = await Promise.all(
         toAdd.map(async (file) => {
-          const raw = await file.text();
+          const raw = await readUploadedHtmlFile(file);
           return {
             name: file.name,
             html: normalizePolicyHtml(raw, baseOrigin),
@@ -251,7 +253,9 @@ export function AdminDocumentsUploadCard({
                 <XMarkIcon className="h-5 w-5" />
               </button>
             </div>
-            <div className="flex-1 overflow-auto bg-white p-5">
+            <div
+              className={`flex-1 overflow-auto bg-white p-5 max-sm:px-3 max-sm:py-4 ${POLICY_HTML_DOCUMENT_VIEWPORT_CLASS}`}
+            >
               {previewHtml.trim() ? (
                 <div
                   lang={POLICY_HTML_DOCUMENT_LANG}

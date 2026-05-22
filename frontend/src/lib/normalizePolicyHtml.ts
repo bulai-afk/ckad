@@ -1,6 +1,9 @@
 /** Класс обёртки для HTML правовых документов (диалог и предпросмотр в админке). */
 export const POLICY_HTML_DOCUMENT_CLASS =
-  "policy-html-document min-w-0 w-full max-w-full text-slate-700 [overflow-wrap:break-word] [&_*]:max-w-full [&_*]:box-border";
+  "policy-html-document min-w-0 w-full max-w-full [&_*]:box-border";
+
+/** Родитель со скроллом: на узком экране можно прокрутить колонку шириной как в Word. */
+export const POLICY_HTML_DOCUMENT_VIEWPORT_CLASS = "policy-html-document-viewport";
 
 /** Язык для автоматического переноса по слогам (`hyphens: auto` в CSS). */
 export const POLICY_HTML_DOCUMENT_LANG = "ru";
@@ -390,6 +393,13 @@ function blockHasWordListMarker(attrs: string, inner: string): boolean {
   return /\bmso-list:/i.test(attrs) || /mso-list:Ignore/i.test(inner);
 }
 
+function hasJustifyAlignment(attrs: string): boolean {
+  return (
+    /text-align\s*:\s*(?:justify|both)/i.test(attrs) ||
+    /\balign\s*=\s*(['"])?(?:justify|both)\1/i.test(attrs)
+  );
+}
+
 function stripJustifyFromStyle(attrs: string): string {
   return attrs
     .replace(/text-align\s*:\s*justify/gi, "text-align:left")
@@ -399,25 +409,24 @@ function stripJustifyFromStyle(attrs: string): string {
 }
 
 /**
- * Нумерованные заголовки Word (1., 2., …): justify в HTML растягивает пробелы на короткой строке.
- * Выравнивание слева + висячий отступ, как в Word.
+ * Нумерованные пункты Word (1., 2., …) в p и заголовках: justify на короткой строке
+ * растягивает пробелы. Выравнивание слева + висячий отступ, как в Word.
  */
 function markWordNumberedHeadingBlocks(html: string): string {
-  return html.replace(/<(h[1-6])\b([^>]*)>([\s\S]*?)<\/\1>/gi, (full, tag: string, attrs: string, inner: string) => {
+  return html.replace(/<(p|h[1-6])\b([^>]*)>([\s\S]*?)<\/\1>/gi, (full, tag: string, attrs: string, inner: string) => {
     if (!blockHasWordListMarker(attrs, inner)) return full;
     const newAttrs = appendClassNameToAttrs(stripJustifyFromStyle(attrs), "word-doc-numbered-heading");
     return `<${tag}${newAttrs}>${inner}</${tag}>`;
   });
 }
 
-/** Абзацы и заголовки с text-align:justify — усиленный перенос по слогам в CSS. */
+/** Абзацы и заголовки с text-align:justify — перенос/выравнивание в CSS (как в Word). */
 function markWordJustifyBlocks(html: string): string {
   return html.replace(/<(p|h[1-6])\b([^>]*)>/gi, (full, tag: string, attrs: string) => {
-    const hasJustify =
-      /text-align\s*:\s*justify/i.test(attrs) ||
-      /\balign\s*=\s*(['"])?(?:justify|both)\1/i.test(attrs);
+    const hasJustify = hasJustifyAlignment(attrs);
     if (!hasJustify) return full;
     if (/\bword-doc-numbered-heading\b/.test(attrs)) return full;
+    if (/\bword-doc-spacer\b/.test(attrs)) return full;
     return `<${tag}${appendClassNameToAttrs(attrs, "word-doc-justify")}>`;
   });
 }

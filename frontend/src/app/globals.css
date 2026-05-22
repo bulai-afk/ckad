@@ -428,126 +428,86 @@ body::-webkit-scrollbar:horizontal {
   min-height: 0;
 }
 
-/* HTML правовых документов (политика, согласие) — экспорт из Word */
+/*
+ * HTML из Word: ширина колонки = min(100% окна, 482.3pt как в A4 с полями 3cm/1cm).
+ * На телефоне — на всю ширину; на широком экране — как в Word (переносы ближе к файлу).
+ */
+.policy-html-document-viewport {
+  overflow-x: hidden;
+}
+
 .policy-html-document > *:first-child {
   margin-top: 0 !important;
   padding-top: 0 !important;
 }
 
 .policy-html-document {
-  line-height: normal;
+  box-sizing: border-box;
+  font-family: inherit;
+  color: #000;
+}
+
+/* 595.3pt − 3cm − 1cm ≈ 482.3pt; на узком экране сужается до 100% */
+.policy-html-document .WordSection1 {
+  box-sizing: border-box;
   width: 100%;
-  max-width: 100%;
+  max-width: 482.3pt;
+  margin-inline: auto;
+}
+
+.policy-html-document > div:not(.WordSection1) {
   box-sizing: border-box;
-  -webkit-hyphens: auto;
-  hyphens: auto;
-  hyphenate-limit-chars: 5 3 2;
-}
-
-/* Перенос по слогам: основной текст и заголовки */
-.policy-html-document p,
-.policy-html-document li,
-.policy-html-document :is(h1, h2, h3, h4) {
-  -webkit-hyphens: auto;
-  hyphens: auto;
-  text-wrap: pretty;
-}
-
-/* Синие заголовки Word (#4472C4), часто по центру — перенос обязателен */
-.policy-html-document .word-doc-blue-title,
-.policy-html-document p:has([style*="4472C4"]),
-.policy-html-document p:has([style*="4472c4"]),
-.policy-html-document p:has([style*="rgb(68, 114, 196)"]),
-.policy-html-document p:has([style*="rgb(68,114,196)"]),
-.policy-html-document :is(h1, h2, h3, h4):has([style*="4472C4"]),
-.policy-html-document :is(h1, h2, h3, h4):has([style*="4472c4"]),
-.policy-html-document :is(h1, h2, h3, h4):has([style*="rgb(68, 114, 196)"]),
-.policy-html-document :is(h1, h2, h3, h4):has([style*="rgb(68,114,196)"]) {
-  -webkit-hyphens: auto !important;
-  hyphens: auto !important;
-  text-wrap: pretty;
-}
-
-/* Прочий центрированный текст (не синий заголовок) — без переноса */
-.policy-html-document p[align="center"]:not(.word-doc-blue-title):not(:has([style*="4472C4"])):not(:has([style*="4472c4"])),
-.policy-html-document p[style*="text-align:center"]:not(.word-doc-blue-title):not(:has([style*="4472C4"])):not(:has([style*="4472c4"])),
-.policy-html-document p[style*="text-align: center"]:not(.word-doc-blue-title):not(:has([style*="4472C4"])):not(:has([style*="4472c4"])) {
-  -webkit-hyphens: manual;
-  hyphens: manual;
-}
-
-.policy-html-document .WordSection1,
-.policy-html-document > div {
-  width: 100%;
   max-width: 100%;
+}
+
+/* Не обнуляем margin у MsoNormal — берём из <style> Word */
+.policy-html-document p:not(.MsoNormal):not(.word-doc-spacer) {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.policy-html-document p.MsoNormal {
   box-sizing: border-box;
 }
 
-.policy-html-document p {
-  margin: 0;
-  max-width: 100%;
-  box-sizing: border-box;
+.policy-html-document span {
+  font-family: inherit;
 }
 
-/* Пустая строка Word (Enter между заголовком и текстом) */
 .policy-html-document p.word-doc-spacer {
   margin: 0;
   min-height: 1.35em;
   line-height: 1.35;
 }
 
-/* Нумерованный заголовок Word: без justify и без лишнего отступа (как абзацы, text-indent:0) */
-.policy-html-document :is(h1, h2, h3, h4).word-doc-numbered-heading,
+/* Только настоящие списки Word (mso-list), не «1.1.» в тексте */
+.policy-html-document :is(h1, h2, h3, h4, p).word-doc-numbered-heading,
 .policy-html-document :is(h1, h2, h3, h4)[style*="mso-list:"] {
   text-align: left !important;
   text-justify: auto;
-  margin-left: 0 !important;
-  padding-left: 0 !important;
   text-indent: 0 !important;
   word-spacing: normal;
 }
 
-.policy-html-document .word-doc-numbered-heading.word-doc-blue-title,
-.policy-html-document :is(h1, h2, h3, h4).word-doc-blue-title[style*="mso-list:"] {
-  -webkit-hyphens: auto !important;
-  hyphens: auto !important;
-}
-
-/* Выравнивание по ширине: чуть чаще перенос по слогам вместо разъезжающихся пробелов */
 .policy-html-document .word-doc-justify,
-.policy-html-document [align="justify"],
-.policy-html-document [align="both"],
-.policy-html-document [style*="text-align:justify"],
-.policy-html-document [style*="text-align: justify"] {
+.policy-html-document [align="justify"]:not(.word-doc-spacer),
+.policy-html-document [align="both"]:not(.word-doc-spacer),
+.policy-html-document [style*="text-align:justify"]:not(.word-doc-spacer),
+.policy-html-document [style*="text-align: justify"]:not(.word-doc-spacer) {
+  text-align: justify !important;
+  text-justify: inter-word;
+  text-align-last: left;
   -webkit-hyphens: auto;
   hyphens: auto;
   hyphenate-limit-chars: 5 3 2;
-  text-wrap: pretty;
   word-spacing: normal;
 }
 
-.policy-html-document h1,
-.policy-html-document h2,
-.policy-html-document h3,
-.policy-html-document h4,
-.policy-html-document b,
-.policy-html-document strong,
-.policy-html-document .a0 {
-  font-weight: 700;
-}
-
-.policy-html-document h1,
-.policy-html-document h2,
-.policy-html-document h3,
-.policy-html-document h4 {
-  margin: 0;
-  padding: 0;
-  text-wrap: pretty;
-}
-
-.policy-html-document :is(h1, h2, h3, h4, p)[style*="text-align:center"],
-.policy-html-document :is(h1, h2, h3, h4, p)[style*="text-align: center"],
-.policy-html-document p[align="center"] {
+.policy-html-document p[align="center"],
+.policy-html-document p[style*="text-align:center"],
+.policy-html-document p[style*="text-align: center"] {
+  -webkit-hyphens: manual;
+  hyphens: manual;
   text-indent: 0 !important;
 }
 
@@ -577,13 +537,6 @@ body::-webkit-scrollbar:horizontal {
 .policy-html-document [style*="text-align:right"],
 .policy-html-document [style*="text-align: right"] {
   text-align: right !important;
-}
-
-.policy-html-document [align="justify"]:not(.word-doc-numbered-heading),
-.policy-html-document [align="both"]:not(.word-doc-numbered-heading),
-.policy-html-document [style*="text-align:justify"]:not(.word-doc-numbered-heading),
-.policy-html-document [style*="text-align: justify"]:not(.word-doc-numbered-heading) {
-  text-align: justify !important;
 }
 
 /* Главная — блок «Наши услуги»: телефоны и узкие планшеты (сетка карточек) */

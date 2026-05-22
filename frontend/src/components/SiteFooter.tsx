@@ -9,6 +9,7 @@ import {
   normalizePolicyHtml,
   POLICY_HTML_DOCUMENT_CLASS,
   POLICY_HTML_DOCUMENT_LANG,
+  POLICY_HTML_DOCUMENT_VIEWPORT_CLASS,
 } from "@/lib/normalizePolicyHtml";
 import {
   normalizePageDisplayOrderMap,
@@ -487,7 +488,9 @@ export function SiteFooter({
               </button>
             </div>
 
-            <div className="flex-1 overflow-auto bg-white p-5">
+            <div
+              className={`flex-1 overflow-auto bg-white p-5 max-sm:px-3 max-sm:py-4 ${POLICY_HTML_DOCUMENT_VIEWPORT_CLASS}`}
+            >
               {previewHtml.trim() ? (
                 <div
                   lang={POLICY_HTML_DOCUMENT_LANG}

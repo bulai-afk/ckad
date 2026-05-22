@@ -8,6 +8,7 @@ import {
   normalizePolicyHtml,
   POLICY_HTML_DOCUMENT_CLASS,
   POLICY_HTML_DOCUMENT_LANG,
+  POLICY_HTML_DOCUMENT_VIEWPORT_CLASS,
 } from "@/lib/normalizePolicyHtml";
 
 type SiteSettingsHtmlPayload = {
@@ -152,7 +153,9 @@ export function PolicyHtmlDialogLink({
                     <XMarkIcon className="h-5 w-5" />
                   </button>
                 </div>
-                <div className="flex-1 overflow-auto bg-white p-5">
+                <div
+                  className={`flex-1 overflow-auto bg-white p-5 max-sm:px-3 max-sm:py-4 ${POLICY_HTML_DOCUMENT_VIEWPORT_CLASS}`}
+                >
                   {loading ? (
                     <p className="text-sm leading-relaxed text-slate-600">Загрузка документа…</p>
                   ) : hasContent ? (

@@ -18,7 +18,9 @@ import {
   normalizePolicyHtml,
   POLICY_HTML_DOCUMENT_CLASS,
   POLICY_HTML_DOCUMENT_LANG,
+  POLICY_HTML_DOCUMENT_VIEWPORT_CLASS,
 } from "@/lib/normalizePolicyHtml";
+import { readUploadedHtmlFile } from "@/lib/readUploadedHtmlFile";
 
 type SiteSettings = {
   email: string;
@@ -150,7 +152,7 @@ export default function AdminSettingsPage() {
       return;
     }
     try {
-      const html = await file.text();
+      const html = await readUploadedHtmlFile(file);
       const baseOrigin = typeof window !== "undefined" ? window.location.origin : "";
       const normalized = normalizePolicyHtml(html, baseOrigin);
       if (kind === "privacy") {
@@ -581,7 +583,9 @@ export default function AdminSettingsPage() {
                 <XMarkIcon className="h-5 w-5" />
               </button>
             </div>
-            <div className="flex-1 overflow-auto bg-white p-5">
+            <div
+              className={`flex-1 overflow-auto bg-white p-5 max-sm:px-3 max-sm:py-4 ${POLICY_HTML_DOCUMENT_VIEWPORT_CLASS}`}
+            >
               <div
                 lang={POLICY_HTML_DOCUMENT_LANG}
                 className={POLICY_HTML_DOCUMENT_CLASS}
@@ -619,7 +623,9 @@ export default function AdminSettingsPage() {
                 <XMarkIcon className="h-5 w-5" />
               </button>
             </div>
-            <div className="flex-1 overflow-auto bg-white p-5">
+            <div
+              className={`flex-1 overflow-auto bg-white p-5 max-sm:px-3 max-sm:py-4 ${POLICY_HTML_DOCUMENT_VIEWPORT_CLASS}`}
+            >
               <div
                 lang={POLICY_HTML_DOCUMENT_LANG}
                 className={POLICY_HTML_DOCUMENT_CLASS}
