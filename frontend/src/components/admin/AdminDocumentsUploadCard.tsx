@@ -6,7 +6,8 @@ import {
   normalizePolicyHtml,
   POLICY_HTML_DOCUMENT_CLASS,
   POLICY_HTML_DOCUMENT_LANG,
-  POLICY_HTML_DOCUMENT_VIEWPORT_CLASS,
+  POLICY_HTML_DIALOG_BODY_CLASS,
+  POLICY_HTML_DIALOG_SHELL_CLASS,
 } from "@/lib/normalizePolicyHtml";
 import { readUploadedHtmlFile } from "@/lib/readUploadedHtmlFile";
 
@@ -240,7 +241,7 @@ export function AdminDocumentsUploadCard({
           onClick={() => setPreviewIndex(null)}
         >
           <div
-            className="flex h-[min(86vh,820px)] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl"
+            className={POLICY_HTML_DIALOG_SHELL_CLASS}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-end px-4 py-3">
@@ -254,7 +255,7 @@ export function AdminDocumentsUploadCard({
               </button>
             </div>
             <div
-              className={`flex-1 overflow-auto bg-white p-5 max-sm:px-3 max-sm:py-4 ${POLICY_HTML_DOCUMENT_VIEWPORT_CLASS}`}
+              className={POLICY_HTML_DIALOG_BODY_CLASS}
             >
               {previewHtml.trim() ? (
                 <div

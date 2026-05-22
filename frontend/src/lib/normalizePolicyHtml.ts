@@ -5,6 +5,14 @@ export const POLICY_HTML_DOCUMENT_CLASS =
 /** Родитель со скроллом: на узком экране можно прокрутить колонку шириной как в Word. */
 export const POLICY_HTML_DOCUMENT_VIEWPORT_CLASS = "policy-html-document-viewport";
 
+/** Белая карточка диалога: ~43rem ≈ колонка Word (482pt) + узкие поля, без широких «пустых» боков. */
+export const POLICY_HTML_DIALOG_SHELL_CLASS =
+  "flex h-[min(86vh,820px)] w-full max-w-[43rem] flex-col overflow-hidden rounded-xl bg-white shadow-2xl";
+
+/** Область прокрутки текста — меньше боковых отступов, чем p-5. */
+export const POLICY_HTML_DIALOG_BODY_CLASS =
+  "flex-1 overflow-auto bg-white px-3 py-5 max-sm:px-3 max-sm:py-4 policy-html-document-viewport";
+
 /** Язык для автоматического переноса по слогам (`hyphens: auto` в CSS). */
 export const POLICY_HTML_DOCUMENT_LANG = "ru";
 
