@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { EyeIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { XMarkIcon } from "@heroicons/react/24/outline";
 import { AdminSidebar } from "@/components/admin/Sidebar";
 import { AdminTopBar } from "@/components/admin/AdminTopBar";
 import {
@@ -14,13 +14,7 @@ import {
 } from "@/components/admin/AdminDirectorEditor";
 import { invalidateSiteSettingsHtmlCache } from "@/components/PolicyHtmlDialogLink";
 import { apiGet, apiPut } from "@/lib/api";
-import {
-  normalizePolicyHtml,
-  POLICY_HTML_DOCUMENT_CLASS,
-  POLICY_HTML_DOCUMENT_LANG,
-  POLICY_HTML_DOCUMENT_VIEWPORT_CLASS,
-} from "@/lib/normalizePolicyHtml";
-import { readUploadedHtmlFile } from "@/lib/readUploadedHtmlFile";
+import { normalizePolicyHtml } from "@/lib/normalizePolicyHtml";
 
 type SiteSettings = {
   email: string;
@@ -58,16 +52,12 @@ const emptySettings: SiteSettings = {
   director: { name: "", role: "Директор", message: "", photo: null },
 };
 
-const PRIVACY_HTML_MAX_BYTES = 2 * 1024 * 1024;
-
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState<SiteSettings>(emptySettings);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [tone, setTone] = useState<"success" | "error">("success");
-  const [privacyPreviewOpen, setPrivacyPreviewOpen] = useState(false);
-  const [consentPreviewOpen, setConsentPreviewOpen] = useState(false);
 
   const inputClass =
     "mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#496db3] focus:ring-2 focus:ring-[#496db3]/20";
@@ -85,12 +75,18 @@ export default function AdminSettingsPage() {
             }
           ).teamMembers;
           const legacyDirector = Array.isArray(legacyTeamMembers) ? legacyTeamMembers[0] ?? null : null;
+          const baseOrigin = typeof window !== "undefined" ? window.location.origin : "";
+          const normalizeStoredHtml = (raw: unknown) => {
+            const text = typeof raw === "string" ? raw.trim() : "";
+            return text ? normalizePolicyHtml(text, baseOrigin) : "";
+          };
+
           const documents = Array.isArray(incoming.documents)
             ? incoming.documents
                 .map((raw) => {
                   const item = raw as { name?: unknown; html?: unknown };
                   if (typeof item.name !== "string" || typeof item.html !== "string") return null;
-                  const html = item.html.trim();
+                  const html = normalizeStoredHtml(item.html);
                   if (!html) return null;
                   return { name: item.name.trim(), html };
                 })
@@ -101,6 +97,8 @@ export default function AdminSettingsPage() {
             ...emptySettings,
             ...incoming,
             documents,
+            privacyPolicyHtml: normalizeStoredHtml(incoming.privacyPolicyHtml),
+            personalDataConsentHtml: normalizeStoredHtml(incoming.personalDataConsentHtml),
             social: { ...emptySettings.social, ...(incoming.social ?? {}) },
             requisites: { ...emptySettings.requisites, ...(incoming.requisites ?? {}) },
             director: {
@@ -128,49 +126,6 @@ export default function AdminSettingsPage() {
   }, []);
 
   const canSave = useMemo(() => !loading && !saving, [loading, saving]);
-
-  async function handleSiteHtmlDocumentUpload(
-    file: File | null,
-    kind: "privacy" | "personalDataConsent",
-  ) {
-    if (!file) return;
-    const isHtml =
-      file.type === "text/html" ||
-      file.type === "application/xhtml+xml" ||
-      file.name.toLowerCase().endsWith(".html") ||
-      file.name.toLowerCase().endsWith(".htm");
-    if (!isHtml) {
-      setTone("error");
-      setMsg("Нужен файл .html или .htm");
-      window.setTimeout(() => setMsg(null), 2600);
-      return;
-    }
-    if (file.size <= 0 || file.size > PRIVACY_HTML_MAX_BYTES) {
-      setTone("error");
-      setMsg("HTML файл должен быть до 2 МБ");
-      window.setTimeout(() => setMsg(null), 2600);
-      return;
-    }
-    try {
-      const html = await readUploadedHtmlFile(file);
-      const baseOrigin = typeof window !== "undefined" ? window.location.origin : "";
-      const normalized = normalizePolicyHtml(html, baseOrigin);
-      if (kind === "privacy") {
-        setSettings((s) => ({ ...s, privacyPolicyHtml: normalized }));
-        setTone("success");
-        setMsg("HTML политики загружен. Нажмите «Сохранить».");
-      } else {
-        setSettings((s) => ({ ...s, personalDataConsentHtml: normalized }));
-        setTone("success");
-        setMsg("HTML согласия на обработку персональных данных загружен. Нажмите «Сохранить».");
-      }
-      window.setTimeout(() => setMsg(null), 2200);
-    } catch {
-      setTone("error");
-      setMsg("Не удалось прочитать HTML файл.");
-      window.setTimeout(() => setMsg(null), 2600);
-    }
-  }
 
   async function handleSave() {
     if (!canSave) return;
@@ -348,113 +303,54 @@ export default function AdminSettingsPage() {
                             }
                           />
                         </div>
-                        <div className="flex min-h-0 min-w-0 flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ring-slate-900/5">
-                          <div className="text-sm font-semibold text-slate-900">Политика конфиденциальности</div>
-                          <label
-                            htmlFor="privacy-policy-html-upload"
-                            className="mt-3 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/80 px-3 py-4 text-center transition hover:border-[#496db3]/40 hover:bg-slate-50"
-                          >
-                            <span className="text-xs font-medium text-slate-600">Перетащите HTML сюда</span>
-                            <span className="mt-1 text-[11px] text-slate-400">или нажмите, чтобы выбрать файл</span>
-                          </label>
-                          <input
-                            id="privacy-policy-html-upload"
-                            type="file"
-                            accept=".html,.htm,text/html,application/xhtml+xml"
-                            className="sr-only"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0] ?? null;
-                              void handleSiteHtmlDocumentUpload(file, "privacy");
-                              e.currentTarget.value = "";
+                        <div className="flex min-h-0 min-w-0 w-full">
+                          <AdminDocumentsUploadCard
+                            title="Политика конфиденциальности"
+                            maxFiles={1}
+                            documents={
+                              settings.privacyPolicyHtml.trim()
+                                ? [{ name: "privacy-policy.html", html: settings.privacyPolicyHtml }]
+                                : []
+                            }
+                            onDocumentsChange={(docs) => {
+                              setSettings((s) => ({
+                                ...s,
+                                privacyPolicyHtml: docs[0]?.html ?? "",
+                              }));
+                              if (docs.length > 0) {
+                                setTone("success");
+                                setMsg("HTML политики загружен. Нажмите «Сохранить».");
+                                window.setTimeout(() => setMsg(null), 2200);
+                              }
                             }}
                           />
-                          {settings.privacyPolicyHtml.trim() ? (
-                            <div className="mt-3 rounded-lg bg-slate-50 px-2 py-1.5 text-[11px]">
-                              <div className="flex items-center justify-between gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => setPrivacyPreviewOpen(true)}
-                                  className="flex min-w-0 items-center gap-1 rounded p-0.5 text-left font-medium text-[#496db3] hover:bg-slate-200/70"
-                                  title="Открыть предпросмотр политики"
-                                >
-                                  <EyeIcon className="h-3.5 w-3.5 shrink-0" />
-                                  <span className="min-w-0 truncate">privacy-policy.html</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setSettings((s) => ({
-                                      ...s,
-                                      privacyPolicyHtml: "",
-                                    }))
-                                  }
-                                  className="shrink-0 rounded p-0.5 text-slate-400 hover:bg-slate-200 hover:text-slate-700"
-                                  aria-label="Удалить файл политики"
-                                >
-                                  <XMarkIcon className="h-3.5 w-3.5" />
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="mt-3 rounded-lg bg-slate-50 px-2.5 py-2 text-[11px] text-slate-600">
-                              Файл пока не загружен.
-                            </div>
-                          )}
                         </div>
-                        <div className="flex min-h-0 min-w-0 flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ring-slate-900/5">
-                          <div className="text-sm font-semibold text-slate-900">
-                            Обработка персональных данных
-                          </div>
-                          <label
-                            htmlFor="personal-data-consent-html-upload"
-                            className="mt-3 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/80 px-3 py-4 text-center transition hover:border-[#496db3]/40 hover:bg-slate-50"
-                          >
-                            <span className="text-xs font-medium text-slate-600">Перетащите HTML сюда</span>
-                            <span className="mt-1 text-[11px] text-slate-400">или нажмите, чтобы выбрать файл</span>
-                          </label>
-                          <input
-                            id="personal-data-consent-html-upload"
-                            type="file"
-                            accept=".html,.htm,text/html,application/xhtml+xml"
-                            className="sr-only"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0] ?? null;
-                              void handleSiteHtmlDocumentUpload(file, "personalDataConsent");
-                              e.currentTarget.value = "";
+                        <div className="flex min-h-0 min-w-0 w-full">
+                          <AdminDocumentsUploadCard
+                            title="Обработка персональных данных"
+                            maxFiles={1}
+                            documents={
+                              settings.personalDataConsentHtml.trim()
+                                ? [
+                                    {
+                                      name: "personal-data-consent.html",
+                                      html: settings.personalDataConsentHtml,
+                                    },
+                                  ]
+                                : []
+                            }
+                            onDocumentsChange={(docs) => {
+                              setSettings((s) => ({
+                                ...s,
+                                personalDataConsentHtml: docs[0]?.html ?? "",
+                              }));
+                              if (docs.length > 0) {
+                                setTone("success");
+                                setMsg("HTML согласия загружен. Нажмите «Сохранить».");
+                                window.setTimeout(() => setMsg(null), 2200);
+                              }
                             }}
                           />
-                          {settings.personalDataConsentHtml.trim() ? (
-                            <div className="mt-3 rounded-lg bg-slate-50 px-2 py-1.5 text-[11px]">
-                              <div className="flex items-center justify-between gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => setConsentPreviewOpen(true)}
-                                  className="flex min-w-0 items-center gap-1 rounded p-0.5 text-left font-medium text-[#496db3] hover:bg-slate-200/70"
-                                  title="Открыть предпросмотр обработки персональных данных"
-                                >
-                                  <EyeIcon className="h-3.5 w-3.5 shrink-0" />
-                                  <span className="min-w-0 truncate">personal-data-consent.html</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setSettings((s) => ({
-                                      ...s,
-                                      personalDataConsentHtml: "",
-                                    }))
-                                  }
-                                  className="shrink-0 rounded p-0.5 text-slate-400 hover:bg-slate-200 hover:text-slate-700"
-                                  aria-label="Удалить файл согласия на обработку персональных данных"
-                                >
-                                  <XMarkIcon className="h-3.5 w-3.5" />
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="mt-3 rounded-lg bg-slate-50 px-2.5 py-2 text-[11px] text-slate-600">
-                              Файл пока не загружен.
-                            </div>
-                          )}
                         </div>
                       </div>
                     </section>
@@ -561,85 +457,6 @@ export default function AdminSettingsPage() {
         </div>
       ) : null}
 
-      {privacyPreviewOpen && settings.privacyPolicyHtml.trim() ? (
-        <div
-          className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/55 p-4 backdrop-blur-[1px]"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Предпросмотр политики конфиденциальности"
-          onClick={() => setPrivacyPreviewOpen(false)}
-        >
-          <div
-            className="flex h-[min(86vh,820px)] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-end px-4 py-3">
-              <button
-                type="button"
-                onClick={() => setPrivacyPreviewOpen(false)}
-                className="rounded-md p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
-                aria-label="Закрыть предпросмотр"
-              >
-                <XMarkIcon className="h-5 w-5" />
-              </button>
-            </div>
-            <div
-              className={`flex-1 overflow-auto bg-white p-5 max-sm:px-3 max-sm:py-4 ${POLICY_HTML_DOCUMENT_VIEWPORT_CLASS}`}
-            >
-              <div
-                lang={POLICY_HTML_DOCUMENT_LANG}
-                className={POLICY_HTML_DOCUMENT_CLASS}
-                dangerouslySetInnerHTML={{
-                  __html: normalizePolicyHtml(
-                    settings.privacyPolicyHtml,
-                    typeof window !== "undefined" ? window.location.origin : "",
-                  ),
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {consentPreviewOpen && settings.personalDataConsentHtml.trim() ? (
-        <div
-          className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/55 p-4 backdrop-blur-[1px]"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Предпросмотр обработки персональных данных"
-          onClick={() => setConsentPreviewOpen(false)}
-        >
-          <div
-            className="flex h-[min(86vh,820px)] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-end px-4 py-3">
-              <button
-                type="button"
-                onClick={() => setConsentPreviewOpen(false)}
-                className="rounded-md p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
-                aria-label="Закрыть предпросмотр"
-              >
-                <XMarkIcon className="h-5 w-5" />
-              </button>
-            </div>
-            <div
-              className={`flex-1 overflow-auto bg-white p-5 max-sm:px-3 max-sm:py-4 ${POLICY_HTML_DOCUMENT_VIEWPORT_CLASS}`}
-            >
-              <div
-                lang={POLICY_HTML_DOCUMENT_LANG}
-                className={POLICY_HTML_DOCUMENT_CLASS}
-                dangerouslySetInnerHTML={{
-                  __html: normalizePolicyHtml(
-                    settings.personalDataConsentHtml,
-                    typeof window !== "undefined" ? window.location.origin : "",
-                  ),
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

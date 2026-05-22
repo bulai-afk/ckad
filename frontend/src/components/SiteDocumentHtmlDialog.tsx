@@ -19,7 +19,14 @@ import {
 export type SiteDocumentHtmlDialogProps = {
   open: boolean;
   onClose: () => void;
-  documentIndex: number | null;
+  /** Индекс в settings.documents (футер). */
+  documentIndex?: number | null;
+  /** Прямой HTML — политика, согласие и т.п. (вместо documentIndex). */
+  html?: string;
+  title?: string;
+  emptyMessage?: string;
+  loading?: boolean;
+  closeButtonAriaLabel?: string;
   /** Если передан — не запрашиваем site-settings повторно. */
   documents?: SiteDocumentItem[];
 };
@@ -27,7 +34,12 @@ export type SiteDocumentHtmlDialogProps = {
 export function SiteDocumentHtmlDialog({
   open,
   onClose,
-  documentIndex,
+  documentIndex = null,
+  html: htmlProp,
+  title: titleProp,
+  emptyMessage = "Документ не найден. Загрузите HTML-файлы в разделе «Настройки сайта».",
+  loading: loadingProp = false,
+  closeButtonAriaLabel = "Закрыть просмотр документа",
   documents: documentsProp,
 }: SiteDocumentHtmlDialogProps) {
   const [mounted, setMounted] = useState(false);
@@ -43,8 +55,10 @@ export function SiteDocumentHtmlDialog({
     if (documentsProp) setDocuments(documentsProp);
   }, [documentsProp]);
 
+  const usesDocumentsList = documentIndex !== null && htmlProp === undefined;
+
   useEffect(() => {
-    if (!open || documentsProp?.length) return;
+    if (!open || !usesDocumentsList || documentsProp?.length) return;
     let cancelled = false;
     setLoading(true);
     void fetch(`${apiBaseUrl()}/api/pages/site-settings`, { cache: "no-store" })
@@ -63,7 +77,7 @@ export function SiteDocumentHtmlDialog({
     return () => {
       cancelled = true;
     };
-  }, [open, documentsProp]);
+  }, [open, documentsProp, usesDocumentsList]);
 
   useEffect(() => {
     if (!open) return;
@@ -79,14 +93,16 @@ export function SiteDocumentHtmlDialog({
     };
   }, [open, onClose]);
 
-  if (!open || !mounted || documentIndex === null) return null;
+  if (!open || !mounted) return null;
 
-  const doc = documents[documentIndex] ?? null;
-  const title = doc ? siteDocumentDisplayName(doc.name) : "Документ";
+  const doc = usesDocumentsList && documentIndex !== null ? documents[documentIndex] ?? null : null;
+  const title = titleProp ?? (doc ? siteDocumentDisplayName(doc.name) : "Документ");
+  const rawHtml = htmlProp ?? doc?.html ?? "";
   const html =
-    doc && typeof window !== "undefined"
-      ? normalizePolicyHtml(doc.html, window.location.origin)
-      : doc?.html ?? "";
+    rawHtml && typeof window !== "undefined"
+      ? normalizePolicyHtml(rawHtml, window.location.origin)
+      : rawHtml;
+  const hasContent = html.trim().length > 0;
 
   return createPortal(
     <div
@@ -105,7 +121,7 @@ export function SiteDocumentHtmlDialog({
             type="button"
             onClick={onClose}
             className="rounded-md p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
-            aria-label="Закрыть просмотр документа"
+            aria-label={closeButtonAriaLabel}
           >
             <XMarkIcon className="h-5 w-5" />
           </button>
@@ -113,18 +129,16 @@ export function SiteDocumentHtmlDialog({
         <div
           className={`flex-1 overflow-auto bg-white p-5 max-sm:px-3 max-sm:py-4 ${POLICY_HTML_DOCUMENT_VIEWPORT_CLASS}`}
         >
-          {loading ? (
+          {(loadingProp || (loading && usesDocumentsList)) ? (
             <p className="text-sm text-slate-600">Загрузка документа…</p>
-          ) : doc && html.trim() ? (
+          ) : hasContent ? (
             <div
               lang={POLICY_HTML_DOCUMENT_LANG}
               className={POLICY_HTML_DOCUMENT_CLASS}
               dangerouslySetInnerHTML={{ __html: html }}
             />
           ) : (
-            <p className="text-sm text-slate-600">
-              Документ не найден. Загрузите HTML-файлы в разделе «Настройки сайта».
-            </p>
+            <p className="text-sm text-slate-600">{emptyMessage}</p>
           )}
         </div>
       </div>

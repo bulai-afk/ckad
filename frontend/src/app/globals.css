@@ -512,8 +512,37 @@ body::-webkit-scrollbar:horizontal {
 }
 
 .policy-html-document [style*="color:#4472C4"],
-.policy-html-document [style*="color: #4472C4"] {
+.policy-html-document [style*="color: #4472C4"],
+.policy-html-document [style*="color:#4472c4"],
+.policy-html-document [style*="color: #4472c4"] {
   color: #4472c4;
+}
+
+/* Синие заголовки Word: в политике часто h1+span без <b>, в документах — <b><span> */
+.policy-html-document :is(h1, h2, h3, h4),
+.policy-html-document .word-doc-blue-title,
+.policy-html-document :is(h1, h2, h3, h4).word-doc-blue-title :is(span, a, b, strong),
+.policy-html-document p.word-doc-blue-title :is(span, a, b, strong),
+.policy-html-document b,
+.policy-html-document strong {
+  font-weight: 700;
+}
+
+.policy-html-document .word-doc-blue-title :is(span, a)[style*="4472C4"],
+.policy-html-document .word-doc-blue-title :is(span, a)[style*="4472c4"],
+.policy-html-document :is(h1, h2, h3, h4) :is(span, a)[style*="4472C4"],
+.policy-html-document :is(h1, h2, h3, h4) :is(span, a)[style*="4472c4"] {
+  font-weight: 700;
+}
+
+/* Гиперссылки Word (.a0) — не заголовки, обычная толщина */
+.policy-html-document .a0,
+.policy-html-document span.a0,
+.policy-html-document [style*="color:#106BBE"],
+.policy-html-document [style*="color: #106BBE"],
+.policy-html-document [style*="color:#106bbe"],
+.policy-html-document [style*="color: #106bbe"] {
+  font-weight: 400;
 }
 
 .policy-html-document [style*="font-weight:bold"],
