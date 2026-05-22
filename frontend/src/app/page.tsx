@@ -174,7 +174,7 @@ export default async function Home() {
             <p className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-pretty sm:-mt-2">
               Каталогизация, обучение и поддержка — от методики до результата
             </p>
-            <p className="mt-4 text-pretty text-[15px] leading-snug font-medium text-slate-600 sm:mt-6 sm:text-base sm:leading-[1.4]">
+            <p className="mt-6 text-pretty text-base leading-[1.4] font-medium text-slate-600">
               Приведём номенклатуру и данные в порядок, обучим вашу команду работе по правилам и
               останемся рядом на этапах согласования и внедрения — без «серых зон» в ответственности и
               сроках.
