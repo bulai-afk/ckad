@@ -15,8 +15,8 @@ export type ArticleTeaserCardProps = {
    * В карусели мышью тянут слайд — для ссылок останавливаем всплытие pointerdown с мыши.
    */
   isolateLinksForCarousel?: boolean;
-  /** Автоперенос по слогам в описании (главная — блок «Новости»). */
-  hyphenateExcerpt?: boolean;
+  /** По ширине и слоги в заголовке и описании (главная — блок «Новости»). */
+  homeNewsTypography?: boolean;
 };
 
 export function formatArticleDate(iso?: string | null): { dateTime: string; label: string } {
@@ -48,8 +48,9 @@ export function ArticleTeaserCard({
   excerpt,
   articleKind,
   isolateLinksForCarousel = false,
-  hyphenateExcerpt = false,
+  homeNewsTypography = false,
 }: ArticleTeaserCardProps) {
+  const newsTextClass = homeNewsTypography ? " home-news-card-text" : "";
   const onLinkPointerDown = isolateLinksForCarousel
     ? (e: PointerEvent<HTMLAnchorElement>) => {
         if (e.pointerType === "mouse") e.stopPropagation();
@@ -91,25 +92,29 @@ export function ArticleTeaserCard({
         </div>
 
         <div className="min-h-0 flex-1">
-          <h3 className="mt-2 text-base font-semibold leading-[1.4] text-slate-900 group-hover:text-[#496db3] sm:mt-3">
+          <h3
+            className={`mt-2 text-base font-semibold leading-[1.4] text-slate-900 group-hover:text-[#496db3] sm:mt-3${newsTextClass}`}
+          >
             {title}
           </h3>
           <p
-            className={`mt-3 line-clamp-3 text-base leading-[1.4] text-slate-600 sm:mt-4${hyphenateExcerpt ? " home-block-hyphens" : ""}`}
+            className={`mt-3 line-clamp-3 text-base leading-[1.4] text-slate-600 sm:mt-4${newsTextClass}`}
           >
             {excerpt}
           </p>
         </div>
 
-        <div className="relative mt-4 flex items-center gap-x-3 sm:mt-5">
+        <div className="relative mt-4 flex items-center gap-x-2.5 sm:mt-5">
           <img
             src="/favicon.png?v=logo"
             alt=""
-            className="h-9 w-9 shrink-0 rounded-full bg-white object-cover ring-1 ring-slate-200 sm:h-10 sm:w-10"
+            className="h-7 w-7 shrink-0 rounded-full bg-white object-cover ring-1 ring-slate-200 sm:h-8 sm:w-8"
           />
-          <div className="min-w-0 text-base leading-[1.4]">
-            <p className="font-semibold text-[#496db3]">Центр каталогизации и анализа данных</p>
-            <p className="text-slate-600">Редакция</p>
+          <div className="min-w-0 flex-1 leading-snug">
+            <p className="whitespace-nowrap text-[0.8125rem] font-semibold tracking-tight text-[#496db3] sm:text-sm">
+              Центр каталогизации и анализа данных
+            </p>
+            <p className="mt-0.5 text-xs text-slate-500">Редакция</p>
           </div>
         </div>
       </div>

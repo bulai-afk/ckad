@@ -221,7 +221,7 @@ export function HomeArticlesCarousel({ slides }: Props) {
                           excerpt={excerpt}
                           articleKind={a.articleKind}
                           isolateLinksForCarousel
-                          hyphenateExcerpt
+                          homeNewsTypography
                         />
                       </div>
                     </div>

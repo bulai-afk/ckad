@@ -331,6 +331,17 @@ body::-webkit-scrollbar:horizontal {
   text-wrap: wrap;
 }
 
+/* Главная — карточки новостей: заголовок и описание по ширине со слогами. */
+.home-page .home-news-card-text {
+  text-align: justify;
+  -webkit-hyphens: auto;
+  hyphens: auto;
+  hyphenate-limit-chars: 5 3 2;
+  word-break: normal;
+  overflow-wrap: break-word;
+  text-wrap: wrap;
+}
+
 @media (min-width: 768px) {
   /* Правая колонка (учебный центр / прочие услуги) чуть шире — больше места под переносы. */
   .home-page .services-home-categories-shell {
