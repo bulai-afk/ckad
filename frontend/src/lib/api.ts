@@ -149,11 +149,19 @@ export async function apiPost<T>(
   }
 }
 
+/** Таймаут PUT/POST по размеру JSON-тела (редактор, превью с data URL). */
+export function computeApiPayloadTimeoutMs(payloadBytes: number): number {
+  if (payloadBytes > 500_000) return 120_000;
+  if (payloadBytes > 100_000) return 60_000;
+  if (payloadBytes > 20_000) return 30_000;
+  return 15_000;
+}
+
 export async function apiPut<T>(
   path: string,
   body: unknown,
   /** Большие JSON (data URL картинок) — увеличьте при сохранении каруселей. */
-  timeoutMs = 8000,
+  timeoutMs = 15_000,
 ): Promise<T> {
   const res = await fetchWithTimeout(
     apiUrl(path),

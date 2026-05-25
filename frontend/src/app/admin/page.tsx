@@ -2,7 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiDelete, apiGet, apiPost, apiPut, formatApiErrorForUi } from "@/lib/api";
+import {
+  apiDelete,
+  apiGet,
+  apiPost,
+  apiPut,
+  computeApiPayloadTimeoutMs,
+  formatApiErrorForUi,
+} from "@/lib/api";
 import {
   NAV_FOLDERS_COOKIE_NAME,
   serializeNavFoldersCookie,
@@ -598,9 +605,6 @@ export default function AdminPage() {
         ? `${currentFolder}/${slug}`
         : slug;
 
-    const postTimeoutMs =
-      pagePreview.length > 500_000 ? 120_000 : pagePreview.length > 100_000 ? 60_000 : 30_000;
-
     try {
       setIsSavingPage(true);
       setError(null);
@@ -614,21 +618,20 @@ export default function AdminPage() {
             }
           : {};
 
+      const pagePayload = {
+        title: title.trim().slice(0, PAGE_TITLE_MAX),
+        slug: fullSlug,
+        description: text.trim().slice(0, PAGE_DESCRIPTION_MAX),
+        keywords: keywords.trim().slice(0, PAGE_KEYWORDS_MAX),
+        seoTitle: title.trim().slice(0, PAGE_TITLE_MAX),
+        seoDescription: text.trim().slice(0, PAGE_DESCRIPTION_MAX),
+        preview: pagePreview.trim(),
+        ...articlesKindPayload,
+      };
+      const postTimeoutMs = computeApiPayloadTimeoutMs(JSON.stringify(pagePayload).length);
+
       if (editingPageId) {
-        await apiPut(
-          `/api/pages/${editingPageId}`,
-          {
-            title: title.trim().slice(0, PAGE_TITLE_MAX),
-            slug: fullSlug,
-            description: text.trim().slice(0, PAGE_DESCRIPTION_MAX),
-            keywords: keywords.trim().slice(0, PAGE_KEYWORDS_MAX),
-            seoTitle: title.trim().slice(0, PAGE_TITLE_MAX),
-            seoDescription: text.trim().slice(0, PAGE_DESCRIPTION_MAX),
-            preview: pagePreview.trim(),
-            ...articlesKindPayload,
-          },
-          postTimeoutMs,
-        );
+        await apiPut(`/api/pages/${editingPageId}`, pagePayload, postTimeoutMs);
       } else {
         await apiPost(
           "/api/pages",

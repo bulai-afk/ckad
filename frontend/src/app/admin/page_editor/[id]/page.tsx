@@ -4,7 +4,14 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ApiRequestError, apiGet, apiPut, isPageByIdApiPath } from "@/lib/api";
+import {
+  ApiRequestError,
+  apiGet,
+  apiPut,
+  computeApiPayloadTimeoutMs,
+  formatApiErrorForUi,
+  isPageByIdApiPath,
+} from "@/lib/api";
 import {
   buildSiteDocumentLink,
   CALLBACK_FORM_LINK,
@@ -14460,24 +14467,33 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       flushScheduledEditorHtmlStateSync();
       if (editorRef.current) syncWebTextBlockV2FieldValuesForSerialization(editorRef.current, { flushAnnouncementText: true });
       const liveHtml = editorRef.current?.innerHTML ?? contentHtml;
-      const liveHtmlWebp = await normalizeHtmlInlineImagesToWebp(liveHtml);
-      if (liveHtmlWebp !== liveHtml) {
-        setContentHtml(liveHtmlWebp);
+      let liveHtmlWebp = liveHtml;
+      try {
+        liveHtmlWebp = await normalizeHtmlInlineImagesToWebp(liveHtml);
+        if (liveHtmlWebp !== liveHtml) {
+          setContentHtml(liveHtmlWebp);
+        }
+      } catch (webpErr) {
+        console.warn("[page-editor] normalizeHtmlInlineImagesToWebp on save failed, sending raw HTML", webpErr);
       }
+      const textPayload = stripCoverEditorChromeFromHtml(
+        rewriteCoverButtonSpansToAnchorsForPublish(liveHtmlWebp),
+      );
+      const putBody = {
+        title: title.trim(),
+        slug: slug.trim(),
+        text: textPayload,
+      };
+      const putTimeoutMs = computeApiPayloadTimeoutMs(JSON.stringify(putBody).length);
       setSaving(true);
       setError(null);
       setSuccess(null);
-      await apiPut(`/api/pages/${pageId}`, {
-        title: title.trim(),
-        slug: slug.trim(),
-        text: stripCoverEditorChromeFromHtml(
-          rewriteCoverButtonSpansToAnchorsForPublish(liveHtmlWebp),
-        ),
-      });
+      await apiPut(`/api/pages/${pageId}`, putBody, putTimeoutMs);
       setSuccess("Изменения сохранены");
       setTimeout(() => setSuccess(null), 3000);
-    } catch {
-      setError("Не удалось сохранить страницу");
+    } catch (err) {
+      console.error("[page-editor] save failed", err);
+      setError(formatApiErrorForUi(err, "Не удалось сохранить страницу"));
     } finally {
       setSaving(false);
     }

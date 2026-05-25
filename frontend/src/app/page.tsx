@@ -171,7 +171,7 @@ export default async function Home() {
             Наши услуги
           </h2>
           <p className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-pretty sm:-mt-2">
-            Каталогизация, обучение и поддержка — от методики до результата
+            Каталогизация, обучение и поддержка
           </p>
           <p className="home-section-intro__lead text-pretty">
             Приведём номенклатуру и данные в порядок, обучим вашу команду работе по правилам и
