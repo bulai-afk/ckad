@@ -745,8 +745,9 @@
   word-break: normal;
 }
 
-/* Главная — блок «Наши услуги»: описание по ширине (слоги — .home-block-hyphens в globals.css). */
-:global(.home-page) :global(.services-home-categories-shell) .cardFeaturedDesc {
+/* Описание карточки по ширине (слоги — .home-block-hyphens в globals.css). */
+:global(.home-page) :global(.services-home-categories-shell) .cardFeaturedDesc,
+:global(.section-services-hub-hyphens) :global(.services-home-grid) .cardFeaturedDesc {
   text-align: justify;
   text-wrap: wrap;
 }

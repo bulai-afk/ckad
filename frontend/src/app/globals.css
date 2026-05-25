@@ -321,8 +321,9 @@ body::-webkit-scrollbar:horizontal {
   hyphens: manual;
 }
 
-/* Карточки категорий (главная): слоги; text-wrap: wrap — без «pretty», иначе длинные слова уезжают целиком. */
-.home-page .home-block-hyphens {
+/* Карточки услуг: слоги (главная и хабы вроде «Прочие услуги»). */
+.home-page .home-block-hyphens,
+.section-services-hub-hyphens .home-block-hyphens {
   -webkit-hyphens: auto;
   hyphens: auto;
   hyphenate-limit-chars: 5 3 2;
@@ -331,8 +332,8 @@ body::-webkit-scrollbar:horizontal {
   text-wrap: wrap;
 }
 
-/* Главная — карточки новостей: заголовок и описание по ширине со слогами. */
-.home-page .home-news-card-text {
+/* Главная и /articles — карточки новостей: заголовок и описание по ширине со слогами. */
+:is(.home-page, .articles-page) .home-news-card-text {
   text-align: justify;
   -webkit-hyphens: auto;
   hyphens: auto;

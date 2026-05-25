@@ -9,6 +9,8 @@ type Props = {
   rootDescription: string | null;
   descriptionFallback: string;
   cards: ServiceTreeNode[];
+  /** Автоперенос и выравнивание по ширине в описаниях карточек. */
+  hyphenateDescriptions?: boolean;
 };
 
 export function SectionServicesHubView({
@@ -16,9 +18,13 @@ export function SectionServicesHubView({
   rootDescription,
   descriptionFallback,
   cards,
+  hyphenateDescriptions = false,
 }: Props) {
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900">
+    <div
+      className={`min-h-screen bg-slate-100 text-slate-900${hyphenateDescriptions ? " section-services-hub-hyphens" : ""}`}
+      lang={hyphenateDescriptions ? "ru" : undefined}
+    >
       <div className="mx-auto max-w-7xl px-6 py-8 sm:py-10 lg:px-8">
         <section className="bg-transparent py-0 about-template-fallback">
           <div className="mx-auto mt-0 max-w-3xl text-center">
@@ -39,6 +45,7 @@ export function SectionServicesHubView({
               featuredPanelVariant="section-hub"
               equalHeight
               alwaysShowPreview
+              hyphenateDescriptions={hyphenateDescriptions}
               ctaLabel="Подробнее"
               gridClassName="services-home-grid"
               cards={cards.map((node) => folderCardPropsFromServiceNode(node))}

@@ -187,7 +187,7 @@ export default async function ArticlesPage({ searchParams }: ArticlesPageProps) 
   const pagedPosts = posts.slice((pageSafe - 1) * POSTS_PER_PAGE, pageSafe * POSTS_PER_PAGE);
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900">
+    <div className="articles-page min-h-screen bg-slate-100 text-slate-900" lang="ru">
       <div className="mx-auto max-w-7xl px-6 py-8 sm:py-10 lg:px-8">
         <section className="bg-transparent py-0 about-template-fallback">
           <div className="mx-auto mt-0 max-w-3xl text-center">
@@ -217,6 +217,7 @@ export default async function ArticlesPage({ searchParams }: ArticlesPageProps) 
                         title={p.title}
                         excerpt={p.excerpt}
                         articleKind={p.articleKind}
+                        homeNewsTypography
                       />
                     </li>
                   ))}

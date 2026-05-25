@@ -15,7 +15,7 @@ export type ArticleTeaserCardProps = {
    * В карусели мышью тянут слайд — для ссылок останавливаем всплытие pointerdown с мыши.
    */
   isolateLinksForCarousel?: boolean;
-  /** По ширине и слоги в заголовке и описании (главная — блок «Новости»). */
+  /** По ширине и слоги в заголовке и описании (главная, /articles). */
   homeNewsTypography?: boolean;
 };
 

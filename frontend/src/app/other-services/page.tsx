@@ -18,6 +18,7 @@ export default async function OtherServicesPage() {
       rootDescription={data.rootDescription}
       descriptionFallback={DESCRIPTION_FALLBACK}
       cards={data.cards}
+      hyphenateDescriptions
     />
   );
 }
