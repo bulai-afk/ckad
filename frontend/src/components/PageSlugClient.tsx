@@ -20,6 +20,7 @@ import {
   clearTimelineTextareaInlineWidthsInRoot,
   layoutWebElementsV2TextareasInRoot,
 } from "@/lib/webElementsTextareaLayout";
+import { normalizeFeatureGridContentWrapInRoot } from "@/lib/featureGridContentWrap";
 import { stripLegacyTimelineDomInRoot } from "@/lib/stripLegacyTimelineDom";
 import { syncWebElementsFieldRowJustifyInRoot } from "@/lib/webElementsFieldRowJustify";
 import type { ServiceTreeNode } from "@/lib/serviceTree";
@@ -103,6 +104,7 @@ export function PageSlugClient({ slugParts, page, serviceFolderHub }: PageSlugCl
     const root = contentRootRef.current;
     if (!root) return;
     stripLegacyTimelineDomInRoot(root);
+    normalizeFeatureGridContentWrapInRoot(root);
     const editableNodes = Array.from(root.querySelectorAll("[contenteditable]")) as HTMLElement[];
     editableNodes.forEach((node) => {
       if (node.getAttribute("contenteditable") !== "false") {

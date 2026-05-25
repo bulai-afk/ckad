@@ -14,6 +14,13 @@ import {
   type SiteDocumentItem,
 } from "@/lib/siteDocumentLink";
 import { adminPageIdFromParams } from "@/lib/adminPageIdFromParams";
+import {
+  ensureFeatureGridContentWrap,
+  ensureFeatureGridImageDisplay,
+  featureGridImagePositionSupportsDisplay,
+  getFeatureGridContentWrap,
+  normalizeFeatureGridContentWrapInRoot,
+} from "@/lib/featureGridContentWrap";
 import { getSharedWebBlocksCss } from "@/lib/sharedWebBlocksCss";
 import { getPageEditorWebToolbarCss } from "@/lib/pageEditorWebToolbarCss";
 import {
@@ -1543,6 +1550,7 @@ function createFeatureGridCardDescriptionWrap(initialValue: string): HTMLElement
 function getFeatureGridTextBlockHtml(): string {
   return getTextBlockHtml(
     '<div class="page-web-feature-grid" data-feature-grid-cols="3">' +
+      '<div class="page-web-feature-grid-content" contenteditable="false">' +
       '<div class="page-web-feature-grid-head" contenteditable="false">' +
         '<div class="page-web-elements page-web-elements-subtitle">' +
         '<div class="page-web-elements-field-row">' +
@@ -1610,6 +1618,7 @@ function getFeatureGridTextBlockHtml(): string {
           "</dd>" +
         "</div>" +
       "</dl>" +
+      "</div>" +
     "</div>",
     { contentOnly: true },
   ).replace('data-web-element="text-block"', 'data-web-element="text-block" data-text-block-variant="feature-grid"');
@@ -2774,6 +2783,11 @@ function getWebTextBlockToolbarHtml(): string {
     '<span class="page-web-text-block-menu-grid-option-radio" aria-hidden="true"></span><span class="page-web-text-block-menu-grid-option-label">Слева</span></button>' +
     '<button type="button" role="menuitemradio" class="page-web-text-block-menu-grid-option" contenteditable="false" tabindex="-1" data-feature-grid-image-position="bottom" aria-checked="false">' +
     '<span class="page-web-text-block-menu-grid-option-radio" aria-hidden="true"></span><span class="page-web-text-block-menu-grid-option-label">Снизу</span></button>' +
+    '<div class="page-web-text-block-menu-sep page-web-text-block-menu-sep--feature-grid-image-display" aria-hidden="true"></div>' +
+    '<button type="button" role="menuitemradio" class="page-web-text-block-menu-grid-option page-web-text-block-menu-grid-option--feature-grid-image-display" contenteditable="false" tabindex="-1" data-feature-grid-image-display="background" aria-checked="false">' +
+    '<span class="page-web-text-block-menu-grid-option-radio" aria-hidden="true"></span><span class="page-web-text-block-menu-grid-option-label">Как часть фона</span></button>' +
+    '<button type="button" role="menuitemradio" class="page-web-text-block-menu-grid-option page-web-text-block-menu-grid-option--feature-grid-image-display" contenteditable="false" tabindex="-1" data-feature-grid-image-display="separate" aria-checked="false">' +
+    '<span class="page-web-text-block-menu-grid-option-radio" aria-hidden="true"></span><span class="page-web-text-block-menu-grid-option-label">Отдельно</span></button>' +
     '<div class="page-web-text-block-menu-sep" aria-hidden="true"></div>' +
     '<button type="button" role="menuitem" class="page-web-text-block-menu-element page-web-text-block-menu-element--feature-grid-image-upload" contenteditable="false" tabindex="-1" data-feature-grid-upload-image>Загрузить изображение</button>' +
     "</div></div>" +
@@ -2791,6 +2805,7 @@ type FeatureGridElementKind = "subtitle" | "title" | "lead";
 type FeatureGridMessagePosition = "none" | "left" | "right" | "top" | "bottom";
 type FeatureGridMessageColor = "red" | "yellow" | "green";
 type FeatureGridImagePosition = "none" | "left" | "right" | "bottom";
+type FeatureGridImageDisplay = "background" | "separate";
 
 function isFeatureGridElementKind(value: string | null): value is FeatureGridElementKind {
   return value === "subtitle" || value === "title" || value === "lead";
@@ -2806,6 +2821,23 @@ function isFeatureGridMessageColor(value: string | null): value is FeatureGridMe
 
 function isFeatureGridImagePosition(value: string | null): value is FeatureGridImagePosition {
   return value === "none" || value === "left" || value === "right" || value === "bottom";
+}
+
+function isFeatureGridImageDisplay(value: string | null): value is FeatureGridImageDisplay {
+  return value === "background" || value === "separate";
+}
+
+function getFeatureGridImageDisplay(root: HTMLElement): FeatureGridImageDisplay {
+  const raw = root.getAttribute("data-feature-grid-image-display");
+  return isFeatureGridImageDisplay(raw) ? raw : "separate";
+}
+
+function setFeatureGridImageDisplay(root: HTMLElement, display: FeatureGridImageDisplay): boolean {
+  const pos = getFeatureGridImagePosition(root);
+  if (!featureGridImagePositionSupportsDisplay(pos)) return false;
+  if (getFeatureGridImageDisplay(root) === display) return false;
+  root.setAttribute("data-feature-grid-image-display", display);
+  return true;
 }
 
 function isFeatureGridCardFieldToggleKey(value: string | null): value is "title2" | "description" | "learn-more" | "cta" {
@@ -3176,6 +3208,10 @@ function clearFeatureGridImage(root: HTMLElement): boolean {
   });
   if (root.hasAttribute("data-feature-grid-image-position")) {
     root.removeAttribute("data-feature-grid-image-position");
+    changed = true;
+  }
+  if (root.hasAttribute("data-feature-grid-image-display")) {
+    root.removeAttribute("data-feature-grid-image-display");
     changed = true;
   }
   return changed;
@@ -3740,7 +3776,7 @@ function normalizeFeatureGridMessageLayoutsInEditor(rootEl: HTMLElement): boolea
 
 function setFeatureGridImagePosition(root: HTMLElement, position: FeatureGridImagePosition): boolean {
   if (position === "none") return clearFeatureGridImage(root);
-  let changed = false;
+  let changed = ensureFeatureGridContentWrap(root);
   const image = ensureFeatureGridImageNode(root);
   if (image.parentElement !== root || root.lastElementChild !== image) {
     root.appendChild(image);
@@ -3753,11 +3789,17 @@ function setFeatureGridImagePosition(root: HTMLElement, position: FeatureGridIma
     root.setAttribute("data-feature-grid-image-position", position);
     changed = true;
   }
+  if (featureGridImagePositionSupportsDisplay(position)) {
+    if (ensureFeatureGridImageDisplay(root)) changed = true;
+  } else if (root.hasAttribute("data-feature-grid-image-display")) {
+    root.removeAttribute("data-feature-grid-image-display");
+    changed = true;
+  }
   return changed;
 }
 
 function normalizeFeatureGridImageLayoutsInEditor(rootEl: HTMLElement): boolean {
-  let changed = false;
+  let changed = normalizeFeatureGridContentWrapInRoot(rootEl);
   rootEl.querySelectorAll(".page-web-feature-grid").forEach((node) => {
     const root = node as HTMLElement;
     const pos = getFeatureGridImagePosition(root);
@@ -3773,6 +3815,13 @@ function normalizeFeatureGridImageLayoutsInEditor(rootEl: HTMLElement): boolean 
 /** Шапка сетки внутри contenteditable: без этого каретка попадает в обёртки вне textarea. Сообщение — отдельный редактируемый островок. */
 function normalizeWebFeatureGridHeadEditabilityInEditor(rootEl: HTMLElement): boolean {
   let changed = false;
+  rootEl.querySelectorAll(".page-web-feature-grid-content").forEach((n) => {
+    const content = n as HTMLElement;
+    if (content.getAttribute("contenteditable") !== "false") {
+      content.setAttribute("contenteditable", "false");
+      changed = true;
+    }
+  });
   rootEl.querySelectorAll(".page-web-feature-grid-head").forEach((n) => {
     const head = n as HTMLElement;
     if (head.getAttribute("contenteditable") !== "false") {
@@ -3873,11 +3922,13 @@ function getFeatureGridCardsCount(root: HTMLElement): number {
 }
 
 function addOneFeatureGridCard(root: HTMLElement): boolean {
+  ensureFeatureGridContentWrap(root);
   let list = getFeatureGridCardsList(root);
   if (!list) {
+    const content = getFeatureGridContentWrap(root) ?? root;
     list = document.createElement("dl");
     list.className = "page-web-feature-grid-list";
-    root.appendChild(list);
+    content.appendChild(list);
   }
   const nextIndex = getFeatureGridCardsCount(root) + 1;
   list.appendChild(createFeatureGridCardNode(root, nextIndex));
@@ -4153,12 +4204,14 @@ function toggleFeatureGridBlockCardsList(root: HTMLElement): boolean {
 }
 
 function ensureFeatureGridHead(root: HTMLElement): HTMLElement {
-  let head = root.querySelector(".page-web-feature-grid-head") as HTMLElement | null;
+  ensureFeatureGridContentWrap(root);
+  const content = getFeatureGridContentWrap(root) ?? root;
+  let head = content.querySelector(":scope > .page-web-feature-grid-head") as HTMLElement | null;
   if (head) return head;
   head = document.createElement("div");
   head.className = "page-web-feature-grid-head";
   head.setAttribute("contenteditable", "false");
-  root.insertBefore(head, root.firstChild);
+  content.insertBefore(head, content.firstChild);
   return head;
 }
 
@@ -4306,6 +4359,19 @@ function syncFeatureGridElementsMenuState(toolbar: HTMLElement) {
     const btn = node as HTMLButtonElement;
     const pos = btn.getAttribute("data-feature-grid-image-position");
     btn.setAttribute("aria-checked", pos && pos === currentImagePosition ? "true" : "false");
+  });
+  const showImageDisplayOptions = featureGridImagePositionSupportsDisplay(currentImagePosition);
+  const currentImageDisplay = root ? getFeatureGridImageDisplay(root) : "separate";
+  toolbar.querySelectorAll(".page-web-text-block-menu-sep--feature-grid-image-display").forEach((node) => {
+    (node as HTMLElement).style.display = showImageDisplayOptions ? "" : "none";
+  });
+  toolbar.querySelectorAll("[data-feature-grid-image-display]").forEach((node) => {
+    const btn = node as HTMLButtonElement;
+    const display = btn.getAttribute("data-feature-grid-image-display");
+    btn.style.display = showImageDisplayOptions ? "" : "none";
+    btn.disabled = !showImageDisplayOptions;
+    btn.setAttribute("aria-disabled", showImageDisplayOptions ? "false" : "true");
+    btn.setAttribute("aria-checked", display && display === currentImageDisplay ? "true" : "false");
   });
   toolbar.querySelectorAll("[data-feature-grid-upload-image]").forEach((node) => {
     const btn = node as HTMLButtonElement;
@@ -7736,7 +7802,8 @@ export default function PageEditorDetailsPage() {
           !toolbar.querySelector('[data-feature-grid-set-cols="4"]') ||
           !toolbar.querySelector('[data-feature-grid-card-field-toggle="title2"]') ||
           !toolbar.querySelector('[data-feature-grid-card-decoration="none"]') ||
-          !toolbar.querySelector('[data-feature-grid-image-position="right"]'))
+          !toolbar.querySelector('[data-feature-grid-image-position="right"]') ||
+          !toolbar.querySelector('[data-feature-grid-image-display="background"]'))
       ) {
         const tmp = document.createElement("div");
         tmp.innerHTML = getWebTextBlockToolbarHtml();
@@ -12828,6 +12895,25 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       return;
     }
 
+    const imageDisplayBtn = target.closest?.("[data-feature-grid-image-display]") as HTMLElement | null;
+    if (imageDisplayBtn) {
+      if (block.getAttribute("data-text-block-variant") === "feature-grid") {
+        const displayRaw = imageDisplayBtn.getAttribute("data-feature-grid-image-display");
+        const content = block.querySelector(":scope > .page-web-text-block-content") as HTMLElement | null;
+        const root = content?.querySelector(".page-web-feature-grid") as HTMLElement | null;
+        if (root && isFeatureGridImageDisplay(displayRaw)) {
+          const changed = setFeatureGridImageDisplay(root, displayRaw);
+          syncFeatureGridElementsMenuState(toolbar);
+          if (changed) {
+            setContentHtml(ed.innerHTML);
+            setTimeout(() => updateToolbarState(), 0);
+          }
+        }
+      }
+      closeTextBlockToolbarMenus(toolbar);
+      return;
+    }
+
     const imagePosBtn = target.closest?.("[data-feature-grid-image-position]") as HTMLElement | null;
     if (imagePosBtn) {
       if (block.getAttribute("data-text-block-variant") === "feature-grid") {
@@ -13143,7 +13229,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
     if (!content) return null;
     const grid = content.querySelector(":scope > .page-web-feature-grid") as HTMLElement | null;
     if (!grid) return null;
-    return grid.querySelector(":scope > .page-web-feature-grid-list") as HTMLElement | null;
+    return grid.querySelector(".page-web-feature-grid-list") as HTMLElement | null;
   }
 
   function findFeatureGridItemUnderPoint(
@@ -14056,6 +14142,8 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         imageBox.style.backgroundPosition = "center";
         imageBox.style.backgroundRepeat = "no-repeat";
         imageBox.setAttribute("data-feature-grid-image-has-src", "1");
+        const gridRoot = imageBox.closest(".page-web-feature-grid") as HTMLElement | null;
+        if (gridRoot) ensureFeatureGridImageDisplay(gridRoot);
         setContentHtml(ed.innerHTML);
         setTimeout(() => updateToolbarState(), 0);
       })();
