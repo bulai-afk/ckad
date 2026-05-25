@@ -1,3 +1,5 @@
+import { isWebElementsFieldJustified } from "@/lib/webElementsTextAlign";
+
 /** Поля v2, для которых на полотне вызывается раскладка (редактор и публичный просмотр). */
 export const WEB_ELEMENTS_V2_TEXTAREA_LAYOUT_SELECTOR =
   ".page-web-elements-subtitle-input, .page-web-elements-title-input, .page-web-elements-title2-input, .page-web-elements-description-input, textarea.page-web-elements-announcement-input";
@@ -138,6 +140,14 @@ function isTimelineWebElementsTextarea(textarea: HTMLTextAreaElement): boolean {
 
 export function layoutWebElementsTextareaSize(textarea: HTMLTextAreaElement): void {
   textarea.style.boxSizing = "border-box";
+
+  if (isWebElementsFieldJustified(textarea)) {
+    textarea.style.width = "100%";
+    textarea.style.maxWidth = "100%";
+    textarea.style.height = "auto";
+    textarea.style.height = `${textarea.scrollHeight}px`;
+    return;
+  }
 
   if (isAnnouncementWebElementsField(textarea)) {
     textarea.style.width = "";

@@ -386,6 +386,18 @@ ${scope} .page-web-work-pricing .page-web-elements[data-work-pricing-halign="cen
 ${scope} .page-web-work-pricing .page-web-elements[data-work-pricing-halign="right"] > .page-web-elements-field-row {
   justify-content: flex-end;
 }
+${scope} .page-web-work-pricing .page-web-elements[data-work-pricing-halign="justify"] > .page-web-elements-field-row {
+  justify-content: flex-start;
+  width: 100%;
+  max-width: 100%;
+}
+${scope} .page-web-work-pricing .page-web-elements[data-work-pricing-halign="justify"] textarea {
+  width: 100% !important;
+  max-width: 100% !important;
+  text-align: justify !important;
+  -webkit-hyphens: auto;
+  hyphens: auto;
+}
 ${scope} .page-web-work-pricing .page-web-elements.page-web-elements-title textarea.page-web-elements-title-input,
 ${scope} .page-web-work-pricing .wsx {
   margin: 0;

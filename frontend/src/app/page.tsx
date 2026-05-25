@@ -122,22 +122,22 @@ export default async function Home() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900">
+    <div className="home-page min-h-screen bg-slate-100 text-slate-900" lang="ru">
       <HomeBannersCarouselGate slides={homeBanners} coverAspect={homeBannersCoverAspect} />
       <section className="bg-transparent py-8 sm:py-10 about-template-fallback">
+        <div className="home-section-intro">
+          <h2 className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-base font-semibold text-[#b91c1c]">
+            О нас
+          </h2>
+          <p className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-pretty sm:-mt-2">
+            Центр каталогизации и анализа данных
+          </p>
+          <p className="home-section-intro__lead text-pretty">
+            Помогаем заказчикам систематизировать сведения о продукции, вести номенклатуру в
+            актуальном состоянии и проходить процедуры согласования без лишних срывов сроков.
+          </p>
+        </div>
         <div className="mx-auto max-w-7xl home-section-inline-padding">
-          <div className="mx-auto mt-0 max-w-3xl text-center">
-            <h2 className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-base font-semibold text-[#b91c1c]">
-              О нас
-            </h2>
-            <p className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-pretty sm:-mt-2">
-              Центр каталогизации и анализа данных
-            </p>
-            <p className="mt-6 text-pretty text-base leading-[1.4] font-medium text-slate-600">
-              Помогаем заказчикам систематизировать сведения о продукции, вести номенклатуру в
-              актуальном состоянии и проходить процедуры согласования без лишних срывов сроков.
-            </p>
-          </div>
           <div className="mt-8 max-w-none about-template-fallback__list-wrap">
             <ul className="grid max-w-none grid-cols-1 gap-x-8 gap-y-10 lg:grid-cols-2 lg:gap-y-16 about-template-fallback__grid">
               {features.map((feature) => (
@@ -166,20 +166,20 @@ export default async function Home() {
       </section>
 
       <section className="bg-transparent py-6 sm:py-10 about-template-fallback">
+        <div className="home-section-intro">
+          <h2 className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-base font-semibold text-[#b91c1c]">
+            Наши услуги
+          </h2>
+          <p className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-pretty sm:-mt-2">
+            Каталогизация, обучение и поддержка — от методики до результата
+          </p>
+          <p className="home-section-intro__lead text-pretty">
+            Приведём номенклатуру и данные в порядок, обучим вашу команду работе по правилам и
+            останемся рядом на этапах согласования и внедрения — без «серых зон» в ответственности и
+            сроках.
+          </p>
+        </div>
         <div className="mx-auto max-w-7xl home-section-inline-padding">
-          <div className="mx-auto mt-0 max-w-3xl text-center">
-            <h2 className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-base font-semibold text-[#b91c1c]">
-              Наши услуги
-            </h2>
-            <p className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-pretty sm:-mt-2">
-              Каталогизация, обучение и поддержка — от методики до результата
-            </p>
-            <p className="mt-6 text-pretty text-base leading-[1.4] font-medium text-slate-600">
-              Приведём номенклатуру и данные в порядок, обучим вашу команду работе по правилам и
-              останемся рядом на этапах согласования и внедрения — без «серых зон» в ответственности и
-              сроках.
-            </p>
-          </div>
           <div className="mt-6 max-w-none sm:mt-8">
             <div className="services-home-categories-shell">
               <div className="services-home-categories-shell__main">
@@ -188,6 +188,7 @@ export default async function Home() {
                   equalHeight
                   syncHeightsToTallest={false}
                   alwaysShowPreview
+                  hyphenateDescriptions
                   ctaLabel="Подробнее"
                   gridClassName="services-home-categories-main-grid"
                   cards={[catalogCard]}
@@ -200,6 +201,7 @@ export default async function Home() {
                   equalHeight
                   syncHeightsToTallest
                   alwaysShowPreview
+                  hyphenateDescriptions
                   ctaLabel="Подробнее"
                   gridClassName="services-home-categories-side-grid"
                   cards={sideCategoryCards}

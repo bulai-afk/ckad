@@ -153,20 +153,20 @@ export function HomeArticlesCarousel({ slides }: Props) {
 
   return (
     <section className="bg-transparent py-8 sm:py-10 about-template-fallback">
-      <div className="mx-auto max-w-7xl home-section-inline-padding">
-        <div className="mx-auto mt-0 max-w-3xl text-center">
-          <h2 className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-base font-semibold text-[#b91c1c]">
-            Новости
-          </h2>
-          <p className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-pretty sm:-mt-2">
-            Актуальная информация
-          </p>
-          <p className="mt-6 text-pretty text-base leading-[1.4] font-medium text-slate-600">
-            Полезные материалы по каталогизации и анализу данных — советы и разборы кейсов, которые помогут
-            быстрее пройти согласования и избежать ошибок.
-          </p>
-        </div>
+      <div className="home-section-intro">
+        <h2 className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-base font-semibold text-[#b91c1c]">
+          Новости
+        </h2>
+        <p className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-pretty sm:-mt-2">
+          Актуальная информация
+        </p>
+        <p className="home-section-intro__lead text-pretty">
+          Полезные материалы по каталогизации и анализу данных — советы и разборы кейсов, которые помогут
+          быстрее пройти согласования и избежать ошибок.
+        </p>
+      </div>
 
+      <div className="mx-auto max-w-7xl home-section-inline-padding">
         <div className="mt-8 max-w-none">
           <div
             className="relative w-full min-w-0 touch-pan-y py-2"
@@ -221,6 +221,7 @@ export function HomeArticlesCarousel({ slides }: Props) {
                           excerpt={excerpt}
                           articleKind={a.articleKind}
                           isolateLinksForCarousel
+                          hyphenateExcerpt
                         />
                       </div>
                     </div>

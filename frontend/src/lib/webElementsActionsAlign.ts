@@ -8,8 +8,12 @@ export function applyWebElementsActionsAlign(outer: HTMLElement, align: WebEleme
   const display = (cs.display || "").trim().toLowerCase();
   const flexDir = (cs.flexDirection || "").trim().toLowerCase();
   if (display === "flex" && (flexDir === "column" || flexDir === "column-reverse")) {
-    outer.style.alignItems =
-      align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center";
+    if (align === "justify") {
+      outer.style.alignItems = "stretch";
+    } else {
+      outer.style.alignItems =
+        align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center";
+    }
   } else {
     outer.style.removeProperty("align-items");
   }

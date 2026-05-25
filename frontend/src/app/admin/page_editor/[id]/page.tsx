@@ -47,6 +47,20 @@ import {
   webElementsFieldRowClearFlexJustify,
   webElementsFieldRowSetFlexJustify,
 } from "@/lib/webElementsFieldRowJustify";
+import {
+  getHyphensTargetFromActiveField,
+  getHyphensTargetFromNode,
+  readWebElementsHyphensEnabled,
+  setWebElementsHyphensEnabled,
+} from "@/lib/webElementsHyphens";
+import {
+  applyWebElementsFieldTextAlign,
+  clearWebElementsFieldTextAlignWidth,
+  parseToolbarTextAlign,
+  readWebElementsFieldTextAlign,
+  toolbarAlignFromCommand,
+  type WebElementsTextAlign,
+} from "@/lib/webElementsTextAlign";
 import { AdminSidebar } from "@/components/admin/Sidebar";
 import { AdminTopBar } from "@/components/admin/AdminTopBar";
 import {
@@ -1156,6 +1170,24 @@ function ListCircleIcon({ className }: { className?: string }) {
   );
 }
 
+function AlignJustifyIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      className={className ?? ICON_SIZE}
+      aria-hidden="true"
+    >
+      <path
+        fillRule="evenodd"
+        d="M2.75 4.5a.75.75 0 0 1 .75-.75h13a.75.75 0 0 1 0 1.5h-13a.75.75 0 0 1-.75-.75Zm0 5.25a.75.75 0 0 1 .75-.75h13a.75.75 0 0 1 0 1.5h-13a.75.75 0 0 1-.75-.75Zm0 5.25a.75.75 0 0 1 .75-.75h13a.75.75 0 0 1 0 1.5h-13a.75.75 0 0 1-.75-.75Z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
+}
+
 function AlignCenterIcon({ className }: { className?: string }) {
   return (
     <svg
@@ -1170,6 +1202,28 @@ function AlignCenterIcon({ className }: { className?: string }) {
         d="M2 4.75A.75.75 0 0 1 2.75 4h14.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 4.75Zm5 5.5a.75.75 0 0 1 .75-.75h5.5a.75.75 0 0 1 0 1.5h-5.5A.75.75 0 0 1 7 10.25Zm-5 5a.75.75 0 0 1 .75-.75h14.5a.75.75 0 0 1 0 1.5H2.75a.75.75 0 0 1-.75-.75Z"
         clipRule="evenodd"
       />
+    </svg>
+  );
+}
+
+function HyphensAutoIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      className={className ?? ICON_SIZE}
+      aria-hidden="true"
+    >
+      <path d="M3.5 5.5h5.25" />
+      <path d="M11.25 5.5H16.5" />
+      <path d="M3.5 10h4" />
+      <path d="M9.5 10h7" />
+      <path d="M3.5 14.5h6.5" />
+      <path d="M12 14.5h4.5" />
     </svg>
   );
 }
@@ -1881,31 +1935,31 @@ function ensureWebElementsTextFieldRowWrap(elementsWrap: HTMLElement): boolean {
   if (existingRow) {
     const ta = existingRow.querySelector(WEB_ELEMENTS_TEXT_FIELD_TEXTAREA_SELECTOR) as HTMLTextAreaElement | null;
     if (!ta) return changed;
-    const taAlign = (ta.style.textAlign || "").trim().toLowerCase();
-    const rowAlign = (existingRow.style.textAlign || "").trim().toLowerCase();
-    const effectiveAlign =
-      taAlign === "center" || taAlign === "right" || taAlign === "left"
-        ? taAlign
-        : rowAlign === "center" || rowAlign === "right" || rowAlign === "left"
-          ? rowAlign
-          : "";
+    const effectiveAlign = readWebElementsFieldTextAlign(ta, existingRow);
     if (effectiveAlign) {
       if (wpIsland) {
         elementsWrap.setAttribute(WORK_PRICING_WEB_ELEMENTS_HALIGN_ATTR, effectiveAlign);
+        applyWebElementsFieldTextAlign(null, ta, effectiveAlign);
         if (existingRow.style.getPropertyValue("text-align")) {
           existingRow.style.removeProperty("text-align");
           changed = true;
         }
-        if (!ta.style.getPropertyValue("text-align")) {
-          ta.style.textAlign = effectiveAlign;
+        if (existingRow.style.getPropertyValue("width")) {
+          existingRow.style.removeProperty("width");
+          changed = true;
+        }
+        if (existingRow.style.getPropertyValue("max-width")) {
+          existingRow.style.removeProperty("max-width");
+          changed = true;
+        }
+        if (existingRow.style.getPropertyValue("justify-content")) {
+          webElementsFieldRowClearFlexJustify(existingRow);
           changed = true;
         }
       } else {
-        existingRow.style.textAlign = effectiveAlign;
-        webElementsFieldRowSetFlexJustify(existingRow, effectiveAlign as "left" | "center" | "right");
-        ta.style.textAlign = effectiveAlign;
-        changed = true;
+        applyWebElementsFieldTextAlign(existingRow, ta, effectiveAlign);
       }
+      changed = true;
     } else if (!wpIsland && ta.style.getPropertyValue("text-align")) {
       ta.style.removeProperty("text-align");
       changed = true;
@@ -1917,6 +1971,7 @@ function ensureWebElementsTextFieldRowWrap(elementsWrap: HTMLElement): boolean {
         webElementsFieldRowClearFlexJustify(existingRow);
         changed = true;
       }
+      clearWebElementsFieldTextAlignWidth(existingRow, ta);
     }
     return changed;
   }
@@ -1927,15 +1982,13 @@ function ensureWebElementsTextFieldRowWrap(elementsWrap: HTMLElement): boolean {
   if (!directTa) return changed;
   const row = document.createElement("div");
   row.className = "page-web-elements-field-row";
-  const taAlign = (directTa.style.textAlign || "").trim().toLowerCase();
-  if (taAlign === "center" || taAlign === "right" || taAlign === "left") {
+  const taAlign = readWebElementsFieldTextAlign(directTa, null);
+  if (taAlign) {
     if (wpIsland) {
       elementsWrap.setAttribute(WORK_PRICING_WEB_ELEMENTS_HALIGN_ATTR, taAlign);
-      directTa.style.textAlign = taAlign;
+      applyWebElementsFieldTextAlign(null, directTa, taAlign);
     } else {
-      row.style.textAlign = taAlign;
-      webElementsFieldRowSetFlexJustify(row, taAlign as "left" | "center" | "right");
-      directTa.style.textAlign = taAlign;
+      applyWebElementsFieldTextAlign(row, directTa, taAlign);
     }
   }
   elementsWrap.insertBefore(row, directTa);
@@ -1965,11 +2018,12 @@ function webElementsActionsAlignItemsToHorizontal(
   return null;
 }
 
-function readWebElementsActionsAlign(outer: HTMLElement): "left" | "center" | "right" {
+function readWebElementsActionsAlign(outer: HTMLElement): WebElementsTextAlign {
   const aiInline = webElementsActionsAlignItemsToHorizontal(outer.style.alignItems || "");
   if (aiInline) return aiInline;
   const ta = (outer.style.textAlign || "").trim().toLowerCase();
-  if (ta === "center" || ta === "right" || ta === "left") return ta as "left" | "center" | "right";
+  if (ta === "justify") return "justify";
+  if (ta === "center" || ta === "right" || ta === "left") return ta as WebElementsTextAlign;
   const jc = (outer.style.justifyContent || "").trim().toLowerCase();
   if (jc === "center") return "center";
   if (jc === "flex-end" || jc === "end") return "right";
@@ -1982,7 +2036,8 @@ function readWebElementsActionsAlign(outer: HTMLElement): "left" | "center" | "r
     if (fromAi) return fromAi;
   }
   const csTa = (cs.textAlign || "").trim().toLowerCase();
-  if (csTa === "center" || csTa === "right" || csTa === "left") return csTa as "left" | "center" | "right";
+  if (csTa === "justify") return "justify";
+  if (csTa === "center" || csTa === "right" || csTa === "left") return csTa as WebElementsTextAlign;
   if (csTa === "start") return "left";
   if (csTa === "end") return "right";
   const csJc = (cs.justifyContent || "").trim().toLowerCase();
@@ -1991,14 +2046,18 @@ function readWebElementsActionsAlign(outer: HTMLElement): "left" | "center" | "r
   return "left";
 }
 
-function applyWebElementsActionsAlign(outer: HTMLElement, align: "left" | "center" | "right"): void {
+function applyWebElementsActionsAlign(outer: HTMLElement, align: WebElementsTextAlign): void {
   outer.style.textAlign = align;
   outer.style.removeProperty("justify-content");
   const cs = getComputedStyle(outer);
   const display = (cs.display || "").trim().toLowerCase();
   const flexDir = (cs.flexDirection || "").trim().toLowerCase();
   if (display === "flex" && (flexDir === "column" || flexDir === "column-reverse")) {
-    outer.style.alignItems = align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center";
+    if (align === "justify") {
+      outer.style.alignItems = "stretch";
+    } else {
+      outer.style.alignItems = align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center";
+    }
   } else {
     outer.style.removeProperty("align-items");
   }
@@ -4785,7 +4844,9 @@ export default function PageEditorDetailsPage() {
   const [isBold, setIsBold] = useState(false);
   const [isItalic, setIsItalic] = useState(false);
   const [isUnderline, setIsUnderline] = useState(false);
-  const [alignment, setAlignment] = useState<"left" | "center" | "right">("left");
+  const [alignment, setAlignment] = useState<WebElementsTextAlign>("left");
+  const [hyphensEnabled, setHyphensEnabled] = useState(false);
+  const [hyphensApplicable, setHyphensApplicable] = useState(false);
   const [isUnorderedList, setIsUnorderedList] = useState(false);
   const [isOrderedList, setIsOrderedList] = useState(false);
   const [listStyleType, setListStyleType] = useState<string>("");
@@ -5597,6 +5658,29 @@ export default function PageEditorDetailsPage() {
     }
   }
 
+  function syncHyphensToolbarState(target: HTMLElement | null) {
+    setHyphensApplicable(!!target);
+    setHyphensEnabled(target ? readWebElementsHyphensEnabled(target) : false);
+  }
+
+  function toggleWebElementsHyphens() {
+    const el = editorRef.current;
+    if (!el) return;
+    const activeInput = getActiveTextInputInsideEditor(el);
+    let target: HTMLElement | null =
+      activeInput instanceof HTMLElement ? getHyphensTargetFromActiveField(activeInput) : null;
+    if (!target) {
+      const range = savedRangeRef.current;
+      if (range && el.contains(range.commonAncestorContainer)) {
+        target = getHyphensTargetFromNode(range.commonAncestorContainer, el);
+      }
+    }
+    if (!target) return;
+    setWebElementsHyphensEnabled(target, !readWebElementsHyphensEnabled(target));
+    syncHyphensToolbarState(target);
+    scheduleEditorHtmlStateSync(el.innerHTML);
+  }
+
   function updateToolbarState() {
     const el = editorRef.current;
     if (!el || !document.contains(el)) return;
@@ -5615,6 +5699,7 @@ export default function PageEditorDetailsPage() {
       setAlignment(readWebElementsActionsAlign(actionsOuter));
       setIsInTable(false);
       setIsInWebCoverContent(false);
+      syncHyphensToolbarState(null);
       syncPageEditorFocusTarget(el, null);
       return;
     }
@@ -5650,11 +5735,12 @@ export default function PageEditorDetailsPage() {
       if (inCoverBannerToolbar && coverBannerForToolbar && activeInput.matches(".page-web-elements-title-input")) {
         const titleIsland = activeInput.closest(".page-web-elements.page-web-elements-title") as HTMLElement | null;
         const ha = (titleIsland?.getAttribute("data-cover-title-halign") || "center").toLowerCase();
-        setAlignment(ha === "center" || ha === "right" ? ha : "left");
+        setAlignment(parseToolbarTextAlign(ha === "justify" ? "justify" : ha));
         const va = (coverBannerForToolbar.getAttribute("data-cover-valign") || "middle").toLowerCase();
         setCoverVerticalAlign(va === "top" || va === "bottom" ? va : "middle");
         setIsInTable(false);
         setIsInWebCoverContent(true);
+        syncHyphensToolbarState(getHyphensTargetFromActiveField(activeInput));
         syncPageEditorFocusTarget(el, null);
         return;
       }
@@ -5680,30 +5766,37 @@ export default function PageEditorDetailsPage() {
             ? (activeInput.closest(".page-web-elements-field-row") as HTMLElement | null) ?? activeInput
             : activeInput;
       const inputAlignRaw =
-        halignFromLeadRow === "center" || halignFromLeadRow === "right" || halignFromLeadRow === "left"
+        halignFromLeadRow === "center" ||
+        halignFromLeadRow === "right" ||
+        halignFromLeadRow === "left" ||
+        halignFromLeadRow === "justify"
           ? halignFromLeadRow
           : halignFromWorkPricing === "center" ||
               halignFromWorkPricing === "right" ||
-              halignFromWorkPricing === "left"
+              halignFromWorkPricing === "left" ||
+              halignFromWorkPricing === "justify"
             ? halignFromWorkPricing
             : (alignEl.style.textAlign || getComputedStyle(alignEl).textAlign || "").toLowerCase();
-      const inputAlign =
-        inputAlignRaw === "center" || inputAlignRaw === "right" || inputAlignRaw === "left" ? inputAlignRaw : "left";
-      setAlignment(inputAlign);
+      setAlignment(parseToolbarTextAlign(inputAlignRaw));
       setIsInTable(false);
       setIsInWebCoverContent(false);
+      syncHyphensToolbarState(
+        activeInput instanceof HTMLElement ? getHyphensTargetFromActiveField(activeInput) : null,
+      );
       syncPageEditorFocusTarget(el, null);
       return;
     }
 
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) {
+      syncHyphensToolbarState(null);
       syncPageEditorFocusTarget(el, null);
       return;
     }
 
     const range = sel.getRangeAt(0);
     if (!el.contains(range.commonAncestorContainer)) {
+      syncHyphensToolbarState(null);
       syncPageEditorFocusTarget(el, null);
       return;
     }
@@ -5726,10 +5819,12 @@ export default function PageEditorDetailsPage() {
       if (selectedImage && el.contains(selectedImage)) {
         const imageAlign = (selectedImage.getAttribute("data-image-align") || "").toLowerCase();
         if (imageAlign === "center" || imageAlign === "right" || imageAlign === "left") setAlignment(imageAlign);
+        else if (document.queryCommandState("justifyFull")) setAlignment("justify");
         else if (document.queryCommandState("justifyCenter")) setAlignment("center");
         else if (document.queryCommandState("justifyRight")) setAlignment("right");
         else setAlignment("left");
-      } else if (document.queryCommandState("justifyCenter")) setAlignment("center");
+      } else if (document.queryCommandState("justifyFull")) setAlignment("justify");
+      else if (document.queryCommandState("justifyCenter")) setAlignment("center");
       else if (document.queryCommandState("justifyRight")) setAlignment("right");
       else setAlignment("left");
 
@@ -5835,10 +5930,17 @@ export default function PageEditorDetailsPage() {
             if (tblWidth) setTableBorderWidth(tblWidth.replace(/px$/, "") || "1");
           }
           const cellAlign = (srcCell?.getAttribute?.("data-cell-align") || srcCell?.style?.textAlign || "").toLowerCase();
-          if (cellAlign === "center" || cellAlign === "right" || cellAlign === "left") setAlignment(cellAlign);
+          if (cellAlign === "center" || cellAlign === "right" || cellAlign === "left" || cellAlign === "justify")
+            setAlignment(cellAlign as WebElementsTextAlign);
           else {
             const tblAlign = (table as HTMLElement).getAttribute?.("data-table-align");
-            if (tblAlign === "center" || tblAlign === "right" || tblAlign === "left") setAlignment(tblAlign);
+            if (
+              tblAlign === "center" ||
+              tblAlign === "right" ||
+              tblAlign === "left" ||
+              tblAlign === "justify"
+            )
+              setAlignment(tblAlign as WebElementsTextAlign);
             else setAlignment("left");
           }
           const tw = (cell?.getAttribute?.("data-cell-width") || cell?.style?.width) || ((table as HTMLElement).getAttribute?.("data-table-width") ?? (table as HTMLElement).style?.width ?? "");
@@ -5903,7 +6005,7 @@ export default function PageEditorDetailsPage() {
                 if (coverActionsOuter) {
                   setAlignment(readWebElementsActionsAlign(coverActionsOuter));
                 } else {
-                  setAlignment(ha === "center" || ha === "right" ? ha : "left");
+                  setAlignment(parseToolbarTextAlign(ha));
                 }
               }
             }
@@ -5913,8 +6015,14 @@ export default function PageEditorDetailsPage() {
         }
       }
       setIsInWebCoverContent(inWebCoverLayouts);
+
+      let hyphensTarget: HTMLElement | null = null;
+      if (!(selectedImage && el.contains(selectedImage)) && !inTable) {
+        hyphensTarget = getHyphensTargetFromNode(range.commonAncestorContainer, el);
+      }
+      syncHyphensToolbarState(hyphensTarget);
     } catch {
-      // ignore
+      syncHyphensToolbarState(null);
     }
   }
 
@@ -10567,7 +10675,7 @@ export default function PageEditorDetailsPage() {
     setCellMenuOpen(false);
   }
 
-  function applyTableHorizontalAlign(value: "left" | "center" | "right") {
+  function applyTableHorizontalAlign(value: WebElementsTextAlign) {
     const el = editorRef.current;
     if (!el) return;
     let selected = Array.from(el.querySelectorAll(".page-editor-table td[data-cell-selected]")) as HTMLTableCellElement[];
@@ -11255,8 +11363,9 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
   function runCommand(command: string, value?: string) {
     const el = editorRef.current;
     if (!el) return;
-    if (command === "justifyLeft" || command === "justifyCenter" || command === "justifyRight") {
-      const align = command === "justifyLeft" ? "left" : command === "justifyCenter" ? "center" : "right";
+    const alignFromToolbar = toolbarAlignFromCommand(command);
+    if (alignFromToolbar) {
+      const align = alignFromToolbar;
       const activeActions =
         getActiveWebElementsActionsInsideEditor(el) ??
         (selectedWebElementsActionsRef.current && el.contains(selectedWebElementsActionsRef.current)
@@ -11298,39 +11407,35 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
             !!activeInput.closest(".page-web-cover-inner");
           if (inCoverBanner && coverBanner) {
             const row = activeInput.closest(".page-web-elements-field-row") as HTMLElement | null;
-            row?.style.removeProperty("text-align");
-            if (row) webElementsFieldRowClearFlexJustify(row);
-            activeInput.style.removeProperty("text-align");
             if (activeInput.matches(".page-web-elements-title-input")) {
               const titleIsland = activeInput.closest(".page-web-elements.page-web-elements-title") as HTMLElement | null;
               titleIsland?.setAttribute("data-cover-title-halign", align);
-            } else if (row) {
-              row.style.textAlign = align;
-              webElementsFieldRowSetFlexJustify(row, align);
-            } else {
+              if (row) {
+                row.style.removeProperty("text-align");
+                webElementsFieldRowClearFlexJustify(row);
+              }
               activeInput.style.textAlign = align;
+              if (align === "justify" && activeInput instanceof HTMLTextAreaElement) {
+                activeInput.style.width = "100%";
+                activeInput.style.maxWidth = "100%";
+              }
+            } else {
+              applyWebElementsFieldTextAlign(row, activeInput, align);
             }
           } else {
             const row = activeInput.closest(".page-web-elements-field-row") as HTMLElement | null;
             const wpAlignWrap = activeInput.closest(WORK_PRICING_WEB_ELEMENTS_ALIGN_WRAP_SELECTOR) as HTMLElement | null;
             if (wpAlignWrap?.closest(".page-web-work-pricing")) {
               wpAlignWrap.setAttribute(WORK_PRICING_WEB_ELEMENTS_HALIGN_ATTR, align);
-              activeInput.style.textAlign = align;
-              if (row) {
-                row.style.removeProperty("text-align");
-                webElementsFieldRowClearFlexJustify(row);
-              }
-            } else if (row) {
-              row.style.textAlign = align;
-              webElementsFieldRowSetFlexJustify(row, align);
-              activeInput.style.textAlign = align;
+              applyWebElementsFieldTextAlign(row, activeInput, align);
             } else {
-              activeInput.style.textAlign = align;
+              applyWebElementsFieldTextAlign(row, activeInput, align);
             }
             const leadRow = activeInput.closest(".page-web-feature-grid-lead-row") as HTMLElement | null;
             if (
               leadRow?.querySelector(":scope > .page-web-feature-grid-message") &&
-              activeInput.closest(".page-web-feature-grid-message")
+              activeInput.closest(".page-web-feature-grid-message") &&
+              align !== "justify"
             ) {
               leadRow.setAttribute("data-web-elements-halign", align);
             }
@@ -11374,9 +11479,9 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
     }
     const range = effectiveRange;
 
-    if (command === "justifyLeft" || command === "justifyCenter" || command === "justifyRight") {
-      const align = command === "justifyLeft" ? "left" : command === "justifyCenter" ? "center" : "right";
-      if (applySelectedImageHorizontalAlign(align)) {
+    if (alignFromToolbar) {
+      const align = alignFromToolbar;
+      if (align !== "justify" && applySelectedImageHorizontalAlign(align)) {
         updateToolbarState();
         return;
       }
@@ -15816,6 +15921,29 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
           word-break: break-word;
           overflow-wrap: anywhere;
         }
+        .page-editor .page-web-elements-field-row[style*="text-align: justify"] textarea.page-web-elements-subtitle-input,
+        .page-editor .page-web-elements-field-row[style*="text-align: justify"] textarea.page-web-elements-title-input,
+        .page-editor .page-web-elements-field-row[style*="text-align: justify"] textarea.page-web-elements-title2-input,
+        .page-editor .page-web-elements-field-row[style*="text-align: justify"] textarea.page-web-elements-description-input,
+        .page-editor textarea.page-web-elements-subtitle-input[style*="text-align: justify"],
+        .page-editor textarea.page-web-elements-title-input[style*="text-align: justify"],
+        .page-editor textarea.page-web-elements-title2-input[style*="text-align: justify"],
+        .page-editor textarea.page-web-elements-description-input[style*="text-align: justify"] {
+          width: 100% !important;
+          max-width: 100% !important;
+          text-align: justify !important;
+          -webkit-hyphens: auto;
+          hyphens: auto;
+          text-wrap: wrap;
+          word-break: normal;
+          overflow-wrap: break-word;
+        }
+        .page-editor .page-editor-table td[data-cell-align="justify"],
+        .page-editor .page-editor-table[data-table-align="justify"] td {
+          text-align: justify !important;
+          -webkit-hyphens: auto;
+          hyphens: auto;
+        }
         .page-editor .page-web-feature-grid-message .page-web-elements-title2-input.page-web-feature-grid-message-title {
           color: var(--feature-grid-message-text);
         }
@@ -16393,6 +16521,39 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
                     aria-label="Выравнивание справа"
                   >
                     <Bars3BottomRightIcon className={ICON_SIZE} />
+                  </button>
+                  <button
+                    type="button"
+                    className={`inline-flex h-8 w-8 items-center justify-center rounded transition-colors hover:text-[#496db3] ${
+                      alignment === "justify" ? "bg-slate-200 text-[#496db3]" : "text-slate-600"
+                    }`}
+                    onMouseDown={(e) => { saveSelectionFromEditor(); e.preventDefault(); }}
+                    onClick={() => (isInTable ? applyTableHorizontalAlign("justify") : runCommand("justifyFull"))}
+                    aria-label="Выравнивание по ширине"
+                    title="Выравнивание по ширине"
+                  >
+                    <AlignJustifyIcon className={ICON_SIZE} />
+                  </button>
+                  <button
+                    type="button"
+                    className={`inline-flex h-8 w-8 items-center justify-center rounded transition-colors ${
+                      !hyphensApplicable
+                        ? "cursor-not-allowed text-slate-300"
+                        : hyphensEnabled
+                          ? "bg-slate-200 text-[#496db3]"
+                          : "text-slate-600 hover:text-[#496db3]"
+                    }`}
+                    onMouseDown={(e) => {
+                      saveSelectionFromEditor();
+                      e.preventDefault();
+                    }}
+                    onClick={() => toggleWebElementsHyphens()}
+                    aria-label="Автоперенос по слогам"
+                    aria-pressed={hyphensEnabled}
+                    disabled={!hyphensApplicable}
+                    title="Автоперенос по слогам"
+                  >
+                    <HyphensAutoIcon className={ICON_SIZE} />
                   </button>
                   {!PAGE_EDITOR_FORMAT_TOOLBAR_MINIMAL && (
                     <>

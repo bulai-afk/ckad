@@ -119,12 +119,12 @@ export function HomeReviewsCarousel({ slides }: HomeReviewsCarouselProps) {
   }
 
   const headingBlock = (
-    <div className="mx-auto mt-0 max-w-3xl text-center">
+    <div className="home-section-intro">
       <h2 className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-base font-semibold text-[#b91c1c]">
         Отзывы
       </h2>
       <p className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-pretty sm:-mt-2">О нашей работе</p>
-      <p className="mt-6 text-pretty text-base leading-[1.4] font-medium text-slate-600">
+      <p className="home-section-intro__lead text-pretty">
         Мы гордимся каждым клиентом и бережно храним благодарности: это подтверждение того, что задачи по
         каталогизации и анализу данных мы доводим до результата, которым можно делиться с коллегами и
         руководством.
@@ -147,8 +147,8 @@ export function HomeReviewsCarousel({ slides }: HomeReviewsCarouselProps) {
 
   return (
     <section className="bg-transparent py-8 sm:py-10 about-template-fallback">
+      {headingBlock}
       <div className="mx-auto max-w-7xl home-section-inline-padding">
-        {headingBlock}
         <div className="mt-8 max-w-none">
           <div
             className="relative w-full min-w-0 touch-pan-y py-2"

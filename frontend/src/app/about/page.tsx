@@ -205,7 +205,7 @@ export default async function AboutPage() {
   })();
 
   return (
-    <main className="relative isolate overflow-hidden bg-slate-100 pb-8 sm:pb-10">
+    <main className="about-page relative isolate overflow-hidden bg-slate-100 pb-8 sm:pb-10" lang="ru">
       <div aria-hidden className="absolute inset-x-0 top-0 -z-10 transform-gpu overflow-hidden blur-3xl">
         <div
           className="relative left-1/2 aspect-[1155/678] w-[72rem] -translate-x-1/2 rotate-[18deg] bg-gradient-to-tr from-[#496db3] via-[#5f7ebe] to-[#8aa9db] opacity-30"
@@ -237,28 +237,28 @@ export default async function AboutPage() {
           </div>
           <div className="pointer-events-none absolute inset-0 -z-10 bg-[rgba(248,250,252,0.32)] backdrop-blur-[1px]" />
 
-          <div className="mx-auto grid w-full max-w-7xl grid-cols-1 items-center gap-8 px-6 py-8 sm:py-10 lg:px-8">
-            <div className="mx-auto max-w-4xl text-center">
-              <h1 className="about-template-fallback__title text-balance text-pretty">
-                Мы создаем решения, которые работают в реальных процессах
-              </h1>
-              <p className="mt-4 text-base/[1.4] text-slate-600">
-                Центр каталогизации и анализа данных помогает компаниям выстроить прозрачную работу с
-                информацией, ускорить согласования и снизить операционные риски.
-              </p>
-            </div>
+          <div className="home-section-intro py-8 sm:py-10">
+            <h1 className="about-template-fallback__title text-balance sm:-mt-2">
+              Мы создаем решения, которые работают в реальных процессах
+            </h1>
+            <p className="home-section-intro__lead">
+              Центр каталогизации и анализа данных помогает компаниям выстроить прозрачную работу с
+              информацией, ускорить согласования и снизить операционные риски.
+            </p>
           </div>
       </section>
 
-      <section className="mx-auto mt-16 max-w-7xl px-6 lg:px-8">
-        <div className="mx-auto max-w-2xl lg:max-w-none">
-          <h2 className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-center text-base font-semibold text-[#b91c1c]">
+      <section className="bg-transparent py-8 sm:py-10 about-template-fallback">
+        <div className="home-section-intro">
+          <h2 className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-base font-semibold text-[#b91c1c]">
             Наши ценности
           </h2>
-          <p className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-center text-pretty sm:-mt-2">
+          <p className="about-template-fallback__title -mt-1.5 mt-0 text-balance sm:-mt-2">
             Принципы, на которых строится работа
           </p>
-          <ul className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        </div>
+        <div className="mx-auto max-w-7xl home-section-inline-padding">
+          <ul className="mt-8 grid grid-cols-1 gap-4 sm:mt-10 sm:grid-cols-2 lg:grid-cols-3 lg:mt-12">
             {values.map((item) => (
               <li
                 key={item.title}
@@ -268,8 +268,12 @@ export default async function AboutPage() {
                   <item.icon aria-hidden="true" className="h-[1.12rem] w-[1.12rem] shrink-0" />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="text-base font-semibold leading-[1.4] text-slate-900">{item.title}</h3>
-                  <p className="mt-1 text-base leading-[1.4] text-slate-600">{item.text}</p>
+                  <h3 className="about-value-card__title text-base font-semibold leading-[1.4] text-slate-900">
+                    {item.title}
+                  </h3>
+                  <p className="about-value-card__text mt-1 text-base leading-[1.5] text-slate-600">
+                    {item.text}
+                  </p>
                 </div>
               </li>
             ))}
@@ -277,9 +281,17 @@ export default async function AboutPage() {
         </div>
       </section>
 
-      <section className="mx-auto mt-16 max-w-7xl px-6 lg:px-8">
-        <div className="overflow-hidden rounded-3xl bg-white px-6 py-10 sm:px-10 sm:py-14 lg:px-14">
-          <div className="grid grid-cols-1 gap-10 lg:grid-cols-2 lg:items-center">
+      <section className="about-contact-section mt-12 sm:mt-16">
+        <div className="home-section-intro">
+          <h2 className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-base font-semibold text-[#b91c1c]">
+            Контакты
+          </h2>
+          <p className="about-template-fallback__title -mt-1.5 mt-0 text-balance sm:-mt-2">
+            Связь с центром и реквизиты организации
+          </p>
+        </div>
+        <div className="mx-auto max-w-7xl home-section-inline-padding">
+          <div className="mt-8 grid grid-cols-1 gap-10 sm:mt-10 lg:mt-12 lg:grid-cols-2 lg:items-center">
             <div className="rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5">
               <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-[180px_1fr] sm:gap-5">
                 <div className="mx-auto w-full max-w-[180px] sm:mx-0">
@@ -292,19 +304,21 @@ export default async function AboutPage() {
                     className="aspect-[4/5] w-full rounded-xl object-cover"
                   />
                 </div>
-                <div>
+                <div className="about-contact-copy min-w-0">
                   <p className="text-base font-semibold tracking-tight text-slate-900">{director.name}</p>
-                  <p className="mt-0.5 text-base leading-[1.4] text-slate-600">{director.role}</p>
-                  <blockquote className="mt-3 text-base italic leading-[1.4] text-slate-700">
+                  <p className="about-value-card__text mt-0.5 text-base leading-[1.5] text-slate-600">
+                    {director.role}
+                  </p>
+                  <blockquote className="about-value-card__text mt-3 text-base italic leading-[1.5] text-slate-700">
                     {director.message}
                   </blockquote>
                 </div>
               </div>
             </div>
-            <div className="text-slate-700">
+            <div className="about-contact-copy text-slate-700">
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900">Контакты</h2>
+                  <h2 className="text-lg font-semibold text-slate-900">Связь</h2>
                   <div className="mt-4 space-y-2 text-base leading-[1.4]">
                     <a
                       href={phoneHref}
@@ -318,7 +332,7 @@ export default async function AboutPage() {
                     >
                       {email}
                     </a>
-                    <p>{address}</p>
+                    <p className="about-value-card__text">{address}</p>
                   </div>
                 </div>
                 <div>
@@ -357,7 +371,7 @@ export default async function AboutPage() {
                 </div>
               </div>
               <h3 className="mt-6 text-lg font-semibold text-slate-900">Реквизиты</h3>
-              <div className="mt-2 space-y-1 text-base leading-[1.4]">
+              <div className="about-value-card__text mt-2 space-y-1 text-base leading-[1.4]">
                 <p>{reqCompany}</p>
                 <p>ИНН: {reqInn}</p>
                 <p>КПП: {reqKpp}</p>

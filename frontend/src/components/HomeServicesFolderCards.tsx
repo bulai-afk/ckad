@@ -45,6 +45,8 @@ type Props = {
   syncHeightsToTallest?: boolean;
   /** Превью на фоне всегда (без наведения / удержания) — редкий режим */
   alwaysShowPreview?: boolean;
+  /** Автоперенос по слогам в описании (главная). */
+  hyphenateDescriptions?: boolean;
 };
 
 const DEFAULT_FALLBACK_PREVIEW = "/logo_1.svg";
@@ -111,6 +113,7 @@ function FolderCard({
   featuredPanelVariant,
   touchActiveSlug,
   setTouchActiveSlug,
+  hyphenateDescriptions,
 }: {
   c: HomeServicesFolderCard;
   displaySrc: string;
@@ -123,7 +126,9 @@ function FolderCard({
   featuredPanelVariant: FeaturedPanelVariant;
   touchActiveSlug: string | null;
   setTouchActiveSlug: (slug: string | null) => void;
+  hyphenateDescriptions: boolean;
 }) {
+  const descHyphenClass = hyphenateDescriptions ? " home-block-hyphens" : "";
   const href = `/${c.slugPath}`;
   const touchHeld = !alwaysShowPreview && touchActiveSlug === c.slugPath;
 
@@ -150,7 +155,7 @@ function FolderCard({
           <div className={styles.cardHorizontalPanelTop}>
             <h3 className={styles.cardHorizontalTitle}>{c.label}</h3>
             {c.description?.trim() ? (
-              <p className={styles.cardHorizontalDesc}>{c.description.trim()}</p>
+              <p className={`${styles.cardHorizontalDesc}${descHyphenClass}`}>{c.description.trim()}</p>
             ) : null}
           </div>
           <span className={styles.cardHorizontalCta}>{ctaLabel}</span>
@@ -195,14 +200,14 @@ function FolderCard({
           ) : null}
         </div>
         <div
-          className={`${styles.cardFeaturedBannerPanel}${
+          className={`${styles.cardFeaturedBannerPanel} home-service-card-panel${
             featuredPanelVariant === "section-hub" ? ` ${styles.cardFeaturedBannerPanelHub}` : ""
           }`}
         >
           <div className={styles.cardFeaturedBannerPanelTop}>
             <h3 className={styles.cardFeaturedTitle}>{c.label}</h3>
             {c.description?.trim() ? (
-              <p className={styles.cardFeaturedDesc}>{c.description.trim()}</p>
+              <p className={`${styles.cardFeaturedDesc}${descHyphenClass}`}>{c.description.trim()}</p>
             ) : null}
           </div>
           <span className={styles.cardFeaturedCtaGhost}>{ctaLabel}</span>
@@ -267,7 +272,7 @@ function FolderCard({
       <div className={`${styles.content} ${equalHeight ? styles.contentGrow : ""}`}>
         <p className={styles.title}>{c.label}</p>
         {c.description?.trim() ? (
-          <p className={styles.description}>{c.description.trim()}</p>
+          <p className={`${styles.description}${descHyphenClass}`}>{c.description.trim()}</p>
         ) : null}
       </div>
       <div className={`${styles.footer} ${equalHeight ? styles.footerStick : ""}`}>
@@ -296,6 +301,7 @@ export function HomeServicesFolderCards({
   syncHeightsToTallest = false,
   alwaysShowPreview = false,
   featuredPanelVariant = "home",
+  hyphenateDescriptions = false,
 }: Props) {
   const items = (cards || [])
     .filter((c) => c?.slugPath && c?.label?.trim())
@@ -399,6 +405,7 @@ export function HomeServicesFolderCards({
               featuredPanelVariant={featuredPanelVariant}
               touchActiveSlug={touchActiveSlug}
               setTouchActiveSlug={setTouchActiveSlug}
+              hyphenateDescriptions={hyphenateDescriptions}
             />
           </div>
         );

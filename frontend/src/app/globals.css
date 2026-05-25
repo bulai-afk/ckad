@@ -28,6 +28,13 @@
   }
 }
 
+@media (min-width: 1206px) {
+  :root {
+    --site-blue-title-fs: 3.5rem;
+    --site-blue-title-lh: 1;
+  }
+}
+
 /* padding-top вместо отдельного спейсера — одно значение с max-h баннера */
 .site-main-with-fixed-header {
   padding-top: var(--site-header-offset);
@@ -273,6 +280,65 @@ body::-webkit-scrollbar:horizontal {
 @media (min-width: 1206px) {
   .home-section-inline-padding {
     padding-inline: 1rem;
+  }
+}
+
+/* Главная: шапка секции на всю ширину, как текст в баннере (.page-web-cover-inner). */
+.home-section-intro {
+  width: 100%;
+  max-width: 100%;
+  margin-inline: auto;
+  box-sizing: border-box;
+  padding-inline: clamp(1rem, 4vw, 2.5rem);
+  text-align: center;
+}
+
+.home-section-intro__lead {
+  margin-top: 1.5rem;
+  font-size: 1rem;
+  line-height: 1.5;
+  font-weight: 500;
+  color: #475569;
+  text-wrap: pretty;
+}
+
+/* Главная и «О компании»: автоперенос по слогам в подзаголовках и описаниях (не в синих заголовках). */
+:is(.home-page, .about-page) .home-section-intro .home-section-intro__lead,
+:is(.home-page, .about-page) .about-template-fallback__dd,
+:is(.home-page, .about-page) .about-value-card__text,
+:is(.about-page) .about-value-card__title,
+:is(.about-page) .about-contact-copy {
+  -webkit-hyphens: auto;
+  hyphens: auto;
+  hyphenate-limit-chars: 6 4 3;
+  word-break: normal;
+  overflow-wrap: break-word;
+  text-wrap: wrap;
+}
+
+:is(.home-page, .about-page) .about-template-fallback__title {
+  -webkit-hyphens: manual;
+  hyphens: manual;
+}
+
+/* Карточки категорий (главная): слоги; text-wrap: wrap — без «pretty», иначе длинные слова уезжают целиком. */
+.home-page .home-block-hyphens {
+  -webkit-hyphens: auto;
+  hyphens: auto;
+  hyphenate-limit-chars: 5 3 2;
+  word-break: normal;
+  overflow-wrap: break-word;
+  text-wrap: wrap;
+}
+
+@media (min-width: 768px) {
+  /* Правая колонка (учебный центр / прочие услуги) чуть шире — больше места под переносы. */
+  .home-page .services-home-categories-shell {
+    grid-template-columns: minmax(0, 0.94fr) minmax(0, 1.06fr);
+  }
+
+  .home-page .services-home-categories-shell__side .home-service-card-panel {
+    padding-inline: 0.75rem 0.9rem;
   }
 }
 

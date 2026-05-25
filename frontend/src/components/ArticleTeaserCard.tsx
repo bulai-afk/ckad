@@ -15,6 +15,8 @@ export type ArticleTeaserCardProps = {
    * В карусели мышью тянут слайд — для ссылок останавливаем всплытие pointerdown с мыши.
    */
   isolateLinksForCarousel?: boolean;
+  /** Автоперенос по слогам в описании (главная — блок «Новости»). */
+  hyphenateExcerpt?: boolean;
 };
 
 export function formatArticleDate(iso?: string | null): { dateTime: string; label: string } {
@@ -46,6 +48,7 @@ export function ArticleTeaserCard({
   excerpt,
   articleKind,
   isolateLinksForCarousel = false,
+  hyphenateExcerpt = false,
 }: ArticleTeaserCardProps) {
   const onLinkPointerDown = isolateLinksForCarousel
     ? (e: PointerEvent<HTMLAnchorElement>) => {
@@ -91,7 +94,11 @@ export function ArticleTeaserCard({
           <h3 className="mt-2 text-base font-semibold leading-[1.4] text-slate-900 group-hover:text-[#496db3] sm:mt-3">
             {title}
           </h3>
-          <p className="mt-3 line-clamp-3 text-base leading-[1.4] text-slate-600 sm:mt-4">{excerpt}</p>
+          <p
+            className={`mt-3 line-clamp-3 text-base leading-[1.4] text-slate-600 sm:mt-4${hyphenateExcerpt ? " home-block-hyphens" : ""}`}
+          >
+            {excerpt}
+          </p>
         </div>
 
         <div className="relative mt-4 flex items-center gap-x-3 sm:mt-5">

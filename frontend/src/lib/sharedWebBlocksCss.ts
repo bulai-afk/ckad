@@ -45,6 +45,7 @@ ${scope} .page-web-cover-inner { position: relative; z-index: 2; flex: 1; min-he
 ${scope} .page-web-cover[data-cover-halign="left"] .page-web-cover-inner { align-items: flex-start; text-align: left; }
 ${scope} .page-web-cover[data-cover-halign="center"] .page-web-cover-inner { align-items: center; text-align: center; }
 ${scope} .page-web-cover[data-cover-halign="right"] .page-web-cover-inner { align-items: flex-end; text-align: right; }
+${scope} .page-web-cover[data-cover-halign="justify"] .page-web-cover-inner { align-items: stretch; text-align: justify; }
 ${scope} .page-web-cover:not([data-cover-halign]) .page-web-cover-inner { align-items: center; text-align: center; }
 ${scope} .page-web-cover[data-cover-valign="top"] .page-web-cover-inner { justify-content: flex-start; }
 ${scope} .page-web-cover[data-cover-valign="middle"] .page-web-cover-inner,
@@ -85,9 +86,28 @@ ${scope} .page-web-cover-el-title > .page-web-elements-field-row {
 ${scope} .page-web-cover-inner > .page-web-elements.page-web-elements-title[data-cover-title-halign="left"] > .page-web-elements-field-row { justify-content: flex-start; text-align: left; }
 ${scope} .page-web-cover-inner > .page-web-elements.page-web-elements-title[data-cover-title-halign="center"] > .page-web-elements-field-row { justify-content: center; text-align: center; }
 ${scope} .page-web-cover-inner > .page-web-elements.page-web-elements-title[data-cover-title-halign="right"] > .page-web-elements-field-row { justify-content: flex-end; text-align: right; }
+${scope} .page-web-cover-inner > .page-web-elements.page-web-elements-title[data-cover-title-halign="justify"] > .page-web-elements-field-row,
+${scope} .page-web-cover-inner > .page-web-elements.page-web-elements-title[data-cover-title-halign="justify"] textarea.page-web-elements-title-input { width: 100% !important; max-width: 100% !important; text-align: justify !important; }
 ${scope} .page-web-cover-inner > .page-web-elements.page-web-elements-description[data-cover-description-halign="left"] > .page-web-elements-field-row { justify-content: flex-start; text-align: left; }
 ${scope} .page-web-cover-inner > .page-web-elements.page-web-elements-description[data-cover-description-halign="center"] > .page-web-elements-field-row { justify-content: center; text-align: center; }
 ${scope} .page-web-cover-inner > .page-web-elements.page-web-elements-description[data-cover-description-halign="right"] > .page-web-elements-field-row { justify-content: flex-end; text-align: right; }
+${scope} .page-web-cover-inner > .page-web-elements.page-web-elements-description[data-cover-description-halign="justify"] > .page-web-elements-field-row,
+${scope} .page-web-cover-inner > .page-web-elements.page-web-elements-description[data-cover-description-halign="justify"] textarea.page-web-elements-description-input { width: 100% !important; max-width: 100% !important; text-align: justify !important; -webkit-hyphens: auto; hyphens: auto; }
+${scope} .page-web-elements-field-row[style*="text-align: justify"] textarea.page-web-elements-subtitle-input,
+${scope} .page-web-elements-field-row[style*="text-align: justify"] textarea.page-web-elements-title-input,
+${scope} .page-web-elements-field-row[style*="text-align: justify"] textarea.page-web-elements-title2-input,
+${scope} .page-web-elements-field-row[style*="text-align: justify"] textarea.page-web-elements-description-input,
+${scope} textarea.page-web-elements-subtitle-input[style*="text-align: justify"],
+${scope} textarea.page-web-elements-title-input[style*="text-align: justify"],
+${scope} textarea.page-web-elements-title2-input[style*="text-align: justify"],
+${scope} textarea.page-web-elements-description-input[style*="text-align: justify"] {
+  width: 100% !important;
+  max-width: 100% !important;
+  text-align: justify !important;
+  -webkit-hyphens: auto;
+  hyphens: auto;
+  text-wrap: wrap;
+}
 ${scope} .page-web-cover-inner > .page-web-elements-actions[data-cover-actions-halign="left"] { align-items: flex-start; text-align: left; }
 ${scope} .page-web-cover-inner > .page-web-elements-actions[data-cover-actions-halign="center"] { align-items: center; text-align: center; }
 ${scope} .page-web-cover-inner > .page-web-elements-actions[data-cover-actions-halign="right"] { align-items: flex-end; text-align: right; }
@@ -1257,6 +1277,21 @@ ${scope} .page-web-feature-grid[data-feature-grid-image-position="bottom"][data-
 }
 }
 ${getSiteBlueTitleUnifiedCss(scope)}
+${scope} [data-web-elements-hyphens="auto"] {
+  -webkit-hyphens: auto;
+  hyphens: auto;
+  hyphenate-limit-chars: 5 3 2;
+}
+${scope} [data-web-elements-hyphens="auto"] textarea.page-web-elements-subtitle-input,
+${scope} [data-web-elements-hyphens="auto"] textarea.page-web-elements-title-input,
+${scope} [data-web-elements-hyphens="auto"] textarea.page-web-elements-title2-input,
+${scope} [data-web-elements-hyphens="auto"] textarea.page-web-elements-description-input,
+${scope} [data-web-elements-hyphens="auto"] textarea.page-web-text-block-subtitle-input,
+${scope} [data-web-elements-hyphens="auto"] textarea.page-web-text-block-title-input,
+${scope} [data-web-elements-hyphens="auto"] textarea.page-web-text-block-lead-input {
+  word-break: normal;
+  overflow-wrap: break-word;
+}
 ${getWebElementsAnnouncementStripMobileCss(scope)}
 `;
 }

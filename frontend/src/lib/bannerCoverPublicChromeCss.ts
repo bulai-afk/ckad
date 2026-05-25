@@ -47,6 +47,14 @@ ${s} .page-web-cover .page-web-cover-inner > .page-web-elements.page-web-element
 ${s} .page-web-cover-inner > .page-web-elements.page-web-elements-description[data-cover-description-halign="left"] > .page-web-elements-field-row { justify-content: flex-start; text-align: left; }
 ${s} .page-web-cover-inner > .page-web-elements.page-web-elements-description[data-cover-description-halign="center"] > .page-web-elements-field-row { justify-content: center; text-align: center; }
 ${s} .page-web-cover-inner > .page-web-elements.page-web-elements-description[data-cover-description-halign="right"] > .page-web-elements-field-row { justify-content: flex-end; text-align: right; }
+${s} .page-web-cover-inner > .page-web-elements.page-web-elements-description[data-cover-description-halign="justify"] > .page-web-elements-field-row,
+${s} .page-web-cover-inner > .page-web-elements.page-web-elements-description[data-cover-description-halign="justify"] .page-web-elements-description-input {
+  width: 100% !important;
+  max-width: 100% !important;
+  text-align: justify !important;
+  -webkit-hyphens: auto;
+  hyphens: auto;
+}
 ${s} .page-web-cover-inner > .page-web-elements-actions[data-cover-actions-halign="left"] { align-items: flex-start !important; text-align: left !important; }
 ${s} .page-web-cover-inner > .page-web-elements-actions[data-cover-actions-halign="center"] { align-items: center !important; text-align: center !important; }
 ${s} .page-web-cover-inner > .page-web-elements-actions[data-cover-actions-halign="right"] { align-items: flex-end !important; text-align: right !important; }

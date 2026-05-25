@@ -378,8 +378,8 @@ export function SiteFooter({
             <div className="mt-1 flex justify-center sm:hidden">
               <FooterSocialList items={socialItems} />
             </div>
-            <div className="mt-1 sm:mt-3">
-              <p className={`hidden sm:block ${colHeadingClass}`}>Документы</p>
+            <div className="mt-1 hidden sm:mt-3 sm:block">
+              <p className={colHeadingClass}>Документы</p>
               <ul className="mt-1 space-y-0" role="list">
                 {footerDocuments.map((doc, i) => (
                   <li key={`${doc.name}-${i}`}>

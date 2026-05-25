@@ -317,10 +317,12 @@
   line-height: 1.4;
   color: #496db3;
   font-weight: 500;
-  overflow-wrap: anywhere;
-  word-break: break-word;
+  -webkit-hyphens: manual;
+  hyphens: manual;
+  text-wrap: pretty;
+  overflow-wrap: break-word;
+  word-break: normal;
   white-space: pre-wrap;
-  overflow: visible;
   transition: color 0.25s ease, text-shadow 0.25s ease;
 }
 
@@ -735,10 +737,16 @@
   font-weight: 500;
   color: rgb(71 85 105 / 1);
   text-shadow: none;
-  text-wrap: pretty;
+  text-wrap: wrap;
   white-space: pre-wrap;
   overflow-wrap: break-word;
-  word-break: break-word;
+  word-break: normal;
+}
+
+/* Главная — блок «Наши услуги»: описание по ширине (слоги — .home-block-hyphens в globals.css). */
+:global(.home-page) :global(.services-home-categories-shell) .cardFeaturedDesc {
+  text-align: justify;
+  text-wrap: wrap;
 }
 
 @media (min-width: 640px) {
@@ -953,9 +961,11 @@
   font-weight: 500;
   color: rgb(71 85 105 / 1);
   text-shadow: none;
+  -webkit-hyphens: manual;
+  hyphens: manual;
   text-wrap: pretty;
   overflow-wrap: break-word;
-  word-break: break-word;
+  word-break: normal;
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
