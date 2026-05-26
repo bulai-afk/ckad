@@ -158,7 +158,7 @@ export function HomeArticlesCarousel({ slides }: Props) {
           Новости
         </h2>
         <p className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-pretty sm:-mt-2">
-          Актуальная информация
+          Полезная информация
         </p>
         <p className="home-section-intro__lead text-pretty">
           Полезные материалы по каталогизации и анализу данных — советы и разборы кейсов, которые помогут

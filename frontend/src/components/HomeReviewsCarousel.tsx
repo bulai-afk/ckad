@@ -126,8 +126,7 @@ export function HomeReviewsCarousel({ slides }: HomeReviewsCarouselProps) {
       <p className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-pretty sm:-mt-2">О нашей работе</p>
       <p className="home-section-intro__lead text-pretty">
         Мы гордимся каждым клиентом и бережно храним благодарности: это подтверждение того, что задачи по
-        каталогизации и анализу данных мы доводим до результата, которым можно делиться с коллегами и
-        руководством.
+        каталогизации и анализу данных мы доводим до результата.
       </p>
     </div>
   );

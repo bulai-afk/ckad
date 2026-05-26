@@ -304,6 +304,8 @@ body::-webkit-scrollbar:horizontal {
 
 /* Главная и «О компании»: автоперенос по слогам в подзаголовках и описаниях (не в синих заголовках). */
 :is(.home-page, .about-page) .home-section-intro .home-section-intro__lead,
+.articles-page .home-section-intro__lead,
+.section-services-hub-hyphens .home-section-intro__lead,
 :is(.home-page, .about-page) .about-template-fallback__dd,
 :is(.home-page, .about-page) .about-value-card__text,
 :is(.about-page) .about-value-card__title,
@@ -319,6 +321,11 @@ body::-webkit-scrollbar:horizontal {
 :is(.home-page, .about-page) .about-template-fallback__title {
   -webkit-hyphens: manual;
   hyphens: manual;
+}
+
+/* Главная — «О нас»: описания пунктов (экспертная команда и т.д.) по ширине. */
+.home-page .about-template-fallback__dd {
+  text-align: justify;
 }
 
 /* Карточки услуг: слоги (главная и хабы вроде «Прочие услуги»). */

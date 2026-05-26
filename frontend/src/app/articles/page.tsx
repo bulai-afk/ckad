@@ -188,24 +188,25 @@ export default async function ArticlesPage({ searchParams }: ArticlesPageProps) 
 
   return (
     <div className="articles-page min-h-screen bg-slate-100 text-slate-900" lang="ru">
-      <div className="mx-auto max-w-7xl px-6 py-8 sm:py-10 lg:px-8">
-        <section className="bg-transparent py-0 about-template-fallback">
-          <div className="mx-auto mt-0 max-w-3xl text-center">
-            <h1 className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-base font-semibold text-[#b91c1c]">
-              Новости
-            </h1>
-            <p className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-pretty sm:-mt-2">
-              Актуальная информация
-            </p>
-            <p className="mt-6 text-pretty text-base leading-[1.4] font-medium text-slate-600">
-              Полезные материалы по каталогизации и анализу данных — советы и разборы кейсов, которые помогут быстрее
-              пройти согласования и избежать ошибок.
-            </p>
-          </div>
+      <section className="bg-transparent py-8 sm:py-10 about-template-fallback">
+        <div className="home-section-intro">
+          <h1 className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-base font-semibold text-[#b91c1c]">
+            Новости
+          </h1>
+          <p className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-pretty sm:-mt-2">
+            Полезная информация
+          </p>
+          <p className="home-section-intro__lead">
+            Полезные материалы по каталогизации и анализу данных — советы и разборы кейсов, которые помогут быстрее
+            пройти согласования и избежать ошибок.
+          </p>
+        </div>
+      </section>
 
+      <div className="mx-auto max-w-7xl home-section-inline-padding pb-8 sm:pb-10 lg:pb-10">
           {posts.length > 0 ? (
             <>
-              <div className="mt-10 max-w-none">
+              <div className="mt-2 max-w-none sm:mt-4">
                 <ul className="grid list-none grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-3 lg:gap-x-8 lg:gap-y-10">
                   {pagedPosts.map((p) => (
                     <li key={p.href} className="min-w-0">
@@ -276,7 +277,6 @@ export default async function ArticlesPage({ searchParams }: ArticlesPageProps) 
               Пока нет опубликованных материалов в разделе новостей.
             </div>
           )}
-        </section>
       </div>
     </div>
   );

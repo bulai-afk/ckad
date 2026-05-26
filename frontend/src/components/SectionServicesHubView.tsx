@@ -25,20 +25,20 @@ export function SectionServicesHubView({
       className={`min-h-screen bg-slate-100 text-slate-900${hyphenateDescriptions ? " section-services-hub-hyphens" : ""}`}
       lang={hyphenateDescriptions ? "ru" : undefined}
     >
-      <div className="mx-auto max-w-7xl px-6 py-8 sm:py-10 lg:px-8">
-        <section className="bg-transparent py-0 about-template-fallback">
-          <div className="mx-auto mt-0 max-w-3xl text-center">
-            <p className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-base font-semibold text-[#b91c1c]">
-              Наши услуги
-            </p>
-            <h1 className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-pretty sm:-mt-2">
-              {rootTitle}
-            </h1>
-            <p className="mt-6 text-pretty text-base leading-[1.4] font-medium text-slate-600">
-              {rootDescription ?? descriptionFallback}
-            </p>
-          </div>
+      <section className="bg-transparent py-8 sm:py-10 about-template-fallback">
+        <div className="home-section-intro">
+          <p className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-base font-semibold text-[#b91c1c]">
+            Наши услуги
+          </p>
+          <h1 className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-pretty sm:-mt-2">
+            {rootTitle}
+          </h1>
+          <p className={`home-section-intro__lead${hyphenateDescriptions ? "" : " text-pretty"}`}>
+            {rootDescription ?? descriptionFallback}
+          </p>
+        </div>
 
+        <div className="mx-auto max-w-7xl home-section-inline-padding">
           <div className="mt-8 max-w-none">
             <HomeServicesFolderCards
               layout="featured"
@@ -52,8 +52,8 @@ export function SectionServicesHubView({
               limit={999}
             />
           </div>
-        </section>
-      </div>
+        </div>
+      </section>
     </div>
   );
 }

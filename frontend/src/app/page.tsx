@@ -175,8 +175,7 @@ export default async function Home() {
           </p>
           <p className="home-section-intro__lead text-pretty">
             Приведём номенклатуру и данные в порядок, обучим вашу команду работе по правилам и
-            останемся рядом на этапах согласования и внедрения — без «серых зон» в ответственности и
-            сроках.
+            останемся рядом на этапах согласования и внедрения.
           </p>
         </div>
         <div className="mx-auto max-w-7xl home-section-inline-padding">
