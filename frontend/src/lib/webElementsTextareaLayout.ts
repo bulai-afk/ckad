@@ -138,8 +138,8 @@ function isTimelineWebElementsTextarea(textarea: HTMLTextAreaElement): boolean {
   );
 }
 
-function isFeatureGridCardBodyTextarea(textarea: HTMLTextAreaElement): boolean {
-  return Boolean(textarea.closest(".page-web-feature-grid-item-body"));
+function isFeatureGridCardTextarea(textarea: HTMLTextAreaElement): boolean {
+  return Boolean(textarea.closest(".page-web-feature-grid-item"));
 }
 
 export function layoutWebElementsTextareaSize(textarea: HTMLTextAreaElement): void {
@@ -169,13 +169,12 @@ export function layoutWebElementsTextareaSize(textarea: HTMLTextAreaElement): vo
     return;
   }
 
-  if (isFeatureGridCardBodyTextarea(textarea)) {
-    /* Карточки feature-grid: ширина колонки из CSS; px с desktop-лэйаута даёт лишнюю высоту. */
+  if (isFeatureGridCardTextarea(textarea)) {
+    /* Карточки: ширина и высота из CSS (field-sizing: content), без px/scrollHeight с десктопа. */
     textarea.style.width = "";
     textarea.style.removeProperty("min-width");
     textarea.style.removeProperty("max-width");
-    textarea.style.height = "auto";
-    textarea.style.height = `${textarea.scrollHeight}px`;
+    textarea.style.removeProperty("height");
     return;
   }
 
