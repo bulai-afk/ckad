@@ -86,21 +86,20 @@ type PageSlugClientProps = {
 };
 
 export function PageSlugClient({ slugParts, page, serviceFolderHub }: PageSlugClientProps) {
-  const isArticlesPage = slugParts[0] === "articles";
   const contentRootRef = useRef<HTMLElement | null>(null);
   const [callbackModalOpen, setCallbackModalOpen] = useState(false);
   const [documentDialogIndex, setDocumentDialogIndex] = useState<number | null>(null);
 
   useEffect(() => {
-    if (isArticlesPage || !page) return;
+    if (!page) return;
     const root = contentRootRef.current;
     if (!root) return;
     ensureCoverBgLayers(root);
-  }, [page, isArticlesPage]);
+  }, [page]);
 
   /** До отрисовки: readonly, rows=1 (убирает UA-высоту по rows из HTML), затем layout textarea — иначе один кадр с лишним зазором под заголовком. */
   useLayoutEffect(() => {
-    if (isArticlesPage || !page) return;
+    if (!page) return;
     const root = contentRootRef.current;
     if (!root) return;
     stripLegacyTimelineDomInRoot(root);
@@ -148,7 +147,7 @@ export function PageSlugClient({ slugParts, page, serviceFolderHub }: PageSlugCl
       ro?.disconnect();
       window.removeEventListener("resize", layout);
     };
-  }, [page, isArticlesPage]);
+  }, [page]);
 
   if (!page && serviceFolderHub) {
     const sectionDescription =
@@ -228,8 +227,8 @@ export function PageSlugClient({ slugParts, page, serviceFolderHub }: PageSlugCl
         <section>
           <PublicCarouselViewportSync />
           <main
-            ref={!isArticlesPage ? contentRootRef : null}
-            className={`page-editor goz-full-width ${!isArticlesPage ? "w-full service-page-content-root" : ""}`}
+            ref={contentRootRef}
+            className="page-editor goz-full-width w-full service-page-content-root"
             onClick={(e) => {
               const target = e.target as HTMLElement;
               const link = target.closest?.(
@@ -257,7 +256,7 @@ export function PageSlugClient({ slugParts, page, serviceFolderHub }: PageSlugCl
                 return (
                   <div
                     key={block.id}
-                    className={isArticlesPage ? "article-page-content page-content" : "page-content text-[12px] text-slate-800"}
+                    className="page-content text-[12px] text-slate-800"
                     dangerouslySetInnerHTML={{ __html: html }}
                   />
                 );
