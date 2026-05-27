@@ -124,47 +124,6 @@ export default async function Home() {
   return (
     <div className="home-page min-h-screen bg-slate-100 text-slate-900" lang="ru">
       <HomeBannersCarouselGate slides={homeBanners} coverAspect={homeBannersCoverAspect} />
-      <section className="bg-transparent py-8 sm:py-10 about-template-fallback">
-        <div className="home-section-intro">
-          <h2 className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-base font-semibold text-[#b91c1c]">
-            О нас
-          </h2>
-          <p className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-pretty sm:-mt-2">
-            Центр каталогизации и анализа данных
-          </p>
-          <p className="home-section-intro__lead text-pretty">
-            Помогаем заказчикам систематизировать сведения о продукции, вести номенклатуру в
-            актуальном состоянии и проходить процедуры согласования без лишних срывов сроков.
-          </p>
-        </div>
-        <div className="mx-auto max-w-7xl home-section-inline-padding">
-          <div className="mt-8 max-w-none about-template-fallback__list-wrap">
-            <ul className="grid max-w-none grid-cols-1 gap-x-8 gap-y-10 lg:grid-cols-2 lg:gap-y-16 about-template-fallback__grid">
-              {features.map((feature) => (
-                <li key={feature.name} className="about-template-fallback__item flex items-center gap-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#496db3]/12 about-template-fallback__icon">
-                    <feature.icon
-                      aria-hidden="true"
-                      className="h-6 w-6 shrink-0 text-[#496db3] about-template-fallback__icon-glyph"
-                    />
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="text-base/7 font-semibold text-gray-900 about-template-fallback__dt">
-                      {feature.name}
-                    </h3>
-                    {feature.description ? (
-                      <p className="mt-0 text-base/7 text-gray-600 about-template-fallback__dd">
-                        {feature.description}
-                      </p>
-                    ) : null}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </section>
-
       <section className="bg-transparent py-6 sm:py-10 about-template-fallback">
         <div className="home-section-intro">
           <h2 className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-base font-semibold text-[#b91c1c]">
@@ -208,6 +167,47 @@ export default async function Home() {
                 />
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-transparent py-8 sm:py-10 about-template-fallback">
+        <div className="home-section-intro">
+          <h2 className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-base font-semibold text-[#b91c1c]">
+            О нас
+          </h2>
+          <p className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-pretty sm:-mt-2">
+            Центр каталогизации и анализа данных
+          </p>
+          <p className="home-section-intro__lead text-pretty">
+            Помогаем заказчикам систематизировать сведения о продукции, вести номенклатуру в
+            актуальном состоянии и проходить процедуры согласования без лишних срывов сроков.
+          </p>
+        </div>
+        <div className="mx-auto max-w-7xl home-section-inline-padding">
+          <div className="mt-8 max-w-none about-template-fallback__list-wrap">
+            <ul className="grid max-w-none grid-cols-1 gap-x-8 gap-y-10 lg:grid-cols-2 lg:gap-y-16 about-template-fallback__grid">
+              {features.map((feature) => (
+                <li key={feature.name} className="about-template-fallback__item flex items-center gap-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#496db3]/12 about-template-fallback__icon">
+                    <feature.icon
+                      aria-hidden="true"
+                      className="h-6 w-6 shrink-0 text-[#496db3] about-template-fallback__icon-glyph"
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-base/7 font-semibold text-gray-900 about-template-fallback__dt">
+                      {feature.name}
+                    </h3>
+                    {feature.description ? (
+                      <p className="mt-0 text-base/7 text-gray-600 about-template-fallback__dd">
+                        {feature.description}
+                      </p>
+                    ) : null}
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </section>
