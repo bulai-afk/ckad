@@ -52,6 +52,41 @@ export function ensureFeatureGridContentWrap(root: HTMLElement): boolean {
   return changed;
 }
 
+function isVisibleFeatureGridActionEl(el: HTMLElement): boolean {
+  const view = el.ownerDocument?.defaultView;
+  if (!view) return true;
+  const style = view.getComputedStyle(el);
+  return style.display !== "none" && style.visibility !== "hidden";
+}
+
+/** Убирает пустые обёртки «Подробнее» / CTA — иначе остаётся отступ снизу карточки. */
+export function collapseFeatureGridCardActionsInRoot(rootEl: HTMLElement): boolean {
+  let changed = false;
+  rootEl.querySelectorAll(".page-web-feature-grid-item-body").forEach((body) => {
+    body.querySelectorAll(":scope > .page-web-feature-grid-item-link-wrap").forEach((wrap) => {
+      const link = wrap.querySelector(".page-web-feature-grid-link");
+      const learnMore = wrap.querySelector(".page-web-elements-announcement-learn-more");
+      const hasVisible =
+        (link instanceof HTMLElement && isVisibleFeatureGridActionEl(link)) ||
+        (learnMore instanceof HTMLElement && isVisibleFeatureGridActionEl(learnMore));
+      if (!hasVisible) {
+        wrap.remove();
+        changed = true;
+      }
+    });
+    body.querySelectorAll(":scope > .page-web-elements-cta-wrap").forEach((wrap) => {
+      const btn = wrap.querySelector(
+        ".page-web-elements-cta-button, .page-web-elements-cta-button-secondary",
+      );
+      if (!(btn instanceof HTMLElement) || !isVisibleFeatureGridActionEl(btn)) {
+        wrap.remove();
+        changed = true;
+      }
+    });
+  });
+  return changed;
+}
+
 export function normalizeFeatureGridContentWrapInRoot(rootEl: HTMLElement): boolean {
   let changed = false;
   rootEl.querySelectorAll(".page-web-feature-grid").forEach((node) => {
@@ -59,6 +94,7 @@ export function normalizeFeatureGridContentWrapInRoot(rootEl: HTMLElement): bool
     if (ensureFeatureGridContentWrap(grid)) changed = true;
     if (ensureFeatureGridImageDisplay(grid)) changed = true;
   });
+  if (collapseFeatureGridCardActionsInRoot(rootEl)) changed = true;
   return changed;
 }
 

@@ -940,6 +940,15 @@ ${scope} .page-web-feature-grid-item-title > .page-web-elements-title2 {
   align-self: center;
 }
 ${scope} .page-web-feature-grid[data-feature-grid-card-show-title2="0"] .page-web-feature-grid-item-title > .page-web-elements-title2 { display: none !important; }
+${scope} .page-web-feature-grid[data-feature-grid-card-show-title2="0"] .page-web-feature-grid-item-title:not(:has(.page-web-feature-grid-icon-wrap)) {
+  display: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  min-height: 0 !important;
+}
+${scope} .page-web-feature-grid[data-feature-grid-card-show-title2="0"] .page-web-feature-grid-item:has(> .page-web-feature-grid-item-title:not(:has(.page-web-feature-grid-icon-wrap))) > .page-web-feature-grid-item-body {
+  margin-top: 0;
+}
 ${scope} .page-web-feature-grid-item-title .page-web-elements-field-row { width: 100%; min-width: 0; }
 ${scope} .page-web-feature-grid-item-title textarea.page-web-elements-title2-input {
   width: 100% !important;
@@ -975,8 +984,11 @@ ${scope} .page-web-feature-grid-item-body > .page-web-elements-description { wid
 ${scope} .page-web-feature-grid-item-body > .page-web-elements-cta-wrap { margin: 0.4rem 0 0; box-sizing: border-box; }
 ${scope} .page-web-feature-grid-item-body > .page-web-elements-description .page-web-elements-field-row { width: 100%; min-width: 0; }
 ${scope} .page-web-feature-grid-item-body textarea.page-web-elements-description-input {
+  width: 100% !important;
   max-width: 100%;
+  min-width: 0;
   box-sizing: border-box;
+  field-sizing: content;
 }
 ${scope} .page-web-feature-grid-item-body:empty { display: none; margin: 0; }
 ${scope} .page-web-feature-grid-item:has(> .page-web-feature-grid-item-body:empty) { justify-content: center; }
@@ -994,9 +1006,12 @@ ${scope} .page-web-feature-grid-item-link-wrap:not(:has(.page-web-feature-grid-l
   padding: 0 !important;
   min-height: 0 !important;
 }
-${scope} .page-web-feature-grid-item-body > .page-web-elements-cta-wrap:empty {
+${scope} .page-web-feature-grid-item-body > .page-web-elements-cta-wrap:empty,
+${scope} .page-web-feature-grid-item-body > .page-web-elements-cta-wrap:not(:has(.page-web-elements-cta-button, .page-web-elements-cta-button-secondary)) {
   display: none !important;
   margin: 0 !important;
+  padding: 0 !important;
+  min-height: 0 !important;
 }
 ${scope} .page-web-feature-grid-link { color: #496db3; text-decoration: none; font-weight: 600; }
 ${scope} .page-web-feature-grid-link:hover { text-decoration: underline; }
@@ -1093,7 +1108,14 @@ ${scope} .page-web-timeline-item > .page-web-timeline-term textarea.page-web-ele
 ${scope} .page-web-cover[data-cover-type="split"] .page-web-cover-inner { width: 100%; padding-right: clamp(1rem, 4vw, 1.5rem); }
 ${scope} .page-web-cover[data-cover-type="split"]::before { background: linear-gradient(180deg, rgba(248,250,252,0.06) 0%, rgba(248,250,252,0.28) 48%, rgba(248,250,252,0.52) 100%); }
 ${scope} .page-web-cover[data-cover-type="split"]::after { width: 100%; border-left: none; opacity: 0.35; }
-${scope} .page-web-feature-grid-list { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+${scope} .page-web-feature-grid-list { grid-template-columns: repeat(1, minmax(0, 1fr)); align-items: start; }
+${scope} .page-web-feature-grid-list > .page-web-feature-grid-item,
+${scope} .page-web-feature-grid[data-feature-grid-image-position="right"][data-feature-grid-image-display="background"]:has(> .page-web-feature-grid-image[data-feature-grid-image-has-src="1"]) .page-web-feature-grid-list > .page-web-feature-grid-item,
+${scope} .page-web-feature-grid[data-feature-grid-image-position="left"][data-feature-grid-image-display="background"]:has(> .page-web-feature-grid-image[data-feature-grid-image-has-src="1"]) .page-web-feature-grid-list > .page-web-feature-grid-item {
+  min-height: 0;
+  height: auto;
+  align-self: start;
+}
 ${scope} .page-web-feature-grid[data-feature-grid-message-position="right"] .page-web-feature-grid-lead-row,
 ${scope} .page-web-feature-grid[data-feature-grid-message-position="left"] .page-web-feature-grid-lead-row,
 ${scope} .page-web-feature-grid-lead-row[data-feature-grid-message-position="right"],

@@ -138,6 +138,10 @@ function isTimelineWebElementsTextarea(textarea: HTMLTextAreaElement): boolean {
   );
 }
 
+function isFeatureGridCardBodyTextarea(textarea: HTMLTextAreaElement): boolean {
+  return Boolean(textarea.closest(".page-web-feature-grid-item-body"));
+}
+
 export function layoutWebElementsTextareaSize(textarea: HTMLTextAreaElement): void {
   textarea.style.boxSizing = "border-box";
 
@@ -160,6 +164,16 @@ export function layoutWebElementsTextareaSize(textarea: HTMLTextAreaElement): vo
     /* Таймлайн на mobile: ширина из CSS (grid 1fr), не px по зеркалу — иначе при узкой
        колонке desktop-grid или до раскладки capPx ~20px и текст ломается по буквам. */
     textarea.style.width = "";
+    textarea.style.height = "auto";
+    textarea.style.height = `${textarea.scrollHeight}px`;
+    return;
+  }
+
+  if (isFeatureGridCardBodyTextarea(textarea)) {
+    /* Карточки feature-grid: ширина колонки из CSS; px с desktop-лэйаута даёт лишнюю высоту. */
+    textarea.style.width = "";
+    textarea.style.removeProperty("min-width");
+    textarea.style.removeProperty("max-width");
     textarea.style.height = "auto";
     textarea.style.height = `${textarea.scrollHeight}px`;
     return;

@@ -248,7 +248,11 @@ export function PageSlugClient({ slugParts, page, serviceFolderHub }: PageSlugCl
             }}
           >
             {page.blocks.map((block) => {
-              if (["summary", "preview", "keywords", "seo_title", "seo_description"].includes(block.type)) {
+              if (
+                ["summary", "preview", "keywords", "seo_title", "seo_description", "article_kind"].includes(
+                  block.type,
+                )
+              ) {
                 return null;
               }
               if (block.type === "text") {
