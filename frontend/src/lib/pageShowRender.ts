@@ -557,7 +557,7 @@ ${scope} .page-web-work-pricing .wte { margin-top: 0.85rem; font-size: 0.88rem; 
 @media (max-width: 1205px) {
 ${scope} .page-web-work-pricing .wrc { width: 100%; max-width: none; margin-inline: 0; }
 ${scope} .page-web-work-pricing .wrp { max-width: none; }
-${scope} .page-web-work-pricing .wrf { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.85rem 0.9rem; }
+${scope} .page-web-work-pricing .wrf { grid-template-columns: minmax(0, 1fr); gap: 0.75rem; }
 ${scope} .page-web-work-pricing .wsp { padding: 1.25rem 0.875rem; position: relative; z-index: 1; }
 ${scope} .page-web-work-pricing .wux { padding: 1rem 0.75rem; }
 ${scope} .page-web-work-pricing .wrd { padding: 0.8rem; position: relative; z-index: 0; }
