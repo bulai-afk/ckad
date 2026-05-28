@@ -146,32 +146,4 @@ jobs:
           SITE_URL: ${{ secrets.DEPLOY_SITE_URL }}
         run: |
           set -euo pipefail
-          if [ -z "${SITE_URL:-}" ]; then
-            echo "::warning::DEPLOY_SITE_URL is not set — skipping health check."
-            exit 0
-          fi
-          BASE="${SITE_URL%/}"
-          curl_retry() {
-            local url="$1"
-            local attempt
-            for attempt in $(seq 1 15); do
-              if curl -fsS --max-time 30 -o /dev/null -w '' "$url"; then
-                echo "OK $url"
-                return 0
-              fi
-              echo "Health check attempt $attempt/15 failed for $url, retrying in 5s..."
-              sleep 5
-            done
-            echo "::error::Health check failed after 15 attempts: $url"
-            return 1
-          }
-          for path in \
-            /api/pages \
-            /api/pages/folders \
-            /api/pages/partners \
-            /api/pages/reviews \
-            /api/pages/banners \
-            /api/pages/site-settings
-          do
-            curl_retry "$BASE$path"
-          done
+          bash deploy/ci-health-check.sh backend "${DEPLOY_USER}" "${DEPLOY_HOST}" "${SITE_URL:-}"
