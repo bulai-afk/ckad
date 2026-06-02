@@ -116,10 +116,16 @@ const WEB_PAGE_ELEMENTS = [
     label: "Текстовый блок v2",
     description: "Плашка анонса, подзаголовок, Заголовок 1, Заголовок 2 и короткое описание",
   },
+  {
+    id: "article-text",
+    tab: "text",
+    label: "Текст статьи",
+    description: "Заголовок и основной текст статьи для публикаций и длинных материалов",
+  },
   { id: "spacer", tab: "decor", label: "Отступ", description: "Пустой декоративный блок для дополнительного вертикального воздуха" },
 ] as const;
 const WEB_BLOCK_SHELL_SELECTOR =
-  ".page-web-cover, .page-web-carousel, .page-web-timeline, .page-web-text-media, .page-web-text-block, .page-web-text-block-v2, .page-web-spacer";
+  ".page-web-cover, .page-web-carousel, .page-web-timeline, .page-web-text-media, .page-web-text-block, .page-web-text-block-v2, .page-web-article-text, .page-web-spacer";
 
 /** Панель форматирования над полотном: скрыть расширенные инструменты (размер и цвет шрифта, жирный/курсив/подчёрк, вертикальное выравнивание, списки и маркеры, таблица, картинка). */
 const PAGE_EDITOR_FORMAT_TOOLBAR_MINIMAL = true;
@@ -2542,6 +2548,59 @@ function getTextBlockV2Html(): string {
   );
 }
 
+function getWebArticleTextToolbarHtml(): string {
+  const fieldToggle = (field: "title" | "body", label: string) =>
+    '<button type="button" role="menuitemcheckbox" class="page-web-text-block-menu-element page-web-text-block-v2-field-toggle !flex w-full flex-row flex-nowrap items-center gap-2.5 rounded-md py-2 pl-2.5 pr-2 text-left text-[13px] font-medium text-slate-800 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40" contenteditable="false" tabindex="-1" data-toggle-article-field="' +
+    field +
+    '" aria-checked="true">' +
+    '<span class="page-web-text-block-v2-field-toggle-box inline-flex size-[18px] shrink-0 items-center justify-center rounded border border-slate-300 bg-white shadow-sm transition-colors" aria-hidden="true"></span>' +
+    '<span class="min-w-0 flex-1 truncate text-slate-800">' +
+    label +
+    "</span></button>";
+  return (
+    '<div class="page-web-article-text-toolbar" contenteditable="false">' +
+    getWebBlockMoveButtonHtml("up") +
+    '<button type="button" class="page-web-article-text-menu-trigger" tabindex="-1" aria-label="Меню блока «Текст статьи»" aria-haspopup="true" title="Действия с блоком">' +
+    '<span class="page-web-article-text-menu-dots" aria-hidden="true"></span></button>' +
+    getWebBlockMoveButtonHtml("down") +
+    '<div role="menu" class="page-web-article-text-menu-dropdown">' +
+    '<div class="page-web-text-block-menu-sub page-web-text-block-menu-sub--article-elements" contenteditable="false">' +
+    '<button type="button" class="page-web-text-block-menu-sub-trigger" tabindex="-1" aria-haspopup="true" aria-expanded="false">' +
+    '<span class="page-web-text-block-menu-sub-label">Элементы</span>' +
+    '<span class="page-web-text-block-menu-chevron" aria-hidden="true"></span></button>' +
+    '<div role="menu" class="page-web-text-block-menu-sub-panel">' +
+    fieldToggle("title", "Заголовок") +
+    fieldToggle("body", "Основной текст статьи") +
+    "</div></div>" +
+    '<div class="page-web-text-block-menu-sep page-web-article-text-menu-sep" aria-hidden="true"></div>' +
+    '<button type="button" role="menuitem" class="page-web-article-text-menu-delete" contenteditable="false" tabindex="-1">Удалить блок</button>' +
+    "</div></div>"
+  );
+}
+
+function getArticleTextHtml(): string {
+  return (
+    '<div class="page-web-article-text" data-web-element="article-text" contenteditable="false" data-article-show-title="1" data-article-show-body="1">' +
+    getWebArticleTextToolbarHtml() +
+    '<div class="page-web-article-text-fields" contenteditable="false">' +
+    '<div class="page-web-elements page-web-elements-title">' +
+    '<div class="page-web-elements-field-row">' +
+    '<textarea class="page-web-elements-title-input" spellcheck="true" placeholder="Заголовок" rows="1">' +
+    escapeWebBlockHtmlText("Заголовок статьи") +
+    "</textarea>" +
+    "</div></div>" +
+    "</div>" +
+    '<div class="page-web-elements page-web-elements-description page-web-article-text-body" contenteditable="false">' +
+    '<div class="page-web-elements-field-row">' +
+    '<textarea class="page-web-elements-description-input page-web-article-text-body-input" spellcheck="true" placeholder="Основной текст статьи" rows="1">' +
+    escapeWebBlockHtmlText("Добавьте основной текст статьи. Здесь размещается полный текст публикации.") +
+    "</textarea>" +
+    "</div>" +
+    "</div>" +
+    "</div>"
+  );
+}
+
 /** Шапка «Этапы работы»: та же разметка полей, что у текстового блока v2 (`page-web-text-block-v2-fields` + островки). */
 function getWebTimelineHeadFieldsHtml(overrides?: {
   subtitle?: string;
@@ -2997,6 +3056,85 @@ function toggleWebTextBlockV2Field(block: HTMLElement, kind: WebTextBlockV2Field
   }
   block.setAttribute(attr, "1");
   return true;
+}
+
+type WebArticleTextFieldKey = "title" | "body";
+
+const WEB_ARTICLE_TEXT_FIELD_ATTR: Record<WebArticleTextFieldKey, string> = {
+  title: "data-article-show-title",
+  body: "data-article-show-body",
+};
+
+function isWebArticleTextFieldKey(value: string | null | undefined): value is WebArticleTextFieldKey {
+  return value === "title" || value === "body";
+}
+
+function normalizeWebArticleTextVisibilityAttrs(block: HTMLElement): boolean {
+  let changed = false;
+  (["title", "body"] as const).forEach((k) => {
+    const attr = WEB_ARTICLE_TEXT_FIELD_ATTR[k];
+    const raw = block.getAttribute(attr);
+    if (raw !== "0" && raw !== "1") {
+      block.setAttribute(attr, "1");
+      changed = true;
+    }
+  });
+  return changed;
+}
+
+function isWebArticleTextFieldVisible(block: HTMLElement, kind: WebArticleTextFieldKey): boolean {
+  return block.getAttribute(WEB_ARTICLE_TEXT_FIELD_ATTR[kind]) !== "0";
+}
+
+function countVisibleWebArticleTextFields(block: HTMLElement): number {
+  let n = 0;
+  if (isWebArticleTextFieldVisible(block, "title")) n += 1;
+  if (isWebArticleTextFieldVisible(block, "body")) n += 1;
+  return n;
+}
+
+function toggleWebArticleTextField(block: HTMLElement, kind: WebArticleTextFieldKey): boolean {
+  const attr = WEB_ARTICLE_TEXT_FIELD_ATTR[kind];
+  if (isWebArticleTextFieldVisible(block, kind)) {
+    if (countVisibleWebArticleTextFields(block) <= 1) return false;
+    block.setAttribute(attr, "0");
+    return true;
+  }
+  block.setAttribute(attr, "1");
+  return true;
+}
+
+function syncWebArticleTextElementsMenuState(toolbar: HTMLElement) {
+  const block = toolbar.closest(".page-web-article-text") as HTMLElement | null;
+  if (!block) return;
+  const count = countVisibleWebArticleTextFields(block);
+  toolbar.querySelectorAll("[data-toggle-article-field]").forEach((node) => {
+    const btn = node as HTMLButtonElement;
+    const raw = btn.getAttribute("data-toggle-article-field");
+    if (!isWebArticleTextFieldKey(raw)) return;
+    const on = isWebArticleTextFieldVisible(block, raw);
+    btn.setAttribute("aria-checked", on ? "true" : "false");
+    const disableUncheck = on && count <= 1;
+    btn.disabled = disableUncheck;
+    btn.setAttribute("aria-disabled", disableUncheck ? "true" : "false");
+  });
+}
+
+function reorderWebArticleTextShellChildren(block: HTMLElement): boolean {
+  const toolbar = block.querySelector(":scope > .page-web-article-text-toolbar") as HTMLElement | null;
+  const fields = block.querySelector(":scope > .page-web-article-text-fields") as HTMLElement | null;
+  const body = block.querySelector(":scope > .page-web-article-text-body") as HTMLElement | null;
+  if (!toolbar || !fields || !body) return false;
+  let changed = false;
+  if (block.firstElementChild !== toolbar) {
+    block.insertBefore(toolbar, block.firstChild);
+    changed = true;
+  }
+  if (fields.previousElementSibling !== toolbar) {
+    block.insertBefore(fields, body);
+    changed = true;
+  }
+  return changed;
 }
 
 /** Сохранённый HTML со старыми классами v2-field / announcement-* / cta-* → общие `page-web-elements-*`. */
@@ -4480,14 +4618,14 @@ function syncTextBlockToolbarVariantState(toolbar: HTMLElement) {
 
 function moveWebBlockByToolbar(toolbar: HTMLElement, direction: "up" | "down", ed: HTMLElement): boolean {
   const block = toolbar.closest(
-    ".page-web-cover, .page-web-carousel, .page-web-timeline, .page-web-text-media, .page-web-text-block, .page-web-text-block-v2, .page-web-spacer",
+    ".page-web-cover, .page-web-carousel, .page-web-timeline, .page-web-text-media, .page-web-text-block, .page-web-text-block-v2, .page-web-article-text, .page-web-spacer",
   ) as HTMLElement | null;
   if (!block || !ed.contains(block)) return false;
   const parent = block.parentElement;
   if (!parent) return false;
   const blocks = Array.from(parent.children).filter((node) =>
     (node as HTMLElement).matches?.(
-      ".page-web-cover, .page-web-carousel, .page-web-timeline, .page-web-text-media, .page-web-text-block, .page-web-text-block-v2, .page-web-spacer",
+      ".page-web-cover, .page-web-carousel, .page-web-timeline, .page-web-text-media, .page-web-text-block, .page-web-text-block-v2, .page-web-article-text, .page-web-spacer",
     ),
   ) as HTMLElement[];
   const idx = blocks.indexOf(block);
@@ -4537,19 +4675,19 @@ function normalizeToBlockEditorHtml(inputHtml: string): string {
     // Чистим служебный chrome редактора, если он случайно попал в сохранённый HTML.
     wrap
       .querySelectorAll(
-        '.page-editor, [aria-label="Добавить блок"], .page-web-text-block-toolbar, .page-web-text-block-v2-toolbar, .page-web-spacer-toolbar, .oin, .oit, .oja, .ohx, .oie, .oir, .oia, .oif, .ohw, .oig, .oid, .oij, .oim, .oil',
+        '.page-editor, [aria-label="Добавить блок"], .page-web-text-block-toolbar, .page-web-text-block-v2-toolbar, .page-web-article-text-toolbar, .page-web-spacer-toolbar, .oin, .oit, .oja, .ohx, .oie, .oir, .oia, .oif, .ohw, .oig, .oid, .oij, .oim, .oil',
       )
       .forEach((n) => n.remove());
     const blockHtml: string[] = [];
     const legacy = document.createElement("div");
     const isAllowedBlock = (el: Element) =>
       el.matches(
-        ".page-web-cover, .page-web-carousel, .page-web-timeline, .page-web-text-media, .page-web-text-block, .page-web-text-block-v2, .page-web-spacer",
+        ".page-web-cover, .page-web-carousel, .page-web-timeline, .page-web-text-media, .page-web-text-block, .page-web-text-block-v2, .page-web-article-text, .page-web-spacer",
       );
     const hasEditorChromeInside = (el: Element) =>
       Boolean(
         el.querySelector(
-          '.page-editor, [aria-label="Добавить блок"], .page-web-text-media-toolbar, .page-web-text-block-toolbar, .page-web-text-block-v2-toolbar, .page-web-spacer-toolbar, .oin, .oit, .oja, .ohx, .oie, .oir, .oia, .oif, .ohw, .oig',
+          '.page-editor, [aria-label="Добавить блок"], .page-web-text-media-toolbar, .page-web-text-block-toolbar, .page-web-text-block-v2-toolbar, .page-web-article-text-toolbar, .page-web-spacer-toolbar, .oin, .oit, .oja, .ohx, .oie, .oir, .oia, .oif, .ohw, .oig',
         ),
       );
     const appendLegacyNode = (node: Node) => {
@@ -4562,7 +4700,7 @@ function normalizeToBlockEditorHtml(inputHtml: string): string {
       // Никогда не переносим в контент служебную разметку самого редактора.
       if (
         node.matches(
-          ".page-editor, .page-web-text-media-toolbar, .page-web-text-block-toolbar, .page-web-text-block-v2-toolbar, .page-web-spacer-toolbar, .oin, .oit, .oja, .ohx, .oie, .oir, .oia, .oif, .ohw, .oig",
+          ".page-editor, .page-web-text-media-toolbar, .page-web-text-block-toolbar, .page-web-text-block-v2-toolbar, .page-web-article-text-toolbar, .page-web-spacer-toolbar, .oin, .oit, .oja, .ohx, .oie, .oir, .oia, .oif, .ohw, .oig",
         ) ||
         node.matches('[aria-label="Добавить блок"]') ||
         hasEditorChromeInside(node)
@@ -4572,7 +4710,7 @@ function normalizeToBlockEditorHtml(inputHtml: string): string {
       if (isAllowedBlock(node)) return;
       if (
         node.matches(
-          ".page-web-cover-toolbar, .page-web-carousel-toolbar, .page-web-timeline-toolbar, .page-web-text-media-toolbar, .page-web-text-block-toolbar, .page-web-text-block-v2-toolbar, .page-web-spacer-toolbar, .page-web-cover-delete, .page-web-carousel-arrow",
+          ".page-web-cover-toolbar, .page-web-carousel-toolbar, .page-web-timeline-toolbar, .page-web-text-media-toolbar, .page-web-text-block-toolbar, .page-web-text-block-v2-toolbar, .page-web-article-text-toolbar, .page-web-spacer-toolbar, .page-web-cover-delete, .page-web-carousel-arrow",
         )
       ) {
         return;
@@ -4814,6 +4952,7 @@ function resolveWebBlockAutosizeRoot(anchor: HTMLElement | null, ed: HTMLElement
   const root =
     anchor.closest(".page-web-text-block") ??
     anchor.closest(".page-web-text-block-v2") ??
+    anchor.closest(".page-web-article-text") ??
     anchor.closest(".page-web-cover") ??
     anchor.closest(".page-web-timeline") ??
     anchor.closest(".page-web-text-media") ??
@@ -4842,7 +4981,7 @@ export default function PageEditorDetailsPage() {
   const [contentHtml, setContentHtml] = useState("");
   const hasWebBlocksInCanvas = useMemo(
     () =>
-      /page-web-(?:cover|carousel|timeline|text-media|text-block|text-block-v2|spacer)\b/.test(
+      /page-web-(?:cover|carousel|timeline|text-media|text-block|text-block-v2|article-text|spacer)\b/.test(
         contentHtml,
       ),
     [contentHtml],
@@ -5190,6 +5329,15 @@ export default function PageEditorDetailsPage() {
       if (el && !inTextBlockV2Toolbar) {
         el.querySelectorAll(".page-web-text-block-v2-toolbar").forEach((node) => {
           closeTextBlockV2ToolbarMenus(node as HTMLElement);
+        });
+      }
+      const inArticleTextToolbar = eventPath.some((node) => {
+        if (!(node instanceof Element)) return false;
+        return !!node.closest?.(".page-web-article-text-toolbar");
+      }) || !!targetEl?.closest?.(".page-web-article-text-toolbar");
+      if (el && !inArticleTextToolbar) {
+        el.querySelectorAll(".page-web-article-text-toolbar").forEach((node) => {
+          closeArticleTextToolbarMenus(node as HTMLElement);
         });
       }
       const inSpacerToolbar = eventPath.some((node) => {
@@ -5622,6 +5770,7 @@ export default function PageEditorDetailsPage() {
     ) {
       const shell =
         (node.closest(".page-web-text-block-v2") as HTMLElement | null) ??
+        (node.closest(".page-web-article-text") as HTMLElement | null) ??
         (node.closest(".page-web-text-block") as HTMLElement | null) ??
         (node.closest(".page-web-timeline") as HTMLElement | null);
       if (shell && ed.contains(shell)) mark(node as HTMLElement);
@@ -5652,6 +5801,14 @@ export default function PageEditorDetailsPage() {
     if (textBlockContent && ed.contains(textBlockContent)) {
       const target = node.closest("h1, h2, h3, h4, h5, h6, p, li, dt, dd, a, span") as HTMLElement | null;
       if (target && textBlockContent.contains(target)) mark(target);
+      return;
+    }
+
+    const articleTextBody = node.closest(".page-web-article-text-body") as HTMLElement | null;
+    if (articleTextBody && ed.contains(articleTextBody)) {
+      const target = node.closest("h1, h2, h3, h4, h5, h6, p, li, dt, dd, a, span") as HTMLElement | null;
+      if (target && articleTextBody.contains(target)) mark(target);
+      else mark(articleTextBody);
       return;
     }
 
@@ -6751,6 +6908,9 @@ export default function PageEditorDetailsPage() {
     if (ensureWebTextBlockV2ToolbarInEditor(root) && caretDebugOn()) {
       logPageEditorCaret("layoutEffect[contentHtml]:web-text-block-v2-toolbar-upgrade", {});
     }
+    if (ensureWebArticleTextToolbarInEditor(root) && caretDebugOn()) {
+      logPageEditorCaret("layoutEffect[contentHtml]:web-article-text-toolbar-upgrade", {});
+    }
     if (ensureWebSpacerToolbarInEditor(root) && caretDebugOn()) {
       logPageEditorCaret("layoutEffect[contentHtml]:web-spacer-toolbar-upgrade", {});
     }
@@ -7457,6 +7617,9 @@ export default function PageEditorDetailsPage() {
     }
     if (kind === "text-block-v2") {
       return getTextBlockV2Html();
+    }
+    if (kind === "article-text") {
+      return getArticleTextHtml();
     }
     if (kind === "spacer") {
       return '<div class="page-web-spacer" data-web-element="spacer" data-spacer-size="md" contenteditable="false" aria-hidden="true"></div>';
@@ -8344,6 +8507,119 @@ export default function PageEditorDetailsPage() {
     return changed;
   }
 
+  function ensureWebArticleTextToolbarInEditor(root: HTMLElement): boolean {
+    let changed = false;
+    root.querySelectorAll(".page-web-article-text").forEach((n) => {
+      const block = n as HTMLElement;
+      if (block.getAttribute("contenteditable") !== "false") {
+        block.setAttribute("contenteditable", "false");
+        changed = true;
+      }
+      let toolbar = block.querySelector(":scope > .page-web-article-text-toolbar") as HTMLElement | null;
+      if (!toolbar) {
+        const tmp = document.createElement("div");
+        tmp.innerHTML = getWebArticleTextToolbarHtml();
+        toolbar = tmp.firstElementChild as HTMLElement;
+        block.insertBefore(toolbar, block.firstChild);
+        changed = true;
+      } else if (toolbar.parentElement !== block || block.firstElementChild !== toolbar) {
+        block.insertBefore(toolbar, block.firstChild);
+        changed = true;
+      }
+      toolbar = block.querySelector(":scope > .page-web-article-text-toolbar") as HTMLElement | null;
+      if (
+        toolbar &&
+        (!toolbar.querySelector(".page-web-article-text-menu-trigger") ||
+          !toolbar.querySelector('[data-toggle-article-field="title"]') ||
+          !toolbar.querySelector('[data-toggle-article-field="body"]') ||
+          !toolbar.querySelector(".page-web-article-text-menu-delete"))
+      ) {
+        const tmp = document.createElement("div");
+        tmp.innerHTML = getWebArticleTextToolbarHtml();
+        const fresh = tmp.firstElementChild as HTMLElement;
+        toolbar.replaceWith(fresh);
+        toolbar = fresh;
+        changed = true;
+      }
+      let fields = block.querySelector(":scope > .page-web-article-text-fields") as HTMLElement | null;
+      if (!fields) {
+        const tmp = document.createElement("div");
+        tmp.innerHTML = getArticleTextHtml();
+        fields = tmp.querySelector(".page-web-article-text-fields") as HTMLElement | null;
+        if (fields) {
+          const body = block.querySelector(":scope > .page-web-article-text-body");
+          if (body) block.insertBefore(fields, body);
+          else block.appendChild(fields);
+          changed = true;
+        }
+      }
+      if (!block.querySelector(":scope > .page-web-article-text-body")) {
+        const tmp = document.createElement("div");
+        tmp.innerHTML = getArticleTextHtml();
+        const sampleBody = tmp.querySelector(".page-web-article-text-body") as HTMLElement | null;
+        if (sampleBody) {
+          block.appendChild(sampleBody.cloneNode(true));
+          changed = true;
+        }
+      }
+      const existingBody = block.querySelector(":scope > .page-web-article-text-body") as HTMLElement | null;
+      if (existingBody) {
+        const bodyTextarea = existingBody.querySelector(
+          "textarea.page-web-article-text-body-input, textarea.page-web-elements-description-input",
+        ) as HTMLTextAreaElement | null;
+        if (!bodyTextarea) {
+          const legacyText = (existingBody.textContent || "").replace(/\u200b/g, "").trim();
+          const tmp = document.createElement("div");
+          tmp.innerHTML = getArticleTextHtml();
+          const sampleBody = tmp.querySelector(".page-web-article-text-body") as HTMLElement | null;
+          if (sampleBody) {
+            const ta = sampleBody.querySelector(
+              "textarea.page-web-article-text-body-input",
+            ) as HTMLTextAreaElement | null;
+            if (ta && legacyText) ta.value = legacyText;
+            existingBody.replaceWith(sampleBody);
+            changed = true;
+          }
+        } else {
+          if (existingBody.getAttribute("contenteditable") !== "false") {
+            existingBody.setAttribute("contenteditable", "false");
+            changed = true;
+          }
+          if (!bodyTextarea.classList.contains("page-web-article-text-body-input")) {
+            bodyTextarea.classList.add("page-web-article-text-body-input");
+            changed = true;
+          }
+          if (bodyTextarea.getAttribute("rows") !== "1") {
+            bodyTextarea.setAttribute("rows", "1");
+            changed = true;
+          }
+          if (bodyTextarea.getAttribute("spellcheck") !== "true") {
+            bodyTextarea.setAttribute("spellcheck", "true");
+            changed = true;
+          }
+          if (!bodyTextarea.getAttribute("placeholder")) {
+            bodyTextarea.setAttribute("placeholder", "Основной текст статьи");
+            changed = true;
+          }
+        }
+      }
+      if (fields && !fields.querySelector(".page-web-elements-title")) {
+        const tmp = document.createElement("div");
+        tmp.innerHTML = getArticleTextHtml();
+        const sampleTitle = tmp.querySelector(".page-web-elements-title") as HTMLElement | null;
+        if (sampleTitle) {
+          fields.appendChild(sampleTitle.cloneNode(true));
+          changed = true;
+        }
+      }
+      if (reorderWebArticleTextShellChildren(block)) changed = true;
+      if (normalizeWebArticleTextVisibilityAttrs(block)) changed = true;
+      const tbSync = block.querySelector(":scope > .page-web-article-text-toolbar") as HTMLElement | null;
+      if (tbSync) syncWebArticleTextElementsMenuState(tbSync);
+    });
+    return changed;
+  }
+
   function ensureWebSpacerToolbarInEditor(root: HTMLElement): boolean {
     let changed = false;
     root.querySelectorAll(".page-web-spacer").forEach((n) => {
@@ -8532,10 +8808,17 @@ export default function PageEditorDetailsPage() {
       });
       wrap.querySelectorAll(".page-web-text-block-toolbar").forEach((n) => n.remove());
       wrap.querySelectorAll(".page-web-text-block-v2-toolbar").forEach((n) => n.remove());
+      wrap.querySelectorAll(".page-web-article-text-toolbar").forEach((n) => n.remove());
       wrap.querySelectorAll(".page-web-text-block").forEach((n) => {
         (n as HTMLElement).removeAttribute("contenteditable");
       });
       wrap.querySelectorAll(".page-web-text-block-v2").forEach((n) => {
+        (n as HTMLElement).removeAttribute("contenteditable");
+      });
+      wrap.querySelectorAll(".page-web-article-text").forEach((n) => {
+        (n as HTMLElement).removeAttribute("contenteditable");
+      });
+      wrap.querySelectorAll(".page-web-article-text-body").forEach((n) => {
         (n as HTMLElement).removeAttribute("contenteditable");
       });
       wrap.querySelectorAll(".page-web-spacer-toolbar").forEach((n) => n.remove());
@@ -8816,6 +9099,7 @@ export default function PageEditorDetailsPage() {
         if (ch.nodeType === Node.ELEMENT_NODE) {
           const hel = ch as HTMLElement;
           if (hel.classList.contains("page-web-text-block-v2-toolbar")) continue;
+          if (hel.classList.contains("page-web-article-text-toolbar")) continue;
           if (hel.classList.contains("page-web-text-block-v2-fields")) continue;
           if (hel.classList.contains("page-web-insert-handle")) continue;
           movable.push(ch);
@@ -9528,6 +9812,41 @@ export default function PageEditorDetailsPage() {
     setTimeout(() => updateToolbarState(), 0);
   }
 
+  function removeWebArticleTextBlock(block: HTMLElement) {
+    const el = editorRef.current;
+    if (!el || !el.contains(block)) return;
+    const parent = block.parentNode;
+    const next = block.nextSibling;
+    block.remove();
+    setContentHtml(el.innerHTML);
+    syncMarkerBold();
+    const selection = window.getSelection();
+    const r = document.createRange();
+    if (next) {
+      if (next.nodeType === Node.TEXT_NODE) {
+        r.setStart(next, 0);
+      } else if (next.nodeType === Node.ELEMENT_NODE) {
+        r.selectNodeContents(next);
+        r.collapse(true);
+      } else {
+        r.setStart(parent ?? el, 0);
+        r.collapse(true);
+      }
+    } else {
+      const pad = document.createElement("div");
+      pad.innerHTML = "<br>";
+      parent?.appendChild(pad);
+      r.setStart(pad, 0);
+      r.collapse(true);
+    }
+    r.collapse(true);
+    selection?.removeAllRanges();
+    selection?.addRange(r);
+    savedRangeRef.current = r.cloneRange();
+    el.focus();
+    setTimeout(() => updateToolbarState(), 0);
+  }
+
   const WEB_MENU_DEBUG = true;
 
   function getWebMenuToolbarDebugState(toolbar: HTMLElement) {
@@ -9791,6 +10110,46 @@ export default function PageEditorDetailsPage() {
     logWebMenuDebug("close-text-block-v2:end", toolbar);
   }
 
+  function closeArticleTextToolbarMenus(toolbar: HTMLElement) {
+    logWebMenuDebug("close-article-text:start", toolbar);
+    toolbar.querySelectorAll('.page-web-text-block-menu-sub[data-submenu-open="1"]').forEach((s) => {
+      (s as HTMLElement).removeAttribute("data-submenu-open");
+    });
+    toolbar.querySelectorAll(".page-web-text-block-menu-sub").forEach((node) => {
+      (node as HTMLElement).removeAttribute("data-submenu-drop");
+    });
+    toolbar.querySelectorAll(".page-web-text-block-menu-sub-panel").forEach((node) => {
+      const panel = node as HTMLElement;
+      panel.style.removeProperty("display");
+      panel.style.removeProperty("visibility");
+      panel.style.removeProperty("opacity");
+      panel.style.removeProperty("pointer-events");
+      panel.removeAttribute("data-force-hidden");
+      panel.style.removeProperty("position");
+      panel.style.removeProperty("left");
+      panel.style.removeProperty("top");
+      panel.style.removeProperty("right");
+      panel.style.removeProperty("transform");
+      panel.style.removeProperty("z-index");
+    });
+    toolbar.querySelectorAll(".page-web-text-block-menu-sub-trigger").forEach((tr) => {
+      (tr as HTMLElement).setAttribute("aria-expanded", "false");
+    });
+    void toolbar.offsetHeight;
+    const dd = toolbar.querySelector(".page-web-article-text-menu-dropdown") as HTMLElement | null;
+    if (dd) {
+      dd.style.removeProperty("display");
+      dd.style.removeProperty("visibility");
+      dd.style.removeProperty("opacity");
+      dd.style.removeProperty("pointer-events");
+      dd.removeAttribute("data-force-hidden");
+    }
+    toolbar.removeAttribute("data-menu-open");
+    clearToolbarDropdownVerticalPlacement(toolbar);
+    void toolbar.offsetHeight;
+    logWebMenuDebug("close-article-text:end", toolbar);
+  }
+
   function closeTextBlockToolbarMenus(toolbar: HTMLElement) {
     logWebMenuDebug("close-text-block:start", toolbar);
     const dd = toolbar.querySelector(".page-web-text-block-menu-dropdown") as HTMLElement | null;
@@ -9836,6 +10195,7 @@ export default function PageEditorDetailsPage() {
         textMedia: ed.querySelectorAll(".page-web-text-media-toolbar").length,
         textBlock: ed.querySelectorAll(".page-web-text-block-toolbar").length,
         textBlockV2: ed.querySelectorAll(".page-web-text-block-v2-toolbar").length,
+        articleText: ed.querySelectorAll(".page-web-article-text-toolbar").length,
       });
     }
     ed.querySelectorAll(".page-web-cover-toolbar").forEach((node) => {
@@ -9855,6 +10215,9 @@ export default function PageEditorDetailsPage() {
     });
     ed.querySelectorAll(".page-web-text-block-v2-toolbar").forEach((node) => {
       closeTextBlockV2ToolbarMenus(node as HTMLElement);
+    });
+    ed.querySelectorAll(".page-web-article-text-toolbar").forEach((node) => {
+      closeArticleTextToolbarMenus(node as HTMLElement);
     });
     if (WEB_MENU_DEBUG) {
       console.log("[web-menu-debug] close-all:end");
@@ -9887,6 +10250,8 @@ export default function PageEditorDetailsPage() {
           ".page-web-text-block-menu-sub-panel",
           ".page-web-text-block-v2-menu-trigger",
           ".page-web-text-block-v2-menu-dropdown",
+          ".page-web-article-text-menu-trigger",
+          ".page-web-article-text-menu-dropdown",
           ".page-web-spacer-menu-trigger",
           ".page-web-spacer-menu-dropdown",
         ].join(", "),
@@ -12021,7 +12386,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
     const node = eventTarget instanceof Node ? eventTarget : null;
     if (!node) return false;
     if (node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement) return ed.contains(node);
-    const elNode = node.nodeType === Node.TEXT_NODE ? (node as Text).parentElement : (node as Element);
+  const elNode = node.nodeType === Node.TEXT_NODE ? (node as Text).parentElement : (node as Element);
     const ann = elNode?.closest?.(".page-web-elements-announcement-input") ?? null;
     return (
       ann instanceof HTMLElement &&
@@ -12825,6 +13190,9 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       ed.querySelectorAll(".page-web-text-block-v2-toolbar").forEach((node) => {
         closeTextBlockV2ToolbarMenus(node as HTMLElement);
       });
+      ed.querySelectorAll(".page-web-article-text-toolbar").forEach((node) => {
+        closeArticleTextToolbarMenus(node as HTMLElement);
+      });
       ed.querySelectorAll(".page-web-text-block-toolbar").forEach((node) => {
         closeTextBlockToolbarMenus(node as HTMLElement);
       });
@@ -12834,6 +13202,95 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       if (!wasOpen) {
         toolbar.setAttribute("data-menu-open", "1");
         syncWebTextBlockV2ElementsMenuState(toolbar);
+        positionToolbarDropdownVerticalPlacement(toolbar);
+      }
+    }
+  }
+
+  function handleArticleTextToolbarMouseDown(e: React.MouseEvent) {
+    const target = e.target as HTMLElement;
+    const ed = editorRef.current;
+    const toolbar = target.closest?.(".page-web-article-text-toolbar") as HTMLElement | null;
+    if (!toolbar || !ed?.contains(toolbar)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const block = toolbar.closest(".page-web-article-text") as HTMLElement | null;
+    if (!block || !ed.contains(block)) return;
+
+    const moveBtn = target.closest?.("[data-move-web-block]") as HTMLElement | null;
+    if (moveBtn && toolbar.contains(moveBtn)) {
+      const dir = moveBtn.getAttribute("data-move-web-block");
+      if ((dir === "up" || dir === "down") && moveWebBlockByToolbar(toolbar, dir, ed)) {
+        closeArticleTextToolbarMenus(toolbar);
+        setContentHtml(ed.innerHTML);
+        setTimeout(() => updateToolbarState(), 0);
+      }
+      return;
+    }
+
+    const delBtn = target.closest?.(".page-web-article-text-menu-delete");
+    if (delBtn) {
+      closeArticleTextToolbarMenus(toolbar);
+      removeWebArticleTextBlock(block);
+      return;
+    }
+
+    const subTrigger = target.closest?.(".page-web-text-block-menu-sub-trigger") as HTMLElement | null;
+    if (subTrigger && toolbar.contains(subTrigger)) {
+      const sub = subTrigger.closest(".page-web-text-block-menu-sub") as HTMLElement | null;
+      if (sub && toolbar.contains(sub)) {
+        const wasOpen = sub.getAttribute("data-submenu-open") === "1";
+        const sameLevelContainer = sub.parentElement;
+        if (sameLevelContainer) {
+          Array.from(sameLevelContainer.children).forEach((node) => {
+            const el = node as HTMLElement;
+            if (!el.classList?.contains("page-web-text-block-menu-sub")) return;
+            if (el !== sub) el.removeAttribute("data-submenu-open");
+          });
+        }
+        if (wasOpen) sub.removeAttribute("data-submenu-open");
+        else sub.setAttribute("data-submenu-open", "1");
+        toolbar.querySelectorAll(".page-web-text-block-menu-sub-trigger").forEach((tr) => {
+          const parent = tr.closest(".page-web-text-block-menu-sub");
+          const open = parent?.getAttribute("data-submenu-open") === "1";
+          (tr as HTMLElement).setAttribute("aria-expanded", open ? "true" : "false");
+        });
+        positionToolbarSubmenuVerticalPlacement(toolbar);
+      }
+      return;
+    }
+
+    const fieldToggle = target.closest?.("[data-toggle-article-field]") as HTMLElement | null;
+    if (fieldToggle && toolbar.contains(fieldToggle)) {
+      const raw = fieldToggle.getAttribute("data-toggle-article-field");
+      if (isWebArticleTextFieldKey(raw) && toggleWebArticleTextField(block, raw)) {
+        syncWebArticleTextElementsMenuState(toolbar);
+        setContentHtml(ed.innerHTML);
+        setTimeout(() => updateToolbarState(), 0);
+      } else {
+        syncWebArticleTextElementsMenuState(toolbar);
+      }
+      closeArticleTextToolbarMenus(toolbar);
+      return;
+    }
+
+    if (target.closest?.(".page-web-article-text-menu-trigger")) {
+      const wasOpen = toolbar.getAttribute("data-menu-open") === "1";
+      ed.querySelectorAll(".page-web-article-text-toolbar").forEach((node) => {
+        closeArticleTextToolbarMenus(node as HTMLElement);
+      });
+      ed.querySelectorAll(".page-web-text-block-v2-toolbar").forEach((node) => {
+        closeTextBlockV2ToolbarMenus(node as HTMLElement);
+      });
+      ed.querySelectorAll(".page-web-text-block-toolbar").forEach((node) => {
+        closeTextBlockToolbarMenus(node as HTMLElement);
+      });
+      ed.querySelectorAll(".page-web-spacer-toolbar").forEach((node) => {
+        closeSpacerToolbarMenus(node as HTMLElement);
+      });
+      if (!wasOpen) {
+        toolbar.setAttribute("data-menu-open", "1");
+        syncWebArticleTextElementsMenuState(toolbar);
         positionToolbarDropdownVerticalPlacement(toolbar);
       }
     }
@@ -13731,6 +14188,22 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
           return;
         }
       }
+    }
+    setTimeout(() => updateToolbarState(), 0);
+  }
+
+  function handleArticleTextEditorMouseDown(e: React.MouseEvent) {
+    const rawTarget = e.target as EventTarget | null;
+    const target = (rawTarget instanceof Element
+      ? rawTarget
+      : (rawTarget as Node | null)?.parentElement ?? null) as HTMLElement | null;
+    if (!target) return;
+    const block = target.closest?.(".page-web-article-text") as HTMLElement | null;
+    const ed = editorRef.current;
+    if (!block || !ed?.contains(block)) return;
+    if (target.closest?.(".page-web-article-text-toolbar")) {
+      handleArticleTextToolbarMouseDown(e);
+      return;
     }
     setTimeout(() => updateToolbarState(), 0);
   }
@@ -15317,6 +15790,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-text-media-toolbar,
         .page-editor .page-web-text-block-toolbar,
         .page-editor .page-web-text-block-v2-toolbar,
+        .page-editor .page-web-article-text-toolbar,
         .page-editor .page-web-spacer-toolbar { display: flex; flex-direction: column; align-items: center; gap: 4px; }
         .page-editor .page-web-cover,
         .page-editor .page-web-carousel,
@@ -15324,6 +15798,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-text-media,
         .page-editor .page-web-text-block,
         .page-editor .page-web-text-block-v2,
+        .page-editor .page-web-article-text,
         .page-editor .page-web-spacer { position: relative; }
         .page-editor .page-web-insert-handle { position: absolute; left: 50%; bottom: -14px; transform: translateX(-50%); z-index: 75; opacity: 0; pointer-events: none; transition: opacity 0.15s ease; }
         .page-editor .page-web-insert-handle-btn { pointer-events: auto; display: inline-flex; align-items: center; gap: 6px; border-radius: 9999px; border: 1px solid #cbd5e1; background: rgba(255,255,255,0.98); color: #475569; font-size: 11px; font-weight: 600; line-height: 1; padding: 5px 10px; box-shadow: 0 4px 12px rgba(15,23,42,0.08); cursor: pointer; white-space: nowrap; }
@@ -15341,6 +15816,8 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-text-block:focus-within > .page-web-insert-handle,
         .page-editor .page-web-text-block-v2:hover > .page-web-insert-handle,
         .page-editor .page-web-text-block-v2:focus-within > .page-web-insert-handle,
+        .page-editor .page-web-article-text:hover > .page-web-insert-handle,
+        .page-editor .page-web-article-text:focus-within > .page-web-insert-handle,
         .page-editor .page-web-spacer:hover > .page-web-insert-handle,
         .page-editor .page-web-spacer:focus-within > .page-web-insert-handle { opacity: 1; }
         .page-editor .page-web-block-move-btn { display: flex; width: 28px; height: 28px; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid #cbd5e1; background: rgba(255,255,255,0.95); color: #64748b; cursor: pointer; padding: 0; }
@@ -15356,6 +15833,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-text-media-toolbar[data-menu-drop="up"] > .page-web-text-media-menu-dropdown,
         .page-editor .page-web-text-block-toolbar[data-menu-drop="up"] > .page-web-text-block-menu-dropdown,
         .page-editor .page-web-text-block-v2-toolbar[data-menu-drop="up"] > .page-web-text-block-v2-menu-dropdown,
+        .page-editor .page-web-article-text-toolbar[data-menu-drop="up"] > .page-web-article-text-menu-dropdown,
         .page-editor .page-web-spacer-toolbar[data-menu-drop="up"] > .page-web-spacer-menu-dropdown {
           top: auto !important;
           bottom: 32px !important;
@@ -15365,6 +15843,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-text-media-toolbar[data-menu-drop="down"] > .page-web-text-media-menu-dropdown,
         .page-editor .page-web-text-block-toolbar[data-menu-drop="down"] > .page-web-text-block-menu-dropdown,
         .page-editor .page-web-text-block-v2-toolbar[data-menu-drop="down"] > .page-web-text-block-v2-menu-dropdown,
+        .page-editor .page-web-article-text-toolbar[data-menu-drop="down"] > .page-web-article-text-menu-dropdown,
         .page-editor .page-web-spacer-toolbar[data-menu-drop="down"] > .page-web-spacer-menu-dropdown {
           top: 32px;
           bottom: auto;
@@ -15476,6 +15955,8 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-text-block-title-input[data-editor-focus-target="1"],
         .page-editor .page-web-text-block-lead-input[data-editor-focus-target="1"],
         .page-editor .page-web-text-block-content [data-editor-focus-target="1"]:not(textarea):not(input):not(a.page-web-elements-cta-button):not(a.page-web-elements-cta-button-secondary):not(span.page-web-elements-cta-button):not(span.page-web-elements-cta-button-secondary):not(p.page-web-elements-cta-wrap),
+        .page-editor .page-web-article-text-body[data-editor-focus-target="1"],
+        .page-editor .page-web-article-text-body [data-editor-focus-target="1"]:not(textarea):not(input):not(a.page-web-elements-cta-button):not(a.page-web-elements-cta-button-secondary):not(span.page-web-elements-cta-button):not(span.page-web-elements-cta-button-secondary):not(p.page-web-elements-cta-wrap),
         .page-editor .page-web-work-pricing [data-editor-focus-target="1"]:not(textarea):not(input):not(a.page-web-elements-cta-button):not(a.page-web-elements-cta-button-secondary):not(span.page-web-elements-cta-button):not(span.page-web-elements-cta-button-secondary):not(p.page-web-elements-cta-wrap),
         .page-editor .page-web-text-media-col[data-editor-focus-target="1"],
         .page-editor .page-web-text-media-col [data-editor-focus-target="1"],
@@ -15719,6 +16200,69 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-text-block-v2-toolbar[data-menu-open="1"] .page-web-text-block-menu-sub[data-submenu-open="1"] > .page-web-text-block-menu-sub-panel { display: block; }
         .page-editor .page-web-text-block-v2-toolbar[data-menu-open="1"] .page-web-text-block-menu-sub[data-submenu-open="1"] > .page-web-text-block-menu-sub-trigger .page-web-text-block-menu-chevron { transform: rotate(90deg); }
         .page-editor .page-web-text-block-v2-menu-sep { display: block; margin: 6px 8px; }
+        .page-editor .page-web-article-text { position: relative; width: 100%; margin: 1rem 0; border: none; background: transparent; padding: 1rem; box-sizing: border-box; overflow: visible; }
+        .page-editor .page-web-article-text:has(> .page-web-article-text-toolbar[data-menu-open="1"]) { z-index: 100; }
+        .page-editor .page-web-article-text-toolbar { position: absolute; left: 0.75rem; top: 50%; z-index: 10040; width: max-content; pointer-events: auto; user-select: none; -webkit-user-select: none; transform: translateY(-50%); }
+        .page-editor .page-web-article-text-toolbar[data-menu-open="1"] { z-index: 10150; }
+        .page-editor .page-web-article-text-toolbar[data-menu-open="1"] .page-web-article-text-menu-dropdown,
+        .page-editor .page-web-article-text-toolbar[data-menu-open="1"] .page-web-text-block-menu-sub-panel { z-index: 10100; }
+        .page-editor .page-web-article-text-menu-trigger { display: flex; width: 28px; height: 28px; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid #cbd5e1; background: rgba(255,255,255,0.95); color: #64748b; cursor: pointer; padding: 0; }
+        .page-editor .page-web-article-text-menu-trigger:hover { border-color: #94a3b8; color: #0f172a; background: #fff; }
+        .page-editor .page-web-article-text-menu-dots::before { content: "\\22EE"; font-size: 1rem; line-height: 1; }
+        .page-editor .page-web-article-text-menu-dropdown { display: none; position: absolute; left: calc(100% + 4px); right: auto; top: 32px; min-width: 11.5rem; padding: 4px 0; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 10px 24px rgba(15,23,42,0.12); z-index: 90; }
+        .page-editor .page-web-article-text-toolbar[data-menu-open="1"] .page-web-article-text-menu-dropdown { display: block; }
+        .page-editor .page-web-article-text-menu-delete { display: block; width: 100%; box-sizing: border-box; text-align: left; padding: 8px 12px; font-size: 13px; font-weight: 500; color: #b91c1c; background: transparent; border: none; cursor: pointer; border-radius: 4px; white-space: nowrap; }
+        .page-editor .page-web-article-text-menu-delete:hover { background: #fef2f2; }
+        .page-editor .page-web-article-text-toolbar .page-web-text-block-menu-sub--article-elements { display: block; }
+        .page-editor .page-web-article-text-toolbar:not([data-menu-open="1"]) .page-web-text-block-menu-sub-panel {
+          display: none !important;
+          visibility: hidden !important;
+          pointer-events: none !important;
+        }
+        .page-editor .page-web-article-text-toolbar[data-menu-open="1"] .page-web-text-block-menu-sub:not([data-submenu-open="1"]) > .page-web-text-block-menu-sub-panel {
+          display: none !important;
+        }
+        .page-editor .page-web-article-text-toolbar[data-menu-open="1"] .page-web-text-block-menu-sub[data-submenu-open="1"] > .page-web-text-block-menu-sub-panel { display: block; }
+        .page-editor .page-web-article-text-toolbar[data-menu-open="1"] .page-web-text-block-menu-sub[data-submenu-open="1"] > .page-web-text-block-menu-sub-trigger .page-web-text-block-menu-chevron { transform: rotate(90deg); }
+        .page-editor .page-web-article-text-menu-sep { display: block; margin: 6px 8px; }
+        .page-editor .page-web-article-text-fields { display: flex; flex-direction: column; gap: 0; margin: 0 0 0.85rem; box-sizing: border-box; width: 100%; }
+        .page-editor .page-web-article-text .page-web-elements-title-input {
+          padding: 0.25rem 0.45rem;
+          font-size: 1rem !important;
+          line-height: 1.6 !important;
+          font-weight: inherit !important;
+          color: #496db3;
+        }
+        .page-editor .page-web-article-text .page-web-elements-title-input[data-editor-focus-target="1"] {
+          padding: 0.25rem 0.45rem !important;
+          font-size: 1rem !important;
+          line-height: 1.6 !important;
+          font-weight: inherit !important;
+        }
+        .page-editor .page-web-article-text-body {
+          display: flex;
+          flex-direction: column;
+          align-items: stretch;
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+          margin: 0;
+          min-height: 0;
+          line-height: inherit;
+          color: #334155;
+          box-sizing: border-box;
+          outline: none;
+        }
+        .page-editor .page-web-article-text[data-article-show-title="0"] .page-web-elements-title { display: none !important; }
+        .page-editor .page-web-article-text[data-article-show-body="0"] .page-web-article-text-body { display: none !important; }
+        .page-editor .page-web-article-text .page-web-elements-field-row > textarea.page-web-article-text-body-input,
+        .page-editor .page-web-article-text .page-web-elements-field-row > textarea.page-web-article-text-body-input[data-editor-focus-target="1"] {
+          min-width: 32ch !important;
+        }
+        .page-editor .page-web-article-text .page-web-elements-field-row > textarea.page-web-elements-title-input,
+        .page-editor .page-web-article-text .page-web-elements-field-row > textarea.page-web-elements-title-input[data-editor-focus-target="1"] {
+          min-width: 32ch !important;
+        }
         .page-editor .page-web-text-block-menu-element.page-web-text-block-v2-field-toggle {
           display: flex !important;
           flex-direction: row;
@@ -16278,6 +16822,14 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
           line-height: 1.2 !important;
           padding: 0.15rem 0.45rem !important;
           text-wrap: wrap !important;
+        }
+        /* В article-text заголовок должен быть по высоте как обычный текст, не как site-blue заголовок. */
+        .page-editor .page-web-article-text .page-web-elements.page-web-elements-title textarea.page-web-elements-title-input,
+        .page-editor .page-web-article-text .page-web-elements.page-web-elements-title textarea.page-web-elements-title-input[data-editor-focus-target="1"] {
+          font-size: 1.16rem !important;
+          line-height: 1.6 !important;
+          font-weight: 700 !important;
+          padding: 0.25rem 0.45rem !important;
         }
         ${getPageEditorWebToolbarCss()}
       `}</style>
@@ -17171,6 +17723,11 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
                             closeTextBlockV2ToolbarMenus(node as HTMLElement);
                           });
                         }
+                        if (ed && !t?.closest?.(".page-web-article-text-toolbar")) {
+                          ed.querySelectorAll(".page-web-article-text-toolbar").forEach((node) => {
+                            closeArticleTextToolbarMenus(node as HTMLElement);
+                          });
+                        }
                         if (ed && !t?.closest?.(".page-web-spacer-toolbar")) {
                           ed.querySelectorAll(".page-web-spacer-toolbar").forEach((node) => {
                             closeSpacerToolbarMenus(node as HTMLElement);
@@ -17181,6 +17738,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
                         handleTextMediaEditorMouseDown(e);
                         handleTextBlockEditorMouseDown(e);
                         handleTextBlockV2EditorMouseDown(e);
+                        handleArticleTextEditorMouseDown(e);
                         handleSpacerToolbarMouseDown(e);
                         handleCoverSurfaceMouseDown(e);
                         handleCoverToolbarMouseDown(e);

@@ -47,6 +47,12 @@ function measureWebElementsTextareaContentWidthPx(textarea: HTMLTextAreaElement)
     `text-transform:${cs.textTransform}`,
     `padding:${cs.paddingTop} ${cs.paddingRight} ${cs.paddingBottom} ${cs.paddingLeft}`,
   ].join(";");
+  mirror.style.fontFamily = cs.fontFamily;
+  mirror.style.fontSize = cs.fontSize;
+  mirror.style.fontWeight = cs.fontWeight;
+  mirror.style.fontStyle = cs.fontStyle;
+  mirror.style.fontVariant = cs.fontVariant;
+  mirror.style.lineHeight = cs.lineHeight;
   doc.body.appendChild(mirror);
   let maxW = 0;
   const raw = (textarea.value || "").replace(/\r\n/g, "\n");

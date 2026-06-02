@@ -24,6 +24,7 @@ ${scope} .page-web-timeline,
 ${scope} .page-web-text-media,
 ${scope} .page-web-text-block,
 ${scope} .page-web-text-block-v2,
+${scope} .page-web-article-text,
 ${scope} .page-web-spacer { font-size: var(--wb-body-fs); line-height: var(--wb-body-lh); }
 ${scope} .page-web-cover { position: relative; display: flex; flex-direction: column; width: 100%; max-width: 100%; margin: 1.25rem 0; padding: 0; border-radius: 16px; background: #f1f5f9; box-sizing: border-box; overflow: visible; container-type: inline-size; --wb-cover-copy-max: 100%; --wb-cover-title-lh: var(--wb-title-lh); }
 ${scope} .page-web-cover.page-web-cover-has-bg { background-color: #e2e8f0; }
@@ -294,6 +295,33 @@ ${scope} .page-web-text-block-v2[data-v2-show-announcement="0"] .page-web-elemen
 ${scope} .page-web-text-block-v2[data-v2-show-button="0"] .page-web-elements-button { display: none !important; }
 ${scope} .page-web-text-block-v2[data-v2-show-button2="0"] .page-web-elements-button2 { display: none !important; }
 ${scope} .page-web-text-block-v2[data-v2-show-button="0"][data-v2-show-button2="0"] .page-web-elements-actions { display: none !important; }
+${scope} .page-web-article-text { width: 100%; margin: 1.25rem 0; border: none; background: transparent; padding: 1rem; box-sizing: border-box; }
+${scope} .page-web-article-text-fields { display: flex; flex-direction: column; gap: 0; width: 100%; margin: 0 0 1rem; box-sizing: border-box; }
+${scope} .page-web-article-text .page-web-elements-title-input {
+  font-size: 1rem !important;
+  line-height: 1.6 !important;
+  font-weight: inherit !important;
+}
+${scope} .page-web-article-text-body {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0;
+  line-height: inherit;
+  color: #334155;
+  box-sizing: border-box;
+}
+${scope} .page-web-article-text[data-article-show-title="0"] .page-web-elements-title { display: none !important; }
+${scope} .page-web-article-text[data-article-show-body="0"] .page-web-article-text-body { display: none !important; }
+${scope} .page-web-article-text .page-web-elements-field-row > textarea.page-web-article-text-body-input {
+  min-width: 32ch !important;
+}
+${scope} .page-web-article-text .page-web-elements-field-row > textarea.page-web-elements-title-input {
+  min-width: 32ch !important;
+}
 ${scope} .page-web-elements-announcement {
   display: block;
   width: 100%;
@@ -529,6 +557,13 @@ ${scope} .page-web-elements-description-input {
   white-space: pre-wrap;
   word-break: break-word;
   overflow-wrap: anywhere;
+}
+/* Для блока "Текст статьи" заголовок по высоте как основной текст. Ставим после общего title-input. */
+${scope} .page-web-article-text .page-web-elements-title-input {
+  font-size: 1.16rem !important;
+  line-height: 1.6 !important;
+  font-weight: 700 !important;
+  padding: 0.25rem 0.45rem !important;
 }
 ${scope} .page-web-elements-cta-wrap {
   margin: 0.4rem 0 0;
@@ -1295,7 +1330,8 @@ ${scope} .page-web-feature-grid-list,
 ${scope} .page-web-feature-grid[data-feature-grid-cols="2"] .page-web-feature-grid-list,
 ${scope} .page-web-feature-grid[data-feature-grid-cols="3"] .page-web-feature-grid-list,
 ${scope} .page-web-feature-grid[data-feature-grid-cols="4"] .page-web-feature-grid-list { grid-template-columns: repeat(1, minmax(0, 1fr)) !important; }
-${scope} .page-web-text-block-v2 {
+${scope} .page-web-text-block-v2,
+${scope} .page-web-article-text {
   padding-inline: 0.625rem;
   padding-block: 0.75rem;
 }
