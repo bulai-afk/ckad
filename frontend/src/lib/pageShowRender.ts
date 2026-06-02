@@ -870,6 +870,12 @@ ${scope} .page-web-elements-title-input {
   word-break: break-word;
   overflow-wrap: anywhere;
 }
+${scope} .page-web-article-text .page-web-elements-title-input {
+  font-size: 1.16rem !important;
+  line-height: 1.6 !important;
+  font-weight: 700 !important;
+  padding: 0.25rem 0.45rem !important;
+}
 ${scope} .page-web-elements-title2-input {
   display: inline-block;
   min-width: 0;
@@ -1182,6 +1188,13 @@ ${scope} .page-web-feature-grid * {
   font-size: inherit !important;
 }
 ${getSiteBlueTitleUnifiedCss(scope)}
+/* Keep article block title typography aligned with admin editor. */
+${scope} .page-web-article-text .page-web-elements-title-input {
+  font-size: 1.16rem !important;
+  line-height: 1.6 !important;
+  font-weight: 700 !important;
+  padding: 0.25rem 0.45rem !important;
+}
 ${scope} .page-web-timeline-content textarea.page-web-elements-title2-input,
 ${scope} .page-web-timeline-content .page-web-elements-title2-input {
   display: block;

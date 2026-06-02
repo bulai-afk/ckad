@@ -329,6 +329,14 @@ export function PageSlugClient({ slugParts, page, serviceFolderHub }: PageSlugCl
           }
           /* Страницы услуг: синие заголовки = :root (--site-blue-title-fs), без увеличения до 2.25rem на ≤1205px */
           ${getSiteBlueTitleUnifiedCss(".service-page-content-root .page-content")}
+          /* Исключение: в блоке "Текст статьи" заголовок должен быть как в редакторе, а не site-blue размера. */
+          .service-page-content-root .page-content .page-web-article-text .page-web-elements-title-input,
+          .page-content .page-web-article-text .page-web-elements-title-input {
+            font-size: 1.16rem !important;
+            line-height: 1.6 !important;
+            font-weight: 700 !important;
+            padding: 0.25rem 0.45rem !important;
+          }
           .service-page-content-root .page-content .page-web-cover .page-web-cover-inner > .page-web-elements.page-web-elements-description textarea.page-web-elements-description-input {
             line-height: 1.5 !important;
             padding: 0.15rem 0.45rem !important;

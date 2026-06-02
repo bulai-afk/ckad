@@ -42,5 +42,14 @@ ${s} .page-web-cover-el-title {
   font-weight: 600;
   color: #496db3;
 }
+/* Article block is body-like title, not site-blue hero/title scale. */
+${s} .page-web-article-text .page-web-elements.page-web-elements-title,
+${s} .page-web-article-text .page-web-elements.page-web-elements-title .page-web-elements-title-input,
+${s} .page-web-article-text .page-web-elements.page-web-elements-title textarea.page-web-elements-title-input {
+  font-size: 1.16rem !important;
+  line-height: 1.6 !important;
+  font-weight: 700 !important;
+  letter-spacing: normal !important;
+}
 `;
 }
