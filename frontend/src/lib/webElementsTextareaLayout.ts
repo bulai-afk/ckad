@@ -2,7 +2,7 @@ import { isWebElementsFieldJustified } from "@/lib/webElementsTextAlign";
 
 /** Поля v2, для которых на полотне вызывается раскладка (редактор и публичный просмотр). */
 export const WEB_ELEMENTS_V2_TEXTAREA_LAYOUT_SELECTOR =
-  ".page-web-elements-subtitle-input, .page-web-elements-title-input, .page-web-elements-title2-input, .page-web-elements-description-input, textarea.page-web-elements-announcement-input";
+  ".page-web-elements-subtitle-input, .page-web-elements-title-input, .page-web-elements-title2-input, .page-web-elements-description-input, textarea.page-web-elements-announcement-input, .page-web-accordion-question-input, .page-web-accordion-answer-input";
 
 function isAnnouncementWebElementsField(el: HTMLElement): boolean {
   return Boolean(el.closest(".page-web-elements-announcement-strip"));

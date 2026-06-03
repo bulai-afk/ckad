@@ -6798,7 +6798,9 @@ export default function PageEditorDetailsPage() {
           active.matches(".page-web-elements-title-input") ||
           active.matches(".page-web-elements-title2-input") ||
           active.matches(".page-web-elements-subtitle-input") ||
-          active.matches(".page-web-elements-description-input"));
+          active.matches(".page-web-elements-description-input") ||
+          active.matches(".page-web-accordion-question-input") ||
+          active.matches(".page-web-accordion-answer-input"));
       // Keep typing path native: don't commit React HTML state while caret is still inside editor.
       if (selectionInsideEditor || plainTextBlockFieldActive) {
         inputSyncTimerRef.current = window.setTimeout(() => {
@@ -6819,7 +6821,9 @@ export default function PageEditorDetailsPage() {
                 delayedActive.matches(".page-web-elements-title-input") ||
                 delayedActive.matches(".page-web-elements-title2-input") ||
                 delayedActive.matches(".page-web-elements-subtitle-input") ||
-                delayedActive.matches(".page-web-elements-description-input"));
+                delayedActive.matches(".page-web-elements-description-input") ||
+                delayedActive.matches(".page-web-accordion-question-input") ||
+                delayedActive.matches(".page-web-accordion-answer-input"));
             const delayedInside =
               !!ed && !!delayedSel && delayedSel.rangeCount > 0 && ed.contains(delayedSel.getRangeAt(0).commonAncestorContainer);
             if (!delayedInside && !delayedPlainField) {
@@ -6904,7 +6908,7 @@ export default function PageEditorDetailsPage() {
     const flushAnnouncementText = opts?.flushAnnouncementText === true;
     root
       .querySelectorAll(
-        ".page-web-elements-announcement-input, .page-web-elements-subtitle-input, .page-web-elements-title-input, .page-web-elements-title2-input, .page-web-elements-description-input",
+        `${WEB_ELEMENTS_V2_TEXTAREA_LAYOUT_SELECTOR}, .page-web-elements-announcement-input`,
       )
       .forEach((node) => {
         if (node instanceof HTMLElement && node.matches(".page-web-elements-announcement-input")) {
@@ -7147,6 +7151,7 @@ export default function PageEditorDetailsPage() {
       logPageEditorCaret("layoutEffect[contentHtml]:cover-type-default", {});
     }
     root.querySelectorAll(".page-editor-table").forEach((t) => syncTableColgroup(t as HTMLTableElement));
+    syncWebTextBlockV2FieldValuesForSerialization(root);
     const after = root.innerHTML;
     if (after !== before) {
       const afterNorm = stripWebTextBlockV2TextareaMeasurementStylesForCompare(after);
@@ -11582,7 +11587,7 @@ export default function PageEditorDetailsPage() {
     if (!active || !el.contains(active)) return null;
     if (
       !active.matches(
-        ".page-web-text-block-subtitle-input, .page-web-text-block-title-input, .page-web-text-block-lead-input, .page-web-elements-announcement-input, .page-web-elements-title-input, .page-web-elements-title2-input, .page-web-elements-subtitle-input, .page-web-elements-description-input",
+        ".page-web-text-block-subtitle-input, .page-web-text-block-title-input, .page-web-text-block-lead-input, .page-web-elements-announcement-input, .page-web-elements-title-input, .page-web-elements-title2-input, .page-web-elements-subtitle-input, .page-web-elements-description-input, .page-web-accordion-question-input, .page-web-accordion-answer-input",
       )
     ) {
       return null;
