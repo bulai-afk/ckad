@@ -1170,6 +1170,7 @@ ${scope} .page-web-cover,
 ${scope} .page-web-text-block,
 ${scope} .page-web-text-block-v2,
 ${scope} .page-web-article-text,
+${scope} .page-web-accordion,
 ${scope} .page-web-text-media,
 ${scope} .page-web-timeline,
 ${scope} .page-web-work-pricing,
@@ -1181,6 +1182,7 @@ ${scope} .page-web-cover *,
 ${scope} .page-web-text-block *,
 ${scope} .page-web-text-block-v2 *,
 ${scope} .page-web-article-text *,
+${scope} .page-web-accordion *:not(textarea.page-web-accordion-question-input):not(textarea.page-web-accordion-answer-input),
 ${scope} .page-web-text-media *,
 ${scope} .page-web-timeline *,
 ${scope} .page-web-work-pricing *,
@@ -1188,6 +1190,19 @@ ${scope} .page-web-feature-grid * {
   font-size: inherit !important;
 }
 ${getSiteBlueTitleUnifiedCss(scope)}
+${scope} .page-web-accordion-item textarea.page-web-accordion-question-input,
+${scope} .page-web-accordion-question-input {
+  font-size: 1.1875rem !important;
+  line-height: 1.6 !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.02em !important;
+  color: #496db3 !important;
+  padding: 0 !important;
+}
+${scope} .page-web-accordion-panel[data-collapsed="1"],
+${scope} .page-web-accordion-panel.page-web-elements-description[data-collapsed="1"] {
+  display: none !important;
+}
 /* Keep article block title typography aligned with admin editor. */
 ${scope} .page-web-article-text .page-web-elements-title-input {
   font-size: 1.16rem !important;

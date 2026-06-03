@@ -12,6 +12,7 @@ export function getPageEditorWebToolbarCss(): string {
 .page-editor .page-web-text-block > .page-web-text-block-toolbar,
 .page-editor .page-web-text-block-v2 > .page-web-text-block-v2-toolbar,
 .page-editor .page-web-article-text > .page-web-article-text-toolbar,
+.page-editor .page-web-accordion > .page-web-accordion-toolbar,
 .page-editor .page-web-text-media > .page-web-text-media-toolbar,
 .page-editor .page-web-spacer > .page-web-spacer-toolbar,
 .page-editor .page-web-timeline .page-web-timeline-toolbar {
@@ -37,12 +38,14 @@ export function getPageEditorWebToolbarCss(): string {
 }
 .page-editor .page-web-text-block,
 .page-editor .page-web-text-block-v2,
-.page-editor .page-web-article-text {
+.page-editor .page-web-article-text,
+.page-editor .page-web-accordion {
   overflow: visible;
 }
 .page-editor .page-web-text-block:has(> .page-web-text-block-toolbar[data-menu-open="1"]),
 .page-editor .page-web-text-block-v2:has(> .page-web-text-block-v2-toolbar[data-menu-open="1"]),
-.page-editor .page-web-article-text:has(> .page-web-article-text-toolbar[data-menu-open="1"]) {
+.page-editor .page-web-article-text:has(> .page-web-article-text-toolbar[data-menu-open="1"]),
+.page-editor .page-web-accordion:has(> .page-web-accordion-toolbar[data-menu-open="1"]) {
   z-index: 100 !important;
 }
 .page-editor .page-web-text-media > .page-web-text-media-toolbar,
@@ -52,12 +55,14 @@ export function getPageEditorWebToolbarCss(): string {
 }
 .page-editor .page-web-text-block > .page-web-text-block-toolbar,
 .page-editor .page-web-text-block-v2 > .page-web-text-block-v2-toolbar,
-.page-editor .page-web-article-text > .page-web-article-text-toolbar {
+.page-editor .page-web-article-text > .page-web-article-text-toolbar,
+.page-editor .page-web-accordion > .page-web-accordion-toolbar {
   z-index: 10040 !important;
 }
 .page-editor .page-web-text-block > .page-web-text-block-toolbar[data-menu-open="1"],
 .page-editor .page-web-text-block-v2 > .page-web-text-block-v2-toolbar[data-menu-open="1"],
-.page-editor .page-web-article-text > .page-web-article-text-toolbar[data-menu-open="1"] {
+.page-editor .page-web-article-text > .page-web-article-text-toolbar[data-menu-open="1"],
+.page-editor .page-web-accordion > .page-web-accordion-toolbar[data-menu-open="1"] {
   z-index: 10150 !important;
 }
 .page-editor .page-web-text-block-toolbar[data-menu-open="1"] .page-web-text-block-menu-dropdown,

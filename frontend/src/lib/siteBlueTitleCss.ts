@@ -7,8 +7,8 @@ export function getSiteBlueTitleUnifiedCss(scope: string): string {
   const s = scope.trim();
   return `
 ${s} :is(
-  .page-web-elements.page-web-elements-title .page-web-elements-title-input,
-  .page-web-elements.page-web-elements-title textarea.page-web-elements-title-input,
+  .page-web-elements.page-web-elements-title:not(.page-web-accordion-question) .page-web-elements-title-input,
+  .page-web-elements.page-web-elements-title:not(.page-web-accordion-question) textarea.page-web-elements-title-input,
   .page-web-timeline-heading,
   .page-web-timeline-head .page-web-elements.page-web-elements-title .page-web-elements-title-input,
   .page-web-timeline-head .page-web-elements.page-web-elements-title textarea.page-web-elements-title-input,
@@ -41,6 +41,17 @@ ${s} .page-web-cover-el-title {
   letter-spacing: -0.025em;
   font-weight: 600;
   color: #496db3;
+}
+/* FAQ-аккордеон: компактный синий вопрос, без масштаба site-blue. */
+${s} .page-web-accordion-item .page-web-accordion-question-input,
+${s} .page-web-accordion-item .page-web-accordion-question .page-web-elements-title-input,
+${s} .page-web-accordion-item .page-web-accordion-question textarea.page-web-elements-title-input {
+  font-size: 1.1875rem !important;
+  line-height: 1.6 !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.02em !important;
+  color: #496db3 !important;
+  padding: 0 !important;
 }
 /* Article block is body-like title, not site-blue hero/title scale. */
 ${s} .page-web-article-text .page-web-elements.page-web-elements-title,

@@ -22,6 +22,11 @@ import {
 } from "@/lib/webElementsTextareaLayout";
 import { normalizeFeatureGridContentWrapInRoot } from "@/lib/featureGridContentWrap";
 import { stripLegacyTimelineDomInRoot } from "@/lib/stripLegacyTimelineDom";
+import {
+  ensureWebAccordionFaqItemsInRoot,
+  initWebAccordionFaqInRoot,
+  normalizeWebAccordionFaqForPublish,
+} from "@/lib/webAccordionFaq";
 import { syncWebElementsFieldRowJustifyInRoot } from "@/lib/webElementsFieldRowJustify";
 import type { ServiceTreeNode } from "@/lib/serviceTree";
 
@@ -104,32 +109,39 @@ export function PageSlugClient({ slugParts, page, serviceFolderHub }: PageSlugCl
     if (!root) return;
     stripLegacyTimelineDomInRoot(root);
     normalizeFeatureGridContentWrapInRoot(root);
-    const editableNodes = Array.from(root.querySelectorAll("[contenteditable]")) as HTMLElement[];
-    editableNodes.forEach((node) => {
-      if (node.getAttribute("contenteditable") !== "false") {
-        node.setAttribute("contenteditable", "false");
-      }
-    });
-    root
-      .querySelectorAll(
-        ".page-web-text-block-subtitle-input, .page-web-text-block-title-input, .page-web-text-block-lead-input, .page-web-elements-announcement-input, .page-web-elements-title-input, .page-web-elements-title2-input, .page-web-elements-subtitle-input, .page-web-elements-description-input",
-      )
-      .forEach((node) => {
-        if (node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement) {
-          const field = node;
-          field.setAttribute("readonly", "");
-          field.setAttribute("tabindex", "-1");
-          field.removeAttribute("placeholder");
-        }
-        if (node instanceof HTMLTextAreaElement) {
-          node.setAttribute("rows", "1");
+    const lockPublicWebBlockFields = () => {
+      root.querySelectorAll("[contenteditable]").forEach((node) => {
+        if (node instanceof HTMLElement && node.getAttribute("contenteditable") !== "false") {
+          node.setAttribute("contenteditable", "false");
         }
       });
-    root.querySelectorAll("textarea[placeholder], input[placeholder]").forEach((node) => {
-      if (node instanceof HTMLTextAreaElement || node instanceof HTMLInputElement) {
-        node.removeAttribute("placeholder");
-      }
-    });
+      root
+        .querySelectorAll(
+          ".page-web-text-block-subtitle-input, .page-web-text-block-title-input, .page-web-text-block-lead-input, .page-web-elements-announcement-input, .page-web-elements-title-input, .page-web-elements-title2-input, .page-web-elements-subtitle-input, .page-web-elements-description-input, .page-web-accordion-question-input, .page-web-accordion-answer-input",
+        )
+        .forEach((node) => {
+          if (node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement) {
+            node.readOnly = true;
+            node.setAttribute("readonly", "");
+            node.setAttribute("tabindex", "-1");
+            node.removeAttribute("placeholder");
+          }
+          if (node instanceof HTMLTextAreaElement) {
+            node.setAttribute("rows", "1");
+          }
+        });
+      root.querySelectorAll("textarea[placeholder], input[placeholder]").forEach((node) => {
+        if (node instanceof HTMLTextAreaElement || node instanceof HTMLInputElement) {
+          node.removeAttribute("placeholder");
+        }
+      });
+    };
+
+    lockPublicWebBlockFields();
+    ensureWebAccordionFaqItemsInRoot(root);
+    normalizeWebAccordionFaqForPublish(root);
+    lockPublicWebBlockFields();
+    const teardownAccordion = initWebAccordionFaqInRoot(root);
 
     const layout = () => {
       clearTimelineTextareaInlineWidthsInRoot(root);
@@ -144,6 +156,7 @@ export function PageSlugClient({ slugParts, page, serviceFolderHub }: PageSlugCl
     window.addEventListener("resize", layout);
     void document.fonts?.ready?.then(layout);
     return () => {
+      teardownAccordion();
       ro?.disconnect();
       window.removeEventListener("resize", layout);
     };
@@ -290,6 +303,14 @@ export function PageSlugClient({ slugParts, page, serviceFolderHub }: PageSlugCl
           />
           <style>{`
           ${getSharedWebBlocksCss(".page-content")}
+          .service-page-content-root .page-content textarea[readonly],
+          .service-page-content-root .page-content input[readonly] {
+            cursor: default;
+            user-select: text;
+          }
+          .service-page-content-root .page-web-accordion-trigger textarea {
+            pointer-events: none;
+          }
           .page-content img { max-width: 100%; height: auto; }
           .page-content ul { margin: 0.5rem 0; padding-left: 1.25rem; list-style: disc outside; --list-marker-color: #000000; }
           ${PUBLIC_LIST_COLORS.map((c) => `.page-content ul[data-list-color="${c.value}"] { --list-marker-color: ${c.hex}; }`).join("\n")}

@@ -148,6 +148,10 @@ function isFeatureGridCardTextarea(textarea: HTMLTextAreaElement): boolean {
   return Boolean(textarea.closest(".page-web-feature-grid-item"));
 }
 
+function isAccordionFaqTextarea(textarea: HTMLTextAreaElement): boolean {
+  return Boolean(textarea.closest(".page-web-accordion-item"));
+}
+
 export function layoutWebElementsTextareaSize(textarea: HTMLTextAreaElement): void {
   textarea.style.boxSizing = "border-box";
 
@@ -181,6 +185,15 @@ export function layoutWebElementsTextareaSize(textarea: HTMLTextAreaElement): vo
     textarea.style.removeProperty("min-width");
     textarea.style.removeProperty("max-width");
     textarea.style.removeProperty("height");
+    return;
+  }
+
+  if (isAccordionFaqTextarea(textarea)) {
+    textarea.style.width = "100%";
+    textarea.style.maxWidth = "100%";
+    textarea.style.minWidth = "0";
+    textarea.style.height = "auto";
+    textarea.style.height = `${Math.max(textarea.scrollHeight, 20)}px`;
     return;
   }
 
