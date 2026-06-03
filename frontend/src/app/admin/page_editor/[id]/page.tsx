@@ -5948,7 +5948,9 @@ export default function PageEditorDetailsPage() {
         node.matches(".page-web-elements-title-input") ||
         node.matches(".page-web-elements-title2-input") ||
         node.matches(".page-web-elements-subtitle-input") ||
-        node.matches(".page-web-elements-description-input"))
+        node.matches(".page-web-elements-description-input") ||
+        node.matches(".page-web-accordion-question-input") ||
+        node.matches(".page-web-accordion-answer-input"))
     ) {
       const shell =
         (node.closest(".page-web-text-block-v2") as HTMLElement | null) ??
@@ -6054,7 +6056,7 @@ export default function PageEditorDetailsPage() {
       active &&
       el.contains(active) &&
       active.matches(
-        ".page-web-text-block-subtitle-input, .page-web-text-block-title-input, .page-web-text-block-lead-input, .page-web-elements-announcement-input, .page-web-elements-title-input, .page-web-elements-title2-input, .page-web-elements-subtitle-input, .page-web-elements-description-input",
+        ".page-web-text-block-subtitle-input, .page-web-text-block-title-input, .page-web-text-block-lead-input, .page-web-elements-announcement-input, .page-web-elements-title-input, .page-web-elements-title2-input, .page-web-elements-subtitle-input, .page-web-elements-description-input, .page-web-accordion-question-input, .page-web-accordion-answer-input",
       ) &&
       (active instanceof HTMLInputElement ||
         active instanceof HTMLTextAreaElement ||
@@ -6072,7 +6074,9 @@ export default function PageEditorDetailsPage() {
         (activeInput.matches(".page-web-elements-subtitle-input") ||
           activeInput.matches(".page-web-elements-title-input") ||
           activeInput.matches(".page-web-elements-title2-input") ||
-          activeInput.matches(".page-web-elements-description-input"));
+          activeInput.matches(".page-web-elements-description-input") ||
+          activeInput.matches(".page-web-accordion-question-input") ||
+          activeInput.matches(".page-web-accordion-answer-input"));
       const coverBannerForToolbar = activeInput.closest(".page-web-cover") as HTMLElement | null;
       const inCoverBannerToolbar =
         !!coverBannerForToolbar &&
@@ -16627,6 +16631,25 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
           border-radius: 8px;
           box-sizing: border-box;
           line-height: 1.2 !important;
+          box-shadow: var(--page-editor-focus-shadow);
+          transition: box-shadow 0.12s ease;
+        }
+        .page-editor .page-web-accordion-question-input[data-editor-focus-target="1"],
+        .page-editor .page-web-accordion-item textarea.page-web-accordion-question-input[data-editor-focus-target="1"] {
+          padding: 0.15rem 0.45rem !important;
+          margin: 0;
+          border-radius: 8px;
+          box-sizing: border-box;
+          line-height: 1.6 !important;
+          box-shadow: var(--page-editor-focus-shadow);
+          transition: box-shadow 0.12s ease;
+        }
+        .page-editor .page-web-accordion-answer-input[data-editor-focus-target="1"],
+        .page-editor .page-web-accordion-item textarea.page-web-accordion-answer-input[data-editor-focus-target="1"] {
+          padding: 0.25rem 0.45rem !important;
+          margin: 0;
+          border-radius: 8px;
+          box-sizing: border-box;
           box-shadow: var(--page-editor-focus-shadow);
           transition: box-shadow 0.12s ease;
         }
