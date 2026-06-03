@@ -377,19 +377,37 @@ ${scope} .page-web-work-pricing .page-web-elements-field-row {
   display: flex;
   justify-content: flex-start;
 }
+${scope} .page-web-work-pricing .page-web-elements[data-work-pricing-halign="left"] {
+  align-items: flex-start;
+}
+${scope} .page-web-work-pricing .page-web-elements[data-work-pricing-halign="center"] {
+  align-items: center;
+}
+${scope} .page-web-work-pricing .page-web-elements[data-work-pricing-halign="right"] {
+  align-items: flex-end;
+}
 ${scope} .page-web-work-pricing .page-web-elements[data-work-pricing-halign="left"] > .page-web-elements-field-row {
   justify-content: flex-start;
+  text-align: left;
 }
 ${scope} .page-web-work-pricing .page-web-elements[data-work-pricing-halign="center"] > .page-web-elements-field-row {
   justify-content: center;
+  text-align: center;
 }
 ${scope} .page-web-work-pricing .page-web-elements[data-work-pricing-halign="right"] > .page-web-elements-field-row {
   justify-content: flex-end;
+  text-align: right;
+}
+${scope} .page-web-work-pricing .page-web-elements[data-work-pricing-halign="left"] > .page-web-elements-field-row > textarea,
+${scope} .page-web-work-pricing .page-web-elements[data-work-pricing-halign="center"] > .page-web-elements-field-row > textarea,
+${scope} .page-web-work-pricing .page-web-elements[data-work-pricing-halign="right"] > .page-web-elements-field-row > textarea {
+  text-align: inherit;
 }
 ${scope} .page-web-work-pricing .page-web-elements[data-work-pricing-halign="justify"] > .page-web-elements-field-row {
   justify-content: flex-start;
   width: 100%;
   max-width: 100%;
+  text-align: justify;
 }
 ${scope} .page-web-work-pricing .page-web-elements[data-work-pricing-halign="justify"] textarea {
   width: 100% !important;

@@ -152,6 +152,11 @@ function isAccordionFaqTextarea(textarea: HTMLTextAreaElement): boolean {
   return Boolean(textarea.closest(".page-web-accordion-item"));
 }
 
+/** Подпись и цена в серой колонке: ширину даёт CSS (max-content + halign), не px по cap — иначе на mobile поле на всю ширину и текст «прилипает» влево. */
+function isWorkPricingPriceCardTextarea(textarea: HTMLTextAreaElement): boolean {
+  return Boolean(textarea.closest(".page-web-work-pricing .wrc.wrs.wss"));
+}
+
 export function layoutWebElementsTextareaSize(textarea: HTMLTextAreaElement): void {
   textarea.style.boxSizing = "border-box";
 
@@ -194,6 +199,14 @@ export function layoutWebElementsTextareaSize(textarea: HTMLTextAreaElement): vo
     textarea.style.minWidth = "0";
     textarea.style.height = "auto";
     textarea.style.height = `${Math.max(textarea.scrollHeight, 20)}px`;
+    return;
+  }
+
+  if (isWorkPricingPriceCardTextarea(textarea) && !isWebElementsFieldJustified(textarea)) {
+    textarea.style.width = "";
+    textarea.style.removeProperty("max-width");
+    textarea.style.height = "auto";
+    textarea.style.height = `${textarea.scrollHeight}px`;
     return;
   }
 
