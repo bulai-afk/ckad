@@ -386,6 +386,12 @@ ${scope} .page-web-work-pricing .page-web-elements[data-work-pricing-halign="cen
 ${scope} .page-web-work-pricing .page-web-elements[data-work-pricing-halign="right"] {
   align-items: flex-end;
 }
+${scope} .page-web-work-pricing .wrc.wrs.wss .page-web-elements[data-work-pricing-halign="left"],
+${scope} .page-web-work-pricing .wrc.wrs.wss .page-web-elements[data-work-pricing-halign="center"],
+${scope} .page-web-work-pricing .wrc.wrs.wss .page-web-elements[data-work-pricing-halign="right"] {
+  align-items: stretch;
+  width: 100%;
+}
 ${scope} .page-web-work-pricing .page-web-elements[data-work-pricing-halign="left"] > .page-web-elements-field-row {
   justify-content: flex-start;
   text-align: left;
@@ -600,6 +606,18 @@ ${scope} .page-web-work-pricing .wri { width: auto; }
 ${scope} .page-web-work-pricing .wuc { padding: 0.625rem 1rem; }
 ${scope} .page-web-work-pricing .wrd .page-web-elements.page-web-elements-description textarea.page-web-elements-description-input,
 ${scope} .page-web-work-pricing .wte { font-size: 1.04rem; line-height: 1.5; }
+${scope} .page-web-work-pricing .wrc.wrs.wss .page-web-elements > .page-web-elements-field-row > textarea,
+${scope} .page-web-work-pricing .wrc.wrs.wss .page-web-elements.page-web-elements-title textarea.page-web-elements-title-input,
+${scope} .page-web-work-pricing .wrc.wrs.wss .page-web-elements.page-web-elements-title2 textarea.page-web-elements-title2-input,
+${scope} .page-web-work-pricing .wrc.wrs.wss .page-web-elements.page-web-elements-description textarea.page-web-elements-description-input {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0;
+  display: block;
+  box-sizing: border-box;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
 }
 @media (min-width: 1024px) {
 ${scope} .page-web-work-pricing .wut { max-width: none; }
