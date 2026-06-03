@@ -12,7 +12,7 @@ import { apiBaseUrl } from "@/lib/apiBaseUrl";
 import { sanitizePublicAssetUrl } from "@/lib/publicAssetUrl";
 
 const AUTOPLAY_INTERVAL_MS = 5500;
-/** Сколько последних новостей показывать в карусели на главной. */
+/** Сколько последних материалов раздела «Новости» показывать в карусели на главной. */
 const HOME_NEWS_CAROUSEL_LIMIT = 6;
 
 function isPublishedHomeNewsSlide(p: HomeArticleSlide): boolean {
@@ -31,10 +31,6 @@ function isArticlesSlug(slug: string): boolean {
     .startsWith("articles/");
 }
 
-function isNewsKind(p: HomeArticleSlide): boolean {
-  return (p.articleKind ?? "news") === "news";
-}
-
 function sortSlidesByDateDesc(a: HomeArticleSlide, b: HomeArticleSlide): number {
   const ad = new Date(a.updatedAt || a.createdAt || 0).getTime();
   const bd = new Date(b.updatedAt || b.createdAt || 0).getTime();
@@ -45,7 +41,6 @@ function pickHomeNewsSlides(items: HomeArticleSlide[]): HomeArticleSlide[] {
   return items
     .filter(isPublishedHomeNewsSlide)
     .filter((p) => isArticlesSlug(String(p.slug || "")))
-    .filter(isNewsKind)
     .sort(sortSlidesByDateDesc)
     .slice(0, HOME_NEWS_CAROUSEL_LIMIT);
 }
