@@ -324,20 +324,28 @@ export default async function AboutPage() {
                     ИНН: {reqInn} · ОГРН: {reqOgrn} · КПП: {reqKpp}
                   </p>
                   <p className="about-value-card__text">Адрес: {address}</p>
-                  <a
-                    href={phoneHref}
-                    className="block font-extrabold text-[#496db3] transition-colors hover:text-red-600"
-                  >
-                    {phone}
-                  </a>
-                  <a
-                    href={`mailto:${email}`}
-                    className="block break-all font-extrabold text-[#496db3] transition-colors hover:text-red-600"
-                  >
-                    {email}
-                  </a>
+                  <p className="about-value-card__text">
+                    Телефон:{" "}
+                    <a
+                      href={phoneHref}
+                      className="font-extrabold text-[#496db3] transition-colors hover:text-red-600"
+                    >
+                      {phone}
+                    </a>
+                  </p>
+                  <p className="about-value-card__text">
+                    Эл. почта:{" "}
+                    <a
+                      href={`mailto:${email}`}
+                      className="break-all font-extrabold text-[#496db3] transition-colors hover:text-red-600"
+                    >
+                      {email}
+                    </a>
+                  </p>
                   {socials.length > 0 ? (
-                    <ul className="flex flex-wrap items-center gap-3 pt-1">
+                    <div className="about-value-card__text flex flex-wrap items-center gap-x-2 gap-y-2">
+                      <span className="shrink-0">Соц. сети:</span>
+                      <ul className="flex flex-wrap items-center gap-3">
                       {socials.map((social) => (
                         <li key={social.label}>
                           <a
@@ -363,7 +371,8 @@ export default async function AboutPage() {
                           </a>
                         </li>
                       ))}
-                    </ul>
+                      </ul>
+                    </div>
                   ) : null}
                 </div>
               </div>
