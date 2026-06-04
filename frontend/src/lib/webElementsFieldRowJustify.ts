@@ -18,11 +18,6 @@ function isWorkPricingPriceCardField(ta: HTMLElement): boolean {
   return Boolean(ta.closest(".page-web-work-pricing .wrc.wrs.wss"));
 }
 
-function isWorkPricingPriceCardMobileViewport(): boolean {
-  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
-  return window.matchMedia("(max-width: 1205px)").matches;
-}
-
 function applyWorkPricingFieldRowAlign(row: HTMLElement, ta: HTMLElement, align: WebElementsHAlign): void {
   if (align === "justify") {
     row.style.width = "100%";
@@ -42,7 +37,7 @@ function applyWorkPricingFieldRowAlign(row: HTMLElement, ta: HTMLElement, align:
   webElementsFieldRowSetFlexJustify(row, align);
   ta.style.textAlign = align;
   if (ta instanceof HTMLTextAreaElement) {
-    if (isWorkPricingPriceCardField(ta) && isWorkPricingPriceCardMobileViewport()) {
+    if (isWorkPricingPriceCardField(ta)) {
       ta.style.width = "100%";
       ta.style.maxWidth = "100%";
       ta.style.minWidth = "0";

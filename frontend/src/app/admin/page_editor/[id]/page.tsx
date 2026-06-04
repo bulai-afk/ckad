@@ -52,7 +52,7 @@ import {
 import { stripLegacyTimelineDom } from "@/lib/stripLegacyTimelineDom";
 import {
   ensureWebAccordionFaqItemsInRoot,
-  expandWebAccordionPanelsForEditor,
+  syncWebAccordionPanelsForEditor,
   getWebAccordionItemHtml,
   handleWebAccordionFaqEditorPointer,
   initWebAccordionFaqInRoot,
@@ -7108,7 +7108,7 @@ export default function PageEditorDetailsPage() {
     if (ensureWebAccordionFaqItemsInRoot(root) && caretDebugOn()) {
       logPageEditorCaret("layoutEffect[contentHtml]:web-accordion-faq-markup", {});
     }
-    expandWebAccordionPanelsForEditor(root);
+    syncWebAccordionPanelsForEditor(root);
     if (ensureWebSpacerToolbarInEditor(root) && caretDebugOn()) {
       logPageEditorCaret("layoutEffect[contentHtml]:web-spacer-toolbar-upgrade", {});
     }
@@ -8914,7 +8914,7 @@ export default function PageEditorDetailsPage() {
         }
       }
       if (ensureWebAccordionFaqItemsInRoot(block)) changed = true;
-      expandWebAccordionPanelsForEditor(block);
+      syncWebAccordionPanelsForEditor(block);
       block.querySelectorAll(":scope > .page-web-accordion-list > .page-web-accordion-item").forEach((itemNode) => {
         const item = itemNode as HTMLElement;
         if (item.getAttribute("contenteditable") !== "false") {
@@ -16989,8 +16989,8 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         }
         .page-editor .page-web-accordion-icons { display: inline-flex; flex-shrink: 0; align-items: center; width: 1.5rem; height: 1.5rem; color: #0f172a; }
         .page-editor .page-web-accordion-icon { width: 1.5rem; height: 1.5rem; }
-        .page-editor .page-web-accordion-panel { display: block !important; padding: 0 0 1rem; color: #475569; box-sizing: border-box; }
-        .page-editor .page-web-accordion-panel[data-collapsed="1"] { display: block !important; }
+        .page-editor .page-web-accordion-panel { display: block; padding: 0 0 1rem; color: #475569; box-sizing: border-box; }
+        .page-editor .page-web-accordion-panel[data-collapsed="1"] { display: none !important; }
         .page-editor .page-web-accordion-panel .page-web-elements-description-input {
           width: 100% !important;
           max-width: 100% !important;

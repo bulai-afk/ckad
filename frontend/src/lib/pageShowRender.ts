@@ -438,6 +438,12 @@ ${scope} .page-web-work-pricing .page-web-elements.page-web-elements-title texta
   display: inline-block;
   vertical-align: top;
 }
+${scope} .page-web-work-pricing .wrc.wrs.wss .page-web-elements.page-web-elements-title textarea.page-web-elements-title-input {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0;
+  display: block;
+}
 ${scope} .page-web-work-pricing h3.wsx.wto { color: #496db3 !important; }
 ${scope} .page-web-work-pricing .wsp > .page-web-elements.page-web-elements-description textarea.page-web-elements-description-input,
 ${scope} .page-web-work-pricing .wsp > p.wre.wta.wtn {
@@ -541,19 +547,45 @@ ${scope} .page-web-work-pricing .wuw { gap: 0.85rem; }
 ${scope} .page-web-work-pricing .wux { padding: 1.2rem 1rem; }
 ${scope} .page-web-work-pricing .wuz { text-align: center; }
 ${scope} .page-web-work-pricing .wrs { width: 100%; max-width: none; }
-${scope} .page-web-work-pricing .wss { margin-inline: auto; }
+${scope} .page-web-work-pricing .wrd .wsd,
+${scope} .page-web-work-pricing .wrd .wsw {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+${scope} .page-web-work-pricing .wrd .wsw.wtu { justify-items: stretch; }
+${scope} .page-web-work-pricing .wrc.wrs.wss {
+  width: 100%;
+  max-width: 100%;
+  margin-inline: 0;
+  box-sizing: border-box;
+}
+${scope} .page-web-work-pricing .wrc.wrs.wss .page-web-elements.page-web-elements-title,
+${scope} .page-web-work-pricing .wrc.wrs.wss .page-web-elements.page-web-elements-title2,
+${scope} .page-web-work-pricing .wrc.wrs.wss .page-web-elements.page-web-elements-description,
+${scope} .page-web-work-pricing .wrc.wrs.wss .page-web-elements > .page-web-elements-field-row {
+  width: 100%;
+  max-width: 100%;
+}
+${scope} .page-web-work-pricing .wrc.wrs.wss .page-web-elements > .page-web-elements-field-row > textarea,
+${scope} .page-web-work-pricing .wrc.wrs.wss .page-web-elements.page-web-elements-title textarea.page-web-elements-title-input,
 ${scope} .page-web-work-pricing .wrc.wrs.wss .page-web-elements.page-web-elements-title2 textarea.page-web-elements-title2-input,
+${scope} .page-web-work-pricing .wrc.wrs.wss .page-web-elements.page-web-elements-description textarea.page-web-elements-description-input,
 ${scope} .page-web-work-pricing .wsz {
   margin: 0;
   color: #4b5563;
   font-size: 0.95rem;
   line-height: 1.4;
   font-weight: 600;
-  width: max-content;
-  max-width: 100%;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0;
   box-sizing: border-box;
-  display: inline-block;
-  vertical-align: top;
+  display: block;
+  overflow-wrap: break-word;
+  word-break: normal;
+  white-space: pre-wrap;
 }
 ${scope} .page-web-work-pricing .wrw { justify-content: center; }
 ${scope} .page-web-work-pricing .wry { gap: 0.35rem; }
@@ -606,18 +638,6 @@ ${scope} .page-web-work-pricing .wri { width: auto; }
 ${scope} .page-web-work-pricing .wuc { padding: 0.625rem 1rem; }
 ${scope} .page-web-work-pricing .wrd .page-web-elements.page-web-elements-description textarea.page-web-elements-description-input,
 ${scope} .page-web-work-pricing .wte { font-size: 1.04rem; line-height: 1.5; }
-${scope} .page-web-work-pricing .wrc.wrs.wss .page-web-elements > .page-web-elements-field-row > textarea,
-${scope} .page-web-work-pricing .wrc.wrs.wss .page-web-elements.page-web-elements-title textarea.page-web-elements-title-input,
-${scope} .page-web-work-pricing .wrc.wrs.wss .page-web-elements.page-web-elements-title2 textarea.page-web-elements-title2-input,
-${scope} .page-web-work-pricing .wrc.wrs.wss .page-web-elements.page-web-elements-description textarea.page-web-elements-description-input {
-  width: 100% !important;
-  max-width: 100% !important;
-  min-width: 0;
-  display: block;
-  box-sizing: border-box;
-  overflow-wrap: break-word;
-  word-break: normal;
-}
 }
 @media (min-width: 1024px) {
 ${scope} .page-web-work-pricing .wut { max-width: none; }

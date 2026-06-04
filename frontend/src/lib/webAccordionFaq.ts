@@ -233,15 +233,23 @@ export function ensureWebAccordionFaqItemsInRoot(root: HTMLElement): boolean {
   return changed;
 }
 
-/** В редакторе ответы всегда видны (свёрнутость только на опубликованной странице). */
-export function expandWebAccordionPanelsForEditor(root: HTMLElement): void {
+/** В редакторе: legacy `hidden` убираем, +/- синхронизируем с `data-collapsed` (не раскрываем принудительно). */
+export function syncWebAccordionPanelsForEditor(root: HTMLElement): void {
   if (root.closest(".service-page-content-root")) return;
   if (!root.closest(".page-editor")) return;
-  root.querySelectorAll(".page-web-accordion-panel").forEach((panelNode) => {
-    const panel = panelNode as HTMLElement;
-    panel.removeAttribute("hidden");
-    panel.removeAttribute("data-collapsed");
+  root.querySelectorAll(".page-web-accordion-list > .page-web-accordion-item").forEach((node) => {
+    const item = node as HTMLElement;
+    const panel = item.querySelector(
+      ":scope > dd.page-web-accordion-panel, :scope > .page-web-accordion-panel",
+    ) as HTMLElement | null;
+    panel?.removeAttribute("hidden");
+    syncWebAccordionItemExpandedUi(item, isWebAccordionItemExpanded(item));
   });
+}
+
+/** @deprecated Используйте {@link syncWebAccordionPanelsForEditor}. */
+export function expandWebAccordionPanelsForEditor(root: HTMLElement): void {
+  syncWebAccordionPanelsForEditor(root);
 }
 
 /** Перед сохранением: все пункты свёрнуты (на сайте раскрывает посетитель). */
