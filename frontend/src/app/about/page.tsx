@@ -291,92 +291,105 @@ export default async function AboutPage() {
           </p>
         </div>
         <div className="mx-auto max-w-7xl home-section-inline-padding">
-          <div className="mt-8 grid grid-cols-1 gap-10 sm:mt-10 lg:mt-12 lg:grid-cols-2 lg:items-center">
-            <div className="rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5">
-              <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-[180px_1fr] sm:gap-5">
-                <div className="mx-auto w-full max-w-[180px] sm:mx-0">
-                  <img
-                    src={
-                      director.photo ||
-                      "https://images.unsplash.com/photo-1519244703995-f4e0f30006d5?auto=format&fit=facearea&facepad=8&w=900&h=1125&q=80"
-                    }
-                    alt={director.name}
-                    className="aspect-[4/5] w-full rounded-xl object-cover"
-                  />
+          <div className="mt-8 grid grid-cols-1 gap-10 sm:mt-10 lg:mt-12 lg:grid-cols-2 lg:gap-8">
+            <div className="flex min-w-0 flex-col gap-8">
+              <div className="rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5">
+                <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-[180px_1fr] sm:gap-5">
+                  <div className="mx-auto w-full max-w-[180px] sm:mx-0">
+                    <img
+                      src={
+                        director.photo ||
+                        "https://images.unsplash.com/photo-1519244703995-f4e0f30006d5?auto=format&fit=facearea&facepad=8&w=900&h=1125&q=80"
+                      }
+                      alt={director.name}
+                      className="aspect-[4/5] w-full rounded-xl object-cover"
+                    />
+                  </div>
+                  <div className="about-contact-copy min-w-0">
+                    <p className="text-base font-semibold tracking-tight text-slate-900">{director.name}</p>
+                    <p className="about-value-card__text mt-0.5 text-base leading-[1.5] text-slate-600">
+                      {director.role}
+                    </p>
+                    <blockquote className="about-value-card__text mt-3 text-base italic leading-[1.5] text-slate-700">
+                      {director.message}
+                    </blockquote>
+                  </div>
                 </div>
-                <div className="about-contact-copy min-w-0">
-                  <p className="text-base font-semibold tracking-tight text-slate-900">{director.name}</p>
-                  <p className="about-value-card__text mt-0.5 text-base leading-[1.5] text-slate-600">
-                    {director.role}
-                  </p>
-                  <blockquote className="about-value-card__text mt-3 text-base italic leading-[1.5] text-slate-700">
-                    {director.message}
-                  </blockquote>
+              </div>
+              <div className="about-contact-copy pl-4 text-slate-700 sm:pl-[calc(1.25rem+180px+1.25rem)]">
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                  <div>
+                    <h2 className="text-lg font-semibold text-slate-900">Контакты</h2>
+                    <div className="mt-4 space-y-2 text-base leading-[1.4]">
+                      <a
+                        href={phoneHref}
+                        className="block text-base leading-[1.4] font-extrabold text-[#496db3] transition-colors hover:text-red-600"
+                      >
+                        {phone}
+                      </a>
+                      <a
+                        href={`mailto:${email}`}
+                        className="block break-all text-base leading-[1.4] font-extrabold text-[#496db3] transition-colors hover:text-red-600"
+                      >
+                        {email}
+                      </a>
+                      <p className="about-value-card__text">{address}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-900 sm:mt-1">Социальные сети</h3>
+                    <ul className="mt-2 flex flex-wrap items-center gap-4 text-base leading-[1.4]">
+                      {socials.length > 0 ? (
+                        socials.map((social) => (
+                          <li key={social.label}>
+                            <a
+                              href={social.href}
+                              target="_blank"
+                              rel="noreferrer"
+                              aria-label={social.label}
+                              title={social.label}
+                              className="inline-flex h-10 w-10 items-center justify-center hover:text-[#e53935]"
+                            >
+                              {social.externalSvgSrc ? (
+                                <img
+                                  src={social.externalSvgSrc}
+                                  alt=""
+                                  aria-hidden
+                                  className="h-6 w-6 shrink-0 object-contain"
+                                />
+                              ) : (
+                                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className="h-6 w-6 shrink-0">
+                                  {social.svg}
+                                </svg>
+                              )}
+                            </a>
+                          </li>
+                        ))
+                      ) : (
+                        <li className="text-slate-500">Ссылки на соцсети не указаны.</li>
+                      )}
+                    </ul>
+                  </div>
+                </div>
+                <h3 className="mt-6 text-lg font-semibold text-slate-900">Реквизиты</h3>
+                <div className="about-value-card__text mt-2 space-y-1 text-base leading-[1.4]">
+                  <p>{reqCompany}</p>
+                  <p>ИНН: {reqInn}</p>
+                  <p>КПП: {reqKpp}</p>
+                  <p>ОГРН: {reqOgrn}</p>
                 </div>
               </div>
             </div>
-            <div className="about-contact-copy text-slate-700">
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-900">Связь</h2>
-                  <div className="mt-4 space-y-2 text-base leading-[1.4]">
-                    <a
-                      href={phoneHref}
-                      className="block text-base leading-[1.4] font-extrabold text-[#496db3] transition-colors hover:text-red-600"
-                    >
-                      {phone}
-                    </a>
-                    <a
-                      href={`mailto:${email}`}
-                      className="block break-all text-base leading-[1.4] font-extrabold text-[#496db3] transition-colors hover:text-red-600"
-                    >
-                      {email}
-                    </a>
-                    <p className="about-value-card__text">{address}</p>
-                  </div>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-900 sm:mt-1">Социальные сети</h3>
-                  <ul className="mt-2 flex flex-wrap items-center gap-4 text-base leading-[1.4]">
-                    {socials.length > 0 ? (
-                      socials.map((social) => (
-                        <li key={social.label}>
-                          <a
-                            href={social.href}
-                            target="_blank"
-                            rel="noreferrer"
-                            aria-label={social.label}
-                            title={social.label}
-                            className="inline-flex h-10 w-10 items-center justify-center hover:text-[#e53935]"
-                          >
-                            {social.externalSvgSrc ? (
-                              <img
-                                src={social.externalSvgSrc}
-                                alt=""
-                                aria-hidden
-                                className="h-6 w-6 shrink-0 object-contain"
-                              />
-                            ) : (
-                              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className="h-6 w-6 shrink-0">
-                                {social.svg}
-                              </svg>
-                            )}
-                          </a>
-                        </li>
-                      ))
-                    ) : (
-                      <li className="text-slate-500">Ссылки на соцсети не указаны.</li>
-                    )}
-                  </ul>
-                </div>
-              </div>
-              <h3 className="mt-6 text-lg font-semibold text-slate-900">Реквизиты</h3>
-              <div className="about-value-card__text mt-2 space-y-1 text-base leading-[1.4]">
-                <p>{reqCompany}</p>
-                <p>ИНН: {reqInn}</p>
-                <p>КПП: {reqKpp}</p>
-                <p>ОГРН: {reqOgrn}</p>
-              </div>
+            <div className="min-h-[min(400px,70vh)] overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm lg:min-h-0 lg:h-full">
+              <iframe
+                title="Карта — расположение центра на Яндекс.Картах"
+                src="https://yandex.ru/map-widget/v1/?z=12&ol=biz&oid=84932512558"
+                width={560}
+                height={400}
+                className="block h-full min-h-[min(400px,70vh)] w-full border-0 lg:min-h-0"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
             </div>
           </div>
         </div>

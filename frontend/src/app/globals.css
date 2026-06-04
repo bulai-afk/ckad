@@ -65,6 +65,31 @@ body {
   /* Не ставить touch-action: pan-y — в WebKit блокирует горизонтальные жесты (карусели) и может давать странные эффекты с интерактивом. */
 }
 
+/* CMS-страницы: не показываем полотно до гидрации (нормализация feature-grid, textarea layout). */
+.service-page-content-root:not([data-public-content-ready="1"]) {
+  visibility: hidden;
+}
+
+/* До подключения стилей PageSlugClient — иконки карточек feature-grid не раздуваются. */
+.page-content .page-web-feature-grid-icon-wrap {
+  display: inline-flex;
+  width: 1.8rem;
+  height: 1.8rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+}
+.page-content .page-web-feature-grid-icon,
+.page-content .page-web-feature-grid-icon svg {
+  width: 1.12rem;
+  height: 1.12rem;
+  max-width: 1.12rem;
+  max-height: 1.12rem;
+}
+.page-content .page-web-feature-grid-item {
+  box-sizing: border-box;
+}
+
 /* Hide horizontal scrollbar indicator (keep vertical). */
 html::-webkit-scrollbar:horizontal,
 body::-webkit-scrollbar:horizontal {

@@ -150,7 +150,7 @@ export function HomeArticlesCarousel({ slides }: Props) {
     <section className="bg-transparent py-8 sm:py-10 about-template-fallback">
       <div className="home-section-intro">
         <h2 className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-base font-semibold text-[#b91c1c]">
-          Новости
+          Новости и статьи
         </h2>
         <p className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-pretty sm:-mt-2">
           Полезная информация
