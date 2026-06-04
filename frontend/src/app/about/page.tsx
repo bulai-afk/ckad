@@ -316,67 +316,55 @@ export default async function AboutPage() {
                   </div>
                 </div>
               </div>
-              <div className="about-contact-copy pl-4 text-slate-700 sm:pl-[calc(1.25rem+180px+1.25rem)]">
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                  <div>
-                    <h2 className="text-lg font-semibold text-slate-900">Контакты</h2>
-                    <div className="mt-4 space-y-2 text-base leading-[1.4]">
-                      <a
-                        href={phoneHref}
-                        className="block text-base leading-[1.4] font-extrabold text-[#496db3] transition-colors hover:text-red-600"
-                      >
-                        {phone}
-                      </a>
-                      <a
-                        href={`mailto:${email}`}
-                        className="block break-all text-base leading-[1.4] font-extrabold text-[#496db3] transition-colors hover:text-red-600"
-                      >
-                        {email}
-                      </a>
-                      <p className="about-value-card__text">{address}</p>
-                    </div>
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-slate-900 sm:mt-1">Социальные сети</h3>
-                    <ul className="mt-2 flex flex-wrap items-center gap-4 text-base leading-[1.4]">
-                      {socials.length > 0 ? (
-                        socials.map((social) => (
-                          <li key={social.label}>
-                            <a
-                              href={social.href}
-                              target="_blank"
-                              rel="noreferrer"
-                              aria-label={social.label}
-                              title={social.label}
-                              className="inline-flex h-10 w-10 items-center justify-center hover:text-[#e53935]"
-                            >
-                              {social.externalSvgSrc ? (
-                                <img
-                                  src={social.externalSvgSrc}
-                                  alt=""
-                                  aria-hidden
-                                  className="h-6 w-6 shrink-0 object-contain"
-                                />
-                              ) : (
-                                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className="h-6 w-6 shrink-0">
-                                  {social.svg}
-                                </svg>
-                              )}
-                            </a>
-                          </li>
-                        ))
-                      ) : (
-                        <li className="text-slate-500">Ссылки на соцсети не указаны.</li>
-                      )}
+              <div className="about-contact-copy pl-4 text-slate-700 sm:pl-5">
+                <h2 className="text-lg font-semibold text-slate-900">Реквизиты</h2>
+                <div className="mt-4 space-y-2 text-base leading-[1.4]">
+                  <p className="about-value-card__text lg:whitespace-nowrap">{reqCompany}</p>
+                  <p className="about-value-card__text">
+                    ИНН: {reqInn} · ОГРН: {reqOgrn} · КПП: {reqKpp}
+                  </p>
+                  <p className="about-value-card__text">Адрес: {address}</p>
+                  <a
+                    href={phoneHref}
+                    className="block font-extrabold text-[#496db3] transition-colors hover:text-red-600"
+                  >
+                    {phone}
+                  </a>
+                  <a
+                    href={`mailto:${email}`}
+                    className="block break-all font-extrabold text-[#496db3] transition-colors hover:text-red-600"
+                  >
+                    {email}
+                  </a>
+                  {socials.length > 0 ? (
+                    <ul className="flex flex-wrap items-center gap-3 pt-1">
+                      {socials.map((social) => (
+                        <li key={social.label}>
+                          <a
+                            href={social.href}
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label={social.label}
+                            title={social.label}
+                            className="inline-flex h-10 w-10 items-center justify-center text-slate-700 hover:text-[#e53935]"
+                          >
+                            {social.externalSvgSrc ? (
+                              <img
+                                src={social.externalSvgSrc}
+                                alt=""
+                                aria-hidden
+                                className="h-6 w-6 shrink-0 object-contain"
+                              />
+                            ) : (
+                              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className="h-6 w-6 shrink-0">
+                                {social.svg}
+                              </svg>
+                            )}
+                          </a>
+                        </li>
+                      ))}
                     </ul>
-                  </div>
-                </div>
-                <h3 className="mt-6 text-lg font-semibold text-slate-900">Реквизиты</h3>
-                <div className="about-value-card__text mt-2 space-y-1 text-base leading-[1.4]">
-                  <p>{reqCompany}</p>
-                  <p>ИНН: {reqInn}</p>
-                  <p>КПП: {reqKpp}</p>
-                  <p>ОГРН: {reqOgrn}</p>
+                  ) : null}
                 </div>
               </div>
             </div>
