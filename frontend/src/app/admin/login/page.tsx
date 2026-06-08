@@ -25,7 +25,12 @@ export default function AdminLoginPage() {
         body: JSON.stringify({ username, password }),
       });
       if (!res.ok) {
-        setError("Неверный логин или пароль");
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        setError(
+          data.error === "login_backend_unavailable"
+            ? "Сервер авторизации недоступен. Попробуйте позже."
+            : "Неверный логин или пароль",
+        );
         return;
       }
 

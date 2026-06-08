@@ -126,14 +126,15 @@ jobs:
             export PATH=\"/usr/local/bin:/usr/bin:\$PATH\"
             ROOT=\"$APP\"
             cd \"\$ROOT/backend\"
+            rm -f .env .env.local .env.production
             npm ci --no-audit --no-fund
             npm run prisma:generate
             set -a
             . /opt/ckad/shared/env/backend.env
             set +a
             npx prisma migrate deploy
-            npm run migrate:seed-admin-demo
             npm run build
+            npm run migrate:seed-admin-demo
             mkdir -p \"\$ROOT/backend/data\"
             chown -R www-data:www-data \"\$ROOT/backend/data\"
             chmod -R u+rwX \"\$ROOT/backend/data\"

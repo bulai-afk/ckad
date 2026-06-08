@@ -33,9 +33,22 @@ export async function POST(req: Request) {
     });
 
     if (!upstream.ok) {
+      const upstreamText = await upstream.text().catch(() => "");
+      // eslint-disable-next-line no-console
+      console.error(
+        "[admin-auth/login] upstream failed",
+        upstream.status,
+        upstreamText.slice(0, 200),
+      );
+      if (upstream.status === 401) {
+        return NextResponse.json(
+          { ok: false, error: "invalid_credentials" },
+          { status: 401 },
+        );
+      }
       return NextResponse.json(
-        { ok: false, error: "invalid_credentials" },
-        { status: 401 },
+        { ok: false, error: "login_backend_unavailable" },
+        { status: 502 },
       );
     }
 

@@ -2,8 +2,8 @@ import { PrismaClient } from "../generated/prisma/client";
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { config as loadDotenv } from "dotenv";
 
-// Force local .env values for backend runtime.
-loadDotenv({ override: true });
+// Локально .env может переопределять переменные; на проде приоритет у systemd/backend.env.
+loadDotenv({ override: process.env.NODE_ENV !== "production" });
 
 // Настройки подключения берём из DATABASE_URL через prisma.config.ts,
 // здесь конфигурируем драйвер-адаптер напрямую из DATABASE_URL.

@@ -70,6 +70,11 @@ BACKEND_API_URL=http://127.0.0.1:4000
 EOF
   chmod 600 "${FRONT_ENV}"
   echo "[bootstrap] wrote ${FRONT_ENV}"
+else
+  if ! grep -q '^BACKEND_API_URL=' "${FRONT_ENV}"; then
+    printf '\nBACKEND_API_URL=http://127.0.0.1:4000\n' >>"${FRONT_ENV}"
+    echo "[bootstrap] appended BACKEND_API_URL to ${FRONT_ENV}"
+  fi
 fi
 
 install -m 0644 "${SCRIPT_DIR}/systemd/ckad-backend.service" /etc/systemd/system/ckad-backend.service

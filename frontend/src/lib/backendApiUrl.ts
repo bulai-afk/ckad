@@ -41,6 +41,11 @@ export function backendApiUrl(): string {
   const internal = internalRaw.replace(/\/+$/, "");
   if (internal) return internal;
 
+  // Route Handlers на сервере всегда ходят на локальный Express, не на публичный URL.
+  if (typeof window === "undefined" && process.env.NODE_ENV === "production") {
+    return "http://127.0.0.1:4000";
+  }
+
   const pubRaw = process.env.NEXT_PUBLIC_API_URL?.trim() || "";
   const pub = pubRaw.replace(/\/+$/, "");
   if (pub && !isLocalNetworkHttpOrigin(pub)) return pub;
