@@ -1,8 +1,11 @@
 "use client";
 
 import type { HTMLAttributes, ReactNode } from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { BANNER_COVER_MOBILE_MAX_WIDTH_PX } from "@/lib/bannerCoverPresets";
 import { bannerDebugEnabled, logBannerDebug } from "@/lib/bannerDebugLog";
+
+const BANNER_MOBILE_MQL = `(max-width: ${BANNER_COVER_MOBILE_MAX_WIDTH_PX}px)`;
 
 type SlideWithId = { id: string };
 
@@ -28,14 +31,25 @@ export function BannerCarouselFrame<TSlide extends SlideWithId>({
   mobileDynamicHeight = false,
   renderSlide,
 }: BannerCarouselFrameProps<TSlide>) {
+  const [mobileUniformHeight, setMobileUniformHeight] = useState<number | null>(null);
+  const slideMeasureRefs = useRef<(HTMLDivElement | null)[]>([]);
+  slideMeasureRefs.current.length = slides.length;
+
+  const mobileHeightLocked = mobileDynamicHeight && mobileUniformHeight != null;
   const swipeShellClass = mobileDynamicHeight
-    ? "max-[1205px]:relative max-[1205px]:h-auto max-[1205px]:overflow-visible min-[1206px]:absolute min-[1206px]:inset-0 min-[1206px]:min-h-0 min-[1206px]:overflow-hidden"
+    ? mobileHeightLocked
+      ? "max-[1205px]:relative max-[1205px]:h-full max-[1205px]:min-h-0 max-[1205px]:overflow-hidden min-[1206px]:absolute min-[1206px]:inset-0 min-[1206px]:min-h-0 min-[1206px]:overflow-hidden"
+      : "max-[1205px]:relative max-[1205px]:h-auto max-[1205px]:overflow-visible min-[1206px]:absolute min-[1206px]:inset-0 min-[1206px]:min-h-0 min-[1206px]:overflow-hidden"
     : "absolute inset-0 min-h-0 overflow-hidden";
   const trackClass = mobileDynamicHeight
-    ? "flex max-[1205px]:h-auto min-[1206px]:h-full min-h-0 w-full min-w-0 max-w-none transition-transform duration-300 ease-out"
+    ? mobileHeightLocked
+      ? "flex h-full min-h-0 w-full min-w-0 max-w-none transition-transform duration-300 ease-out"
+      : "flex max-[1205px]:h-auto min-[1206px]:h-full min-h-0 w-full min-w-0 max-w-none transition-transform duration-300 ease-out"
     : "flex h-full min-h-0 w-full min-w-0 max-w-none transition-transform duration-300 ease-out";
   const slideShellClass = mobileDynamicHeight
-    ? "box-border max-[1205px]:h-auto min-[1206px]:h-full min-h-0 min-w-0 shrink-0 overflow-hidden"
+    ? mobileHeightLocked
+      ? "box-border h-full min-h-0 min-w-0 shrink-0 overflow-hidden"
+      : "box-border max-[1205px]:h-auto min-[1206px]:h-full min-h-0 min-w-0 shrink-0 overflow-hidden"
     : "box-border h-full min-h-0 min-w-0 shrink-0 overflow-hidden";
   const aspectRef = useRef<HTMLDivElement>(null);
   const n = slides.length;
@@ -58,6 +72,61 @@ export function BannerCarouselFrame<TSlide extends SlideWithId>({
     hasDots && roundedClassName !== "rounded-none"
       ? roundedClassName.replace(/^rounded-/u, "rounded-b-")
       : "";
+
+  useEffect(() => {
+    if (!mobileDynamicHeight) {
+      setMobileUniformHeight(null);
+      return;
+    }
+
+    const mq = window.matchMedia(BANNER_MOBILE_MQL);
+
+    const measureSlideHeights = () => {
+      if (!mq.matches) {
+        setMobileUniformHeight(null);
+        return;
+      }
+
+      requestAnimationFrame(() => {
+        let maxH = 0;
+        for (const el of slideMeasureRefs.current) {
+          if (!el) continue;
+          const coverRoot = el.querySelector("[data-home-banner-cover]") as HTMLElement | null;
+          const cover = el.querySelector(".page-web-cover") as HTMLElement | null;
+          const measured = Math.max(
+            coverRoot?.scrollHeight ?? 0,
+            cover?.scrollHeight ?? 0,
+            el.scrollHeight,
+          );
+          maxH = Math.max(maxH, measured);
+        }
+        if (maxH > 0) {
+          setMobileUniformHeight((prev) => (prev === maxH ? prev : maxH));
+        }
+      });
+    };
+
+    measureSlideHeights();
+
+    const ro = new ResizeObserver(() => measureSlideHeights());
+    for (const el of slideMeasureRefs.current) {
+      if (!el) continue;
+      ro.observe(el);
+      const coverRoot = el.querySelector("[data-home-banner-cover]");
+      const cover = el.querySelector(".page-web-cover");
+      if (coverRoot instanceof HTMLElement) ro.observe(coverRoot);
+      if (cover instanceof HTMLElement) ro.observe(cover);
+    }
+
+    mq.addEventListener("change", measureSlideHeights);
+    window.addEventListener("resize", measureSlideHeights);
+
+    return () => {
+      ro.disconnect();
+      mq.removeEventListener("change", measureSlideHeights);
+      window.removeEventListener("resize", measureSlideHeights);
+    };
+  }, [mobileDynamicHeight, slides, activeIndex]);
 
   useEffect(() => {
     if (!bannerDebugEnabled()) return;
@@ -105,12 +174,20 @@ export function BannerCarouselFrame<TSlide extends SlideWithId>({
       <div
         ref={aspectRef}
         className={`relative isolate w-full min-h-px min-w-0 max-w-full max-h-[calc(100dvh-var(--site-header-offset)-env(safe-area-inset-bottom,0px)-0.5rem)] overflow-hidden bg-slate-100 ${aspectClassName} ${aspectRoundedClass}`}
+        style={
+          mobileUniformHeight != null
+            ? { height: mobileUniformHeight, minHeight: mobileUniformHeight }
+            : undefined
+        }
       >
         <div className={`min-w-0 touch-pan-y ${swipeShellClass}`} {...swipeProps}>
           <div className={trackClass} style={trackStyle}>
             {slides.map((slide, idx) => (
               <div
                 key={slide.id}
+                ref={(el) => {
+                  slideMeasureRefs.current[idx] = el;
+                }}
                 className={slideShellClass}
                 style={{ width: `${slideBasisPct}%` }}
               >

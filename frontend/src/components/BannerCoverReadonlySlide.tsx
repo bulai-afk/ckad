@@ -100,7 +100,7 @@ export function BannerCoverReadonlySlide({
   return (
     <div
       data-home-banner-cover
-      className="home-banner-cover-root @container h-auto min-h-0 w-full min-[1206px]:h-full"
+      className="home-banner-cover-root @container h-full min-h-0 w-full"
     >
       <style>{`
         ${getSharedWebBlocksCss(HOME_BANNER_SCOPE)}
@@ -108,11 +108,25 @@ export function BannerCoverReadonlySlide({
         ${getBannerCoverPublicChromeCss(HOME_BANNER_SCOPE)}
         ${HOME_BANNER_SCOPE} .page-content { width: 100%; height: 100%; }
         ${HOME_BANNER_SCOPE} .page-web-cover { width: 100% !important; margin: 0 !important; }
+        @media (max-width: 1205px) {
+          ${HOME_BANNER_SCOPE} .page-web-cover {
+            height: 100% !important;
+            min-height: 0 !important;
+            max-height: 100% !important;
+            aspect-ratio: unset !important;
+            overflow: hidden;
+          }
+          ${HOME_BANNER_SCOPE} .page-web-cover-inner {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: hidden;
+          }
+        }
       `}</style>
-      <div className="page-content h-auto min-h-0 min-[1206px]:h-full">
+      <div className="page-content h-full min-h-0">
         <div
           ref={coverRef}
-          className="page-web-cover h-auto min-h-0 min-[1206px]:h-full"
+          className="page-web-cover h-full min-h-0"
           data-web-element="cover"
           data-cover-type={slide.bannerType}
           data-cover-aspect={coverAspect}

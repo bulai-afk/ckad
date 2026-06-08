@@ -321,9 +321,9 @@ export function HomeBannersCarousel({
           aspectClassName={aspectClassName}
           mobileDynamicHeight
           renderSlide={(slide, idx) => (
-            <div className="relative max-[1205px]:h-auto min-[1206px]:h-full min-h-0 w-full min-w-0 max-w-full overflow-hidden bg-slate-100">
+            <div className="relative h-full min-h-0 w-full min-w-0 max-w-full overflow-hidden bg-slate-100">
               <div
-                className="flex max-[1205px]:h-auto min-[1206px]:h-full min-h-0 w-full min-w-0 flex-col"
+                className="flex h-full min-h-0 w-full min-w-0 flex-col"
                 style={
                   fullWidth && mainVisualScale !== 1
                     ? { transform: `scale(${mainVisualScale})`, transformOrigin: "center center" }
