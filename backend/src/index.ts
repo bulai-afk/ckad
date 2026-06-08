@@ -6,6 +6,7 @@ import compression from "compression";
 import { feedbackRouter } from "./routes/feedback";
 import { pagesRouter } from "./routes/pages";
 import { authRouter } from "./routes/auth";
+import { usersRouter } from "./routes/users";
 import { waitForDatabaseReady } from "./prisma";
 
 const app = express();
@@ -63,6 +64,7 @@ app.get("/health", (_req: Request, res: Response) => {
 app.use("/api/feedback", feedbackRouter);
 app.use("/api/pages", pagesRouter);
 app.use("/api/auth", authRouter);
+app.use("/api/users", usersRouter);
 
 async function startServer() {
   try {

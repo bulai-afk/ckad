@@ -132,6 +132,7 @@ jobs:
             . /opt/ckad/shared/env/backend.env
             set +a
             npx prisma migrate deploy
+            npm run migrate:seed-admin-demo
             npm run build
             mkdir -p \"\$ROOT/backend/data\"
             chown -R www-data:www-data \"\$ROOT/backend/data\"

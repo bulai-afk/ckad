@@ -7,6 +7,7 @@ import {
   WrenchScrewdriverIcon,
   PhotoIcon,
   InboxIcon,
+  UsersIcon,
 } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -19,6 +20,7 @@ export function AdminSidebar() {
     pathname?.startsWith("/admin/page_editor") ?? false;
   const isBannersActive = pathname?.startsWith("/admin/banners") ?? false;
   const isRequestsActive = pathname?.startsWith("/admin/requests") ?? false;
+  const isUsersActive = pathname?.startsWith("/admin/users") ?? false;
   const isSettingsActive = pathname?.startsWith("/admin/settings") ?? false;
 
   return (
@@ -101,6 +103,22 @@ export function AdminSidebar() {
 
           <div className="mt-auto flex flex-col gap-1">
             <Link
+              href="/admin/users"
+              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium ${
+                isUsersActive
+                  ? "bg-[#496db3]/10 text-[#496db3]"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-[#496db3]"
+              }`}
+            >
+              <UsersIcon
+                className={`h-5 w-5 ${
+                  isUsersActive ? "text-[#496db3]" : "text-slate-400"
+                }`}
+              />
+              <span>Пользователи</span>
+            </Link>
+
+            <Link
               href="/admin/settings"
               className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium ${
                 isSettingsActive
@@ -128,7 +146,7 @@ export function AdminSidebar() {
       </aside>
 
       <nav className="fixed inset-x-0 bottom-0 z-[9999] border-t border-slate-200 bg-white/95 px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 shadow-[0_-6px_18px_rgba(15,23,42,0.08)] backdrop-blur md:hidden">
-        <ul className="grid grid-cols-7 gap-1">
+        <ul className="grid grid-cols-8 gap-1">
           <li>
             <Link
               href="/admin/dashboard"
@@ -179,6 +197,19 @@ export function AdminSidebar() {
               }`}
             >
               <InboxIcon className="h-6 w-6" />
+            </Link>
+          </li>
+          <li>
+            <Link
+              href="/admin/users"
+              aria-label="Пользователи"
+              className={`flex h-11 w-full min-w-[56px] items-center justify-center rounded-xl transition ${
+                isUsersActive
+                  ? "bg-[#496db3]/10 text-[#496db3]"
+                  : "text-slate-500 hover:bg-slate-100 hover:text-[#496db3]"
+              }`}
+            >
+              <UsersIcon className="h-6 w-6" />
             </Link>
           </li>
           <li>
