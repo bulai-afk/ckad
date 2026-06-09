@@ -491,7 +491,7 @@ export function SiteNavbar({
               <button
                 type="button"
                 onClick={() => setCallbackModalOpen(true)}
-              className="inline-flex shrink-0 items-center justify-center rounded-md bg-[#496db3] px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#3f5f9d] min-[1400px]:px-4 min-[1400px]:py-2.5 min-[1400px]:text-sm"
+              className="inline-flex shrink-0 items-center justify-center rounded-[0.625rem] bg-[#496db3] px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#3f5f9d] min-[1400px]:px-4 min-[1400px]:py-2.5 min-[1400px]:text-sm"
               >
                 Обратный звонок
               </button>
@@ -645,7 +645,7 @@ export function SiteNavbar({
                     <button
                       type="button"
                       onClick={openCallbackFromNav}
-                      className="inline-flex w-full max-w-[11rem] min-w-0 items-center justify-center rounded-md bg-[#496db3] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#3f5f9d]"
+                      className="inline-flex w-full max-w-[11rem] min-w-0 items-center justify-center rounded-[0.625rem] bg-[#496db3] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#3f5f9d]"
                     >
                       Обратный звонок
                     </button>

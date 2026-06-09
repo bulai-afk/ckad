@@ -600,7 +600,11 @@ ${scope} .page-web-work-pricing .wti { font-size: var(--site-blue-title-fs, 2.25
 ${scope} .page-web-work-pricing .wri { width: auto; }
 ${scope} .page-web-work-pricing .wro { margin-top: 0.15rem; }
 ${scope} .page-web-work-pricing .wsf { justify-content: center; }
-${scope} .page-web-work-pricing .wsl { border-radius: 0.375rem; }
+${scope} .page-web-work-pricing .wsl,
+${scope} .page-web-work-pricing .page-web-elements-cta-button,
+${scope} .page-web-work-pricing .page-web-elements-cta-button-secondary {
+  border-radius: 0.625rem;
+}
 ${scope} .page-web-work-pricing .wsq { border: 1px solid #4f46e5; }
 ${scope} .page-web-work-pricing .wst { background: #4f46e5; }
 ${scope} .page-web-work-pricing .wtc { color: #fff; }

@@ -299,7 +299,7 @@ export function HomeFeedbackForm() {
                   <button
                     type="submit"
                     disabled={status === "sending"}
-                    className="inline-flex min-w-[10.5rem] items-center justify-center rounded-md bg-[#496db3] px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#3d5ca0] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#496db3] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex min-w-[10.5rem] items-center justify-center rounded-[0.625rem] bg-[#496db3] px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#3d5ca0] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#496db3] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {status === "sending" ? "Отправка…" : "Отправить"}
                   </button>
