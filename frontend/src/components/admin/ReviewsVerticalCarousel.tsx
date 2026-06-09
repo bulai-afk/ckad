@@ -4,6 +4,7 @@ import { EllipsisVerticalIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { apiGet, apiPut } from "@/lib/api";
 import { useCarouselSwipe } from "@/hooks/useCarouselSwipe";
+import { trimAndSquareImageDataUrl } from "@/lib/trimImageDataUrl";
 
 type ReviewSlide = {
   id: string;
@@ -20,11 +21,17 @@ function isWebpDataUrl(value: string | null | undefined): boolean {
   return typeof value === "string" && value.startsWith("data:image/webp");
 }
 
+type ImageConvertOptions = {
+  maxWidth?: number;
+  maxHeight?: number;
+  trimForLogo?: boolean;
+};
+
 async function convertAnyImageToWebpDataUrl(
   source: File | string,
-  options?: { maxWidth?: number; maxHeight?: number },
+  options?: ImageConvertOptions,
 ): Promise<string> {
-  const sourceDataUrl =
+  let sourceDataUrl =
     typeof source === "string"
       ? source
       : await new Promise<string>((resolve) => {
@@ -35,6 +42,10 @@ async function convertAnyImageToWebpDataUrl(
         });
 
   if (!sourceDataUrl) return "";
+
+  if (options?.trimForLogo) {
+    sourceDataUrl = await trimAndSquareImageDataUrl(sourceDataUrl);
+  }
 
   const image = await new Promise<HTMLImageElement | null>((resolve) => {
     const img = new Image();
@@ -90,11 +101,16 @@ async function convertAnyImageToWebpDataUrl(
 
 async function normalizeSlidesToWebp(
   slides: ReviewSlide[],
-  options?: { maxWidth?: number; maxHeight?: number },
+  options?: ImageConvertOptions,
 ): Promise<ReviewSlide[]> {
   return Promise.all(
     slides.map(async (slide) => {
-      if (!slide.image || isWebpDataUrl(slide.image)) return slide;
+      if (!slide.image) return slide;
+      if (options?.trimForLogo) {
+        const converted = await convertAnyImageToWebpDataUrl(slide.image, options);
+        return { ...slide, image: converted };
+      }
+      if (isWebpDataUrl(slide.image)) return slide;
       const converted = await convertAnyImageToWebpDataUrl(slide.image, options);
       return { ...slide, image: converted };
     }),
@@ -215,8 +231,8 @@ export function ReviewsVerticalCarousel({
     const files = Array.from(event.target.files ?? []);
     if (files.length === 0 || !activeSlide) return;
 
-    const resizeOptions = isPartnersMode
-      ? { maxWidth: 1200, maxHeight: Number.POSITIVE_INFINITY }
+    const resizeOptions: ImageConvertOptions | undefined = isPartnersMode
+      ? { maxWidth: 1200, maxHeight: Number.POSITIVE_INFINITY, trimForLogo: true }
       : undefined;
     void Promise.all(files.map((f) => convertAnyImageToWebpDataUrl(f, resizeOptions))).then((images) => {
       const validImages = images.filter(Boolean);
@@ -253,8 +269,8 @@ export function ReviewsVerticalCarousel({
 
   async function handleSave() {
     try {
-      const resizeOptions = isPartnersMode
-        ? { maxWidth: 1200, maxHeight: Number.POSITIVE_INFINITY }
+      const resizeOptions: ImageConvertOptions | undefined = isPartnersMode
+        ? { maxWidth: 1200, maxHeight: Number.POSITIVE_INFINITY, trimForLogo: true }
         : undefined;
       const normalized = await normalizeSlidesToWebp(slides, resizeOptions);
       setSlides(normalized);
@@ -426,7 +442,7 @@ export function ReviewsVerticalCarousel({
                           src={slide.image}
                           alt=""
                           className={`absolute inset-0 h-full w-full ${
-                            isPartnersMode ? "object-contain p-1.5" : "object-cover"
+                            isPartnersMode ? "object-contain" : "object-cover"
                           }`}
                         />
                       ) : (

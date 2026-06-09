@@ -20,11 +20,14 @@ type HomePartnersCarouselProps = {
   compact?: boolean;
 };
 
-const logoImgClassDefault =
-  "mx-auto block h-auto max-h-11 w-full max-w-[10rem] object-contain sm:max-h-12";
+/** Квадратная ячейка на всю ширину колонки — круглые логотипы не сжимаются до ~40px по высоте. */
+const logoSlotClassDefault =
+  "mx-auto flex aspect-square w-full max-w-[9.5rem] items-center justify-center p-2 sm:max-w-[10.5rem] sm:p-2.5";
 
-const logoImgClassCompact =
-  "mx-auto block h-auto max-h-9 w-full max-w-[8rem] object-contain sm:max-h-10";
+const logoSlotClassCompact =
+  "mx-auto flex aspect-square w-full max-w-[8.5rem] items-center justify-center p-1.5 sm:max-w-[9.5rem] sm:p-2";
+
+const logoImgClass = "h-full w-full object-contain";
 
 export function HomePartnersCarousel({
   slides,
@@ -126,7 +129,7 @@ export function HomePartnersCarousel({
     return null;
   }
 
-  const logoImgClass = compact ? logoImgClassCompact : logoImgClassDefault;
+  const logoSlotClass = compact ? logoSlotClassCompact : logoSlotClassDefault;
   const labelWord = compact ? "Клиент" : "Партнёр";
 
   const headingBlock = compact ? (
@@ -148,8 +151,6 @@ export function HomePartnersCarousel({
     : "relative isolate py-8 sm:py-10";
   const innerMaxClass = compact ? "relative z-20 mx-auto max-w-7xl" : "relative z-20 mx-auto max-w-7xl px-6 lg:px-8";
   const slideGap = compact ? "px-1.5 sm:px-2" : "px-2 sm:px-2.5";
-  const logoSlotClass =
-    "flex min-h-0 w-full flex-1 items-center justify-center py-1 sm:py-1.5";
 
   return (
     <section className={outerSectionClass}>
