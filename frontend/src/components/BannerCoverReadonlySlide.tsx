@@ -19,7 +19,10 @@ import {
 } from "@/lib/bannerCoverDefaults";
 import { getPageShowRenderCss } from "@/lib/pageShowRender";
 import { getSharedWebBlocksCss } from "@/lib/sharedWebBlocksCss";
-import { isCallbackFormLink, parseSiteDocumentLinkIndex } from "@/lib/siteDocumentLink";
+import {
+  handleBannerCtaClick,
+  stopCarouselPointerOnCta,
+} from "@/lib/bannerCtaNavigation";
 
 const HOME_BANNER_SCOPE = "[data-home-banner-cover]";
 
@@ -41,25 +44,6 @@ type BannerCoverReadonlySlideProps = {
   onPrimaryClick?: () => void;
   onDocumentClick?: (index: number) => void;
 };
-
-function handleCtaClick(
-  e: React.MouseEvent<HTMLAnchorElement>,
-  href: string,
-  onPrimaryClick?: () => void,
-  onDocumentClick?: (index: number) => void,
-) {
-  const trimmed = href.trim();
-  const docIndex = parseSiteDocumentLinkIndex(trimmed);
-  if (docIndex !== null) {
-    e.preventDefault();
-    onDocumentClick?.(docIndex);
-    return;
-  }
-  if (isCallbackFormLink(trimmed)) {
-    e.preventDefault();
-    onPrimaryClick?.();
-  }
-}
 
 export function BannerCoverReadonlySlide({
   slide,
@@ -108,6 +92,7 @@ export function BannerCoverReadonlySlide({
         ${getBannerCoverPublicChromeCss(HOME_BANNER_SCOPE)}
         ${HOME_BANNER_SCOPE} .page-content { width: 100%; height: 100%; }
         ${HOME_BANNER_SCOPE} .page-web-cover { width: 100% !important; margin: 0 !important; }
+        ${HOME_BANNER_SCOPE} .page-web-elements-actions { position: relative; z-index: 3; }
         @media (max-width: 1205px) {
           ${HOME_BANNER_SCOPE} .page-web-cover {
             height: 100% !important;
@@ -156,8 +141,14 @@ export function BannerCoverReadonlySlide({
                         <a
                           href={announcementHref}
                           className="page-web-elements-announcement-learn-more"
+                          data-banner-cta="1"
+                          onPointerDown={stopCarouselPointerOnCta}
+                          onPointerUp={stopCarouselPointerOnCta}
                           onClick={(e) =>
-                            handleCtaClick(e, announcementHref, onPrimaryClick, onDocumentClick)
+                            handleBannerCtaClick(e, announcementHref, {
+                              onPrimaryClick,
+                              onDocumentClick,
+                            })
                           }
                         >
                           {normalizeBannerCoverAnnouncementLearnMore(
@@ -210,8 +201,14 @@ export function BannerCoverReadonlySlide({
                       <a
                         href={primaryHref}
                         className="page-web-elements-cta-button"
+                        data-banner-cta="1"
+                        onPointerDown={stopCarouselPointerOnCta}
+                        onPointerUp={stopCarouselPointerOnCta}
                         onClick={(e) =>
-                          handleCtaClick(e, primaryHref, onPrimaryClick, onDocumentClick)
+                          handleBannerCtaClick(e, primaryHref, {
+                            onPrimaryClick,
+                            onDocumentClick,
+                          })
                         }
                       >
                         {slide.buttonText.trim() || BANNER_COVER_DEFAULT_CONTENT.button}
@@ -224,8 +221,14 @@ export function BannerCoverReadonlySlide({
                         <a
                           href={primaryHref}
                           className="page-web-elements-cta-button-secondary"
+                          data-banner-cta="1"
+                          onPointerDown={stopCarouselPointerOnCta}
+                          onPointerUp={stopCarouselPointerOnCta}
                           onClick={(e) =>
-                            handleCtaClick(e, primaryHref, onPrimaryClick, onDocumentClick)
+                            handleBannerCtaClick(e, primaryHref, {
+                              onPrimaryClick,
+                              onDocumentClick,
+                            })
                           }
                         >
                           {normalizeBannerCoverButtonSecondary(slide.learnMoreText)}

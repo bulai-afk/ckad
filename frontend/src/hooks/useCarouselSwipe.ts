@@ -2,6 +2,15 @@ import { useCallback, useRef } from "react";
 
 const DEFAULT_THRESHOLD_PX = 45;
 
+function isInteractiveSwipeTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  return Boolean(
+    target.closest(
+      "a, button, input, textarea, select, label, [role='button'], [data-banner-cta]",
+    ),
+  );
+}
+
 export type CarouselSwipeHandlers = {
   onPointerDown: (e: React.PointerEvent<HTMLElement>) => void;
   onPointerUp: (e: React.PointerEvent<HTMLElement>) => void;
@@ -31,6 +40,7 @@ export function useCarouselSwipe(
   const onPointerDown = useCallback(
     (e: React.PointerEvent<HTMLElement>) => {
       if (!enabled) return;
+      if (isInteractiveSwipeTarget(e.target)) return;
       if (e.pointerType === "mouse" && e.button !== 0) return;
       pointerIdRef.current = e.pointerId;
       startXRef.current = e.clientX;
