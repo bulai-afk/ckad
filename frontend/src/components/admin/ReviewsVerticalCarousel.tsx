@@ -434,17 +434,26 @@ export function ReviewsVerticalCarousel({
                         isActive
                           ? "border-[#496db3] ring-2 ring-[#496db3]/35"
                           : "border-slate-200 hover:border-slate-300"
-                      }`}
-                      style={{ paddingTop: slidePaddingTop }}
+                      } ${isPartnersMode ? "aspect-square" : ""}`}
+                      style={isPartnersMode ? undefined : { paddingTop: slidePaddingTop }}
                     >
                       {slide.image ? (
-                        <img
-                          src={slide.image}
-                          alt=""
-                          className={`absolute inset-0 h-full w-full ${
-                            isPartnersMode ? "object-contain" : "object-cover"
-                          }`}
-                        />
+                        isPartnersMode ? (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <img
+                              src={slide.image}
+                              alt=""
+                              className="max-h-full max-w-full object-contain object-center"
+                              draggable={false}
+                            />
+                          </div>
+                        ) : (
+                          <img
+                            src={slide.image}
+                            alt=""
+                            className="absolute inset-0 h-full w-full object-cover"
+                          />
+                        )
                       ) : (
                         <div className="absolute inset-0 flex h-full w-full items-center justify-center text-xs text-slate-500">
                           {isPartnersMode ? "Логотип партнера" : "Вертикальный слайд"}
@@ -463,8 +472,10 @@ export function ReviewsVerticalCarousel({
                     style={{ flexBasis: `${100 / visibleCount}%` }}
                   >
                     <div
-                      className="rounded-lg border border-dashed border-slate-200 bg-white/60"
-                      style={{ paddingTop: slidePaddingTop }}
+                      className={`rounded-lg border border-dashed border-slate-200 bg-white/60 ${
+                        isPartnersMode ? "aspect-square" : ""
+                      }`}
+                      style={isPartnersMode ? undefined : { paddingTop: slidePaddingTop }}
                     />
                   </div>
                 ))
