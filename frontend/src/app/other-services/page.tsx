@@ -1,7 +1,12 @@
 import { SectionServicesHubView } from "@/components/SectionServicesHubView";
+import { generateHubFolderMetadata } from "@/lib/hubFolderMetadata";
 import { getSectionServicesHubData } from "@/lib/sectionServicesHubData";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata() {
+  return generateHubFolderMetadata("other-services", "Прочие услуги");
+}
 
 const DESCRIPTION_FALLBACK =
   "Дополнительные услуги и направления работы: описания, практические материалы и полезные рекомендации.";

@@ -10,9 +10,14 @@ import {
   normalizePageDisplayOrderMap,
   sortBySectionDisplayOrder,
 } from "@/lib/pageDisplayOrder";
+import { generateHubFolderMetadata } from "@/lib/hubFolderMetadata";
 import { sanitizePublicAssetUrl } from "@/lib/publicAssetUrl";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata() {
+  return generateHubFolderMetadata("articles", "Новости");
+}
 
 type ArticleListItem = {
   id: number;

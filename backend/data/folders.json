@@ -1,64 +1,8 @@
 [
   {
-    "name": "Каталогизация предметов снабжения",
-    "slug": "services/katlogizatsiya",
-    "description": "Ведение номенклатуры и карточек предметов снабжения: классификация, проверка полноты атрибутов и сопровождение согласований с контрольными органами.",
-    "preview": "",
-    "showInNavbar": false,
-    "keywords": ""
-  },
-  {
-    "name": "Услуги",
-    "slug": "services",
-    "description": "Закрываем задачи «под ключ» в области каталогизации и анализа данных: от методики до сопровождения согласований — чтобы вы получали понятный результат в срок и без лишних рисков.",
-    "preview": "",
-    "showInNavbar": false,
-    "keywords": ""
-  },
-  {
-    "name": "Функции центра каталогизации (заказчик или группа продукции)",
-    "slug": "services/vypolnenie-funktsiy-tsentra-katalogizatsii-gosudarstvennogo-zakazchika-i-tsentra-katalogizatsii-po-zakreplennoy-gruppe-odnorodnoy-produktsii",
-    "description": "Организационно-методическое сопровождение функций центра каталогизации для государственного заказчика и по закреплённой группе однородной продукции: регламенты, взаимодействие с участниками процесса и контроль сроков.",
-    "preview": "",
-    "showInNavbar": false,
-    "keywords": ""
-  },
-  {
-    "name": "НИР и аналитика в каталогизации",
-    "slug": "services/nauchno-issledovatelskaya-deyatelnost-v-oblasti-katalogizatsii-produktsii-mnogokriterialnogo-sopostavitelnogo-analiza-i-podderzhki-prinyatiya-resheniy",
-    "description": "Научно-исследовательские работы и аналитика в сфере каталогизации: многокритериальное сопоставление номенклатуры, обоснование решений и поддержка управленческих выводов на данных.",
-    "preview": "",
-    "showInNavbar": false,
-    "keywords": ""
-  },
-  {
-    "name": "Систематизация и автоматизация данных для ГОЗ",
-    "slug": "services/provedenie-rabot-po-sistematizatsii-i-avtomatizatsii-informatsii-dlya-golovnyh-ispolniteley-gosudarstvennogo-oboronnogo-zakaza",
-    "description": "Систематизация информации и настройка процессов автоматизации для головных исполнителей гособоронного заказа: единые правила данных, интеграции и снижение ручного труда на массивах номенклатуры.",
-    "preview": "/api/pages/uploads/inline/1778509758958-61053019-6d9e-45fa-8465-6c5d90458c73.webp",
-    "showInNavbar": false,
-    "keywords": ""
-  },
-  {
-    "name": "Электронная КД: разработка и согласование",
-    "slug": "services/organizatsiya-razrabotki-soglasovaniya-i-utverzhdeniya-elektronnoy-konstruktorskoy-dokumentatsii-po-zayavlennym-gruppam-odnorodnoy-produktsii",
-    "description": "Организация разработки, согласования и утверждения электронной конструкторской документации по заявленным группам однородной продукции в требуемых форматах и регламентируемых цепочках согласования.",
-    "preview": "/api/pages/uploads/inline/1778509758963-6e79294d-11d4-4a0a-b36d-cd172daa3a4c.webp",
-    "showInNavbar": false,
-    "keywords": ""
-  },
-  {
-    "name": "Документация по применению иностранной продукции",
-    "slug": "services/organizatsiya-razrabotki-soglasovaniya-i-utverzhdeniya-dokumentatsii-po-primeneniyu-produktsii-inostrannogo-proizvodstva",
-    "description": "Подготовка и сопровождение документации по применению продукции иностранного производства: структура комплекта, согласование смет и прохождение установленных процедур.",
-    "preview": "/api/pages/uploads/inline/1778509758967-fec6b626-c848-400a-8301-10867db33fc1.webp",
-    "showInNavbar": false,
-    "keywords": ""
-  },
-  {
-    "name": "Обучение по каталогизации и ГОЗ",
-    "slug": "services/organizatsiya-obucheniya-v-oblasti-katalogizatsii-produktsii-i-po-drugim-napravleniyam-v-sfere-goz",
-    "description": "Обучение специалистов основам каталогизации продукции и смежным темам в сфере гособоронного заказа: программы под роли, практические разборы и актуальные требования к данным.",
+    "name": "Каталогизация",
+    "slug": "catalogization",
+    "description": "Разработка номенклатурных перечней и каталожных описаний предметов снабжения, коммуникация с центрами каталогизации госзаказчиков,  гарантия получения ФНН",
     "preview": "",
     "showInNavbar": false,
     "keywords": ""
@@ -66,15 +10,15 @@
   {
     "name": "Учебный центр",
     "slug": "training-center",
-    "description": "Программы для специалистов и руководителей: правила каталогизации, работа с номенклатурой в ГОЗ, практические разборы и обновления по нормативной базе.",
+    "description": "Проведение семинаров по каталогизации, включая вебинары и корпоративное выездное обучение, индивидуальные программы с учетом актуальной нормативной базы",
     "preview": "",
     "showInNavbar": false,
     "keywords": ""
   },
   {
-    "name": "Прочие услуги",
+    "name": "Другие услуги",
     "slug": "other-services",
-    "description": "НИР и аналитика, электронная КД, систематизация и автоматизация данных, сопровождение внедрения — дополнительные направления центра под задачу заказчика.",
+    "description": "Помощь в подготовке электронной конструкторской документации (ЭКД), решений о применении импортной продукции, поиска аналогов составных частей и комплектующих",
     "preview": "",
     "showInNavbar": false,
     "keywords": ""
@@ -82,16 +26,8 @@
   {
     "name": "Новости",
     "slug": "articles",
-    "description": "Материалы и разборы по каталогизации, данным и сопровождению согласований — кратко и по делу для специалистов и руководителей направлений.",
+    "description": "Качественно и в срок выполним каталогизацию Вашей продукции под ключ! Сопровождаем процесс до получения ФНН.",
     "preview": "",
-    "showInNavbar": false,
-    "keywords": ""
-  },
-  {
-    "name": "Каталогизация",
-    "slug": "catalogization",
-    "description": "Номенклатура и карточки предметов снабжения: классификация, полнота данных и сопровождение согласований с контрольными органами — от методики до результата.",
-    "preview": "/api/pages/uploads/inline/1778509759106-1e0a51e7-ced1-44fc-a9b0-8da2fd71fa58.webp",
     "showInNavbar": false,
     "keywords": ""
   }

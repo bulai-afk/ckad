@@ -1,7 +1,12 @@
 import { SectionServicesHubView } from "@/components/SectionServicesHubView";
+import { generateHubFolderMetadata } from "@/lib/hubFolderMetadata";
 import { getSectionServicesHubData } from "@/lib/sectionServicesHubData";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata() {
+  return generateHubFolderMetadata("training-center", "Учебный центр");
+}
 
 const DESCRIPTION_FALLBACK =
   "Обучение специалистов и руководителей: правила каталогизации, работа с номенклатурой в ГОЗ и практические разборы по нормативной базе.";

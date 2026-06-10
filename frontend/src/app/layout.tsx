@@ -9,7 +9,17 @@ import { SiteMainColumn } from "@/components/SiteMainColumn";
 import { LayoutClientEnhancements } from "@/components/LayoutClientEnhancements";
 import { NAV_FOLDERS_COOKIE_NAME, parseNavFoldersCookie } from "@/lib/navFoldersCookie";
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
+import {
+  DEFAULT_OG_IMAGE_PATH,
+  DEFAULT_PUBLIC_SITE_ORIGIN,
+  PUBLIC_SITE_NAME,
+} from "@/lib/hubFolderMetadata";
 import "./globals.css";
+
+const metadataBaseUrl =
+  process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/+$/, "") ||
+  process.env.SITE_URL?.trim().replace(/\/+$/, "") ||
+  DEFAULT_PUBLIC_SITE_ORIGIN;
 
 export const revalidate = 120;
 
@@ -22,8 +32,19 @@ const exo2 = Exo_2({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(metadataBaseUrl),
   title: "ЦКиАД",
-  description: "Центр каталогизации и анализа данных",
+  description: PUBLIC_SITE_NAME,
+  openGraph: {
+    type: "website",
+    siteName: PUBLIC_SITE_NAME,
+    locale: "ru_RU",
+    images: [{ url: DEFAULT_OG_IMAGE_PATH, alt: PUBLIC_SITE_NAME }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: [DEFAULT_OG_IMAGE_PATH],
+  },
   icons: {
     icon: [
       { url: "/favicon.ico?v=logo", sizes: "any" },
@@ -100,7 +121,7 @@ export default async function RootLayout({
   }
 
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="ru" suppressHydrationWarning>
       <body
         className={`${exo2.className} flex min-h-screen flex-col antialiased`}
         style={{ backgroundColor: "#f3f4f6", color: "#020617" }}

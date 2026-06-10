@@ -1,7 +1,12 @@
 import { SectionServicesHubView } from "@/components/SectionServicesHubView";
+import { generateHubFolderMetadata } from "@/lib/hubFolderMetadata";
 import { getSectionServicesHubData } from "@/lib/sectionServicesHubData";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata() {
+  return generateHubFolderMetadata("catalogization", "Каталогизация");
+}
 
 const DESCRIPTION_FALLBACK =
   "Каталогизация предметов снабжения: номенклатура, карточки, согласования с контрольными органами и сопровождение на всех этапах.";

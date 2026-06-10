@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import {
   ClipboardDocumentCheckIcon,
   CurrencyDollarIcon,
@@ -12,6 +13,19 @@ import { HomeServicesFolderCards } from "@/components/HomeServicesFolderCards";
 import { HomeArticlesCarousel } from "@/components/HomeArticlesCarousel";
 import { normalizeSlug, type ServiceFolderMeta } from "@/lib/serviceTree";
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
+import { buildStaticPageMetadata } from "@/lib/staticPageMetadata";
+
+const HOME_TITLE = "Центр каталогизации и анализа данных — Главная";
+const HOME_DESCRIPTION =
+  "Приведём номенклатуру в порядок, обучим команду и доведём согласования до результата. Оставьте заявку — перезвоним и предложим решение под вашу задачу.";
+
+export async function generateMetadata(): Promise<Metadata> {
+  return buildStaticPageMetadata({
+    title: HOME_TITLE,
+    description: HOME_DESCRIPTION,
+    pathname: "/",
+  });
+}
 
 export const revalidate = 120;
 
