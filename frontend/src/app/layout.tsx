@@ -10,6 +10,10 @@ import { LayoutClientEnhancements } from "@/components/LayoutClientEnhancements"
 import { NAV_FOLDERS_COOKIE_NAME, parseNavFoldersCookie } from "@/lib/navFoldersCookie";
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
 import {
+  buildRootSectionLabelMap,
+  DEFAULT_ROOT_SECTION_LABELS,
+} from "@/lib/rootSectionLabels";
+import {
   DEFAULT_OG_IMAGE_PATH,
   DEFAULT_PUBLIC_SITE_ORIGIN,
   PUBLIC_SITE_NAME,
@@ -86,6 +90,7 @@ export default async function RootLayout({
     cookieStore.get(NAV_FOLDERS_COOKIE_NAME)?.value,
   );
 
+  let initialRootSectionLabels: Record<string, string> = { ...DEFAULT_ROOT_SECTION_LABELS };
   let siteSettings: SiteSettings | null = null;
   const base = apiBaseUrl();
   try {
@@ -109,12 +114,16 @@ export default async function RootLayout({
         clearTimeout(timeoutId);
       }
     };
-    const [settingsRes] = await Promise.allSettled([
+    const [settingsRes, foldersRes] = await Promise.allSettled([
       fetchJson<{ settings?: SiteSettings }>("/api/pages/site-settings", 10_000, true),
+      fetchJson<{ folders?: { slug: string; name?: string }[] }>("/api/pages/folders", 10_000, true),
     ]);
     if (settingsRes.status === "fulfilled" && settingsRes.value?.settings) {
       // Убираем тяжёлые dataUrl документов из критического SSR payload.
       siteSettings = { ...settingsRes.value.settings, documents: [] };
+    }
+    if (foldersRes.status === "fulfilled" && Array.isArray(foldersRes.value?.folders)) {
+      initialRootSectionLabels = buildRootSectionLabelMap(foldersRes.value.folders);
     }
   } catch {
     siteSettings = null;
@@ -130,6 +139,7 @@ export default async function RootLayout({
         <LayoutClientEnhancements />
         <SiteNavbar
           initialFolderNavItems={initialFolderNavItems}
+          initialRootSectionLabels={initialRootSectionLabels}
           siteSettings={siteSettings}
           initialPages={[]}
           initialOrderBySection={{}}

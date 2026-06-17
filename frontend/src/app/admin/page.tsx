@@ -20,6 +20,7 @@ import {
   sortBySectionDisplayOrder,
   type PageDisplayOrderMap,
 } from "@/lib/pageDisplayOrder";
+import { resolveRootSectionLabel } from "@/lib/rootSectionLabels";
 import { AdminSidebar } from "@/components/admin/Sidebar";
 import { AdminTopBar } from "@/components/admin/AdminTopBar";
 import {
@@ -309,16 +310,6 @@ const ADMIN_SECTION_ROOT_SLUG_SET = new Set(
 function isAdminSectionRootSlug(slug: string): boolean {
   return ADMIN_SECTION_ROOT_SLUG_SET.has(normalizeUrlSlugPath(slug));
 }
-
-/** Подписи корневых разделов — как в шапке сайта и вкладках админки. */
-const ADMIN_ROOT_FOLDER_LABEL: Record<string, string> = {
-  articles: "Новости",
-  catalogization: "Каталогизация",
-  "training-center": "Учебный центр",
-  "other-services": "Прочие услуги",
-  services: "Услуги",
-  about: "О компании",
-};
 
 const PAGE_TITLE_MAX = 60;
 const PAGE_DESCRIPTION_MAX = 160;
@@ -892,6 +883,11 @@ export default function AdminPage() {
 
   const activeTabConfig =
     ADMIN_SECTION_TABS.find((t) => t.id === activeTab) ?? ADMIN_SECTION_TABS[0];
+  const activeTabLabel = resolveRootSectionLabel(
+    activeTabConfig.rootSlug,
+    customFolders,
+    activeTabConfig.label,
+  );
   const currentSectionRoot = activeTabConfig.rootSlug;
 
   const sectionPages = pages.filter((p) => {
@@ -1092,7 +1088,7 @@ export default function AdminPage() {
     setEditFolderSlug(leafSlug);
     setEditFolderName(
       entry?.name?.trim() ||
-        tabForRoot?.label ||
+        resolveRootSectionLabel(n, customFolders, tabForRoot?.label) ||
         humanizeFolderSlugSegment(leafSlug),
     );
     setEditFolderDescription(entry?.description ?? "");
@@ -1302,15 +1298,22 @@ export default function AdminPage() {
     }, 0);
   }
 
+  function getSectionTabLabel(tab: AdminSectionConfig): string {
+    return resolveRootSectionLabel(tab.rootSlug, customFolders, tab.label);
+  }
+
   function getFolderDisplayName(folderSlug: string): string {
     const n = normalizeUrlSlugPath(folderSlug);
-    const root = n.split("/")[0] || n;
-    if (n === root && ADMIN_ROOT_FOLDER_LABEL[root]) {
-      return ADMIN_ROOT_FOLDER_LABEL[root];
-    }
     const entry = customFolders.find((f) => normalizeUrlSlugPath(f.slug) === n);
+    if (entry?.name?.trim()) return entry.name.trim();
+
+    const root = n.split("/")[0] || n;
+    if (n === root) {
+      return resolveRootSectionLabel(root, customFolders);
+    }
+
     const fallback = n.split("/").pop() || n;
-    return entry?.name?.trim() || humanizeFolderSlugSegment(fallback);
+    return humanizeFolderSlugSegment(fallback);
   }
 
   function formatPageDate(value: string | Date | undefined): string {
@@ -1349,6 +1352,7 @@ export default function AdminPage() {
               <div className="flex flex-wrap items-center gap-2">
                 {ADMIN_SECTION_TABS.map((tab) => {
                   const selected = activeTab === tab.id;
+                  const tabLabel = getSectionTabLabel(tab);
                   return (
                     <div
                       key={tab.id}
@@ -1365,7 +1369,7 @@ export default function AdminPage() {
                           selected ? "hover:bg-[#3f5f9d]" : "hover:bg-slate-50 hover:text-[#496db3]"
                         }`}
                       >
-                        {tab.label}
+                        {tabLabel}
                       </button>
                       <button
                         type="button"
@@ -1379,7 +1383,7 @@ export default function AdminPage() {
                             ? "border-white/30 text-white hover:bg-[#3f5f9d]"
                             : "border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-[#496db3]"
                         }`}
-                        aria-label={`Настройки раздела «${tab.label}»`}
+                        aria-label={`Настройки раздела «${tabLabel}»`}
                         title="Настройки раздела"
                       >
                         <Cog6ToothIcon className="h-4 w-4 [stroke-width:2.1]" />
@@ -1422,7 +1426,7 @@ export default function AdminPage() {
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div className="min-w-0">
                     <h2 className="truncate text-sm font-semibold text-slate-900">
-                    {activeTabConfig.label}
+                    {activeTabLabel}
                     </h2>
                   <div className="mt-1 text-xs text-slate-500">
                     {currentFolderKey}
@@ -1432,7 +1436,7 @@ export default function AdminPage() {
                         className="ml-2 text-[#496db3] hover:underline"
                         onClick={() => setCurrentFolder(currentSectionRoot)}
                       >
-                        ← {activeTabConfig.label}
+                        ← {activeTabLabel}
                       </button>
                     ) : null}
                   </div>

@@ -5,6 +5,10 @@ import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { apiGet } from "@/lib/api";
 import {
+  buildRootSectionLabelMap,
+  DEFAULT_ROOT_SECTION_LABELS,
+} from "@/lib/rootSectionLabels";
+import {
   normalizePageDisplayOrderMap,
   sortBySectionDisplayOrder,
   type PageDisplayOrderMap,
@@ -31,6 +35,8 @@ type NavLinkItem = {
 
 const CATALOG_ROOT = "catalogization";
 const TRAINING_ROOT = "training-center";
+const OTHER_SERVICES_ROOT = "other-services";
+const ARTICLES_ROOT = "articles";
 
 /** Публичные маршруты верхнего меню (совпадают с разделами в админке / отдельными страницами). */
 const NAV_OTHER_SERVICES_HREF = "/other-services";
@@ -118,6 +124,7 @@ type SiteNavbarProps = {
   initialFolderNavItems?: FolderNavItem[];
   initialPages?: PageSummary[];
   initialOrderBySection?: PageDisplayOrderMap;
+  initialRootSectionLabels?: Record<string, string>;
   siteSettings?: {
     phone?: string;
     email?: string;
@@ -150,9 +157,11 @@ export function SiteNavbar({
   initialFolderNavItems = [],
   initialPages = [],
   initialOrderBySection = {},
+  initialRootSectionLabels = DEFAULT_ROOT_SECTION_LABELS,
 }: SiteNavbarProps) {
   const pathname = usePathname();
   const hasServerNavData = initialPages.length > 0;
+  const [rootSectionLabels, setRootSectionLabels] = useState(initialRootSectionLabels);
   const [pages, setPages] = useState<PageSummary[] | null>(hasServerNavData ? initialPages : null);
   const [isNavPagesLoaded, setIsNavPagesLoaded] = useState(hasServerNavData);
   const [orderBySection, setOrderBySection] = useState<PageDisplayOrderMap>(initialOrderBySection);
@@ -178,6 +187,10 @@ export function SiteNavbar({
 
   const flipSwapTimeoutRef = useRef<number | null>(null);
   const flipResetTimeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    setRootSectionLabels(initialRootSectionLabels);
+  }, [initialRootSectionLabels]);
 
   useEffect(() => {
     if (hasServerNavData) return;
@@ -284,6 +297,38 @@ export function SiteNavbar({
     return dynamic.length > 0 ? dynamic : fallback;
   }, [initialFolderNavItems, isNavPagesLoaded, pages, orderBySection]);
 
+  const catalogNavLabel =
+    rootSectionLabels[CATALOG_ROOT] ||
+    DEFAULT_ROOT_SECTION_LABELS[CATALOG_ROOT] ||
+    "Каталогизация";
+  const trainingNavLabel =
+    rootSectionLabels[TRAINING_ROOT] ||
+    DEFAULT_ROOT_SECTION_LABELS[TRAINING_ROOT] ||
+    "Учебный центр";
+  const otherServicesNavLabel =
+    rootSectionLabels[OTHER_SERVICES_ROOT] ||
+    DEFAULT_ROOT_SECTION_LABELS[OTHER_SERVICES_ROOT] ||
+    "Прочие услуги";
+  const articlesNavLabel =
+    rootSectionLabels[ARTICLES_ROOT] ||
+    DEFAULT_ROOT_SECTION_LABELS[ARTICLES_ROOT] ||
+    "Новости";
+
+  useEffect(() => {
+    let alive = true;
+    void apiGet<{ folders?: { slug: string; name?: string }[] }>("/api/pages/folders", 10_000)
+      .then((data) => {
+        if (!alive || !Array.isArray(data?.folders)) return;
+        setRootSectionLabels(buildRootSectionLabelMap(data.folders));
+      })
+      .catch(() => {
+        /* оставляем подписи с SSR */
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   function closeMobileMenu() {
     if (typeof document === "undefined") return;
     const el = document.getElementById("mobile-menu");
@@ -366,7 +411,7 @@ export function SiteNavbar({
             <div className="flex flex-nowrap items-center justify-center gap-x-2 min-[1280px]:gap-x-3 min-[1400px]:gap-x-4 xl:gap-x-5 2xl:gap-x-6">
             <div className="relative">
               <button popoverTarget="desktop-menu-catalog" onPointerEnter={() => { void ensureTailwindElementsLoaded(); }} className="flex items-center gap-x-0.5 whitespace-nowrap py-1 text-[13px]/5 font-semibold text-[#496db3] transition hover:text-red-600 min-[1400px]:gap-x-1 min-[1400px]:text-sm/6">
-                Каталогизация
+                {catalogNavLabel}
                 <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className="size-4 flex-none text-gray-400 min-[1400px]:size-5">
                   <path d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" fillRule="evenodd" />
                 </svg>
@@ -390,7 +435,7 @@ export function SiteNavbar({
 
             <div className="relative">
               <button popoverTarget="desktop-menu-study" onPointerEnter={() => { void ensureTailwindElementsLoaded(); }} className="flex items-center gap-x-0.5 whitespace-nowrap py-1 text-[13px]/5 font-semibold text-[#496db3] transition hover:text-red-600 min-[1400px]:gap-x-1 min-[1400px]:text-sm/6">
-                Учебный центр
+                {trainingNavLabel}
                 <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className="size-4 flex-none text-gray-400 min-[1400px]:size-5">
                   <path d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" fillRule="evenodd" />
         </svg>
@@ -416,14 +461,14 @@ export function SiteNavbar({
               href={NAV_OTHER_SERVICES_HREF}
               className="whitespace-nowrap py-1 text-[13px]/5 font-semibold text-[#496db3] transition hover:text-[#e53935] min-[1400px]:text-sm/6"
             >
-              Прочие услуги
+              {otherServicesNavLabel}
             </Link>
 
             <Link
               href={NAV_NEWS_HREF}
               className="whitespace-nowrap py-1 text-[13px]/5 font-semibold text-[#496db3] transition hover:text-[#e53935] min-[1400px]:text-sm/6"
             >
-              Новости
+              {articlesNavLabel}
             </Link>
 
             <div className="relative">
@@ -523,7 +568,7 @@ export function SiteNavbar({
                   <div className="space-y-2 pb-6">
                     <div className="-mx-3">
                       <button type="button" command="--toggle" commandfor="mobile-catalog" className="flex w-full items-center justify-between rounded-lg py-2 pr-3.5 pl-3 text-base/7 font-semibold text-[#496db3] hover:bg-gray-50">
-                        Каталогизация
+                        {catalogNavLabel}
                         <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className="size-5 flex-none in-aria-expanded:rotate-180">
                           <path d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" fillRule="evenodd" />
                         </svg>
@@ -544,7 +589,7 @@ export function SiteNavbar({
                     </div>
                     <div className="-mx-3">
                       <button type="button" command="--toggle" commandfor="mobile-study" className="flex w-full items-center justify-between rounded-lg py-2 pr-3.5 pl-3 text-base/7 font-semibold text-[#496db3] hover:bg-gray-50">
-                        Учебный центр
+                        {trainingNavLabel}
                         <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className="size-5 flex-none in-aria-expanded:rotate-180">
                           <path d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" fillRule="evenodd" />
                         </svg>
@@ -568,14 +613,14 @@ export function SiteNavbar({
                       onClick={closeMobileMenu}
                       className="-mx-3 block rounded-lg px-3 py-2 text-base/7 font-semibold text-[#496db3] hover:bg-gray-50"
                     >
-                      Прочие услуги
+                      {otherServicesNavLabel}
                     </Link>
                     <Link
                       href={NAV_NEWS_HREF}
                       onClick={closeMobileMenu}
                       className="-mx-3 block rounded-lg px-3 py-2 text-base/7 font-semibold text-[#496db3] hover:bg-gray-50"
                     >
-                      Новости
+                      {articlesNavLabel}
                     </Link>
                     <div className="-mx-3">
                       <button

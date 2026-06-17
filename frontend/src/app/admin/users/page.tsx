@@ -46,6 +46,12 @@ function formatDate(value: string): string {
   });
 }
 
+function messageBannerClass(tone: "success" | "error"): string {
+  return tone === "success"
+    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+    : "border-red-200 bg-red-50 text-red-700";
+}
+
 function parseApiError(bodyText: string, fallback: string): string {
   try {
     const data = JSON.parse(bodyText) as { error?: unknown };
@@ -242,14 +248,8 @@ export default function AdminUsersPage() {
                 </p>
               </div>
 
-              {msg ? (
-                <div
-                  className={`rounded-xl border px-4 py-3 text-sm ${
-                    tone === "success"
-                      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                      : "border-red-200 bg-red-50 text-red-700"
-                  }`}
-                >
+              {msg && !modalOpen ? (
+                <div className={`rounded-xl border px-4 py-3 text-sm ${messageBannerClass(tone)}`}>
                   {msg}
                 </div>
               ) : null}
@@ -361,6 +361,15 @@ export default function AdminUsersPage() {
             </div>
 
             <form className="space-y-3" onSubmit={handleSubmit}>
+              {msg && modalOpen ? (
+                <div
+                  className={`rounded-xl border px-4 py-3 text-sm ${messageBannerClass(tone)}`}
+                  role="alert"
+                >
+                  {msg}
+                </div>
+              ) : null}
+
               <label className="block">
                 <span className={labelClass}>Логин</span>
                 <input
