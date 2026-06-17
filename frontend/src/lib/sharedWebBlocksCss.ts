@@ -244,6 +244,7 @@ ${scope} .page-web-cover-el-announcement-learn-more::after { content: "\\2192"; 
 ${scope} .page-web-text-block { width: 100%; margin: 1.25rem 0; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; padding: 1rem; box-sizing: border-box; }
 ${scope} .page-web-text-block[data-text-block-variant="feature-grid"] { border: none; background: transparent; padding: 0.75rem 2.25rem; }
 ${scope} .page-web-text-block[data-text-block-variant="work-pricing"] { border: none; background: transparent; padding: 0.75rem 2.25rem; }
+${scope} .page-web-text-block[data-text-block-variant="pricing-tiers"] { border: none; background: transparent; padding: 0.75rem 2.25rem; }
 ${scope} .page-web-text-block-fields { display: flex; flex-direction: column; gap: 0.65rem; width: 100%; margin: 0 0 0.85rem; box-sizing: border-box; }
 ${scope} .page-web-text-block[data-text-block-has-subtitle="0"] .page-web-text-block-subtitle-field-wrap { display: none !important; }
 ${scope} .page-web-text-block[data-text-block-has-title="0"] .page-web-text-block-title-field-wrap { display: none !important; }
@@ -1436,11 +1437,12 @@ ${scope} .page-web-accordion {
 }
 ${scope} .page-web-accordion-list { max-width: min(100%, 48rem); }
 ${scope} .page-web-text-block[data-text-block-variant="feature-grid"],
-${scope} .page-web-text-block[data-text-block-variant="work-pricing"] {
+${scope} .page-web-text-block[data-text-block-variant="work-pricing"],
+${scope} .page-web-text-block[data-text-block-variant="pricing-tiers"] {
   padding-inline: 0.625rem;
   padding-block: 0.5rem 0.75rem;
 }
-${scope} .page-web-text-block:not([data-text-block-variant="feature-grid"]):not([data-text-block-variant="work-pricing"]) {
+${scope} .page-web-text-block:not([data-text-block-variant="feature-grid"]):not([data-text-block-variant="work-pricing"]):not([data-text-block-variant="pricing-tiers"]) {
   padding-inline: 0.625rem;
 }
 ${scope} .page-web-feature-grid[data-feature-grid-image-position="right"][data-feature-grid-image-display="background"]:has(> .page-web-feature-grid-image[data-feature-grid-image-has-src="1"]) > .page-web-feature-grid-content,

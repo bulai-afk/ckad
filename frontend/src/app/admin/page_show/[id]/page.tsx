@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import { ApiRequestError, apiGet, isPageByIdApiPath } from "@/lib/api";
 import { adminPageIdFromParams } from "@/lib/adminPageIdFromParams";
 import { getSharedWebBlocksCss } from "@/lib/sharedWebBlocksCss";
-import { ensureCoverBgLayers, getPageShowRenderCss, getTimelineRenderCss, getWorkPricingRenderCss } from "@/lib/pageShowRender";
+import { ensureCoverBgLayers, getPageShowRenderCss, getPricingTiersRenderCss, getTimelineRenderCss, getWorkPricingRenderCss } from "@/lib/pageShowRender";
 
 type Block = {
   id: number;
@@ -192,7 +192,7 @@ export default function AdminPageShowPreview() {
         }
         .page-editor .page-content .page-web-text-media-col,
         .page-editor .page-content .page-web-text-media-col--text,
-        .page-editor .page-content .page-web-text-block:not([data-text-block-variant="feature-grid"]):not([data-text-block-variant="work-pricing"]) {
+        .page-editor .page-content .page-web-text-block:not([data-text-block-variant="feature-grid"]):not([data-text-block-variant="work-pricing"]):not([data-text-block-variant="pricing-tiers"]) {
           background: #fff !important;
           border-color: rgba(226, 232, 240, 0.6) !important;
         }
@@ -200,6 +200,7 @@ export default function AdminPageShowPreview() {
           border: none !important;
         }
         ${getWorkPricingRenderCss(".page-editor .page-content")}
+        ${getPricingTiersRenderCss(".page-editor .page-content")}
       `}</style>
     </div>
   );

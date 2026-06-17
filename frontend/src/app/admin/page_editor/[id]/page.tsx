@@ -33,6 +33,7 @@ import { getPageEditorWebToolbarCss } from "@/lib/pageEditorWebToolbarCss";
 import {
   applyTimelineLineGeometry,
   getPageShowRenderCss,
+  getPricingTiersRenderCss,
   getTimelineRenderCss,
   getWorkPricingRenderCss,
 } from "@/lib/pageShowRender";
@@ -117,6 +118,7 @@ const WEB_PAGE_ELEMENTS = [
   { id: "cover", tab: "media", label: "Баннер", description: "Градиентный баннер с заголовком, текстом и кнопкой" },
   { id: "timeline", tab: "text", label: "Этапы работы", description: "Пошаговый блок этапов с заголовками и описаниями" },
   { id: "work-pricing", tab: "text", label: "Стоимость работ", description: "Блок с факторами стоимости, диапазоном цены и призывом к расчёту" },
+  { id: "pricing-tiers", tab: "text", label: "Несколько стоимостей", description: "Сравнение тарифов в карточках с ценой, списком преимуществ и кнопкой" },
   { id: "feature-grid", tab: "text", label: "Текстовый блок", description: "Заголовок с описанием и список преимуществ с иконками" },
   {
     id: "text-block-v2",
@@ -170,6 +172,28 @@ const WORK_PRICING_LI_CHECK_SVG_HTML =
   '<path d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd" fill-rule="evenodd"></path>' +
   "</svg>";
 
+const PRICING_TIERS_LI_CHECK_SVG_HTML =
+  '<svg viewBox="0 0 20 20" fill="currentColor" data-slot="icon" aria-hidden="true" class="wpt-check" contenteditable="false">' +
+  '<path d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd" fill-rule="evenodd"></path>' +
+  "</svg>";
+
+const PRICING_TIERS_HALIGN_ATTR = "data-pricing-tiers-halign";
+const PRICING_TIERS_TIER_FEATURED_ATTR = "data-tier-featured";
+
+const PRICING_TIERS_STAR_SVG_HTML =
+  '<svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" class="wpt-tier-star-icon" contenteditable="false">' +
+  '<path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>' +
+  "</svg>";
+
+function pricingTiersTierStarHtml(): string {
+  return (
+    '<button type="button" class="wpt-tier-star" contenteditable="false" tabindex="-1" ' +
+    'data-pricing-tiers-feature-toggle aria-label="Выделить тариф" aria-pressed="false">' +
+    PRICING_TIERS_STAR_SVG_HTML +
+    "</button>"
+  );
+}
+
 function ensureWorkPricingListItemCheckmarks(root: HTMLElement): boolean {
   let changed = false;
   root.querySelectorAll(".page-web-work-pricing ul.wrf").forEach((ul) => {
@@ -179,6 +203,32 @@ function ensureWorkPricingListItemCheckmarks(root: HTMLElement): boolean {
       if (!svg) {
         const wrap = document.createElement("div");
         wrap.innerHTML = WORK_PRICING_LI_CHECK_SVG_HTML;
+        svg = wrap.firstElementChild as SVGElement | null;
+        if (!svg) return;
+        li.insertBefore(svg, li.firstChild);
+        changed = true;
+      } else if (svg !== li.firstElementChild) {
+        li.insertBefore(svg, li.firstChild);
+        changed = true;
+      }
+      if (svg.getAttribute("contenteditable") !== "false") {
+        svg.setAttribute("contenteditable", "false");
+        changed = true;
+      }
+    });
+  });
+  return changed;
+}
+
+function ensurePricingTiersListItemCheckmarks(root: HTMLElement): boolean {
+  let changed = false;
+  root.querySelectorAll(".page-web-pricing-tiers ul.wpt-features").forEach((ul) => {
+    ul.querySelectorAll(":scope > li").forEach((liNode) => {
+      const li = liNode as HTMLElement;
+      let svg = li.querySelector(":scope > svg.wpt-check") as SVGElement | null;
+      if (!svg) {
+        const wrap = document.createElement("div");
+        wrap.innerHTML = PRICING_TIERS_LI_CHECK_SVG_HTML;
         svg = wrap.firstElementChild as SVGElement | null;
         if (!svg) return;
         li.insertBefore(svg, li.firstChild);
@@ -1798,9 +1848,135 @@ function getWorkPricingTextBlockHtml(): string {
   ).replace('data-web-element="text-block"', 'data-web-element="text-block" data-text-block-variant="work-pricing"');
 }
 
+type PricingTiersFieldKind = "subtitle" | "title" | "title2" | "description";
+type PricingTiersHalign = "left" | "center" | "right";
+
+function pricingTiersFieldHtml(
+  kind: PricingTiersFieldKind,
+  text: string,
+  placeholder: string,
+  halign: PricingTiersHalign = "left",
+): string {
+  const inputClass =
+    kind === "subtitle"
+      ? "page-web-elements-subtitle-input"
+      : kind === "title"
+        ? "page-web-elements-title-input"
+        : kind === "title2"
+          ? "page-web-elements-title2-input"
+          : "page-web-elements-description-input";
+  const wrapClass =
+    kind === "title2"
+      ? "page-web-elements page-web-elements-title2"
+      : kind === "description"
+        ? "page-web-elements page-web-elements-description"
+        : kind === "title"
+          ? "page-web-elements page-web-elements-title"
+          : "page-web-elements page-web-elements-subtitle";
+  return (
+    `<div class="${wrapClass}" contenteditable="false" ${PRICING_TIERS_HALIGN_ATTR}="${halign}">` +
+    '<div class="page-web-elements-field-row" contenteditable="false">' +
+    `<textarea class="${inputClass}" spellcheck="true" placeholder="${placeholder}" rows="1">` +
+    escapeWebBlockHtmlText(text) +
+    "</textarea></div></div>"
+  );
+}
+
+function pricingTiersFeatureLiHtml(text: string): string {
+  return (
+    '<li class="wpt-feature">' +
+    PRICING_TIERS_LI_CHECK_SVG_HTML +
+    pricingTiersFieldHtml("description", text, "Пункт списка", "left") +
+    "</li>"
+  );
+}
+
+function pricingTiersCtaHtml(text: string): string {
+  return (
+    '<p class="page-web-elements-cta-wrap wpt-cta" contenteditable="false">' +
+    '<a href="#" class="page-web-elements-cta-button">' +
+    escapeWebBlockHtmlText(text) +
+    "</a></p>"
+  );
+}
+
+function buildPricingTiersTierCardHtml(options: {
+  name: string;
+  price: string;
+  period: string;
+  description: string;
+  features: string[];
+  cta: string;
+}): string {
+  return (
+    '<div class="wpt-tier" contenteditable="false">' +
+    pricingTiersTierStarHtml() +
+    pricingTiersFieldHtml("subtitle", options.name, "Название тарифа", "left") +
+    '<p class="wpt-price-row" contenteditable="false">' +
+    pricingTiersFieldHtml("title", options.price, "Цена", "left") +
+    '<span class="wpt-period" contenteditable="false">' +
+    pricingTiersFieldHtml("title2", options.period, "Период", "left") +
+    "</span></p>" +
+    pricingTiersFieldHtml("description", options.description, "Описание тарифа", "left") +
+    '<ul role="list" class="wpt-features" contenteditable="false">' +
+    options.features.map((f) => pricingTiersFeatureLiHtml(f)).join("") +
+    "</ul>" +
+    pricingTiersCtaHtml(options.cta) +
+    "</div>"
+  );
+}
+
+const PRICING_TIERS_DEFAULT_FEATURES = [
+  "25 товаров",
+  "До 10 000 подписчиков",
+  "Расширенная аналитика",
+  "Ответ поддержки в течение суток",
+];
+
+function getPricingTiersTextBlockHtml(): string {
+  return getTextBlockHtml(
+    '<div class="page-web-pricing-tiers">' +
+      '<div class="wpt-blob-wrap" aria-hidden="true" contenteditable="false">' +
+      '<div class="wpt-blob-shape"></div>' +
+      "</div>" +
+      '<div class="wpt-head" contenteditable="false">' +
+      pricingTiersFieldHtml("subtitle", "Тарифы", "Подзаголовок", "center") +
+      pricingTiersFieldHtml("title", "Выберите подходящий план", "Заголовок", "center") +
+      "</div>" +
+      '<div class="wpt-lead" contenteditable="false">' +
+      pricingTiersFieldHtml(
+        "description",
+        "Подберите доступный план с нужными возможностями для вовлечения аудитории, лояльности клиентов и роста продаж.",
+        "Короткое описание",
+        "center",
+      ) +
+      "</div>" +
+      '<div class="wpt-grid" data-tier-count="2" contenteditable="false">' +
+      buildPricingTiersTierCardHtml({
+        name: "Базовый",
+        price: "29 000 ₽",
+        period: "/мес",
+        description: "Подходит, если вы только начинаете работу с продуктом.",
+        features: [...PRICING_TIERS_DEFAULT_FEATURES],
+        cta: "Начать сегодня",
+      }) +
+      buildPricingTiersTierCardHtml({
+        name: "Стандарт",
+        price: "59 000 ₽",
+        period: "/мес",
+        description: "Оптимальный план для растущего проекта и команды.",
+        features: [...PRICING_TIERS_DEFAULT_FEATURES],
+        cta: "Начать сегодня",
+      }) +
+      "</div>" +
+    "</div>",
+    { contentOnly: true },
+  ).replace('data-web-element="text-block"', 'data-web-element="text-block" data-text-block-variant="pricing-tiers"');
+}
+
 function isPlainWebTextBlock(block: HTMLElement): boolean {
   const v = block.getAttribute("data-text-block-variant");
-  return v !== "feature-grid" && v !== "work-pricing";
+  return v !== "feature-grid" && v !== "work-pricing" && v !== "pricing-tiers";
 }
 
 function ensurePlainTextBlockFieldShell(block: HTMLElement): boolean {
@@ -2184,7 +2360,7 @@ function migrateLegacyPlainTextBlockHeadingIntoFields(block: HTMLElement): boole
   if (!titleInput || !leadInput) return false;
   const content = block.querySelector(":scope > .page-web-text-block-content") as HTMLElement | null;
   if (!content) return false;
-  if (content.querySelector(".page-web-feature-grid, .page-web-work-pricing")) return false;
+  if (content.querySelector(".page-web-feature-grid, .page-web-work-pricing, .page-web-pricing-tiers")) return false;
 
   let changed = false;
   const first = content.firstElementChild;
@@ -2301,6 +2477,174 @@ function addOneWorkPricingItem(block: HTMLElement): boolean {
 function removeOneWorkPricingItem(block: HTMLElement): boolean {
   const content = block.querySelector(":scope > .page-web-text-block-content") as HTMLElement | null;
   const list = content?.querySelector(".page-web-work-pricing .wrf") as HTMLElement | null;
+  if (!list) return false;
+  const items = Array.from(list.querySelectorAll(":scope > li")) as HTMLElement[];
+  if (items.length <= 1) return false;
+  items[items.length - 1]?.remove();
+  return true;
+}
+
+function getPricingTiersGrid(block: HTMLElement): HTMLElement | null {
+  const content = block.querySelector(":scope > .page-web-text-block-content") as HTMLElement | null;
+  if (!content) return null;
+  const root = (content.querySelector(":scope > .page-web-pricing-tiers") ??
+    content.querySelector(".page-web-pricing-tiers")) as HTMLElement | null;
+  return root?.querySelector(":scope > .wpt-grid") as HTMLElement | null;
+}
+
+function getPricingTiersActiveTier(block: HTMLElement): HTMLElement | null {
+  const grid = getPricingTiersGrid(block);
+  if (!grid) return null;
+  const active = document.activeElement as HTMLElement | null;
+  const fromFocus = active?.closest(".wpt-tier") as HTMLElement | null;
+  if (fromFocus && block.contains(fromFocus) && grid.contains(fromFocus)) return fromFocus;
+  const tiers = Array.from(grid.querySelectorAll(":scope > .wpt-tier")) as HTMLElement[];
+  return tiers[tiers.length - 1] ?? null;
+}
+
+function syncPricingTiersTierStarState(tier: HTMLElement): void {
+  const star = tier.querySelector(":scope > .wpt-tier-star") as HTMLButtonElement | null;
+  if (!star) return;
+  const featured = tier.getAttribute(PRICING_TIERS_TIER_FEATURED_ATTR) === "1";
+  star.setAttribute("aria-pressed", featured ? "true" : "false");
+  star.classList.toggle("wpt-tier-star--active", featured);
+}
+
+function ensurePricingTiersTierStarsInRoot(root: HTMLElement): boolean {
+  let changed = false;
+  root.querySelectorAll(".page-web-pricing-tiers .wpt-tier").forEach((node) => {
+    const tier = node as HTMLElement;
+    let star = tier.querySelector(":scope > .wpt-tier-star") as HTMLButtonElement | null;
+    if (!star) {
+      const wrap = document.createElement("div");
+      wrap.innerHTML = pricingTiersTierStarHtml();
+      star = wrap.firstElementChild as HTMLButtonElement | null;
+      if (!star) return;
+      tier.insertBefore(star, tier.firstChild);
+      changed = true;
+    }
+    const featured = tier.getAttribute(PRICING_TIERS_TIER_FEATURED_ATTR) === "1";
+    const nextPressed = featured ? "true" : "false";
+    if (star.getAttribute("aria-pressed") !== nextPressed) {
+      star.setAttribute("aria-pressed", nextPressed);
+      changed = true;
+    }
+    if (star.classList.contains("wpt-tier-star--active") !== featured) {
+      star.classList.toggle("wpt-tier-star--active", featured);
+      changed = true;
+    }
+  });
+  return changed;
+}
+
+function togglePricingTiersTierFeatured(tier: HTMLElement): boolean {
+  const grid = tier.parentElement;
+  if (!grid?.classList.contains("wpt-grid")) return false;
+  const isFeatured = tier.getAttribute(PRICING_TIERS_TIER_FEATURED_ATTR) === "1";
+  if (isFeatured) {
+    tier.removeAttribute(PRICING_TIERS_TIER_FEATURED_ATTR);
+  } else {
+    grid.querySelectorAll(":scope > .wpt-tier").forEach((node) => {
+      (node as HTMLElement).removeAttribute(PRICING_TIERS_TIER_FEATURED_ATTR);
+    });
+    tier.setAttribute(PRICING_TIERS_TIER_FEATURED_ATTR, "1");
+  }
+  grid.querySelectorAll(":scope > .wpt-tier").forEach((node) => {
+    syncPricingTiersTierStarState(node as HTMLElement);
+  });
+  return true;
+}
+
+function normalizePricingTiersInRoot(root: HTMLElement): boolean {
+  let changed = syncPricingTiersGridLayoutInRoot(root);
+  if (ensurePricingTiersTierStarsInRoot(root)) changed = true;
+  root.querySelectorAll(".page-web-pricing-tiers .wpt-tier").forEach((node) => {
+    const tier = node as HTMLElement;
+    tier.querySelectorAll(
+      ".wpt-cta > .page-web-elements-cta-button, .wpt-cta > .page-web-elements-cta-button-secondary",
+    ).forEach((ctaNode) => {
+      const cta = ctaNode as HTMLElement;
+      if (cta.classList.contains("page-web-elements-cta-button-secondary")) {
+        cta.classList.remove("page-web-elements-cta-button-secondary");
+        changed = true;
+      }
+      if (!cta.classList.contains("page-web-elements-cta-button")) {
+        cta.classList.add("page-web-elements-cta-button");
+        changed = true;
+      }
+    });
+  });
+  return changed;
+}
+
+function syncPricingTiersGridLayout(grid: HTMLElement): boolean {
+  const count = grid.querySelectorAll(":scope > .wpt-tier").length;
+  const next = String(Math.max(1, count));
+  if (grid.getAttribute("data-tier-count") !== next) {
+    grid.setAttribute("data-tier-count", next);
+    return true;
+  }
+  return false;
+}
+
+function syncPricingTiersGridLayoutInRoot(root: HTMLElement): boolean {
+  let changed = false;
+  root.querySelectorAll(".page-web-pricing-tiers > .wpt-grid").forEach((node) => {
+    if (syncPricingTiersGridLayout(node as HTMLElement)) changed = true;
+  });
+  return changed;
+}
+
+function addOnePricingTiersTier(block: HTMLElement): boolean {
+  const grid = getPricingTiersGrid(block);
+  if (!grid) return false;
+  const nextIndex = grid.querySelectorAll(":scope > .wpt-tier").length + 1;
+  const wrap = document.createElement("div");
+  wrap.innerHTML = buildPricingTiersTierCardHtml({
+    name: "Тариф " + String(nextIndex),
+    price: "0 ₽",
+    period: "/мес",
+    description: "Краткое описание тарифа.",
+    features: ["Пункт списка"],
+    cta: "Начать сегодня",
+  });
+  const tier = wrap.firstElementChild as HTMLElement | null;
+  if (!tier) return false;
+  grid.appendChild(tier);
+  syncPricingTiersGridLayout(grid);
+  return true;
+}
+
+function removeOnePricingTiersTier(block: HTMLElement): boolean {
+  const grid = getPricingTiersGrid(block);
+  if (!grid) return false;
+  const tiers = Array.from(grid.querySelectorAll(":scope > .wpt-tier")) as HTMLElement[];
+  if (tiers.length <= 1) return false;
+  tiers[tiers.length - 1]?.remove();
+  syncPricingTiersGridLayout(grid);
+  return true;
+}
+
+function addOnePricingTiersFeature(block: HTMLElement): boolean {
+  const tier = getPricingTiersActiveTier(block);
+  const list = tier?.querySelector(":scope > ul.wpt-features") as HTMLElement | null;
+  if (!list) return false;
+  const nextIndex = list.querySelectorAll(":scope > li").length + 1;
+  const li = document.createElement("li");
+  li.className = "wpt-feature";
+  li.innerHTML = PRICING_TIERS_LI_CHECK_SVG_HTML;
+  const island = document.createElement("div");
+  island.innerHTML = pricingTiersFieldHtml("description", "Новый пункт " + String(nextIndex), "Пункт списка", "left");
+  const field = island.firstElementChild;
+  if (!field) return false;
+  li.appendChild(field);
+  list.appendChild(li);
+  return true;
+}
+
+function removeOnePricingTiersFeature(block: HTMLElement): boolean {
+  const tier = getPricingTiersActiveTier(block);
+  const list = tier?.querySelector(":scope > ul.wpt-features") as HTMLElement | null;
   if (!list) return false;
   const items = Array.from(list.querySelectorAll(":scope > li")) as HTMLElement[];
   if (items.length <= 1) return false;
@@ -3093,6 +3437,11 @@ function getWebTextBlockToolbarHtml(): string {
     '<div class="page-web-text-block-menu-sep page-web-text-block-menu-sep--work-pricing" aria-hidden="true"></div>' +
     '<button type="button" role="menuitem" class="page-web-text-block-menu-element page-web-text-block-menu-element--work-pricing" contenteditable="false" tabindex="-1" data-work-pricing-items-action="add">Добавить пункт</button>' +
     '<button type="button" role="menuitem" class="page-web-text-block-menu-element page-web-text-block-menu-element--work-pricing" contenteditable="false" tabindex="-1" data-work-pricing-items-action="remove">Убрать пункт</button>' +
+    '<div class="page-web-text-block-menu-sep page-web-text-block-menu-sep--pricing-tiers" aria-hidden="true"></div>' +
+    '<button type="button" role="menuitem" class="page-web-text-block-menu-element page-web-text-block-menu-element--pricing-tiers" contenteditable="false" tabindex="-1" data-pricing-tiers-action="add-tier">Добавить тариф</button>' +
+    '<button type="button" role="menuitem" class="page-web-text-block-menu-element page-web-text-block-menu-element--pricing-tiers" contenteditable="false" tabindex="-1" data-pricing-tiers-action="remove-tier">Убрать тариф</button>' +
+    '<button type="button" role="menuitem" class="page-web-text-block-menu-element page-web-text-block-menu-element--pricing-tiers" contenteditable="false" tabindex="-1" data-pricing-tiers-action="add-feature">Добавить пункт</button>' +
+    '<button type="button" role="menuitem" class="page-web-text-block-menu-element page-web-text-block-menu-element--pricing-tiers" contenteditable="false" tabindex="-1" data-pricing-tiers-action="remove-feature">Убрать пункт</button>' +
     '<button type="button" role="menuitem" class="page-web-text-block-menu-delete" contenteditable="false" tabindex="-1">Удалить блок</button>' +
     "</div></div>"
   );
@@ -4780,6 +5129,28 @@ function syncTextBlockToolbarVariantState(toolbar: HTMLElement) {
     toolbar.querySelectorAll("[data-work-pricing-items-action='remove']").forEach((node) => {
       const btn = node as HTMLButtonElement;
       const canRemove = count > 1;
+      btn.disabled = !canRemove;
+      btn.setAttribute("aria-disabled", canRemove ? "false" : "true");
+    });
+    return;
+  }
+  if (variant === "pricing-tiers") {
+    const block = toolbar.closest(".page-web-text-block") as HTMLElement | null;
+    const grid = block ? getPricingTiersGrid(block) : null;
+    const tierCount = grid ? grid.querySelectorAll(":scope > .wpt-tier").length : 0;
+    const activeTier = block ? getPricingTiersActiveTier(block) : null;
+    const featureCount = activeTier
+      ? activeTier.querySelectorAll(":scope > ul.wpt-features > li").length
+      : 0;
+    toolbar.querySelectorAll("[data-pricing-tiers-action='remove-tier']").forEach((node) => {
+      const btn = node as HTMLButtonElement;
+      const canRemove = tierCount > 1;
+      btn.disabled = !canRemove;
+      btn.setAttribute("aria-disabled", canRemove ? "false" : "true");
+    });
+    toolbar.querySelectorAll("[data-pricing-tiers-action='remove-feature']").forEach((node) => {
+      const btn = node as HTMLButtonElement;
+      const canRemove = featureCount > 1;
       btn.disabled = !canRemove;
       btn.setAttribute("aria-disabled", canRemove ? "false" : "true");
     });
@@ -7074,6 +7445,7 @@ export default function PageEditorDetailsPage() {
       logPageEditorCaret("layoutEffect[contentHtml]:cover-orphan-heading-paragraph-migrate", {});
     }
     ensureWorkPricingListItemCheckmarks(root);
+    ensurePricingTiersListItemCheckmarks(root);
     if (normalizeWebWorkPricingWebElementsIslandEditabilityInEditor(root) && caretDebugOn()) {
       logPageEditorCaret("layoutEffect[contentHtml]:work-pricing-web-elements-islands-editability", {});
     }
@@ -7081,6 +7453,7 @@ export default function PageEditorDetailsPage() {
       logPageEditorCaret("layoutEffect[contentHtml]:web-cover-placeholder-normalize", {});
     }
     normalizeWebCoverButtonAnchorsToSpans(root);
+    normalizePricingTiersInRoot(root);
     if (ensureWebCoverToolbarInEditor(root) && caretDebugOn()) {
       logPageEditorCaret("layoutEffect[contentHtml]:web-cover-toolbar-upgrade", {});
     }
@@ -7814,6 +8187,9 @@ export default function PageEditorDetailsPage() {
     }
     if (kind === "work-pricing") {
       return getWorkPricingTextBlockHtml();
+    }
+    if (kind === "pricing-tiers") {
+      return getPricingTiersTextBlockHtml();
     }
     if (kind === "text-block-v2") {
       return getTextBlockV2Html();
@@ -11016,7 +11392,7 @@ export default function PageEditorDetailsPage() {
 
     const hasText = (content.textContent || "").replace(/\u200b/g, "").trim().length > 0;
     const hasStructuredPayload = !!content.querySelector(
-      "img, table.page-editor-table, .page-editor-image-wrapper, .page-web-feature-grid, .page-web-work-pricing",
+      "img, table.page-editor-table, .page-editor-image-wrapper, .page-web-feature-grid, .page-web-work-pricing, .page-web-pricing-tiers",
     );
     if (hasText || hasStructuredPayload) return false;
 
@@ -14238,6 +14614,25 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       return;
     }
 
+    const pricingTiersActionBtn = target.closest?.("[data-pricing-tiers-action]") as HTMLElement | null;
+    if (pricingTiersActionBtn) {
+      if (block.getAttribute("data-text-block-variant") === "pricing-tiers") {
+        const action = pricingTiersActionBtn.getAttribute("data-pricing-tiers-action");
+        let changed = false;
+        if (action === "add-tier") changed = addOnePricingTiersTier(block);
+        else if (action === "remove-tier") changed = removeOnePricingTiersTier(block);
+        else if (action === "add-feature") changed = addOnePricingTiersFeature(block);
+        else if (action === "remove-feature") changed = removeOnePricingTiersFeature(block);
+        syncTextBlockToolbarVariantState(toolbar);
+        if (changed) {
+          setContentHtml(ed.innerHTML);
+          setTimeout(() => updateToolbarState(), 0);
+        }
+      }
+      closeTextBlockToolbarMenus(toolbar);
+      return;
+    }
+
     const delBtn = target.closest?.(".page-web-text-block-menu-delete");
     if (delBtn) {
       closeTextBlockToolbarMenus(toolbar);
@@ -14717,6 +15112,22 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         e.stopPropagation();
         openCtaButtonLinkModal(wpCtaBtn);
         return;
+      }
+    }
+
+    if (block.getAttribute("data-text-block-variant") === "pricing-tiers") {
+      const starBtn = target.closest("[data-pricing-tiers-feature-toggle]") as HTMLElement | null;
+      if (starBtn) {
+        const tier = starBtn.closest(".wpt-tier") as HTMLElement | null;
+        if (tier && block.contains(tier)) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (togglePricingTiersTierFeatured(tier)) {
+            setContentHtml(ed.innerHTML);
+            setTimeout(() => updateToolbarState(), 0);
+          }
+          return;
+        }
       }
     }
 
@@ -16823,6 +17234,9 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-text-block-toolbar[data-text-block-variant="work-pricing"] .page-web-text-block-menu-sep--work-pricing { display: block; }
         .page-editor .page-web-text-block-menu-element--work-pricing { display: none; }
         .page-editor .page-web-text-block-toolbar[data-text-block-variant="work-pricing"] .page-web-text-block-menu-element--work-pricing { display: block; }
+        .page-editor .page-web-text-block-toolbar[data-text-block-variant="pricing-tiers"] .page-web-text-block-menu-sep--pricing-tiers { display: block; }
+        .page-editor .page-web-text-block-menu-element--pricing-tiers { display: none; }
+        .page-editor .page-web-text-block-toolbar[data-text-block-variant="pricing-tiers"] .page-web-text-block-menu-element--pricing-tiers { display: block; }
         .page-editor .page-web-text-block-menu-sub-panel .page-web-text-block-menu-sep { display: block; margin: 6px 0; }
         .page-editor .page-web-text-block-menu-delete { display: block; width: 100%; box-sizing: border-box; text-align: left; padding: 8px 12px; font-size: 13px; font-weight: 500; color: #b91c1c; background: transparent; border: none; cursor: pointer; border-radius: 4px; white-space: nowrap; }
         .page-editor .page-web-text-block-menu-delete:hover { background: #fef2f2; }
@@ -17370,8 +17784,9 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
         .page-editor .page-web-text-block-content > h6 { margin: 0 0 0.55rem; font-size: 1.2rem; line-height: 1.2; color: #0f172a; }
         .page-editor .page-web-text-block-content p:not(.page-web-elements-cta-wrap) { margin: 0 0 0.5rem; color: #475569; line-height: 1.55; }
         .page-editor .page-web-text-block-content p:not(.page-web-elements-cta-wrap):last-child { margin-bottom: 0; }
-        .page-editor .page-web-text-block-content p.page-web-elements-cta-wrap { margin: 0.4rem 0 0; color: inherit; line-height: normal; }
+        .page-editor .page-web-text-block-content p.page-web-elements-cta-wrap:not(.wpt-cta) { margin: 0.4rem 0 0; color: inherit; line-height: normal; }
         ${getWorkPricingRenderCss(".page-editor")}
+        ${getPricingTiersRenderCss(".page-editor")}
         /* Рамка .wtt с радиусом: overflow:hidden обрезает дочерний фон по скруглению; иначе .wrd перекрывает дугу синей обводки по углам. В редакторе — лёгкий padding, чтобы тень фокуса не резалась. */
         .page-editor .page-web-work-pricing .wrc.wse.wtt {
           overflow: hidden;
@@ -18604,6 +19019,7 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
                           return;
                         }
                         ensureWorkPricingListItemCheckmarks(ed);
+                        ensurePricingTiersListItemCheckmarks(ed);
                         scheduleEditorHtmlStateSync(ed.innerHTML);
                         syncMarkerBold();
                       }}

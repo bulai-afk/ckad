@@ -3,6 +3,7 @@ import { getSharedWebBlocksCss } from "@/lib/sharedWebBlocksCss";
 import {
   getPageShowRenderCss,
   getTimelineRenderCss,
+  getPricingTiersRenderCss,
   getWorkPricingRenderCss,
 } from "@/lib/pageShowRender";
 
@@ -79,6 +80,8 @@ ${getTimelineRenderCss(".page-editor .page-content")}
 ${getPageShowRenderCss(".page-editor .page-content")}
 ${getWorkPricingRenderCss(".page-content")}
 ${getWorkPricingRenderCss(".page-editor .page-content")}
+${getPricingTiersRenderCss(".page-content")}
+${getPricingTiersRenderCss(".page-editor .page-content")}
 .page-content textarea::placeholder,
 .page-content input::placeholder,
 .article-page-content textarea::placeholder,
