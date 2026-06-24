@@ -81,7 +81,7 @@ esac
 
 if [ -n "$SITE_URL" ]; then
   BASE="${SITE_URL%/}"
-  if curl -fsS --max-time 10 -o /dev/null -w '' "${BASE}/"; then
+  if wait_curl "${BASE}/"; then
     echo "OK ${BASE}/ (DEPLOY_SITE_URL)"
   elif [[ "$BASE" == https://* ]]; then
     echo "::error::HTTPS health check failed for ${BASE}/"
