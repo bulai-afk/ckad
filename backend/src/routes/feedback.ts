@@ -2,6 +2,7 @@ import { Router } from "express";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { backendDataPath } from "../backendPaths";
+import { sendFeedbackNotification } from "../lib/feedbackNotification";
 
 const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const FEEDBACK_REQUESTS_DATA_PATH = backendDataPath("feedbackRequests.json");
@@ -98,10 +99,11 @@ feedbackRouter.post("/", async (req, res) => {
   const parts = name.split(/\s+/).filter(Boolean);
   const firstName = parts[0] || name;
   const lastName = parts.slice(1).join(" ");
+  const createdAt = new Date().toISOString();
   const requests = await readFeedbackRequestsFromFile();
   requests.unshift({
     id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-    createdAt: new Date().toISOString(),
+    createdAt,
     firstName,
     lastName,
     phone,
@@ -110,6 +112,16 @@ feedbackRouter.post("/", async (req, res) => {
     message,
   });
   await writeFeedbackRequestsToFile(requests);
+
+  void sendFeedbackNotification({
+    name,
+    firstName,
+    lastName,
+    phone,
+    email,
+    message,
+    createdAt,
+  });
 
   res.json({ ok: true });
 });

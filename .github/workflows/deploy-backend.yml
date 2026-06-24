@@ -86,6 +86,21 @@ jobs:
           rsync -az ./deploy/ "${DEPLOY_USER}@${DEPLOY_HOST}:/opt/ckad/deploy/"
           ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "bash /opt/ckad/deploy/bootstrap-server.sh"
 
+      - name: SSH — sync SMTP env on server
+        shell: bash
+        env:
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SMTP_PASS}" ]; then
+            echo "::warning::SMTP_PASS secret is not set — feedback mail will stay disabled on server"
+            exit 0
+          fi
+          ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "set -euo pipefail
+            export SMTP_PASS=$(printf '%q' "${SMTP_PASS}")
+            bash /opt/ckad/deploy/sync-backend-smtp-env.sh
+          "
+
       - name: Rsync — backend code to server
         shell: bash
         run: |
