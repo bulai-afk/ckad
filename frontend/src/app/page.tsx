@@ -46,7 +46,7 @@ function homeServiceCategoryCard(
 
 const features = [
   {
-    name: "Экспертная команда",
+    name: "Команда профессионалов",
     description: "Сильная команда экспертов с многолетней практикой в каталогизации и анализе.",
     icon: UserGroupIcon,
   },
