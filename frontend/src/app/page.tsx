@@ -160,6 +160,7 @@ export default async function Home() {
                   layout="featured"
                   equalHeight
                   syncHeightsToTallest={false}
+                  featuredPanelVariant="section-hub"
                   alwaysShowPreview
                   hyphenateDescriptions
                   ctaLabel="Подробнее"
@@ -172,7 +173,8 @@ export default async function Home() {
                 <HomeServicesFolderCards
                   layout="featured"
                   equalHeight
-                  syncHeightsToTallest
+                  syncHeightsToTallest={false}
+                  featuredPanelVariant="section-hub"
                   alwaysShowPreview
                   hyphenateDescriptions
                   ctaLabel="Подробнее"

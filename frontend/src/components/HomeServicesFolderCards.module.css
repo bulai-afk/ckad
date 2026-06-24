@@ -664,6 +664,33 @@
   }
 }
 
+/* Главная «Наши услуги» и узкие экраны: высота карточки по контенту, без обрезки кнопки */
+@media (max-width: 1023px) {
+  :global(.services-home-categories-shell) .cardRootFeatured,
+  :global(.services-home-categories-shell) .cardRootFeaturedStretch {
+    height: auto !important;
+    min-height: 0;
+  }
+
+  :global(.services-home-categories-shell) .cardFeaturedBannerPanel {
+    min-height: 0;
+    height: auto;
+    overflow: visible;
+    justify-content: flex-start;
+    gap: 0.65rem;
+  }
+
+  :global(.services-home-categories-shell) .cardFeaturedBannerPanelTop {
+    flex: 0 1 auto;
+    justify-content: flex-start;
+  }
+
+  :global(.services-home-categories-shell) .cardFeaturedCtaGhost {
+    margin-top: 0.25rem;
+    flex-shrink: 0;
+  }
+}
+
 @media (max-width: 639px) {
   .cardRootFeatured::after {
     content: "";
