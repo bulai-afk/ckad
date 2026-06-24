@@ -48,7 +48,10 @@ export function CookieConsentBanner() {
         }`}
       >
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-          <p className="min-w-0 text-pretty text-sm leading-snug text-slate-700 sm:text-[0.9375rem] sm:leading-snug">
+          <p
+            lang="ru"
+            className="min-w-0 text-sm leading-snug text-slate-700 [-webkit-hyphens:auto] [hyphens:auto] sm:text-[0.9375rem] sm:leading-snug"
+          >
             Оставаясь на сайте, вы даёте согласие на обработку cookie и других данных в соответствии с{" "}
             <PrivacyPolicyDialogLink className="font-semibold text-[#496db3] underline decoration-[#496db3]/40 underline-offset-2 hover:text-red-600" />
             .
