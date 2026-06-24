@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { PrivacyPolicyDialogLink } from "@/components/PrivacyPolicyDialogLink";
-
-const STORAGE_KEY = "ckad_cookie_notice_v1";
+import {
+  COOKIE_CONSENT_STORAGE_KEY,
+  grantCookieConsent,
+} from "@/lib/cookieConsent";
 
 export function CookieConsentBanner() {
   const [open, setOpen] = useState(false);
@@ -11,7 +13,7 @@ export function CookieConsentBanner() {
 
   useEffect(() => {
     try {
-      if (window.localStorage.getItem(STORAGE_KEY)) return;
+      if (window.localStorage.getItem(COOKIE_CONSENT_STORAGE_KEY)) return;
     } catch {
       return;
     }
@@ -27,11 +29,7 @@ export function CookieConsentBanner() {
   }, [open]);
 
   function onAccept() {
-    try {
-      window.localStorage.setItem(STORAGE_KEY, new Date().toISOString());
-    } catch {
-      /* частный режим и т.п. */
-    }
+    grantCookieConsent();
     setSlideIn(false);
     window.setTimeout(() => setOpen(false), 320);
   }

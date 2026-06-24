@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { Suspense } from "react";
 
 const ScrollToTop = dynamic(
   () => import("@/components/ScrollToTop").then((m) => m.ScrollToTop),
@@ -17,12 +18,20 @@ const CookieConsentBanner = dynamic(
   { ssr: false },
 );
 
+const YandexMetrika = dynamic(
+  () => import("@/components/YandexMetrika").then((m) => m.YandexMetrika),
+  { ssr: false },
+);
+
 export function LayoutClientEnhancements() {
   return (
     <>
       <ScrollToTop />
       <ViewportHeightSync />
       <CookieConsentBanner />
+      <Suspense fallback={null}>
+        <YandexMetrika />
+      </Suspense>
     </>
   );
 }
