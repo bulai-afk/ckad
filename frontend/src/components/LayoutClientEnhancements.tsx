@@ -26,12 +26,12 @@ const YandexMetrika = dynamic(
 export function LayoutClientEnhancements() {
   return (
     <>
-      <ScrollToTop />
+      <Suspense fallback={null}>
+        <ScrollToTop />
+      </Suspense>
       <ViewportHeightSync />
       <CookieConsentBanner />
-      <Suspense fallback={null}>
-        <YandexMetrika />
-      </Suspense>
+      <YandexMetrika />
     </>
   );
 }

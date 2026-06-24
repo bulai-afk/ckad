@@ -1,25 +1,25 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   initYandexMetrika,
   isYandexMetrikaConfigured,
   trackYandexMetrikaHit,
 } from "@/lib/yandexMetrika";
 
-function buildPageUrl(pathname: string, searchParams: URLSearchParams): string {
-  const query = searchParams.toString();
-  return query ? `${pathname}?${query}` : pathname;
-}
-
 function isAdminPath(pathname: string | null): boolean {
   return Boolean(pathname?.startsWith("/admin"));
 }
 
+function buildPageUrl(pathname: string): string {
+  if (typeof window === "undefined") return pathname;
+  const query = window.location.search;
+  return query ? `${pathname}${query}` : pathname;
+}
+
 export function YandexMetrika() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const skipNextHitRef = useRef(true);
 
   useEffect(() => {
@@ -31,13 +31,13 @@ export function YandexMetrika() {
   useEffect(() => {
     if (!isYandexMetrikaConfigured() || isAdminPath(pathname) || !pathname) return;
 
-    const url = buildPageUrl(pathname, searchParams);
+    const url = buildPageUrl(pathname);
     if (skipNextHitRef.current) {
       skipNextHitRef.current = false;
       return;
     }
     trackYandexMetrikaHit(url);
-  }, [pathname, searchParams]);
+  }, [pathname]);
 
   return null;
 }

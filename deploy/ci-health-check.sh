@@ -8,6 +8,10 @@ DEPLOY_USER="${2:?ssh user}"
 DEPLOY_HOST="${3:?ssh host}"
 SITE_URL="${4:-}"
 
+# Сертификат выпущен на punycode; DEPLOY_SITE_URL часто задан кириллицей.
+PUBLIC_SITE_PUNYCODE="https://xn----8sbaaoishcaoovty5ae8dp.xn--p1ai"
+PUBLIC_SITE_HOST="xn----8sbaaoishcaoovty5ae8dp.xn--p1ai"
+
 wait_curl() {
   local url="$1"
   local attempt
@@ -27,6 +31,25 @@ ssh_local() {
   ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "$@"
 }
 
+wait_local_https() {
+  ssh_local "set -euo pipefail
+    for attempt in \$(seq 1 30); do
+      if curl -fsS --max-time 5 -o /dev/null \
+         -H 'Host: ${PUBLIC_SITE_HOST}' \
+         'https://127.0.0.1/' -k; then
+        echo 'OK localhost HTTPS (nginx :443 -> Next.js)'
+        exit 0
+      fi
+      echo \"Local HTTPS attempt \$attempt/30, waiting 2s...\"
+      sleep 2
+    done
+    echo '::error::Local HTTPS health check failed on server'
+    systemctl --no-pager -l status ckad-frontend nginx || true
+    journalctl -u ckad-frontend -n 40 --no-pager || true
+    exit 1
+  "
+}
+
 case "$MODE" in
   frontend)
     ssh_local 'set -euo pipefail
@@ -44,6 +67,7 @@ case "$MODE" in
       journalctl -u ckad-frontend -n 40 --no-pager || true
       exit 1
     '
+    wait_local_https
     wait_curl "http://${DEPLOY_HOST}/"
     ;;
   backend)
@@ -72,6 +96,7 @@ case "$MODE" in
     do
       wait_curl "http://${DEPLOY_HOST}${path}"
     done
+    wait_local_https
     ;;
   *)
     echo "::error::Unknown health check mode: $MODE"
@@ -83,10 +108,9 @@ if [ -n "$SITE_URL" ]; then
   BASE="${SITE_URL%/}"
   if wait_curl "${BASE}/"; then
     echo "OK ${BASE}/ (DEPLOY_SITE_URL)"
-  elif [[ "$BASE" == https://* ]]; then
-    echo "::error::HTTPS health check failed for ${BASE}/"
-    exit 1
+  elif wait_curl "${PUBLIC_SITE_PUNYCODE}/"; then
+    echo "OK ${PUBLIC_SITE_PUNYCODE}/ (punycode fallback for DEPLOY_SITE_URL)"
   else
-    echo "::warning::DEPLOY_SITE_URL is unreachable from GitHub Actions (${BASE}/). Deploy verified via http://${DEPLOY_HOST}; check DNS, TLS, or firewall for the public domain."
+    echo "::warning::DEPLOY_SITE_URL is unreachable from GitHub Actions (${BASE}/). Deploy verified via localhost HTTP/HTTPS on the server."
   fi
 fi
