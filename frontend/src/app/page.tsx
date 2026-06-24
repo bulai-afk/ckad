@@ -160,7 +160,7 @@ export default async function Home() {
                   layout="featured"
                   equalHeight
                   syncHeightsToTallest={false}
-                  featuredPanelVariant="section-hub"
+                  featuredPanelVariant="home"
                   alwaysShowPreview
                   hyphenateDescriptions
                   ctaLabel="Подробнее"

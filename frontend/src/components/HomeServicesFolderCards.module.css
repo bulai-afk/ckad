@@ -722,7 +722,7 @@
     min-height: 100%;
     height: 100%;
     overflow: visible;
-    justify-content: flex-start;
+    justify-content: flex-end;
     gap: 0.65rem;
   }
 
@@ -733,7 +733,7 @@
   }
 
   :global(.services-home-categories-main-grid) .cardFeaturedCtaGhost {
-    margin-top: auto;
+    margin-top: 0;
     flex-shrink: 0;
   }
 }
