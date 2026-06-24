@@ -26,13 +26,27 @@ if ! command -v nginx >/dev/null 2>&1; then
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-install -m 0644 "${SCRIPT_DIR}/nginx/ckad.conf" /etc/nginx/sites-available/ckad.conf
+mkdir -p /etc/ssl/ckad
+chmod 755 /etc/ssl/ckad
+install -m 0644 "${SCRIPT_DIR}/nginx/ckad-proxy.inc" /etc/nginx/snippets/ckad-proxy.inc
+if [ -f /etc/ssl/ckad/fullchain.pem ] && [ -f /etc/ssl/ckad/privkey.pem ]; then
+  NGINX_SITE="${SCRIPT_DIR}/nginx/ckad.conf"
+  chmod 644 /etc/ssl/ckad/fullchain.pem
+  chmod 600 /etc/ssl/ckad/privkey.pem
+else
+  NGINX_SITE="${SCRIPT_DIR}/nginx/ckad-http.conf"
+fi
+install -m 0644 "${NGINX_SITE}" /etc/nginx/sites-available/ckad.conf
 ln -sf /etc/nginx/sites-available/ckad.conf /etc/nginx/sites-enabled/ckad.conf
 rm -f /etc/nginx/sites-enabled/default
 nginx -t
 systemctl enable --now nginx
 systemctl reload nginx
-echo "[bootstrap] nginx listening on :80"
+if [ -f /etc/ssl/ckad/fullchain.pem ] && [ -f /etc/ssl/ckad/privkey.pem ]; then
+  echo "[bootstrap] nginx :80 and :443 (SSL)"
+else
+  echo "[bootstrap] nginx :80 only — run deploy/nginx/install-ssl-on-server.sh after placing certs"
+fi
 
 if ! command -v mysql >/dev/null 2>&1; then
   echo "[bootstrap] installing MariaDB"

@@ -83,6 +83,9 @@ if [ -n "$SITE_URL" ]; then
   BASE="${SITE_URL%/}"
   if curl -fsS --max-time 10 -o /dev/null -w '' "${BASE}/"; then
     echo "OK ${BASE}/ (DEPLOY_SITE_URL)"
+  elif [[ "$BASE" == https://* ]]; then
+    echo "::error::HTTPS health check failed for ${BASE}/"
+    exit 1
   else
     echo "::warning::DEPLOY_SITE_URL is unreachable from GitHub Actions (${BASE}/). Deploy verified via http://${DEPLOY_HOST}; check DNS, TLS, or firewall for the public domain."
   fi
