@@ -647,15 +647,20 @@
   overflow: hidden;
 }
 
-/* Хабы /catalogization, /training-center, /other-services: текст у верхнего края панели, кнопка у нижнего */
+/* Хабы /catalogization, /training-center, /other-services: текст сверху, кнопка снизу без сжатия описания */
 .cardFeaturedBannerPanel.cardFeaturedBannerPanelHub {
-  justify-content: space-between;
+  justify-content: flex-start;
 }
 
 .cardFeaturedBannerPanel.cardFeaturedBannerPanelHub .cardFeaturedBannerPanelTop {
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 0 1 auto;
+  min-height: auto;
   justify-content: flex-start;
+}
+
+.cardFeaturedBannerPanel.cardFeaturedBannerPanelHub .cardFeaturedCtaGhost {
+  margin-top: auto;
+  flex-shrink: 0;
 }
 
 @media (min-width: 640px) {
@@ -664,12 +669,26 @@
   }
 }
 
-/* Главная «Наши услуги» и узкие экраны: высота карточки по контенту, без обрезки кнопки */
+/* Главная «Наши услуги»: правая колонка — по контенту; левая на десктопе — на всю высоту правой */
+:global(.services-home-categories-side-grid) .cardRootFeatured,
+:global(.services-home-categories-side-grid) .cardRootFeaturedStretch {
+  height: auto !important;
+  min-height: 0;
+  align-self: auto;
+}
+
+:global(.services-home-categories-side-grid) .cardFeaturedBannerPanel {
+  min-height: 0;
+  height: auto;
+  overflow: visible;
+}
+
 @media (max-width: 1023px) {
   :global(.services-home-categories-shell) .cardRootFeatured,
   :global(.services-home-categories-shell) .cardRootFeaturedStretch {
     height: auto !important;
     min-height: 0;
+    align-self: auto;
   }
 
   :global(.services-home-categories-shell) .cardFeaturedBannerPanel {
@@ -686,7 +705,35 @@
   }
 
   :global(.services-home-categories-shell) .cardFeaturedCtaGhost {
-    margin-top: 0.25rem;
+    margin-top: auto;
+    flex-shrink: 0;
+  }
+}
+
+@media (min-width: 1024px) {
+  :global(.services-home-categories-main-grid) .cardRootFeatured,
+  :global(.services-home-categories-main-grid) .cardRootFeaturedStretch {
+    height: 100% !important;
+    min-height: 100%;
+    align-self: stretch;
+  }
+
+  :global(.services-home-categories-main-grid) .cardFeaturedBannerPanel {
+    min-height: 100%;
+    height: 100%;
+    overflow: visible;
+    justify-content: flex-start;
+    gap: 0.65rem;
+  }
+
+  :global(.services-home-categories-main-grid) .cardFeaturedBannerPanelTop {
+    flex: 0 1 auto;
+    min-height: auto;
+    justify-content: flex-start;
+  }
+
+  :global(.services-home-categories-main-grid) .cardFeaturedCtaGhost {
+    margin-top: auto;
     flex-shrink: 0;
   }
 }
@@ -720,7 +767,7 @@
   }
 
   .cardFeaturedBannerPanel.cardFeaturedBannerPanelHub {
-    justify-content: space-between;
+    justify-content: flex-start;
   }
 }
 

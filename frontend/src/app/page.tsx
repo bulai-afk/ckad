@@ -172,7 +172,6 @@ export default async function Home() {
               <div className="services-home-categories-shell__side">
                 <HomeServicesFolderCards
                   layout="featured"
-                  equalHeight
                   syncHeightsToTallest={false}
                   featuredPanelVariant="section-hub"
                   alwaysShowPreview
