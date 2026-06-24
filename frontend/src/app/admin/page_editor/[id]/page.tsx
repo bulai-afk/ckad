@@ -77,6 +77,7 @@ import {
   toolbarAlignFromCommand,
   type WebElementsTextAlign,
 } from "@/lib/webElementsTextAlign";
+import { copyYmGoalAttribute, YM_GOAL_DATA_ATTR } from "@/lib/yandexMetrika";
 import { AdminSidebar } from "@/components/admin/Sidebar";
 import { AdminTopBar } from "@/components/admin/AdminTopBar";
 import {
@@ -1486,6 +1487,7 @@ function convertSingleWebCtaAnchorToSpan(anchor: HTMLAnchorElement): HTMLSpanEle
   if (anchor.hasAttribute(CTA_LINK_EDIT_ATTR)) {
     span.setAttribute(CTA_LINK_EDIT_ATTR, anchor.getAttribute(CTA_LINK_EDIT_ATTR) || "1");
   }
+  copyYmGoalAttribute(anchor, span);
   while (anchor.firstChild) span.appendChild(anchor.firstChild);
   anchor.parentNode?.replaceChild(span, anchor);
   return span;
@@ -5562,6 +5564,7 @@ export default function PageEditorDetailsPage() {
   const [coverButtonLinkModalOpen, setCoverButtonLinkModalOpen] = useState(false);
   const [coverButtonLinkModalLabelValue, setCoverButtonLinkModalLabelValue] = useState("");
   const [coverButtonLinkModalValue, setCoverButtonLinkModalValue] = useState("");
+  const [coverButtonLinkModalGoalValue, setCoverButtonLinkModalGoalValue] = useState("");
   const [ctaLinkModalDocuments, setCtaLinkModalDocuments] = useState<SiteDocumentItem[]>([]);
   const [ctaLinkModalDocumentsLoading, setCtaLinkModalDocumentsLoading] = useState(false);
   const [featureGridIconPickerOpen, setFeatureGridIconPickerOpen] = useState(false);
@@ -7242,6 +7245,7 @@ export default function PageEditorDetailsPage() {
       (target.tagName === "A" ? (target.getAttribute("href") || "").trim() : "");
     setCoverButtonLinkModalValue(currentLink === "#" ? "" : currentLink);
     setCoverButtonLinkModalLabelValue(getCoverButtonLinkLabelForModal(target));
+    setCoverButtonLinkModalGoalValue((target.getAttribute(YM_GOAL_DATA_ATTR) || "").trim());
     setCoverButtonLinkModalOpen(true);
   }
 
@@ -10254,6 +10258,7 @@ export default function PageEditorDetailsPage() {
       if (a.hasAttribute(CTA_LINK_EDIT_ATTR)) {
         span.setAttribute(CTA_LINK_EDIT_ATTR, a.getAttribute(CTA_LINK_EDIT_ATTR) || "1");
       }
+      copyYmGoalAttribute(a, span);
       while (a.firstChild) span.appendChild(a.firstChild);
       a.parentNode?.replaceChild(span, a);
       changed = true;
@@ -10270,6 +10275,7 @@ export default function PageEditorDetailsPage() {
       if (href && href !== "#" && !href.toLowerCase().startsWith("javascript:")) {
         span.setAttribute("data-href", href);
       }
+      copyYmGoalAttribute(a, span);
       let label = (a.textContent ?? "").replace(/\s+/g, " ").trim();
       label = label.replace(/→.*$/, "").trim();
       if (/^learn\s+more/i.test(label)) label = "";
@@ -10300,6 +10306,7 @@ export default function PageEditorDetailsPage() {
         const a = document.createElement("a");
         a.className = span.className;
         a.setAttribute("href", href);
+        copyYmGoalAttribute(span, a);
         while (span.firstChild) a.appendChild(span.firstChild);
         span.parentNode?.replaceChild(a, span);
       });
@@ -13115,6 +13122,9 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
       if (href) target.setAttribute("data-href", href);
       else target.removeAttribute("data-href");
     }
+    const goal = coverButtonLinkModalGoalValue.trim();
+    if (goal) target.setAttribute(YM_GOAL_DATA_ATTR, goal);
+    else target.removeAttribute(YM_GOAL_DATA_ATTR);
     applyCoverButtonLinkLabelToDom(target, coverButtonLinkModalLabelValue);
     target.removeAttribute(CTA_LINK_EDIT_ATTR);
     coverButtonLinkTargetRef.current = null;
@@ -16331,6 +16341,24 @@ function getFirstCharacterStyle(container: HTMLElement): { fontSize: string; lin
                   className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#496db3] focus:ring-1 focus:ring-[#496db3]"
                   placeholder="https://example.com, callback://open или document://0"
                 />
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="font-semibold text-slate-700">Цель Яндекс.Метрики</span>
+                <input
+                  value={coverButtonLinkModalGoalValue}
+                  onChange={(e) => setCoverButtonLinkModalGoalValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      applyCoverButtonLinkAndClose();
+                    }
+                  }}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#496db3] focus:ring-1 focus:ring-[#496db3]"
+                  placeholder="например: click_uslugi_banner"
+                />
+                <span className="text-xs text-slate-500">
+                  Идентификатор цели в Метрике при нажатии на кнопку. Оставьте пустым, если цель не нужна.
+                </span>
               </label>
               <div className="flex flex-col gap-2">
                 <button

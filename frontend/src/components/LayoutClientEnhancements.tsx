@@ -23,6 +23,11 @@ const YandexMetrika = dynamic(
   { ssr: false },
 );
 
+const CtaYandexMetrikaTracker = dynamic(
+  () => import("@/components/CtaYandexMetrikaTracker").then((m) => m.CtaYandexMetrikaTracker),
+  { ssr: false },
+);
+
 export function LayoutClientEnhancements() {
   return (
     <>
@@ -32,6 +37,7 @@ export function LayoutClientEnhancements() {
       <ViewportHeightSync />
       <CookieConsentBanner />
       <YandexMetrika />
+      <CtaYandexMetrikaTracker />
     </>
   );
 }
