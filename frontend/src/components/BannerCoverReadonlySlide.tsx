@@ -23,6 +23,7 @@ import {
   handleBannerCtaClick,
   stopCarouselPointerOnCta,
 } from "@/lib/bannerCtaNavigation";
+import { YM_GOAL_DATA_ATTR } from "@/lib/yandexMetrika";
 
 const HOME_BANNER_SCOPE = "[data-home-banner-cover]";
 
@@ -80,6 +81,9 @@ export function BannerCoverReadonlySlide({
 
   const primaryHref = (slide.buttonHref || "#").trim() || "#";
   const announcementHref = (slide.announcementLearnMoreHref || "#").trim() || "#";
+  const primaryYmGoal = (slide.buttonYmGoal || "").trim();
+  const secondaryYmGoal = (slide.learnMoreYmGoal || "").trim();
+  const announcementYmGoal = (slide.announcementLearnMoreYmGoal || "").trim();
 
   return (
     <div
@@ -142,6 +146,7 @@ export function BannerCoverReadonlySlide({
                           href={announcementHref}
                           className="page-web-elements-announcement-learn-more"
                           data-banner-cta="1"
+                          {...(announcementYmGoal ? { [YM_GOAL_DATA_ATTR]: announcementYmGoal } : {})}
                           onPointerDown={stopCarouselPointerOnCta}
                           onPointerUp={stopCarouselPointerOnCta}
                           onClick={(e) =>
@@ -202,6 +207,7 @@ export function BannerCoverReadonlySlide({
                         href={primaryHref}
                         className="page-web-elements-cta-button"
                         data-banner-cta="1"
+                        {...(primaryYmGoal ? { [YM_GOAL_DATA_ATTR]: primaryYmGoal } : {})}
                         onPointerDown={stopCarouselPointerOnCta}
                         onPointerUp={stopCarouselPointerOnCta}
                         onClick={(e) =>
@@ -222,6 +228,7 @@ export function BannerCoverReadonlySlide({
                           href={primaryHref}
                           className="page-web-elements-cta-button-secondary"
                           data-banner-cta="1"
+                          {...(secondaryYmGoal ? { [YM_GOAL_DATA_ATTR]: secondaryYmGoal } : {})}
                           onPointerDown={stopCarouselPointerOnCta}
                           onPointerUp={stopCarouselPointerOnCta}
                           onClick={(e) =>

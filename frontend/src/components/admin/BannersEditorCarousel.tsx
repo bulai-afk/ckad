@@ -31,6 +31,7 @@ import {
   parseBannerTextBand,
 } from "@/lib/bannerElementPosition";
 import { normalizeFontSizeToPercent } from "@/lib/bannerFontSize";
+import { trimYmGoalValue } from "@/lib/yandexMetrika";
 
 type Slide = {
   id: string;
@@ -47,6 +48,9 @@ type Slide = {
   announcementLearnMoreText: string;
   announcementLearnMoreHref: string;
   buttonHref: string;
+  buttonYmGoal: string;
+  learnMoreYmGoal: string;
+  announcementLearnMoreYmGoal: string;
   showTitle: boolean;
   showSubtitle: boolean;
   showButton: boolean;
@@ -100,6 +104,9 @@ function createDefaultHeroSlide(id: string): Slide {
     announcementLearnMoreText: BANNER_COVER_DEFAULT_CONTENT.announcementLearnMore,
     announcementLearnMoreHref: "#",
     buttonHref: "#",
+    buttonYmGoal: "",
+    learnMoreYmGoal: "",
+    announcementLearnMoreYmGoal: "",
     showTitle: true,
     showSubtitle: true,
     showButton: true,
@@ -203,6 +210,22 @@ function normalizeSlide(raw: Partial<Slide> & { id: string; title: string }): Sl
           ? raw.buttonHref
           : "",
     buttonHref: typeof raw.buttonHref === "string" ? raw.buttonHref : "",
+    buttonYmGoal: trimYmGoalValue(
+      typeof (raw as { buttonYmGoal?: unknown }).buttonYmGoal === "string"
+        ? (raw as { buttonYmGoal: string }).buttonYmGoal
+        : "",
+    ),
+    learnMoreYmGoal: trimYmGoalValue(
+      typeof (raw as { learnMoreYmGoal?: unknown }).learnMoreYmGoal === "string"
+        ? (raw as { learnMoreYmGoal: string }).learnMoreYmGoal
+        : "",
+    ),
+    announcementLearnMoreYmGoal: trimYmGoalValue(
+      typeof (raw as { announcementLearnMoreYmGoal?: unknown }).announcementLearnMoreYmGoal ===
+        "string"
+        ? (raw as { announcementLearnMoreYmGoal: string }).announcementLearnMoreYmGoal
+        : "",
+    ),
     showTitle:
       typeof raw.showTitle === "boolean"
         ? raw.showTitle
@@ -477,6 +500,7 @@ export function BannersEditorCarousel({
   const [linkModalOpen, setLinkModalOpen] = useState(false);
   const [linkModalValue, setLinkModalValue] = useState("");
   const [linkModalButtonText, setLinkModalButtonText] = useState("");
+  const [linkModalGoalValue, setLinkModalGoalValue] = useState("");
   const [linkModalTarget, setLinkModalTarget] = useState<BannerCoverLinkModalTarget>("primary");
   const [coverAspect, setCoverAspect] = useState<CoverAspectPresetId>(initialCoverAspect);
   const [bannersReady, setBannersReady] = useState(hasInitialSlides);
@@ -874,20 +898,24 @@ export function BannersEditorCarousel({
     if (target === "primary") {
       setLinkModalValue(normalizeLinkForModal(activeSlide.buttonHref || ""));
       setLinkModalButtonText(activeSlide.buttonText || BANNER_COVER_DEFAULT_CONTENT.button);
+      setLinkModalGoalValue(activeSlide.buttonYmGoal || "");
     } else if (target === "secondary") {
       setLinkModalValue(normalizeLinkForModal(activeSlide.buttonHref || ""));
       setLinkModalButtonText(normalizeBannerCoverButtonSecondary(activeSlide.learnMoreText));
+      setLinkModalGoalValue(activeSlide.learnMoreYmGoal || "");
     } else {
       setLinkModalValue(normalizeLinkForModal(activeSlide.announcementLearnMoreHref || ""));
       setLinkModalButtonText(
         normalizeBannerCoverAnnouncementLearnMore(activeSlide.announcementLearnMoreText),
       );
+      setLinkModalGoalValue(activeSlide.announcementLearnMoreYmGoal || "");
     }
     setLinkModalOpen(true);
   }
 
   function applyLinkModal() {
     const href = linkModalValue.trim();
+    const goal = trimYmGoalValue(linkModalGoalValue);
     setSlides((prev) =>
       prev.map((s, sIdx) => {
         if (sIdx !== activeIndex) return s;
@@ -897,6 +925,7 @@ export function BannersEditorCarousel({
             buttonHref: href,
             buttonText:
               linkModalButtonText.trim() || BANNER_COVER_DEFAULT_CONTENT.button,
+            buttonYmGoal: goal,
           };
         }
         if (linkModalTarget === "secondary") {
@@ -904,6 +933,7 @@ export function BannersEditorCarousel({
             ...s,
             buttonHref: href,
             learnMoreText: normalizeBannerCoverButtonSecondary(linkModalButtonText),
+            learnMoreYmGoal: goal,
           };
         }
         return {
@@ -912,6 +942,7 @@ export function BannersEditorCarousel({
           announcementLearnMoreText: normalizeBannerCoverAnnouncementLearnMore(
             linkModalButtonText,
           ),
+          announcementLearnMoreYmGoal: goal,
         };
       }),
     );
@@ -967,8 +998,10 @@ export function BannersEditorCarousel({
         target={linkModalTarget}
         labelValue={linkModalButtonText}
         linkValue={linkModalValue}
+        goalValue={linkModalGoalValue}
         onLabelChange={setLinkModalButtonText}
         onLinkChange={setLinkModalValue}
+        onGoalChange={setLinkModalGoalValue}
         onClose={() => setLinkModalOpen(false)}
         onApply={applyLinkModal}
       />

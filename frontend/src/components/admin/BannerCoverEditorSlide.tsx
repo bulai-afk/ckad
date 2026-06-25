@@ -89,6 +89,9 @@ export type BannerCoverEditorSlideModel = {
   learnMoreText: string;
   announcementLearnMoreText: string;
   announcementLearnMoreHref: string;
+  buttonYmGoal?: string;
+  learnMoreYmGoal?: string;
+  announcementLearnMoreYmGoal?: string;
   showTitle: boolean;
   showSubtitle: boolean;
   showButton: boolean;

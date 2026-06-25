@@ -19,8 +19,10 @@ type BannerCoverButtonLinkModalProps = {
   target: BannerCoverLinkModalTarget;
   labelValue: string;
   linkValue: string;
+  goalValue: string;
   onLabelChange: (value: string) => void;
   onLinkChange: (value: string) => void;
+  onGoalChange: (value: string) => void;
   onClose: () => void;
   onApply: () => void;
 };
@@ -36,8 +38,10 @@ export function BannerCoverButtonLinkModal({
   target,
   labelValue,
   linkValue,
+  goalValue,
   onLabelChange,
   onLinkChange,
+  onGoalChange,
   onClose,
   onApply,
 }: BannerCoverButtonLinkModalProps) {
@@ -126,6 +130,19 @@ export function BannerCoverButtonLinkModal({
               className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#496db3] focus:ring-1 focus:ring-[#496db3]"
               placeholder="https://example.com, callback://open или document://0"
             />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-semibold text-slate-700">Цель Яндекс.Метрики</span>
+            <input
+              value={goalValue}
+              onChange={(e) => onGoalChange(e.target.value)}
+              onKeyDown={handleEnter}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#496db3] focus:ring-1 focus:ring-[#496db3]"
+              placeholder="например: click_home_banner"
+            />
+            <span className="text-xs text-slate-500">
+              Идентификатор JS-цели в Метрике при нажатии на кнопку. Оставьте пустым, если цель не нужна.
+            </span>
           </label>
           <div className="flex flex-col gap-2">
             <button

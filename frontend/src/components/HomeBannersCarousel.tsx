@@ -46,6 +46,9 @@ export type BannerSlide = {
   announcementLearnMoreText?: string;
   announcementLearnMoreHref?: string;
   buttonHref?: string;
+  buttonYmGoal?: string;
+  learnMoreYmGoal?: string;
+  announcementLearnMoreYmGoal?: string;
   showTitle?: boolean;
   showSubtitle?: boolean;
   showButton?: boolean;

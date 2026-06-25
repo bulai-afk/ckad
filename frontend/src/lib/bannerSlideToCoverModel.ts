@@ -4,6 +4,7 @@ import {
   parseBannerTextBand,
   type BannerHAlign,
 } from "@/lib/bannerElementPosition";
+import { trimYmGoalValue } from "@/lib/yandexMetrika";
 
 function pickH(raw: unknown, fallback: BannerHAlign = "center"): BannerHAlign {
   return raw === "left" || raw === "right" || raw === "center" ? raw : fallback;
@@ -37,6 +38,9 @@ export function bannerSlideToCoverModel(slide: BannerSlide): BannerCoverEditorSl
         : typeof slide.buttonHref === "string"
           ? slide.buttonHref
           : "#",
+    buttonYmGoal: trimYmGoalValue(slide.buttonYmGoal),
+    learnMoreYmGoal: trimYmGoalValue(slide.learnMoreYmGoal),
+    announcementLearnMoreYmGoal: trimYmGoalValue(slide.announcementLearnMoreYmGoal),
     showTitle: slide.showTitle !== false,
     showSubtitle: Boolean(slide.showSubtitle),
     showButton: slide.showButton !== false,

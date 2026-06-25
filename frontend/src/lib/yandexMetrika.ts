@@ -96,3 +96,7 @@ export function trackCtaElementMetrikaGoal(element: Element | null | undefined):
   const goal = (element.getAttribute(YM_GOAL_DATA_ATTR) || "").trim();
   if (goal) reachYandexMetrikaGoal(goal);
 }
+
+export function trimYmGoalValue(goal: string | null | undefined): string {
+  return String(goal || "").trim();
+}
