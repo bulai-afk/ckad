@@ -12,7 +12,25 @@ export type FeedbackNotificationPayload = {
   email: string;
   message: string;
   createdAt: string;
+  sourcePage?: string;
 };
+
+function formatFeedbackCreatedAt(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  const datePart = new Intl.DateTimeFormat("ru-RU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "Europe/Moscow",
+  }).format(date);
+  const timePart = new Intl.DateTimeFormat("ru-RU", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/Moscow",
+  }).format(date);
+  return `${datePart}, ${timePart} (МСК)`;
+}
 
 async function readFeedbackRecipientEmail(): Promise<string | null> {
   const override = process.env.FEEDBACK_MAIL_TO?.trim();
@@ -32,11 +50,12 @@ function formatFeedbackMailText(payload: FeedbackNotificationPayload): string {
   const lines = [
     "Новая заявка с сайта",
     "",
-    `Дата: ${payload.createdAt}`,
+    `Дата и время: ${formatFeedbackCreatedAt(payload.createdAt)}`,
     `Имя: ${payload.firstName || "—"}`,
     `Фамилия: ${payload.lastName || "—"}`,
     `Телефон: ${payload.phone || "—"}`,
     `E-mail: ${payload.email || "—"}`,
+    `Страница: ${payload.sourcePage || "—"}`,
     "",
     "Сообщение:",
     payload.message || "—",

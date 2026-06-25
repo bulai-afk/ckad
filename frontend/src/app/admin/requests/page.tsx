@@ -14,6 +14,7 @@ type FeedbackRequestRow = {
   name?: string;
   phone?: string;
   email?: string;
+  sourcePage?: string;
   createdAt?: string;
 };
 
@@ -54,6 +55,7 @@ export default function AdminRequestsPage() {
           lastName: lastName || "—",
           phone: (r.phone || "").trim() || "—",
           email: (r.email || "").trim() || "—",
+          sourcePage: (r.sourcePage || "").trim() || "—",
         };
       }
       const full = (r.name || "").trim();
@@ -64,6 +66,7 @@ export default function AdminRequestsPage() {
         lastName: parts.slice(1).join(" ") || "—",
         phone: (r.phone || "").trim() || "—",
         email: (r.email || "").trim() || "—",
+        sourcePage: (r.sourcePage || "").trim() || "—",
       };
     });
   }, [rows]);
@@ -140,18 +143,19 @@ export default function AdminRequestsPage() {
                         <th className="px-3 py-2 font-semibold">Фамилия</th>
                         <th className="px-3 py-2 font-semibold">Телефон</th>
                         <th className="px-3 py-2 font-semibold">E-mail</th>
+                        <th className="px-3 py-2 font-semibold">Страница</th>
                       </tr>
                     </thead>
                     <tbody>
                       {loading ? (
                         <tr>
-                          <td className="px-3 py-3 text-slate-500" colSpan={5}>
+                          <td className="px-3 py-3 text-slate-500" colSpan={6}>
                             Загрузка...
                           </td>
                         </tr>
                       ) : normalized.length === 0 ? (
                         <tr>
-                          <td className="px-3 py-3 text-slate-500" colSpan={5}>
+                          <td className="px-3 py-3 text-slate-500" colSpan={6}>
                             Пока нет заявок.
                           </td>
                         </tr>
@@ -176,6 +180,9 @@ export default function AdminRequestsPage() {
                             <td className="px-3 py-2">{row.lastName}</td>
                             <td className="px-3 py-2">{row.phone}</td>
                             <td className="px-3 py-2">{row.email}</td>
+                            <td className="max-w-[14rem] truncate px-3 py-2" title={row.sourcePage}>
+                              {row.sourcePage}
+                            </td>
                           </tr>
                         ))
                       )}

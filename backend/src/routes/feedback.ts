@@ -5,6 +5,7 @@ import { backendDataPath } from "../backendPaths";
 import { sendFeedbackNotification } from "../lib/feedbackNotification";
 
 const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const sourcePageRe = /^\/[^\s]*$/;
 const FEEDBACK_REQUESTS_DATA_PATH = backendDataPath("feedbackRequests.json");
 
 export const feedbackRouter = Router();
@@ -18,6 +19,7 @@ type FeedbackRequestRecord = {
   email: string;
   name: string;
   message: string;
+  sourcePage?: string;
 };
 
 async function readFeedbackRequestsFromFile(): Promise<FeedbackRequestRecord[]> {
@@ -73,6 +75,11 @@ feedbackRouter.post("/", async (req, res) => {
   const phone = typeof body?.phone === "string" ? body.phone.trim() : "";
   const email = typeof body?.email === "string" ? body.email.trim() : "";
   const message = typeof body?.message === "string" ? body.message.trim() : "";
+  const sourcePageRaw = typeof body?.sourcePage === "string" ? body.sourcePage.trim() : "";
+  const sourcePage =
+    sourcePageRaw && sourcePageRaw.length <= 500 && sourcePageRe.test(sourcePageRaw)
+      ? sourcePageRaw
+      : "";
 
   if (!name || name.length > 200) {
     return res.status(400).json({ error: "invalid_name" });
@@ -94,7 +101,7 @@ feedbackRouter.post("/", async (req, res) => {
   }
 
   // eslint-disable-next-line no-console
-  console.log("[feedback]", new Date().toISOString(), { name, phone, email, message });
+  console.log("[feedback]", new Date().toISOString(), { name, phone, email, message, sourcePage });
 
   const parts = name.split(/\s+/).filter(Boolean);
   const firstName = parts[0] || name;
@@ -110,6 +117,7 @@ feedbackRouter.post("/", async (req, res) => {
     email,
     name,
     message,
+    ...(sourcePage ? { sourcePage } : {}),
   });
   await writeFeedbackRequestsToFile(requests);
 
@@ -121,6 +129,7 @@ feedbackRouter.post("/", async (req, res) => {
     email,
     message,
     createdAt,
+    sourcePage: sourcePage || undefined,
   });
 
   res.json({ ok: true });

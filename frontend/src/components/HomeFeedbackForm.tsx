@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { HomePartnersCarousel } from "@/components/HomePartnersCarousel";
 import { PersonalDataConsentDialogLink } from "@/components/PersonalDataConsentDialogLink";
 import { PrivacyPolicyDialogLink } from "@/components/PrivacyPolicyDialogLink";
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
+import { feedbackSourcePage } from "@/lib/feedbackSourcePage";
 
 const errorMessages: Record<string, string> = {
   invalid_name: "Укажите имя (до 200 символов).",
@@ -24,6 +26,7 @@ const inputOutlineClass =
   "block w-full rounded-md bg-white px-3.5 py-2 text-sm/[1.45] text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-[#496db3] sm:text-sm/[1.4]";
 
 export function HomeFeedbackForm() {
+  const pathname = usePathname();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -59,6 +62,7 @@ export function HomeFeedbackForm() {
           phone: phoneForApi,
           email,
           message: DEFAULT_FEEDBACK_MESSAGE,
+          sourcePage: feedbackSourcePage(pathname),
         }),
       });
       const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };

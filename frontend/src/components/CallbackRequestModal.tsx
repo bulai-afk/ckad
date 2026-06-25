@@ -8,9 +8,11 @@ import {
 } from "@headlessui/react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { useEffect, useState, type FormEvent } from "react";
+import { usePathname } from "next/navigation";
 import { PersonalDataConsentDialogLink } from "@/components/PersonalDataConsentDialogLink";
 import { PrivacyPolicyDialogLink } from "@/components/PrivacyPolicyDialogLink";
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
+import { feedbackSourcePage } from "@/lib/feedbackSourcePage";
 
 export type CallbackRequestModalProps = {
   open: boolean;
@@ -27,6 +29,7 @@ export function CallbackRequestModal({
   onClose,
   sourceMessage = "Заявка с сайта.",
 }: CallbackRequestModalProps) {
+  const pathname = usePathname();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
@@ -67,7 +70,13 @@ export function CallbackRequestModal({
       const res = await fetch(`${apiBaseUrl()}/api/feedback`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, phone, email, message: sourceMessage }),
+        body: JSON.stringify({
+          name,
+          phone,
+          email,
+          message: sourceMessage,
+          sourcePage: feedbackSourcePage(pathname),
+        }),
       });
       const data = (await res.json().catch(() => ({}))) as { ok?: boolean };
       if (!res.ok || !data.ok) {
