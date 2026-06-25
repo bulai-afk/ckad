@@ -20,6 +20,7 @@ import {
 import { getPageShowRenderCss } from "@/lib/pageShowRender";
 import { getSharedWebBlocksCss } from "@/lib/sharedWebBlocksCss";
 import {
+  bannerCtaLinkTargetProps,
   handleBannerCtaClick,
   stopCarouselPointerOnCta,
 } from "@/lib/bannerCtaNavigation";
@@ -146,6 +147,7 @@ export function BannerCoverReadonlySlide({
                           href={announcementHref}
                           className="page-web-elements-announcement-learn-more"
                           data-banner-cta="1"
+                          {...bannerCtaLinkTargetProps(announcementHref)}
                           {...(announcementYmGoal ? { [YM_GOAL_DATA_ATTR]: announcementYmGoal } : {})}
                           onPointerDown={stopCarouselPointerOnCta}
                           onPointerUp={stopCarouselPointerOnCta}
@@ -207,6 +209,7 @@ export function BannerCoverReadonlySlide({
                         href={primaryHref}
                         className="page-web-elements-cta-button"
                         data-banner-cta="1"
+                        {...bannerCtaLinkTargetProps(primaryHref)}
                         {...(primaryYmGoal ? { [YM_GOAL_DATA_ATTR]: primaryYmGoal } : {})}
                         onPointerDown={stopCarouselPointerOnCta}
                         onPointerUp={stopCarouselPointerOnCta}
@@ -228,6 +231,7 @@ export function BannerCoverReadonlySlide({
                           href={primaryHref}
                           className="page-web-elements-cta-button-secondary"
                           data-banner-cta="1"
+                          {...bannerCtaLinkTargetProps(primaryHref)}
                           {...(secondaryYmGoal ? { [YM_GOAL_DATA_ATTR]: secondaryYmGoal } : {})}
                           onPointerDown={stopCarouselPointerOnCta}
                           onPointerUp={stopCarouselPointerOnCta}

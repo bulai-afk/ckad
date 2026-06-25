@@ -145,6 +145,9 @@ type BannerSlide = {
   announcementLearnMoreText?: string;
   announcementLearnMoreHref?: string;
   buttonHref?: string;
+  buttonYmGoal?: string;
+  learnMoreYmGoal?: string;
+  announcementLearnMoreYmGoal?: string;
   showTitle?: boolean;
   showSubtitle?: boolean;
   showButton?: boolean;
@@ -758,6 +761,10 @@ function normalizeFontWeight(value: unknown, fallback: number): number {
   return clamped;
 }
 
+function sanitizeYmGoalValue(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 function sanitizeBannerSlide(item: Record<string, unknown>): BannerSlide {
   const alignRaw = item.align;
   const verticalAlignRaw = item.verticalAlign;
@@ -829,6 +836,11 @@ function sanitizeBannerSlide(item: Record<string, unknown>): BannerSlide {
             ? item.buttonHref
             : "",
     buttonHref: typeof item.buttonHref === "string" ? item.buttonHref : "",
+    buttonYmGoal: sanitizeYmGoalValue((item as { buttonYmGoal?: unknown }).buttonYmGoal),
+    learnMoreYmGoal: sanitizeYmGoalValue((item as { learnMoreYmGoal?: unknown }).learnMoreYmGoal),
+    announcementLearnMoreYmGoal: sanitizeYmGoalValue(
+      (item as { announcementLearnMoreYmGoal?: unknown }).announcementLearnMoreYmGoal,
+    ),
     showTitle: typeof item.showTitle === "boolean" ? item.showTitle : true,
     showSubtitle:
       typeof item.showSubtitle === "boolean" ? item.showSubtitle : false,

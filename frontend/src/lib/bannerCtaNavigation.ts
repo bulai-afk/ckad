@@ -5,6 +5,7 @@ import {
   parseSiteDocumentLinkIndex,
   SITE_DOCUMENT_LINK_PREFIX,
 } from "@/lib/siteDocumentLink";
+import { reachYandexMetrikaGoal, YM_GOAL_DATA_ATTR } from "@/lib/yandexMetrika";
 
 export function normalizeBannerCtaHref(href: string): string {
   const trimmed = href.trim();
@@ -23,6 +24,18 @@ export function normalizeBannerCtaHref(href: string): string {
   return `https://${trimmed}`;
 }
 
+export function isBannerCtaInPageAction(href: string): boolean {
+  const normalized = normalizeBannerCtaHref(href);
+  if (!normalized) return true;
+  if (parseSiteDocumentLinkIndex(normalized) !== null) return true;
+  if (isCallbackFormLink(normalized)) return true;
+  return false;
+}
+
+export function bannerCtaLinkTargetProps(href: string): { target: "_blank"; rel: "noopener noreferrer" } | Record<string, never> {
+  return isBannerCtaInPageAction(href) ? {} : { target: "_blank", rel: "noopener noreferrer" };
+}
+
 export function handleBannerCtaClick(
   e: MouseEvent<HTMLAnchorElement>,
   href: string,
@@ -31,6 +44,9 @@ export function handleBannerCtaClick(
     onDocumentClick?: (index: number) => void;
   },
 ): void {
+  const goal = (e.currentTarget.getAttribute(YM_GOAL_DATA_ATTR) || "").trim();
+  if (goal) reachYandexMetrikaGoal(goal);
+
   const normalized = normalizeBannerCtaHref(href);
   if (!normalized) {
     e.preventDefault();
@@ -51,7 +67,7 @@ export function handleBannerCtaClick(
   }
 
   e.preventDefault();
-  window.location.assign(normalized);
+  window.open(normalized, "_blank", "noopener,noreferrer");
 }
 
 export function stopCarouselPointerOnCta(e: PointerEvent<HTMLAnchorElement>): void {
