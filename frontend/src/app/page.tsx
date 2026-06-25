@@ -15,14 +15,14 @@ import { normalizeSlug, type ServiceFolderMeta } from "@/lib/serviceTree";
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
 import { buildStaticPageMetadata } from "@/lib/staticPageMetadata";
 
-const HOME_TITLE = "Центр каталогизации и анализа данных — Главная";
-const HOME_DESCRIPTION =
-  "Приведём номенклатуру в порядок, обучим команду и доведём согласования до результата. Оставьте заявку — перезвоним и предложим решение под вашу задачу.";
+const HOME_TITLE = "Центр каталогизации и анализа данных";
+const HOME_SERVICES_INTRO =
+  "Помогаем участникам ГОЗ выполнять требования государственных контрактов в части каталогизации, применения продукции иностранного производства, разработки электронной конструкторской документации, поиска взаимозаменяемых аналогов и другие.";
 
 export async function generateMetadata(): Promise<Metadata> {
   return buildStaticPageMetadata({
     title: HOME_TITLE,
-    description: HOME_DESCRIPTION,
+    description: HOME_SERVICES_INTRO,
     pathname: "/",
   });
 }
@@ -147,9 +147,7 @@ export default async function Home() {
             Каталогизация, обучение и сопровождение в ГОЗ
           </p>
           <p className="home-section-intro__lead text-pretty">
-            Помогаем участникам ГОЗ выполнять требования государственных контрактов в части
-            каталогизации, применения продукции иностранного производства, разработки электронной
-            конструкторской документации, поиска взаимозаменяемых аналогов и другие.
+            {HOME_SERVICES_INTRO}
           </p>
         </div>
         <div className="mx-auto max-w-7xl home-section-inline-padding">

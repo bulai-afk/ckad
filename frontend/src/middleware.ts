@@ -31,6 +31,10 @@ export function middleware(req: NextRequest) {
     return withNoIndex(NextResponse.next());
   }
 
+  if (pathname === "/services" || pathname.startsWith("/services/")) {
+    return withNoIndex(NextResponse.next());
+  }
+
   const res = NextResponse.next();
 
   /*

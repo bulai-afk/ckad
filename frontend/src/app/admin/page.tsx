@@ -21,6 +21,10 @@ import {
   type PageDisplayOrderMap,
 } from "@/lib/pageDisplayOrder";
 import { resolveRootSectionLabel } from "@/lib/rootSectionLabels";
+import {
+  PAGE_KEYWORDS_MAX,
+  truncateKeywordsField,
+} from "@/lib/keywordsField";
 import { AdminSidebar } from "@/components/admin/Sidebar";
 import { AdminTopBar } from "@/components/admin/AdminTopBar";
 import {
@@ -313,7 +317,6 @@ function isAdminSectionRootSlug(slug: string): boolean {
 
 const PAGE_TITLE_MAX = 60;
 const PAGE_DESCRIPTION_MAX = 160;
-const PAGE_KEYWORDS_MAX = 400;
 
 export default function AdminPage() {
   const router = useRouter();
@@ -613,7 +616,7 @@ export default function AdminPage() {
         title: title.trim().slice(0, PAGE_TITLE_MAX),
         slug: fullSlug,
         description: text.trim().slice(0, PAGE_DESCRIPTION_MAX),
-        keywords: keywords.trim().slice(0, PAGE_KEYWORDS_MAX),
+        keywords: truncateKeywordsField(keywords),
         seoTitle: title.trim().slice(0, PAGE_TITLE_MAX),
         seoDescription: text.trim().slice(0, PAGE_DESCRIPTION_MAX),
         preview: pagePreview.trim(),
@@ -631,7 +634,7 @@ export default function AdminPage() {
             slug: fullSlug,
             status: "DRAFT",
             description: text.trim().slice(0, PAGE_DESCRIPTION_MAX),
-            keywords: keywords.trim().slice(0, PAGE_KEYWORDS_MAX),
+            keywords: truncateKeywordsField(keywords),
             seoTitle: title.trim().slice(0, PAGE_TITLE_MAX),
             seoDescription: text.trim().slice(0, PAGE_DESCRIPTION_MAX),
             preview: pagePreview.trim(),
@@ -1047,7 +1050,7 @@ export default function AdminPage() {
                 name: editFolderName.trim() || oldN.split("/").pop() || oldN,
                 slug: oldN,
                 description: editFolderDescription.trim(),
-                keywords: editFolderKeywords.trim(),
+                keywords: truncateKeywordsField(editFolderKeywords),
                 showInNavbar: navFlag,
                 preview: webpDataUrl,
               },
@@ -1153,7 +1156,7 @@ export default function AdminPage() {
           ? false
           : Boolean(oldEntry?.showInNavbar);
         const nextPreview = editFolderPreview.trim();
-        const nextKeywords = editFolderKeywords.trim();
+        const nextKeywords = truncateKeywordsField(editFolderKeywords);
         const mapped = prev.map((f) => {
           const fs = normalizeUrlSlugPath(f.slug);
           if (fs === oldSlug) {
@@ -2214,7 +2217,7 @@ export default function AdminPage() {
                 <textarea
                   value={editFolderKeywords}
                   onChange={(e) =>
-                    setEditFolderKeywords(e.target.value.slice(0, PAGE_KEYWORDS_MAX))
+                    setEditFolderKeywords(truncateKeywordsField(e.target.value))
                   }
                   rows={2}
                   className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#496db3] focus:ring-1 focus:ring-[#496db3]"
@@ -2487,7 +2490,7 @@ export default function AdminPage() {
                 </span>
                 <textarea
                   value={keywords}
-                  onChange={(e) => setKeywords(e.target.value.slice(0, PAGE_KEYWORDS_MAX))}
+                  onChange={(e) => setKeywords(truncateKeywordsField(e.target.value))}
                   rows={2}
                   className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#496db3] focus:ring-1 focus:ring-[#496db3]"
                   placeholder="каталогизация, обучение, гоз, сертификация"

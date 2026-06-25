@@ -153,10 +153,10 @@ export function PageSlugClient({ slugParts, page, serviceFolderHub }: PageSlugCl
                 </Link>
                 <ChevronRightIcon className="h-4 w-4 text-slate-400" />
                 <Link
-                  href="/services"
+                  href="/catalogization"
                   className="rounded px-1 py-0.5 text-slate-600 hover:bg-slate-200 hover:text-slate-800"
                 >
-                  Услуги
+                  Каталогизация
                 </Link>
                 <ChevronRightIcon className="h-4 w-4 text-slate-400" />
                 <span className="rounded px-1 py-0.5 text-slate-700">{serviceFolderHub.label}</span>

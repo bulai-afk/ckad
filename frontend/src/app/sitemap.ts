@@ -1,12 +1,7 @@
 import type { MetadataRoute } from "next";
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
 import { DEFAULT_PUBLIC_SITE_ORIGIN } from "@/lib/hubFolderMetadata";
-import {
-  buildServicesTree,
-  normalizeSlug,
-  type ServiceFolderMeta,
-  type ServiceListItem,
-} from "@/lib/serviceTree";
+import { normalizeSlug, type ServiceListItem } from "@/lib/serviceTree";
 
 export const revalidate = 300;
 
@@ -27,7 +22,6 @@ const STATIC_PUBLIC_ROUTES: {
   { path: "/catalogization", priority: 0.9, changeFrequency: "weekly" },
   { path: "/contacts", priority: 0.7, changeFrequency: "monthly" },
   { path: "/other-services", priority: 0.9, changeFrequency: "weekly" },
-  { path: "/services", priority: 0.9, changeFrequency: "weekly" },
   { path: "/training-center", priority: 0.9, changeFrequency: "weekly" },
 ];
 
@@ -82,53 +76,12 @@ async function fetchPublishedPages(): Promise<SitemapPage[]> {
   }
 }
 
-async function fetchFolders(): Promise<ServiceFolderMeta[]> {
-  const base = apiBaseUrl();
-  try {
-    const res = await fetch(`${base}/api/pages/folders`, {
-      cache: "force-cache",
-      next: { revalidate: 300 },
-    });
-    if (!res.ok) return [];
-    const data = (await res.json()) as { folders?: ServiceFolderMeta[] };
-    return Array.isArray(data.folders) ? data.folders : [];
-  } catch {
-    return [];
-  }
-}
-
-/** Хабы вложенных папок раздела «Услуги» (маршрут [...slug], без отдельной CMS-страницы). */
-function collectServiceFolderHubPaths(pages: SitemapPage[], folders: ServiceFolderMeta[]): string[] {
-  const folderMetaBySlug = new Map<string, ServiceFolderMeta>();
-  for (const f of folders) {
-    const key = normalizeSlug(String(f.slug || ""));
-    if (!key || (key !== "services" && !key.startsWith("services/"))) continue;
-    folderMetaBySlug.set(key, f);
-  }
-
-  const servicePages = pages
-    .filter((p) => normalizeSlug(p.slug).startsWith("services/"))
-    .map((p) => ({ ...p, slug: normalizeSlug(p.slug) }));
-
-  const tree = buildServicesTree(servicePages, folderMetaBySlug);
-  const hubs: string[] = [];
-
-  const walk = (node: ReturnType<typeof buildServicesTree>) => {
-    if (
-      node.slugPath !== "services" &&
-      (node.isMetaFolder || node.pages.length > 0 || node.children.length > 0)
-    ) {
-      hubs.push(`/${node.slugPath}`);
-    }
-    for (const child of node.children) walk(child);
-  };
-
-  walk(tree);
-  return hubs;
+function isLegacyServicesPath(slug: string): boolean {
+  return slug === "services" || slug.startsWith("services/");
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [pages, folders] = await Promise.all([fetchPublishedPages(), fetchFolders()]);
+  const pages = await fetchPublishedPages();
   const byUrl = new Map<string, SitemapEntry>();
 
   for (const route of STATIC_PUBLIC_ROUTES) {
@@ -140,7 +93,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   for (const p of pages) {
     const slug = normalizeSlug(String(p.slug || ""));
-    if (!slug || slug.startsWith("admin")) continue;
+    if (!slug || slug.startsWith("admin") || isLegacyServicesPath(slug)) continue;
     const path = `/${slug}`;
     const lastModified = parseDate(p.updatedAt) ?? parseDate(p.createdAt);
     const isArticle = slug === "articles" || slug.startsWith("articles/");
@@ -149,12 +102,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: isArticle ? 0.7 : 0.65,
       changeFrequency: isArticle ? "weekly" : "monthly",
     }));
-  }
-
-  for (const hubPath of collectServiceFolderHubPaths(pages, folders)) {
-    if (!byUrl.has(toSitemapUrl(hubPath))) {
-      byUrl.set(toSitemapUrl(hubPath), entry(hubPath, { priority: 0.75, changeFrequency: "weekly" }));
-    }
   }
 
   return Array.from(byUrl.values());

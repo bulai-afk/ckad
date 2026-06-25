@@ -14,6 +14,7 @@
     "migrate:seed-admin-demo:dev": "ts-node-dev --transpile-only src/scripts/migrate_seed_admin_demo.ts",
     "pages:export": "ts-node-dev --transpile-only src/scripts/pages_export.ts",
     "pages:import": "ts-node-dev --transpile-only src/scripts/pages_import.ts",
+    "sync:prod": "ts-node-dev --transpile-only src/scripts/sync_from_prod.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "test": "echo \"Error: no test specified\" && exit 1"

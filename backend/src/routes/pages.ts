@@ -5,6 +5,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { backendDataPath, backendRootDir } from "../backendPaths";
+import { PAGE_KEYWORDS_MAX, sanitizeKeywordsField } from "../keywordsField";
 
 export const pagesRouter = Router();
 
@@ -37,7 +38,6 @@ type PageListForApi = {
 
 const PAGE_TITLE_MAX = 60;
 const PAGE_DESCRIPTION_MAX = 160;
-const PAGE_KEYWORDS_MAX = 400;
 const SEO_TITLE_MAX = 60;
 const SEO_DESCRIPTION_MAX = 160;
 const PAGE_PREVIEW_DB_SAFE_MAX = 60_000;
@@ -1131,7 +1131,7 @@ function parseFoldersJsonArray(parsed: unknown): StoredFolder[] {
         typeof item.description === "string" ? item.description.trim() : "",
       preview: (typeof item.preview === "string" ? item.preview : "").trim(),
       showInNavbar: Boolean(item.showInNavbar),
-      keywords: sanitizeTextField(item.keywords, PAGE_KEYWORDS_MAX),
+      keywords: sanitizeKeywordsField(item.keywords),
     }))
     .filter((f) => f.name && f.slug);
 }
@@ -1468,7 +1468,7 @@ pagesRouter.put("/folders", async (req, res) => {
           typeof item.description === "string" ? item.description.trim() : "",
         preview: (typeof item.preview === "string" ? item.preview : "").trim(),
         showInNavbar: Boolean(item.showInNavbar),
-        keywords: sanitizeTextField(item.keywords, PAGE_KEYWORDS_MAX),
+        keywords: sanitizeKeywordsField(item.keywords),
       }))
       .filter((f) => f.name && f.slug);
 
@@ -1964,7 +1964,7 @@ pagesRouter.post("/", async (req, res) => {
       ? await persistInlineImageDataUrl(previewRaw)
       : previewRaw;
     const previewDbValue = sanitizePreviewForDbColumn(previewValue);
-    const keywordsValue = sanitizeTextField(keywords, PAGE_KEYWORDS_MAX);
+    const keywordsValue = sanitizeKeywordsField(keywords);
     const seoTitleValue = sanitizeTextField(seoTitle, SEO_TITLE_MAX);
     const seoDescriptionValue = sanitizeTextField(seoDescription, SEO_DESCRIPTION_MAX);
     if (descriptionValue) {
@@ -2166,7 +2166,7 @@ pagesRouter.put("/:id", async (req, res) => {
       ? await persistInlineImageDataUrl(previewRaw)
       : previewRaw;
     const previewDbValue = sanitizePreviewForDbColumn(previewValue);
-    const keywordsValue = sanitizeTextField(keywords, PAGE_KEYWORDS_MAX);
+    const keywordsValue = sanitizeKeywordsField(keywords);
     const seoTitleValue = sanitizeTextField(seoTitle, SEO_TITLE_MAX);
     const seoDescriptionValue = sanitizeTextField(seoDescription, SEO_DESCRIPTION_MAX);
     const articleKindValue = normalizeArticleKind(articleKind);

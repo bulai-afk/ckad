@@ -1,8 +1,8 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ChevronRightIcon, HomeIcon } from "@heroicons/react/20/solid";
 import { HomeServicesFolderCards } from "@/components/HomeServicesFolderCards";
 import { apiGet } from "@/lib/api";
-import { generateHubFolderMetadata } from "@/lib/hubFolderMetadata";
 import {
   buildServicesTree,
   collectServiceCards,
@@ -16,8 +16,10 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export async function generateMetadata() {
-  return generateHubFolderMetadata("services", "Услуги");
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    robots: { index: false, follow: false },
+  };
 }
 
 async function getServices(): Promise<ServiceListItem[]> {
