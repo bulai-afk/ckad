@@ -2,6 +2,7 @@
 
 import {
   ArrowRightOnRectangleIcon,
+  ArrowDownTrayIcon,
   HomeIcon,
   Cog6ToothIcon,
   WrenchScrewdriverIcon,
@@ -20,6 +21,7 @@ export function AdminSidebar() {
     pathname?.startsWith("/admin/page_editor") ?? false;
   const isBannersActive = pathname?.startsWith("/admin/banners") ?? false;
   const isRequestsActive = pathname?.startsWith("/admin/requests") ?? false;
+  const isFileExchangeActive = pathname?.startsWith("/admin/file-exchange") ?? false;
   const isUsersActive = pathname?.startsWith("/admin/users") ?? false;
   const isSettingsActive = pathname?.startsWith("/admin/settings") ?? false;
 
@@ -99,6 +101,23 @@ export function AdminSidebar() {
                 <span>Заявки</span>
               </Link>
             </li>
+            <li>
+              <Link
+                href="/admin/file-exchange"
+                className={`flex items-center gap-3 rounded-lg px-3 py-2 font-medium ${
+                  isFileExchangeActive
+                    ? "bg-[#496db3]/10 text-[#496db3]"
+                    : "text-slate-600 hover:bg-slate-50 hover:text-[#496db3]"
+                }`}
+              >
+                <ArrowDownTrayIcon
+                  className={`h-5 w-5 ${
+                    isFileExchangeActive ? "text-[#496db3]" : "text-slate-400"
+                  }`}
+                />
+                <span>Файлообменник</span>
+              </Link>
+            </li>
           </ul>
 
           <div className="mt-auto flex flex-col gap-1">
@@ -146,7 +165,7 @@ export function AdminSidebar() {
       </aside>
 
       <nav className="fixed inset-x-0 bottom-0 z-[9999] border-t border-slate-200 bg-white/95 px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 shadow-[0_-6px_18px_rgba(15,23,42,0.08)] backdrop-blur md:hidden">
-        <ul className="grid grid-cols-8 gap-1">
+        <ul className="grid grid-cols-9 gap-1">
           <li>
             <Link
               href="/admin/dashboard"
@@ -197,6 +216,19 @@ export function AdminSidebar() {
               }`}
             >
               <InboxIcon className="h-6 w-6" />
+            </Link>
+          </li>
+          <li>
+            <Link
+              href="/admin/file-exchange"
+              aria-label="Файлообменник"
+              className={`flex h-11 w-full min-w-[56px] items-center justify-center rounded-xl transition ${
+                isFileExchangeActive
+                  ? "bg-[#496db3]/10 text-[#496db3]"
+                  : "text-slate-500 hover:bg-slate-100 hover:text-[#496db3]"
+              }`}
+            >
+              <ArrowDownTrayIcon className="h-6 w-6" />
             </Link>
           </li>
           <li>

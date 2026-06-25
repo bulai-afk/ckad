@@ -50,6 +50,21 @@ wait_local_https() {
   "
 }
 
+# С GitHub Actions http://<VPS-IP>/ часто даёт 502 (прокси/фильтр хостера), хотя
+# localhost и https://<punycode>/ работают. Публичную доступность проверяем по HTTPS-домену.
+wait_public_homepage() {
+  if [ -n "$SITE_URL" ]; then
+    local base="${SITE_URL%/}"
+    if wait_curl "${base}/"; then
+      echo "OK ${base}/ (DEPLOY_SITE_URL)"
+      return 0
+    fi
+    echo "::warning::DEPLOY_SITE_URL unreachable from CI (${base}/), trying punycode..."
+  fi
+  wait_curl "${PUBLIC_SITE_PUNYCODE}/"
+  echo "OK ${PUBLIC_SITE_PUNYCODE}/ (public HTTPS)"
+}
+
 case "$MODE" in
   frontend)
     ssh_local 'set -euo pipefail
@@ -68,7 +83,7 @@ case "$MODE" in
       exit 1
     '
     wait_local_https
-    wait_curl "http://${DEPLOY_HOST}/"
+    wait_public_homepage
     ;;
   backend)
     ssh_local 'set -euo pipefail
@@ -94,9 +109,10 @@ case "$MODE" in
       /api/pages/banners \
       /api/pages/site-settings
     do
-      wait_curl "http://${DEPLOY_HOST}${path}"
+      wait_curl "${PUBLIC_SITE_PUNYCODE}${path}"
     done
     wait_local_https
+    wait_public_homepage
     ;;
   *)
     echo "::error::Unknown health check mode: $MODE"
@@ -104,13 +120,3 @@ case "$MODE" in
     ;;
 esac
 
-if [ -n "$SITE_URL" ]; then
-  BASE="${SITE_URL%/}"
-  if wait_curl "${BASE}/"; then
-    echo "OK ${BASE}/ (DEPLOY_SITE_URL)"
-  elif wait_curl "${PUBLIC_SITE_PUNYCODE}/"; then
-    echo "OK ${PUBLIC_SITE_PUNYCODE}/ (punycode fallback for DEPLOY_SITE_URL)"
-  else
-    echo "::warning::DEPLOY_SITE_URL is unreachable from GitHub Actions (${BASE}/). Deploy verified via localhost HTTP/HTTPS on the server."
-  fi
-fi

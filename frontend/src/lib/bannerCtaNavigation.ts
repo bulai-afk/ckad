@@ -5,6 +5,29 @@ import {
   parseSiteDocumentLinkIndex,
   SITE_DOCUMENT_LINK_PREFIX,
 } from "@/lib/siteDocumentLink";
+import { YM_TRACKABLE_CTA_SELECTOR } from "@/lib/yandexMetrika";
+
+/** Ссылки CTA на публичных страницах из редактора (совпадает с селектором целей Метрики). */
+export const PUBLIC_WEB_CTA_LINK_SELECTOR = YM_TRACKABLE_CTA_SELECTOR;
+
+export function readWebCtaHref(link: HTMLAnchorElement): string {
+  return (link.getAttribute("href") || link.getAttribute("data-href") || "").trim();
+}
+
+export function applyPublicWebCtaLinkTargets(root: ParentNode): void {
+  root.querySelectorAll(PUBLIC_WEB_CTA_LINK_SELECTOR).forEach((node) => {
+    if (!(node instanceof HTMLAnchorElement)) return;
+    const href = readWebCtaHref(node);
+    const props = bannerCtaLinkTargetProps(href);
+    if (props.target) {
+      node.setAttribute("target", props.target);
+      node.setAttribute("rel", props.rel);
+    } else {
+      node.removeAttribute("target");
+      node.removeAttribute("rel");
+    }
+  });
+}
 
 export function normalizeBannerCtaHref(href: string): string {
   const trimmed = href.trim();

@@ -33,6 +33,10 @@ export default function AdminDashboardPage() {
                   заявки со всех форм на сайте и удалять выбранные записи.
                 </li>
                 <li>
+                  <span className="font-medium">Файлообменник</span> — загружать файлы и получать
+                  ссылки для скачивания.
+                </li>
+                <li>
                   <span className="font-medium">Пользователи</span> — управлять учётными записями
                   для входа в админку.
                 </li>

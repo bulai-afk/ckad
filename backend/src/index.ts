@@ -4,6 +4,7 @@ import type { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import compression from "compression";
 import { feedbackRouter } from "./routes/feedback";
+import { fileExchangeRouter } from "./routes/fileExchange";
 import { pagesRouter } from "./routes/pages";
 import { authRouter } from "./routes/auth";
 import { usersRouter } from "./routes/users";
@@ -62,6 +63,7 @@ app.get("/health", (_req: Request, res: Response) => {
 });
 
 app.use("/api/feedback", feedbackRouter);
+app.use("/api/file-exchange", fileExchangeRouter);
 app.use("/api/pages", pagesRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/users", usersRouter);

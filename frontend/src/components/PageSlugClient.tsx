@@ -7,7 +7,12 @@ import { PublicCarouselViewportSync } from "@/components/PublicCarouselViewportS
 import { HomeServicesFolderCards } from "@/components/HomeServicesFolderCards";
 import { CallbackRequestModal } from "@/components/CallbackRequestModal";
 import { SiteDocumentHtmlDialog } from "@/components/SiteDocumentHtmlDialog";
-import { isCallbackFormLink, parseSiteDocumentLinkIndex } from "@/lib/siteDocumentLink";
+import {
+  applyPublicWebCtaLinkTargets,
+  handleBannerCtaClick,
+  PUBLIC_WEB_CTA_LINK_SELECTOR,
+  readWebCtaHref,
+} from "@/lib/bannerCtaNavigation";
 import { ensureCoverBgLayers } from "@/lib/pageShowRender";
 import {
   getPublicPageClientCss,
@@ -101,6 +106,7 @@ export function PageSlugClient({ slugParts, page, serviceFolderHub }: PageSlugCl
     ensureWebAccordionFaqItemsInRoot(root);
     normalizeWebAccordionFaqForPublish(root);
     lockPublicWebBlockFields();
+    applyPublicWebCtaLinkTargets(root);
     const teardownAccordion = initWebAccordionFaqInRoot(root);
 
     const layout = () => {
@@ -207,20 +213,12 @@ export function PageSlugClient({ slugParts, page, serviceFolderHub }: PageSlugCl
             className="page-editor goz-full-width w-full service-page-content-root"
             onClick={(e) => {
               const target = e.target as HTMLElement;
-              const link = target.closest?.(
-                "a.page-web-cover-el-button, a.page-web-elements-cta-button, a.page-web-elements-cta-button-secondary",
-              ) as HTMLAnchorElement | null;
+              const link = target.closest?.(PUBLIC_WEB_CTA_LINK_SELECTOR) as HTMLAnchorElement | null;
               if (!link) return;
-              const href = (link.getAttribute("href") || link.getAttribute("data-href") || "").trim();
-              const documentIndex = parseSiteDocumentLinkIndex(href);
-              if (documentIndex !== null) {
-                e.preventDefault();
-                setDocumentDialogIndex(documentIndex);
-                return;
-              }
-              if (!isCallbackFormLink(href)) return;
-              e.preventDefault();
-              setCallbackModalOpen(true);
+              handleBannerCtaClick(e, readWebCtaHref(link), {
+                onPrimaryClick: () => setCallbackModalOpen(true),
+                onDocumentClick: (index) => setDocumentDialogIndex(index),
+              });
             }}
           >
             {page.blocks.map((block) => {
