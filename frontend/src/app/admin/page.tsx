@@ -2099,14 +2099,14 @@ export default function AdminPage() {
       )}
       {isEditFolderModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-3 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/40 p-3 backdrop-blur-sm"
           onClick={() => setIsEditFolderModalOpen(false)}
           role="dialog"
           aria-modal="true"
           aria-label="Редактировать страницу"
         >
           <div
-            className="w-full max-w-md rounded-2xl bg-white p-4 shadow-xl ring-1 ring-slate-200 relative"
+            className="relative my-3 w-full max-w-md max-h-[calc(100vh-1.5rem)] overflow-y-auto rounded-2xl bg-white p-4 shadow-xl ring-1 ring-slate-200"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start pr-10">
