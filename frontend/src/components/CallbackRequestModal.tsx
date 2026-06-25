@@ -13,6 +13,7 @@ import { PersonalDataConsentDialogLink } from "@/components/PersonalDataConsentD
 import { PrivacyPolicyDialogLink } from "@/components/PrivacyPolicyDialogLink";
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
 import { feedbackSourcePage } from "@/lib/feedbackSourcePage";
+import { YM_CALLBACK_FORM_ID } from "@/lib/yandexMetrikaAutoGoals";
 
 export type CallbackRequestModalProps = {
   open: boolean;
@@ -151,7 +152,14 @@ export function CallbackRequestModal({
               </button>
             </div>
           ) : (
-            <form className="mx-auto mt-5 w-full max-w-xl sm:mt-6" onSubmit={handleSubmit} noValidate>
+            <form
+              id={YM_CALLBACK_FORM_ID}
+              name={YM_CALLBACK_FORM_ID}
+              className="mx-auto mt-5 w-full max-w-xl sm:mt-6"
+              onSubmit={handleSubmit}
+              method="post"
+              action="#"
+            >
               <div className="grid grid-cols-1 gap-x-6 gap-y-3.5 sm:grid-cols-2">
                 <div>
                   <label htmlFor="callback-first-name" className="block text-sm/[1.3] font-semibold text-gray-900">
@@ -199,6 +207,8 @@ export function CallbackRequestModal({
                       type="tel"
                       autoComplete="tel"
                       placeholder="Телефон"
+                      inputMode="tel"
+                      minLength={6}
                       maxLength={60}
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}

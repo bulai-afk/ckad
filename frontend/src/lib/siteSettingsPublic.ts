@@ -1,4 +1,9 @@
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
+import {
+  buildMailtoHref,
+  buildTelHref,
+  normalizeSocialLinksForMetrika,
+} from "@/lib/yandexMetrikaAutoGoals";
 
 export type SiteSettings = {
   email: string;
@@ -132,16 +137,13 @@ export function resolveDirector(siteSettings: SiteSettings | null): ResolvedDire
 
 export function resolveContactFields(siteSettings: SiteSettings | null): ResolvedContactFields {
   const phone = (siteSettings?.phone || "").trim() || "+7 (495) 123-45-67";
-  const phoneHref = (() => {
-    const raw = (siteSettings?.phone || "").trim();
-    const digits = raw.replace(/[^\d+]/g, "");
-    return digits ? `tel:${digits}` : "tel:+74951234567";
-  })();
+  const phoneHref = buildTelHref(siteSettings?.phone || "");
+  const email = (siteSettings?.email || "").trim() || "info@центр-каталогизации.рф";
 
   return {
     phone,
     phoneHref,
-    email: (siteSettings?.email || "").trim() || "info@центр-каталогизации.рф",
+    email,
     address: (siteSettings?.address || "").trim() || "г. Москва, ул. Примерная, д. 15, офис 304",
     reqCompany:
       (siteSettings?.requisites?.companyName || "").trim() ||
@@ -150,6 +152,8 @@ export function resolveContactFields(siteSettings: SiteSettings | null): Resolve
     reqKpp: (siteSettings?.requisites?.kpp || "").trim() || "000000000",
     reqOgrn: (siteSettings?.requisites?.ogrn || "").trim() || "0000000000000",
     director: resolveDirector(siteSettings),
-    social: siteSettings?.social ?? { vk: "", telegram: "", max: "", whatsapp: "" },
+    social: normalizeSocialLinksForMetrika(siteSettings?.social),
   };
 }
+
+export { buildMailtoHref, buildTelHref };

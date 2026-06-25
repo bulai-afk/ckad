@@ -127,9 +127,7 @@ export function SiteDocumentHtmlDialog({
             <XMarkIcon className="h-5 w-5" />
           </button>
         </div>
-        <div
-          className={POLICY_HTML_DIALOG_BODY_CLASS}
-        >
+        <div className={POLICY_HTML_DIALOG_BODY_CLASS}>
           {(loadingProp || (loading && usesDocumentsList)) ? (
             <p className="text-sm text-slate-600">Загрузка документа…</p>
           ) : hasContent ? (

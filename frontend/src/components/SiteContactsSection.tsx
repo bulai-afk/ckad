@@ -1,4 +1,5 @@
 import type { ResolvedContactFields } from "@/lib/siteSettingsPublic";
+import { buildMailtoHref } from "@/lib/yandexMetrikaAutoGoals";
 
 const SOCIAL_DEFS = [
   {
@@ -112,7 +113,7 @@ export function SiteContactsSection({ contacts, className = "" }: SiteContactsSe
                 <p className="about-value-card__text">
                   Эл. почта:{" "}
                   <a
-                    href={`mailto:${email}`}
+                    href={buildMailtoHref(email)}
                     className="break-all font-extrabold text-[#496db3] transition-colors hover:text-red-600"
                   >
                     {email}

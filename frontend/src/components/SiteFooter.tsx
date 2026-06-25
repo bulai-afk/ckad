@@ -17,6 +17,11 @@ import {
   sortBySectionDisplayOrder,
   type PageDisplayOrderMap,
 } from "@/lib/pageDisplayOrder";
+import {
+  buildMailtoHref,
+  buildTelHref,
+  normalizeSocialLinksForMetrika,
+} from "@/lib/yandexMetrikaAutoGoals";
 
 const CATALOG_ROOT = "catalogization";
 const TRAINING_ROOT = "training-center";
@@ -286,13 +291,9 @@ export function SiteFooter({
 
   const year = new Date().getFullYear();
   const email = (siteSettings?.email || "").trim() || "info@центр-каталогизации.рф";
-  const mailtoHref = `mailto:${email}`;
+  const mailtoHref = buildMailtoHref(email);
   const phoneLabel = (siteSettings?.phone || "").trim() || "+7 (495) 123-45-67";
-  const phoneHref = (() => {
-    const raw = (siteSettings?.phone || "").trim();
-    const digits = raw.replace(/[^\d+]/g, "");
-    return digits ? `tel:${digits}` : "tel:+74951234567";
-  })();
+  const phoneHref = buildTelHref(siteSettings?.phone || "");
   const address =
     (siteSettings?.address || "").trim() || "г. Москва, набережная примерная, д. 1";
   const reqCompany =
@@ -303,7 +304,7 @@ export function SiteFooter({
   const reqOgrn = (siteSettings?.requisites?.ogrn || "").trim() || "0000000000000";
 
   const socialItems = SOCIAL_DEFS.map((d) => ({
-    href: String(siteSettings?.social?.[d.key] ?? "").trim(),
+    href: String(normalizeSocialLinksForMetrika(siteSettings?.social)[d.key] ?? "").trim(),
     label: d.label,
     svg: d.svg,
     externalSvgSrc: d.externalSvgSrc,

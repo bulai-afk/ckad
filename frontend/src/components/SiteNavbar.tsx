@@ -21,6 +21,10 @@ import {
   siteDocumentDisplayName,
   type SiteDocumentItem,
 } from "@/lib/siteDocumentLink";
+import {
+  buildMailtoHref,
+  buildTelHref,
+} from "@/lib/yandexMetrikaAutoGoals";
 
 type PageSummary = {
   title: string;
@@ -182,8 +186,8 @@ export function SiteNavbar({
     topRibbonMessagesRaw.length > 0 ? topRibbonMessagesRaw : TOP_BANNER_MESSAGES;
   const navEmail = (siteSettings?.email || "").trim() || "info@центр-каталогизации.рф";
   const navPhone = (siteSettings?.phone || "").trim();
-  const navPhoneDigits = navPhone.replace(/[^\d+]/g, "");
-  const navPhoneHref = navPhoneDigits ? `tel:${navPhoneDigits}` : null;
+  const navMailtoHref = buildMailtoHref(navEmail);
+  const navPhoneHref = navPhone ? buildTelHref(navPhone) : null;
 
   const flipSwapTimeoutRef = useRef<number | null>(null);
   const flipResetTimeoutRef = useRef<number | null>(null);
@@ -668,7 +672,7 @@ export function SiteNavbar({
                 <div className="mt-4 border-t border-gray-200 pt-4">
                   <div className="flex w-full flex-col items-center gap-2.5">
                     <a
-                      href={`mailto:${navEmail}`}
+                      href={navMailtoHref}
                       className="max-w-full break-all text-center text-base/7 font-extrabold text-[#496db3] transition-colors hover:text-red-600"
                     >
                       {navEmail}

@@ -7,6 +7,7 @@ import { PersonalDataConsentDialogLink } from "@/components/PersonalDataConsentD
 import { PrivacyPolicyDialogLink } from "@/components/PrivacyPolicyDialogLink";
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
 import { feedbackSourcePage } from "@/lib/feedbackSourcePage";
+import { YM_FEEDBACK_FORM_ID } from "@/lib/yandexMetrikaAutoGoals";
 
 const errorMessages: Record<string, string> = {
   invalid_name: "Укажите имя (до 200 символов).",
@@ -162,9 +163,12 @@ export function HomeFeedbackForm() {
               </div>
             ) : (
               <form
+                id={YM_FEEDBACK_FORM_ID}
+                name={YM_FEEDBACK_FORM_ID}
                 className="mx-auto mt-5 w-full max-w-xl sm:mt-6"
                 onSubmit={handleSubmit}
-                noValidate
+                method="post"
+                action="#"
                 aria-label="Форма обратной связи"
               >
                 <div className="grid grid-cols-1 gap-x-6 gap-y-3.5 sm:grid-cols-2">
@@ -214,6 +218,8 @@ export function HomeFeedbackForm() {
                         type="tel"
                         autoComplete="tel"
                         placeholder="Телефон"
+                        inputMode="tel"
+                        minLength={6}
                         maxLength={60}
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
