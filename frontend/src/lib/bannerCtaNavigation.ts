@@ -5,7 +5,6 @@ import {
   parseSiteDocumentLinkIndex,
   SITE_DOCUMENT_LINK_PREFIX,
 } from "@/lib/siteDocumentLink";
-import { reachYandexMetrikaGoal, YM_GOAL_DATA_ATTR } from "@/lib/yandexMetrika";
 
 export function normalizeBannerCtaHref(href: string): string {
   const trimmed = href.trim();
@@ -44,9 +43,6 @@ export function handleBannerCtaClick(
     onDocumentClick?: (index: number) => void;
   },
 ): void {
-  const goal = (e.currentTarget.getAttribute(YM_GOAL_DATA_ATTR) || "").trim();
-  if (goal) reachYandexMetrikaGoal(goal);
-
   const normalized = normalizeBannerCtaHref(href);
   if (!normalized) {
     e.preventDefault();
