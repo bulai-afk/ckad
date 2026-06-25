@@ -6,6 +6,11 @@ function isLikelyStaticPublicFile(pathname: string): boolean {
   return /\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2?|txt|xml|json|map)$/i.test(pathname);
 }
 
+function withNoIndex(res: NextResponse): NextResponse {
+  res.headers.set("X-Robots-Tag", "noindex, nofollow");
+  return res;
+}
+
 export function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
 
@@ -16,11 +21,14 @@ export function middleware(req: NextRequest) {
    */
   if (
     pathname.startsWith("/_next/") ||
-    pathname.startsWith("/api/") ||
     pathname === "/favicon.ico" ||
     isLikelyStaticPublicFile(pathname)
   ) {
     return NextResponse.next();
+  }
+
+  if (pathname === "/api" || pathname.startsWith("/api/")) {
+    return withNoIndex(NextResponse.next());
   }
 
   const res = NextResponse.next();
@@ -39,6 +47,7 @@ export function middleware(req: NextRequest) {
   }
 
   res.headers.set("Cache-Control", "no-store, must-revalidate");
+  withNoIndex(res);
 
   const isAdminLoginRoute = pathname === "/admin/login";
   const isAuthorized = req.cookies.get("admin_auth")?.value === "1";
@@ -46,7 +55,7 @@ export function middleware(req: NextRequest) {
   if (isAdminLoginRoute && isAuthorized) {
     const redirectRes = NextResponse.redirect(new URL("/admin/dashboard", req.url));
     redirectRes.headers.set("Cache-Control", "no-store, must-revalidate");
-    return redirectRes;
+    return withNoIndex(redirectRes);
   }
 
   if (!isAdminLoginRoute && !isAuthorized) {
@@ -54,7 +63,7 @@ export function middleware(req: NextRequest) {
     loginUrl.searchParams.set("next", `${pathname}${search}`);
     const redirectRes = NextResponse.redirect(loginUrl);
     redirectRes.headers.set("Cache-Control", "no-store, must-revalidate");
-    return redirectRes;
+    return withNoIndex(redirectRes);
   }
 
   return res;
@@ -62,7 +71,7 @@ export function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    /* Всё, кроме статики Next, API и корня favicon (см. также ранний return в middleware). */
-    "/((?!_next/|api/|favicon.ico).*)",
+    /* Всё, кроме статики Next и favicon (см. ранний return в middleware). */
+    "/((?!_next/|favicon.ico).*)",
   ],
 };
