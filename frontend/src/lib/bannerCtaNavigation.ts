@@ -59,7 +59,7 @@ export function bannerCtaLinkTargetProps(href: string): { target: "_blank"; rel:
 }
 
 export function handleBannerCtaClick(
-  e: MouseEvent<HTMLAnchorElement>,
+  e: MouseEvent<HTMLElement>,
   href: string,
   handlers?: {
     onPrimaryClick?: () => void;
