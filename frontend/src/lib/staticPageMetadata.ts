@@ -5,7 +5,9 @@ export async function buildStaticPageMetadata(input: {
   title: string;
   description: string;
   pathname: string;
+  keywords?: string;
 }): Promise<Metadata> {
+  const keywords = input.keywords?.trim() || undefined;
   const social = await buildSocialSharingFields({
     title: input.title,
     description: input.description,
@@ -15,6 +17,7 @@ export async function buildStaticPageMetadata(input: {
   return {
     title: input.title,
     description: input.description,
+    keywords,
     ...social,
   };
 }

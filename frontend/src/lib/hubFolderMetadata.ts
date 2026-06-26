@@ -1,7 +1,20 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
+import {
+  joinKeywordsWithinLimit,
+  mergeUniqueKeywords,
+  parseCommaSeparatedKeywords,
+} from "@/lib/keywordsField";
 import { normalizeSlug, type ServiceFolderMeta } from "@/lib/serviceTree";
+
+/** Корневые разделы сайта — keywords хабов попадают на главную. */
+export const HOME_ROOT_SECTION_SLUGS = [
+  "catalogization",
+  "training-center",
+  "other-services",
+  "articles",
+] as const;
 
 export const FOLDERS_METADATA_REVALIDATE = 300;
 
@@ -114,6 +127,18 @@ export async function fetchFolderMetaBySlug(slug: string): Promise<ServiceFolder
   if (!key) return null;
   const map = await fetchFolderMetaMap();
   return map.get(key) ?? null;
+}
+
+/** Keywords из настроек корневых разделов (для meta главной). */
+export function mergeRootSectionKeywords(
+  folderMap: Map<string, ServiceFolderMeta>,
+  slugs: readonly string[] = HOME_ROOT_SECTION_SLUGS,
+): string {
+  const lists = slugs.map((slug) => {
+    const keywords = folderMap.get(normalizeSlug(slug))?.keywords?.trim() || "";
+    return parseCommaSeparatedKeywords(keywords);
+  });
+  return joinKeywordsWithinLimit(mergeUniqueKeywords(...lists));
 }
 
 /** Название корневого раздела (Каталогизация, Услуги, …) из модалки «Настройки раздела». */

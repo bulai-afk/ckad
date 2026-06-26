@@ -1,6 +1,31 @@
 /** Лимит meta keywords: достаточно для ~15–20 фраз, без обрезки посередине запроса. */
 export const PAGE_KEYWORDS_MAX = 1000;
 
+/** Разбирает строку keywords из CMS (через запятую). */
+export function parseCommaSeparatedKeywords(value: string): string[] {
+  return value
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+/** Объединяет списки фраз без дублей (сравнение без учёта регистра). */
+export function mergeUniqueKeywords(...lists: string[][]): string[] {
+  const seen = new Set<string>();
+  const merged: string[] = [];
+  for (const list of lists) {
+    for (const raw of list) {
+      const kw = raw.trim();
+      if (!kw) continue;
+      const key = kw.toLocaleLowerCase("ru");
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(kw);
+    }
+  }
+  return merged;
+}
+
 /** Собирает строку keywords, укладывая только целые фразы в лимит. */
 export function joinKeywordsWithinLimit(keywords: string[], maxLen = PAGE_KEYWORDS_MAX): string {
   const parts: string[] = [];

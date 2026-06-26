@@ -48,17 +48,17 @@ const LEGACY_REDIRECTS: Redirect[] = [
   },
   {
     source: "/articles/katalog-kak-osnova-formirovaniya-gpv-i-gp-opk",
-    destination: "/articles/federal-nyy-katalog-osnova-planirovaniya-vooruzheniya-i-opk",
+    destination: "/articles/ka-atalog-kak-uzel-programm",
     permanent: true,
   },
   {
     source: "/articles/mezhgosudarstvennyj-katalog-ps-vs-gosudarstv-chlenov-odkb",
-    destination: "/articles/edinyy-katalog-odkb-bystree-snabzhenie-nizhe-rashody",
+    destination: "/articles/katalog-odkb",
     permanent: true,
   },
   {
     source: "/articles/katalogizaciya-kak-instrument-standartizacii-i-unifikacii",
-    destination: "/articles/tehregulirovanie-v-opk-kak-povysit-effektivnost-goz",
+    destination: "/articles/unifikatsiya",
     permanent: true,
   },
 

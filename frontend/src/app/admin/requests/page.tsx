@@ -1,4 +1,4 @@
- "use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { TrashIcon } from "@heroicons/react/24/outline";
@@ -6,6 +6,7 @@ import { AdminSidebar } from "@/components/admin/Sidebar";
 import { AdminTopBar } from "@/components/admin/AdminTopBar";
 import { apiGet } from "@/lib/api";
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
+import { normalizeSlug } from "@/lib/serviceTree";
 
 type FeedbackRequestRow = {
   id: string;
@@ -18,22 +19,41 @@ type FeedbackRequestRow = {
   createdAt?: string;
 };
 
+type PageSummary = {
+  title: string;
+  slug: string;
+};
+
+function resolvePageLabel(sourcePage: string, titleBySlug: Map<string, string>): string {
+  if (!sourcePage || sourcePage === "—") return "—";
+  const slugKey = normalizeSlug(sourcePage);
+  if (!slugKey) return "Главная";
+  const title = titleBySlug.get(slugKey);
+  return title || sourcePage;
+}
+
 export default function AdminRequestsPage() {
   const [rows, setRows] = useState<FeedbackRequestRow[]>([]);
+  const [pages, setPages] = useState<PageSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    void apiGet<{ requests?: FeedbackRequestRow[] }>("/api/feedback/requests")
-      .then((data) => {
+    void Promise.all([
+      apiGet<{ requests?: FeedbackRequestRow[] }>("/api/feedback/requests"),
+      apiGet<PageSummary[]>("/api/pages"),
+    ])
+      .then(([requestsData, pagesData]) => {
         if (cancelled) return;
-        setRows(Array.isArray(data?.requests) ? data.requests : []);
+        setRows(Array.isArray(requestsData?.requests) ? requestsData.requests : []);
+        setPages(Array.isArray(pagesData) ? pagesData : []);
       })
       .catch(() => {
         if (cancelled) return;
         setRows([]);
+        setPages([]);
       })
       .finally(() => {
         if (cancelled) return;
@@ -44,8 +64,20 @@ export default function AdminRequestsPage() {
     };
   }, []);
 
+  const titleBySlug = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const page of pages) {
+      const slug = normalizeSlug(page.slug);
+      const title = (page.title || "").trim();
+      if (slug && title) map.set(slug, title);
+    }
+    return map;
+  }, [pages]);
+
   const normalized = useMemo(() => {
     return rows.map((r) => {
+      const sourcePage = (r.sourcePage || "").trim() || "—";
+      const pageLabel = resolvePageLabel(sourcePage, titleBySlug);
       const firstName = (r.firstName || "").trim();
       const lastName = (r.lastName || "").trim();
       if (firstName || lastName) {
@@ -55,7 +87,8 @@ export default function AdminRequestsPage() {
           lastName: lastName || "—",
           phone: (r.phone || "").trim() || "—",
           email: (r.email || "").trim() || "—",
-          sourcePage: (r.sourcePage || "").trim() || "—",
+          sourcePage,
+          pageLabel,
         };
       }
       const full = (r.name || "").trim();
@@ -66,10 +99,11 @@ export default function AdminRequestsPage() {
         lastName: parts.slice(1).join(" ") || "—",
         phone: (r.phone || "").trim() || "—",
         email: (r.email || "").trim() || "—",
-        sourcePage: (r.sourcePage || "").trim() || "—",
+        sourcePage,
+        pageLabel,
       };
     });
-  }, [rows]);
+  }, [rows, titleBySlug]);
 
   const allChecked = normalized.length > 0 && normalized.every((r) => selectedIds.includes(r.id));
 
@@ -180,8 +214,11 @@ export default function AdminRequestsPage() {
                             <td className="px-3 py-2">{row.lastName}</td>
                             <td className="px-3 py-2">{row.phone}</td>
                             <td className="px-3 py-2">{row.email}</td>
-                            <td className="max-w-[14rem] truncate px-3 py-2" title={row.sourcePage}>
-                              {row.sourcePage}
+                            <td
+                              className="max-w-[14rem] truncate px-3 py-2"
+                              title={row.sourcePage !== row.pageLabel ? row.sourcePage : row.pageLabel}
+                            >
+                              {row.pageLabel}
                             </td>
                           </tr>
                         ))

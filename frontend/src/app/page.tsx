@@ -13,6 +13,7 @@ import { HomeServicesFolderCards } from "@/components/HomeServicesFolderCards";
 import { HomeArticlesCarousel } from "@/components/HomeArticlesCarousel";
 import { normalizeSlug, type ServiceFolderMeta } from "@/lib/serviceTree";
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
+import { fetchFolderMetaMap, mergeRootSectionKeywords } from "@/lib/hubFolderMetadata";
 import { buildStaticPageMetadata } from "@/lib/staticPageMetadata";
 
 const HOME_TITLE = "Центр каталогизации и анализа данных";
@@ -20,10 +21,13 @@ const HOME_SERVICES_INTRO =
   "Помогаем участникам ГОЗ выполнять требования государственных контрактов в части каталогизации, применения продукции иностранного производства, разработки электронной конструкторской документации, поиска взаимозаменяемых аналогов и другие.";
 
 export async function generateMetadata(): Promise<Metadata> {
+  const folderMap = await fetchFolderMetaMap();
+  const keywords = mergeRootSectionKeywords(folderMap);
   return buildStaticPageMetadata({
     title: HOME_TITLE,
     description: HOME_SERVICES_INTRO,
     pathname: "/",
+    keywords: keywords || undefined,
   });
 }
 
