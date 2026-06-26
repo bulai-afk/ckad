@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation";
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
 import { apiPagesSlugDataCacheTag } from "@/lib/apiPagesSlugUrl";
 import {
@@ -97,6 +98,10 @@ export default async function Page({ params }: PageProps) {
   const rawPage = await resolvePageBySlug(slugParts);
   const page = rawPage ? pageWithSsrSafeTextHtml(rawPage) : null;
   const serviceFolderHub = page ? null : await resolveServiceFolderHub(slugParts);
+
+  if (!page && !serviceFolderHub) {
+    notFound();
+  }
 
   return (
     <PageSlugClient

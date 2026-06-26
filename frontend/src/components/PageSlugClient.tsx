@@ -195,11 +195,7 @@ export function PageSlugClient({ slugParts, page, serviceFolderHub }: PageSlugCl
   }
 
   if (!page) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100 text-slate-900">
-        <p className="text-sm text-slate-500">Страница не найдена или не опубликована.</p>
-      </div>
-    );
+    return null;
   }
 
   return (
