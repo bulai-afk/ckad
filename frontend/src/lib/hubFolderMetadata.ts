@@ -2,29 +2,27 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
 import {
-  joinKeywordsWithinLimit,
   mergeUniqueKeywords,
   parseCommaSeparatedKeywords,
 } from "@/lib/keywordsField";
+import {
+  DEFAULT_OG_IMAGE_PATH,
+  DEFAULT_PUBLIC_SITE_ORIGIN,
+  HOME_ROOT_SECTION_SLUGS,
+  PUBLIC_SITE_NAME,
+  toAbsolutePublicUrl,
+} from "@/lib/publicSiteConstants";
 import { normalizeSlug, type ServiceFolderMeta } from "@/lib/serviceTree";
 
-/** Корневые разделы сайта — keywords хабов попадают на главную. */
-export const HOME_ROOT_SECTION_SLUGS = [
-  "catalogization",
-  "training-center",
-  "other-services",
-  "articles",
-] as const;
+export {
+  DEFAULT_OG_IMAGE_PATH,
+  DEFAULT_PUBLIC_SITE_ORIGIN,
+  HOME_ROOT_SECTION_SLUGS,
+  PUBLIC_SITE_NAME,
+  toAbsolutePublicUrl,
+};
 
 export const FOLDERS_METADATA_REVALIDATE = 300;
-
-/** Публичный домен по умолчанию (из политики конфиденциальности сайта). */
-export const DEFAULT_PUBLIC_SITE_ORIGIN = "https://центр-каталогизации.рф";
-
-export const PUBLIC_SITE_NAME = "Центр каталогизации и анализа данных";
-
-/** Превью по умолчанию для Telegram, WhatsApp, VK и др. (абсолютный URL собирается в рантайме). */
-export const DEFAULT_OG_IMAGE_PATH = "/logo.png";
 
 export async function buildSocialSharingFields(options: {
   title: string;
@@ -93,13 +91,6 @@ export async function getPublicSiteOrigin(): Promise<string> {
   return DEFAULT_PUBLIC_SITE_ORIGIN;
 }
 
-export function toAbsolutePublicUrl(url: string, origin: string): string {
-  if (!url) return "";
-  if (/^[a-z][a-z0-9+.-]*:/i.test(url)) return url;
-  if (!origin) return url;
-  return `${origin}${url.startsWith("/") ? url : `/${url}`}`;
-}
-
 export async function fetchFolderMetaMap(): Promise<Map<string, ServiceFolderMeta>> {
   const base = apiBaseUrl();
   try {
@@ -129,7 +120,7 @@ export async function fetchFolderMetaBySlug(slug: string): Promise<ServiceFolder
   return map.get(key) ?? null;
 }
 
-/** Keywords из настроек корневых разделов (для meta главной). */
+/** Keywords из настроек корневых разделов (для meta главной, без лимита длины). */
 export function mergeRootSectionKeywords(
   folderMap: Map<string, ServiceFolderMeta>,
   slugs: readonly string[] = HOME_ROOT_SECTION_SLUGS,
@@ -138,7 +129,7 @@ export function mergeRootSectionKeywords(
     const keywords = folderMap.get(normalizeSlug(slug))?.keywords?.trim() || "";
     return parseCommaSeparatedKeywords(keywords);
   });
-  return joinKeywordsWithinLimit(mergeUniqueKeywords(...lists));
+  return mergeUniqueKeywords(...lists).join(", ");
 }
 
 /** Название корневого раздела (Каталогизация, Услуги, …) из модалки «Настройки раздела». */

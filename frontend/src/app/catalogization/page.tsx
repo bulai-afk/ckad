@@ -1,4 +1,5 @@
 import { SectionServicesHubView } from "@/components/SectionServicesHubView";
+import { HubSectionJsonLd } from "@/components/HubSectionJsonLd";
 import { generateHubFolderMetadata } from "@/lib/hubFolderMetadata";
 import { getSectionServicesHubData } from "@/lib/sectionServicesHubData";
 
@@ -18,11 +19,14 @@ export default async function CatalogizationSectionPage() {
     treeRootLabel: "Каталогизация",
   });
   return (
-    <SectionServicesHubView
+    <>
+      <HubSectionJsonLd slug="catalogization" title={data.rootTitle} />
+      <SectionServicesHubView
       rootTitle={data.rootTitle}
       rootDescription={data.rootDescription}
       descriptionFallback={DESCRIPTION_FALLBACK}
       cards={data.cards}
     />
+    </>
   );
 }

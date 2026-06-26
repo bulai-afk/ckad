@@ -7,6 +7,7 @@ import { GlobalFeedbackForm } from "@/components/GlobalFeedbackForm";
 import { SiteNavbar } from "@/components/SiteNavbar";
 import { SiteMainColumn } from "@/components/SiteMainColumn";
 import { LayoutClientEnhancements } from "@/components/LayoutClientEnhancements";
+import { OrganizationJsonLd } from "@/components/OrganizationJsonLd";
 import { NAV_FOLDERS_COOKIE_NAME, parseNavFoldersCookie } from "@/lib/navFoldersCookie";
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
 import {
@@ -135,6 +136,7 @@ export default async function RootLayout({
         className={`${exo2.className} flex min-h-screen flex-col antialiased`}
         style={{ backgroundColor: "#f3f4f6", color: "#020617" }}
       >
+        <OrganizationJsonLd siteSettings={siteSettings} />
         <PreventHorizontalPageScroll />
         <LayoutClientEnhancements />
         <SiteNavbar

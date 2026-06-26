@@ -4,6 +4,7 @@ import {
   excerptFromArticleDescription,
   formatArticleDate,
 } from "@/components/ArticleTeaserCard";
+import { HubSectionJsonLd } from "@/components/HubSectionJsonLd";
 import { apiGet } from "@/lib/api";
 import { apiPagesSlugRequestPath } from "@/lib/apiPagesSlugUrl";
 import {
@@ -192,15 +193,17 @@ export default async function ArticlesPage({ searchParams }: ArticlesPageProps) 
   const pagedPosts = posts.slice((pageSafe - 1) * POSTS_PER_PAGE, pageSafe * POSTS_PER_PAGE);
 
   return (
-    <div className="articles-page min-h-screen bg-slate-100 text-slate-900" lang="ru">
+    <>
+      <HubSectionJsonLd slug="articles" />
+      <div className="articles-page min-h-screen bg-slate-100 text-slate-900" lang="ru">
       <section className="bg-transparent py-8 sm:py-10 about-template-fallback">
         <div className="home-section-intro">
-          <h1 className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-base font-semibold text-[#b91c1c]">
+          <p className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-base font-semibold text-[#b91c1c]">
             Новости
-          </h1>
-          <p className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-pretty sm:-mt-2">
-            Полезная информация
           </p>
+          <h1 className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-pretty sm:-mt-2">
+            Полезная информация
+          </h1>
           <p className="home-section-intro__lead">
             Полезные материалы по каталогизации и анализу данных — советы и разборы кейсов, которые помогут быстрее
             пройти согласования и избежать ошибок.
@@ -284,5 +287,6 @@ export default async function ArticlesPage({ searchParams }: ArticlesPageProps) 
           )}
       </div>
     </div>
+    </>
   );
 }

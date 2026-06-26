@@ -12,6 +12,7 @@ import {
 } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { PUBLIC_SITE_NAME } from "@/lib/publicSiteConstants";
 
 export function AdminSidebar() {
   const pathname = usePathname();
@@ -31,7 +32,7 @@ export function AdminSidebar() {
         <div className="flex h-16 w-full items-center justify-center px-6">
           <img
             src="/logo_1.svg"
-            alt="Логотип Центра каталогизации и анализа данных"
+            alt={PUBLIC_SITE_NAME}
             className="h-12 w-12 object-contain [filter:drop-shadow(0_1px_2px_rgba(0,0,0,0.08))_drop-shadow(0_2px_4px_rgba(0,0,0,0.06))]"
           />
         </div>

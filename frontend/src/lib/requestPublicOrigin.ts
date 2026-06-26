@@ -1,4 +1,4 @@
-import { DEFAULT_PUBLIC_SITE_ORIGIN } from "@/lib/hubFolderMetadata";
+import { DEFAULT_PUBLIC_SITE_ORIGIN } from "@/lib/publicSiteConstants";
 
 function isLoopbackHost(hostname: string): boolean {
   const h = hostname.toLowerCase();

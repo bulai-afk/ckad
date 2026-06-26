@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { DEFAULT_PUBLIC_SITE_ORIGIN } from "@/lib/hubFolderMetadata";
+import { DEFAULT_PUBLIC_SITE_ORIGIN } from "@/lib/publicSiteConstants";
 
 const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/+$/, "") ||

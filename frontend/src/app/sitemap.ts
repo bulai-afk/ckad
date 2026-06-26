@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
-import { DEFAULT_PUBLIC_SITE_ORIGIN } from "@/lib/hubFolderMetadata";
+import { DEFAULT_PUBLIC_SITE_ORIGIN } from "@/lib/publicSiteConstants";
 import { normalizeSlug, type ServiceListItem } from "@/lib/serviceTree";
 
 export const revalidate = 300;

@@ -25,6 +25,7 @@ import {
   buildMailtoHref,
   buildTelHref,
 } from "@/lib/yandexMetrikaAutoGoals";
+import { PUBLIC_SITE_NAME } from "@/lib/publicSiteConstants";
 
 type PageSummary = {
   title: string;
@@ -390,7 +391,7 @@ export function SiteNavbar({
               <span className="sr-only">На главную — Центр каталогизации анализа данных</span>
               <img
                 src="/logo.svg"
-                alt=""
+                alt={PUBLIC_SITE_NAME}
                 className="pointer-events-none h-7 w-auto max-w-[100%] select-none object-contain"
                 draggable={false}
               />
@@ -559,7 +560,7 @@ export function SiteNavbar({
                     style={{ WebkitTapHighlightColor: "transparent" }}
                   >
                     <span className="sr-only">На главную — Центр каталогизации анализа данных</span>
-                    <img src="/logo.svg" alt="" className="pointer-events-none h-7 w-auto select-none" draggable={false} />
+                    <img src="/logo.svg" alt={PUBLIC_SITE_NAME} className="pointer-events-none h-7 w-auto select-none" draggable={false} />
                   </Link>
                   <button type="button" command="close" commandfor="mobile-menu" className="-m-2.5 rounded-md p-2.5 text-[#496db3]">
                     <span className="sr-only">Close menu</span>

@@ -22,6 +22,7 @@ import {
   buildTelHref,
   normalizeSocialLinksForMetrika,
 } from "@/lib/yandexMetrikaAutoGoals";
+import { PUBLIC_SITE_NAME } from "@/lib/publicSiteConstants";
 
 const CATALOG_ROOT = "catalogization";
 const TRAINING_ROOT = "training-center";
@@ -169,7 +170,7 @@ function FooterBrandLink() {
       <span className="sr-only">Центр каталогизации и анализа данных — на главную</span>
       <img
         src="/logo.svg"
-        alt=""
+        alt={PUBLIC_SITE_NAME}
         className="h-7 w-auto max-w-full object-contain"
       />
     </Link>

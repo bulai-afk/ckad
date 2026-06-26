@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { CmsSlugJsonLd } from "@/components/CmsSlugJsonLd";
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
 import { apiPagesSlugDataCacheTag } from "@/lib/apiPagesSlugUrl";
 import { buildMetadataFromCmsPage, type CmsPageMetaSource } from "@/lib/cmsPageMetadata";
@@ -53,6 +54,20 @@ export async function generateMetadata({
   return {};
 }
 
-export default function SlugLayout({ children }: { children: React.ReactNode }) {
-  return children;
+export default async function SlugLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode;
+  params: Promise<{ slug?: string[] }>;
+}) {
+  const resolvedParams = await params;
+  const slugParts = Array.isArray(resolvedParams.slug) ? resolvedParams.slug.filter(Boolean) : [];
+
+  return (
+    <>
+      <CmsSlugJsonLd slugParts={slugParts} />
+      {children}
+    </>
+  );
 }

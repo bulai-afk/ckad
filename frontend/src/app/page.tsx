@@ -144,12 +144,12 @@ export default async function Home() {
       <HomeBannersCarouselGate slides={homeBanners} coverAspect={homeBannersCoverAspect} />
       <section className="bg-transparent py-6 sm:py-10 about-template-fallback">
         <div className="home-section-intro">
-          <h2 className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-base font-semibold text-[#b91c1c]">
+          <p className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-base font-semibold text-[#b91c1c]">
             Наши услуги
-          </h2>
-          <p className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-pretty sm:-mt-2">
-            Каталогизация, обучение и сопровождение в ГОЗ
           </p>
+          <h2 className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-pretty sm:-mt-2">
+            Каталогизация, обучение и сопровождение в ГОЗ
+          </h2>
           <p className="home-section-intro__lead text-pretty">
             {HOME_SERVICES_INTRO}
           </p>
@@ -191,12 +191,12 @@ export default async function Home() {
 
       <section className="bg-transparent py-8 sm:py-10 about-template-fallback">
         <div className="home-section-intro">
-          <h2 className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-base font-semibold text-[#b91c1c]">
+          <p className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-base font-semibold text-[#b91c1c]">
             О нас
-          </h2>
-          <p className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-pretty sm:-mt-2">
-            Центр каталогизации и анализа данных
           </p>
+          <h1 className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-pretty sm:-mt-2">
+            {HOME_TITLE}
+          </h1>
           <p className="home-section-intro__lead text-pretty">
             Мы команда профессионалов с многолетним опытом поддержки организаций промышленности в
             ГОЗ. Сотрудники нашей компании имеют ученые степени и обладают колоссальным опытом
