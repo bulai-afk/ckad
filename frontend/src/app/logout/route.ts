@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { adminAuthCookieSecure } from "@/lib/adminAuthCookie";
+import { requestPublicOrigin } from "@/lib/requestPublicOrigin";
 
 export async function GET(req: Request) {
-  const url = new URL(req.url);
-  const redirectTo = new URL("/admin/login", url.origin);
+  const redirectTo = new URL("/admin/login", requestPublicOrigin(req));
   const res = NextResponse.redirect(redirectTo);
   res.cookies.set("admin_auth", "", {
     httpOnly: true,

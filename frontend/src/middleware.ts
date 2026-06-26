@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { requestPublicOrigin } from "@/lib/requestPublicOrigin";
 
 function isLikelyStaticPublicFile(pathname: string): boolean {
   if (pathname === "/favicon.ico") return true;
@@ -57,13 +58,15 @@ export function middleware(req: NextRequest) {
   const isAuthorized = req.cookies.get("admin_auth")?.value === "1";
 
   if (isAdminLoginRoute && isAuthorized) {
-    const redirectRes = NextResponse.redirect(new URL("/admin/dashboard", req.url));
+    const redirectRes = NextResponse.redirect(
+      new URL("/admin/dashboard", requestPublicOrigin(req)),
+    );
     redirectRes.headers.set("Cache-Control", "no-store, must-revalidate");
     return withNoIndex(redirectRes);
   }
 
   if (!isAdminLoginRoute && !isAuthorized) {
-    const loginUrl = new URL("/admin/login", req.url);
+    const loginUrl = new URL("/admin/login", requestPublicOrigin(req));
     loginUrl.searchParams.set("next", `${pathname}${search}`);
     const redirectRes = NextResponse.redirect(loginUrl);
     redirectRes.headers.set("Cache-Control", "no-store, must-revalidate");
