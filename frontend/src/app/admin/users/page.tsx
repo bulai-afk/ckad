@@ -62,6 +62,9 @@ function parseApiError(bodyText: string, fallback: string): string {
     if (code === "cannot_delete_last_user") return "Нельзя удалить единственного пользователя.";
     if (code === "cannot_delete_last_admin") return "Нельзя удалить последнего администратора.";
     if (code === "user_has_pages") return "У пользователя есть страницы — сначала переназначьте автора.";
+    if (code === "failed_to_create_user") return "Не удалось создать пользователя на сервере.";
+    if (code === "failed_to_update_user") return "Не удалось обновить пользователя на сервере.";
+    if (code === "failed_to_load_users") return "Не удалось загрузить список пользователей.";
     if (code) return code;
   } catch {
     /* fallback */
@@ -84,17 +87,22 @@ export default function AdminUsersPage() {
     "mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#496db3] focus:ring-2 focus:ring-[#496db3]/20";
   const labelClass = "text-xs font-semibold text-slate-700";
 
-  const loadUsers = useCallback(async () => {
-    setLoading(true);
+  const loadUsers = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent ?? false;
+    if (!silent) setLoading(true);
     try {
       const data = await apiGet<{ users?: UserRow[] }>("/api/users");
       setUsers(Array.isArray(data?.users) ? data.users : []);
+      return true;
     } catch {
-      setUsers([]);
-      setTone("error");
-      setMsg("Не удалось загрузить список пользователей.");
+      if (!silent) {
+        setUsers([]);
+        setTone("error");
+        setMsg("Не удалось загрузить список пользователей.");
+      }
+      return false;
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
@@ -148,6 +156,18 @@ export default function AdminUsersPage() {
       return;
     }
 
+    if (!editingUser && password.length < 4) {
+      setTone("error");
+      setMsg("Пароль должен быть не короче 4 символов.");
+      return;
+    }
+
+    if (editingUser && password && password.length < 4) {
+      setTone("error");
+      setMsg("Пароль должен быть не короче 4 символов.");
+      return;
+    }
+
     setSaving(true);
     setMsg(null);
 
@@ -175,20 +195,34 @@ export default function AdminUsersPage() {
         return;
       }
 
-      const data = text ? (JSON.parse(text) as { user?: UserRow }) : {};
-      if (data.user) {
+      let savedUser: UserRow | null = null;
+      if (text) {
+        try {
+          const data = JSON.parse(text) as { user?: UserRow };
+          savedUser = data.user ?? null;
+        } catch {
+          savedUser = null;
+        }
+      }
+
+      if (savedUser) {
         setUsers((prev) => {
           if (editingUser) {
-            return prev.map((u) => (u.id === data.user!.id ? data.user! : u));
+            return prev.map((u) => (u.id === savedUser!.id ? savedUser! : u));
           }
-          return [...prev, data.user!].sort((a, b) => a.id - b.id);
+          return [...prev, savedUser!].sort((a, b) => a.id - b.id);
         });
-      } else {
-        await loadUsers();
+      }
+
+      const listSynced = await loadUsers({ silent: true });
+      if (!savedUser && !listSynced) {
+        setTone("error");
+        setMsg("Пользователь мог быть создан, но список не обновился. Обновите страницу.");
+        return;
       }
 
       setTone("success");
-      setMsg(editingUser ? "Пользователь обновлён." : "Пользователь создан.");
+      setMsg(editingUser ? "Пользователь обновлён." : "Пользователь добавлен.");
       setModalOpen(false);
       setEditingUser(null);
       setForm(emptyForm);
@@ -418,6 +452,7 @@ export default function AdminUsersPage() {
                   className={inputClass}
                   autoComplete={editingUser ? "new-password" : "new-password"}
                   required={!editingUser}
+                  minLength={editingUser ? undefined : 4}
                 />
               </label>
 
@@ -435,7 +470,7 @@ export default function AdminUsersPage() {
                   disabled={saving}
                   className="rounded-xl bg-[#496db3] px-4 py-2 text-sm font-medium text-white transition hover:brightness-105 disabled:opacity-50"
                 >
-                  {saving ? "Сохранение..." : editingUser ? "Сохранить" : "Создать"}
+                  {saving ? "Сохранение..." : editingUser ? "Сохранить" : "Добавить"}
                 </button>
               </div>
             </form>
