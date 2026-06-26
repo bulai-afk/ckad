@@ -48,6 +48,14 @@ export default function AdminLoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-100 px-4 py-8">
       <div className="w-[min(360px,92vw)] rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="mb-4 flex justify-center">
+          <img
+            src="/logo.svg"
+            alt="Центр каталогизации и анализа данных"
+            className="h-7 w-auto max-w-full select-none object-contain"
+            draggable={false}
+          />
+        </div>
         <h1 className="text-center text-xl font-semibold text-slate-900">
           Вход в админку
         </h1>
