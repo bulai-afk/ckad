@@ -148,7 +148,7 @@ export default async function Home() {
             Наши услуги
           </p>
           <h2 className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-pretty sm:-mt-2">
-            Каталогизация, обучение и сопровождение в сфереГОЗ
+            Каталогизация, обучение и сопровождение в сфере ГОЗ
           </h2>
           <p className="home-section-intro__lead text-pretty">
             {HOME_SERVICES_INTRO}
