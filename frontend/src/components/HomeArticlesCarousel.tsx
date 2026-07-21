@@ -58,11 +58,27 @@ export type HomeArticleSlide = {
   articleKind?: "news" | "article";
 };
 
+const DEFAULT_SECTION_LABEL = "Новости";
+const DEFAULT_SECTION_TITLE = "Полезная информация";
+const DEFAULT_SECTION_DESCRIPTION =
+  "Полезные материалы по каталогизации продукции помогут понять важность и системность работ в рамках федеральной системы каталогизации.";
+
 type Props = {
   slides: HomeArticleSlide[];
+  /** Название раздела из шестерёнки «Новости» (`folders.name`). */
+  sectionLabel?: string | null;
+  /** Описание раздела из шестерёнки «Новости» (`folders.description`). */
+  sectionDescription?: string | null;
 };
 
-export function HomeArticlesCarousel({ slides }: Props) {
+export function HomeArticlesCarousel({
+  slides,
+  sectionLabel,
+  sectionDescription,
+}: Props) {
+  const introLabel = sectionLabel?.trim() || DEFAULT_SECTION_LABEL;
+  const introDescription =
+    sectionDescription?.trim() || DEFAULT_SECTION_DESCRIPTION;
   const [fetchedSlides, setFetchedSlides] = useState<HomeArticleSlide[]>([]);
 
   useEffect(() => {
@@ -150,14 +166,12 @@ export function HomeArticlesCarousel({ slides }: Props) {
     <section className="bg-transparent py-8 sm:py-10 about-template-fallback">
       <div className="home-section-intro">
         <h2 className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-base font-semibold text-[#b91c1c]">
-          Новости и статьи
+          {introLabel}
         </h2>
         <p className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-pretty sm:-mt-2">
-          Полезная информация
+          {DEFAULT_SECTION_TITLE}
         </p>
-        <p className="home-section-intro__lead text-pretty">
-          Полезные материалы по каталогизации продукциии помогут вам понять важность и системность работ в рамках федеральной системы каталогизации.
-        </p>
+        <p className="home-section-intro__lead text-pretty">{introDescription}</p>
       </div>
 
       <div className="mx-auto max-w-7xl home-section-inline-padding">

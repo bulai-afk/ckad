@@ -138,6 +138,9 @@ export default async function Home() {
     homeServiceCategoryCard(folderMetaBySlug, "training-center", "Учебный центр"),
     homeServiceCategoryCard(folderMetaBySlug, "other-services", "Прочие услуги"),
   ];
+  const articlesFolder = folderMetaBySlug.get("articles");
+  const articlesSectionLabel = articlesFolder?.name?.trim() || "Новости";
+  const articlesSectionDescription = articlesFolder?.description?.trim() || undefined;
 
   return (
     <div className="home-page min-h-screen bg-slate-100 text-slate-900" lang="ru">
@@ -236,7 +239,11 @@ export default async function Home() {
 
       <HomeReviewsCarousel slides={[]} />
 
-      <HomeArticlesCarousel slides={[]} />
+      <HomeArticlesCarousel
+        slides={[]}
+        sectionLabel={articlesSectionLabel}
+        sectionDescription={articlesSectionDescription}
+      />
 
     </div>
   );

@@ -11,10 +11,14 @@ import {
   normalizePageDisplayOrderMap,
   sortBySectionDisplayOrder,
 } from "@/lib/pageDisplayOrder";
-import { generateHubFolderMetadata } from "@/lib/hubFolderMetadata";
+import { fetchFolderMetaBySlug, generateHubFolderMetadata } from "@/lib/hubFolderMetadata";
 import { sanitizePublicAssetUrl } from "@/lib/publicAssetUrl";
 
 export const dynamic = "force-dynamic";
+
+const ARTICLES_TITLE_FALLBACK = "Полезная информация";
+const ARTICLES_DESCRIPTION_FALLBACK =
+  "Полезные материалы по каталогизации продукции помогут понять важность и системность работ в рамках федеральной системы каталогизации.";
 
 export async function generateMetadata() {
   return generateHubFolderMetadata("articles", "Новости");
@@ -178,8 +182,14 @@ type ArticlesPageProps = {
 };
 
 export default async function ArticlesPage({ searchParams }: ArticlesPageProps) {
-  const posts = await getArticles();
+  const [posts, articlesFolder] = await Promise.all([
+    getArticles(),
+    fetchFolderMetaBySlug("articles"),
+  ]);
   const POSTS_PER_PAGE = 12;
+  const sectionLabel = articlesFolder?.name?.trim() || "Новости";
+  const sectionDescription =
+    articlesFolder?.description?.trim() || ARTICLES_DESCRIPTION_FALLBACK;
 
   const resolvedSearchParams = (await searchParams) ?? {};
   const pageRaw = Array.isArray(resolvedSearchParams.page)
@@ -199,14 +209,12 @@ export default async function ArticlesPage({ searchParams }: ArticlesPageProps) 
       <section className="bg-transparent py-8 sm:py-10 about-template-fallback">
         <div className="home-section-intro">
           <p className="about-template-fallback__eyebrow about-template-fallback__eyebrow--tight mb-0 text-base font-semibold text-[#b91c1c]">
-            Новости
+            {sectionLabel}
           </p>
           <h1 className="about-template-fallback__title -mt-1.5 mt-0 text-balance text-pretty sm:-mt-2">
-            Полезная информация
+            {ARTICLES_TITLE_FALLBACK}
           </h1>
-          <p className="home-section-intro__lead">
-            Полезные материалы по каталогизации продукциии помогут вам понять важность и системность работ в рамках федеральной системы каталогизации.
-          </p>
+          <p className="home-section-intro__lead text-pretty">{sectionDescription}</p>
         </div>
       </section>
 
