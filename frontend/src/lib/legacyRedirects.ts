@@ -1,6 +1,10 @@
 import type { Redirect } from "next/dist/lib/load-custom-routes";
 
 const CATALOGIZATION = "/catalogization";
+const GOZ_POD_KLYUCH = "/catalogization/katalogizatsiya-produktsii-po-goz-pod-klyuch";
+const RAZRABOTKA_PO = "/other-services/razrabotka-po-dlya-obrascheniya-svedeniy-o-produktsii";
+const EKD_CANONICAL =
+  "/other-services/other-services-organizatsiya-razrabotki-i-utverzhdeniya-ekd-pod-klyuch";
 
 /**
  * 301 с путей старого сайта (индекс Яндекс.Вебмастера, июнь 2026).
@@ -13,13 +17,19 @@ const LEGACY_REDIRECTS: Redirect[] = [
   { source: "/uslugi", destination: CATALOGIZATION, permanent: true },
 
   {
-    source: "/uslugi/organizaciya-obucheniya-v-oblasti-katalogizacii-produkcii-i-po-drugim-napravleniyam-v-sfere-goz",
-    destination: "/training-center",
+    source:
+      "/uslugi/organizaciya-obucheniya-v-oblasti-katalogizacii-produkcii-i-po-drugim-napravleniyam-v-sfere-goz",
+    destination: "/training-center/seminary-po-katalogizatsii",
     permanent: true,
   },
   {
     source: "/uslugi/katalogizaciya-predmetov-snabzheniya",
-    destination: CATALOGIZATION,
+    destination: GOZ_POD_KLYUCH,
+    permanent: true,
+  },
+  {
+    source: "/uslugi/katalogizaciya-predmetov-snabzheniya/:path*",
+    destination: GOZ_POD_KLYUCH,
     permanent: true,
   },
   {
@@ -31,13 +41,13 @@ const LEGACY_REDIRECTS: Redirect[] = [
   {
     source:
       "/uslugi/nauchno-issledovatelskaya-deyatelnost-v-oblasti-katalogizacii-produkcii-mnogokriterialnogo-sopostavitelnogo-analiza-i-podderzhki-prinyatiya-reshenij",
-    destination: CATALOGIZATION,
+    destination: RAZRABOTKA_PO,
     permanent: true,
   },
   {
     source:
       "/uslugi/provedenie-rabot-po-sistematizacii-i-avtomatizacii-informacii-dlya-golovnyh-ispolnitelej-gosudarstvennogo-oboronnogo-zakaza",
-    destination: CATALOGIZATION,
+    destination: RAZRABOTKA_PO,
     permanent: true,
   },
 
@@ -64,63 +74,34 @@ const LEGACY_REDIRECTS: Redirect[] = [
 
   {
     source:
-      "/uslugi/katalogizaciya-predmetov-snabzheniya/razrabotka-specialnyh-formatov-dlya-razmeshheniya-svedenij-o-produkcii-v-fkp",
-    destination: CATALOGIZATION,
-    permanent: true,
-  },
-  {
-    source:
-      "/uslugi/katalogizaciya-predmetov-snabzheniya/razrabotka-proekta-nomenklaturnogo-perechnya-predmetov-snabzheniya",
-    destination: CATALOGIZATION,
-    permanent: true,
-  },
-  {
-    source:
-      "/uslugi/katalogizaciya-predmetov-snabzheniya/razrabotka-razdelov-po-katalogizacii-v-nauchno-tehnicheskij-otchet-po-okr-sch-okr",
-    destination: CATALOGIZATION,
-    permanent: true,
-  },
-  {
-    source:
-      "/uslugi/katalogizaciya-predmetov-snabzheniya/razrabotka-proektov-katalozhnyh-opisanij-podlezhashhih-vklyucheniyu-v-fkp",
-    destination: CATALOGIZATION,
-    permanent: true,
-  },
-  {
-    source:
-      "/uslugi/katalogizaciya-predmetov-snabzheniya/konsultacii-i-soprovozhdenie-pri-registracii-predpriyatij-razrabotchikov-postavshhikov-v-fskp",
-    destination: CATALOGIZATION,
-    permanent: true,
-  },
-  {
-    source:
-      "/uslugi/katalogizaciya-predmetov-snabzheniya/soprovozhdenie-pri-registracii-produkcii-v-fkp-i-vydachi-sootvetstvuyushhego-uvedomleniya",
-    destination: CATALOGIZATION,
-    permanent: true,
-  },
-  {
-    source:
       "/uslugi/organizaciya-razrabotki-soglasovaniya-i-utverzhdeniya-dokumentacii-po-primeneniyu-produkcii-inostrannogo-proizvodstva",
-    destination: CATALOGIZATION,
+    destination: "/other-services/dokumenty-dlya-primeneniya-inostrannoy-produktsii-v-vvst",
     permanent: true,
   },
   {
     source:
       "/uslugi/organizaciya-razrabotki-soglasovaniya-i-utverzhdeniya-elektronnoj-konstruktorskoj-dokumentacii-po-zayavlennym-gruppam-odnorodnoj-produkcii",
-    destination: "/other-services/organizatsiya-razrabotki-i-utverzhdeniya-ekd-pod-klyuch",
+    destination: EKD_CANONICAL,
+    permanent: true,
+  },
+
+  /** Дубль ЭКД на новом сайте → канонический slug. */
+  {
+    source: "/other-services/organizatsiya-razrabotki-i-utverzhdeniya-ekd-pod-klyuch",
+    destination: EKD_CANONICAL,
     permanent: true,
   },
 
   {
     source:
       "/uslugi/provedenie-rabot-po-sistematizacii-i-avtomatizacii-informacii-dlya-golovnyh-ispolnitelej-gosudarstvennogo-oboronnogo-zakaza/provedenie-sopostavitelnogo-analiza-predmetov-snabzheniya",
-    destination: CATALOGIZATION,
+    destination: "/other-services/poisk-analogov-komplektuyuschih",
     permanent: true,
   },
   {
     source:
       "/uslugi/provedenie-rabot-po-sistematizacii-i-avtomatizacii-informacii-dlya-golovnyh-ispolnitelej-gosudarstvennogo-oboronnogo-zakaza/razrabotka-programmno-apparatnyh-kompleksov-po-katalogizacii-produkcii",
-    destination: CATALOGIZATION,
+    destination: RAZRABOTKA_PO,
     permanent: true,
   },
 
@@ -169,20 +150,8 @@ const LEGACY_REDIRECTS: Redirect[] = [
   },
   {
     source:
-      "/uslugi/nauchno-issledovatelskaya-deyatelnost-v-oblasti-katalogizacii-produkcii-mnogokriterialnogo-sopostavitelnogo-analiza-i-podderzhki-prinyatiya-reshenij/razrabotka-logicheskoj-struktury-bazy-dannyh-obespechivayushhej-katalogizaciyu-produkcii",
-    destination: CATALOGIZATION,
-    permanent: true,
-  },
-  {
-    source:
-      "/uslugi/nauchno-issledovatelskaya-deyatelnost-v-oblasti-katalogizacii-produkcii-mnogokriterialnogo-sopostavitelnogo-analiza-i-podderzhki-prinyatiya-reshenij/razrabotka-tehnicheskogo-zadaniya-na-programmirovanie-zadach-katalogizacii",
-    destination: CATALOGIZATION,
-    permanent: true,
-  },
-  {
-    source:
-      "/uslugi/nauchno-issledovatelskaya-deyatelnost-v-oblasti-katalogizacii-produkcii-mnogokriterialnogo-sopostavitelnogo-analiza-i-podderzhki-prinyatiya-reshenij/formirovanie-i-vedenie-reestra-produkcii-vklyuchaya-sistematizaciyu-i-klassifikaciyu-svedenij-o-nej",
-    destination: CATALOGIZATION,
+      "/uslugi/nauchno-issledovatelskaya-deyatelnost-v-oblasti-katalogizacii-produkcii-mnogokriterialnogo-sopostavitelnogo-analiza-i-podderzhki-prinyatiya-reshenij/:path*",
+    destination: RAZRABOTKA_PO,
     permanent: true,
   },
 
