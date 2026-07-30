@@ -138,7 +138,6 @@ export default async function RootLayout({
       >
         <OrganizationJsonLd siteSettings={siteSettings} />
         <PreventHorizontalPageScroll />
-        <div dangerouslySetInnerHTML={{ __html: "<!-- Логин в Метрике -->" }} />
         <LayoutClientEnhancements />
         <SiteNavbar
           initialFolderNavItems={initialFolderNavItems}
