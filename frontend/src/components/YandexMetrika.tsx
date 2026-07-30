@@ -39,5 +39,5 @@ export function YandexMetrika() {
     trackYandexMetrikaHit(url);
   }, [pathname]);
 
-  return null;
+  return null; // <!-- Логин в Метрике -->
 }
