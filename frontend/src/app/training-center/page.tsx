@@ -26,6 +26,7 @@ export default async function TrainingCenterSectionPage() {
       rootDescription={data.rootDescription}
       descriptionFallback={DESCRIPTION_FALLBACK}
       cards={data.cards}
+      hyphenateDescriptions
     />
     </>
   );

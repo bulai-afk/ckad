@@ -26,6 +26,7 @@ export default async function CatalogizationSectionPage() {
       rootDescription={data.rootDescription}
       descriptionFallback={DESCRIPTION_FALLBACK}
       cards={data.cards}
+      hyphenateDescriptions
     />
     </>
   );
