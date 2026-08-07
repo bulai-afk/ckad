@@ -582,6 +582,27 @@
   object-position: center;
 }
 
+/* Слот лого над текстом — по умолчанию скрыт; на главной «Наши услуги» центрируется между верхом и заголовком */
+.cardFeaturedHoverLogoSlot {
+  display: none;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  width: 100%;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.cardFeaturedHoverLogoImg {
+  display: block;
+  width: min(58%, 11rem);
+  height: min(58%, 11rem);
+  object-fit: contain;
+  object-position: center;
+}
+
 .cardRootFeatured:hover .cardFeaturedBannerImg,
 .cardRootFeatured:focus-visible .cardFeaturedBannerImg {
   opacity: 0;
@@ -666,6 +687,210 @@
 @media (min-width: 640px) {
   .cardFeaturedBannerPanel {
     padding: 1.15rem 1.25rem 1.2rem;
+  }
+}
+
+/* Главная «Наши услуги»: три карточки в ряд — одинаковая высота */
+:global(.services-home-categories-row) .cardRootFeatured,
+:global(.services-home-categories-row) .cardRootFeaturedStretch {
+  display: flex;
+  flex-direction: column;
+  height: 100% !important;
+  min-height: 18.5rem;
+  align-self: stretch;
+}
+
+:global(.services-home-categories-row) .cardFeaturedBannerPanel,
+:global(.services-home-categories-row) .cardFeaturedBannerPanel.cardFeaturedBannerPanelHub {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+  overflow: visible;
+  justify-content: flex-start;
+  gap: 0.75rem;
+  padding: 1.25rem 1.2rem 1.2rem;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  transition: background 0.28s ease;
+}
+
+:global(.services-home-categories-row) .cardRootFeatured:hover .cardFeaturedBannerPanel,
+:global(.services-home-categories-row) .cardRootFeatured:focus-visible .cardFeaturedBannerPanel,
+:global(.services-home-categories-row) .cardRootFeatured:hover .cardFeaturedBannerPanel.cardFeaturedBannerPanelHub,
+:global(.services-home-categories-row) .cardRootFeatured:focus-visible .cardFeaturedBannerPanel.cardFeaturedBannerPanelHub {
+  background: #fff;
+}
+
+/* Лого при наведении — по центру между верхней границей и заголовком */
+:global(.services-home-categories-row) .cardFeaturedHoverLogoSlot {
+  display: flex;
+}
+
+:global(.services-home-categories-row) .cardRootFeatured:hover .cardFeaturedHoverLogoSlot,
+:global(.services-home-categories-row) .cardRootFeatured:focus-visible .cardFeaturedHoverLogoSlot,
+:global(.services-home-categories-row) .cardFeaturedHoverLogoSlot[data-logo-always] {
+  opacity: 1;
+}
+
+:global(.services-home-categories-row) .cardFeaturedHoverLogoImg {
+  width: min(68%, 14rem);
+  height: min(68%, 14rem);
+  opacity: 1;
+  filter: none;
+}
+
+:global(.services-home-categories-row) .cardFeaturedHoverFallback {
+  opacity: 0 !important;
+  visibility: hidden;
+}
+
+/* Без фото: не дублировать лого в медиа-слое — только слот над заголовком */
+:global(.services-home-categories-row) .cardFeaturedBannerMediaFallback {
+  opacity: 0 !important;
+  visibility: hidden;
+}
+
+:global(.services-home-categories-row) .cardRootFeatured:hover .cardFeaturedBannerMediaFallback,
+:global(.services-home-categories-row) .cardRootFeatured:focus-visible .cardFeaturedBannerMediaFallback {
+  opacity: 0 !important;
+  visibility: hidden;
+}
+
+:global(.services-home-categories-row) .cardFeaturedBannerPanelTop,
+:global(.services-home-categories-row) .cardFeaturedBannerPanel.cardFeaturedBannerPanelHub .cardFeaturedBannerPanelTop {
+  position: relative;
+  z-index: 0;
+  flex: 0 1 auto;
+  min-height: 0;
+  margin-top: auto;
+  justify-content: flex-end;
+  isolation: isolate;
+}
+
+:global(.services-home-categories-row) .cardFeaturedHoverLogoSlot + .cardFeaturedBannerPanelTop {
+  margin-top: 0;
+}
+
+/* Синий градиент только за текстом: почти сплошной внизу, мягче и бледнее кверху */
+:global(.services-home-categories-row) .cardFeaturedBannerPanelTop::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: -1.2rem;
+  right: -1.2rem;
+  bottom: -1.2rem;
+  top: -2.75rem;
+  pointer-events: none;
+  background: linear-gradient(
+    to top,
+    rgb(73 109 179 / 0.98) 0%,
+    rgb(73 109 179 / 0.95) 32%,
+    rgb(73 109 179 / 0.78) 55%,
+    rgb(73 109 179 / 0.48) 76%,
+    rgb(73 109 179 / 0.22) 90%,
+    transparent 100%
+  );
+  transition: opacity 0.28s ease;
+}
+
+:global(.services-home-categories-row) .cardRootFeatured:hover .cardFeaturedBannerPanelTop::before,
+:global(.services-home-categories-row) .cardRootFeatured:focus-visible .cardFeaturedBannerPanelTop::before {
+  opacity: 0;
+}
+
+:global(.services-home-categories-row) .cardFeaturedCtaGhost {
+  margin-top: 0;
+  flex-shrink: 0;
+}
+
+/* На мобиле не перекрывать всю карточку блюром — только градиент у текста */
+@media (max-width: 639px) {
+  :global(.services-home-categories-row) .cardRootFeatured::after,
+  :global(.services-home-categories-row) .cardRootFeaturedStretch::after {
+    content: none;
+    display: none;
+  }
+}
+
+:global(.services-home-categories-row) .cardFeaturedTitle {
+  font-size: 1.25rem;
+  line-height: 1.3;
+  color: #fff;
+  text-shadow: 0 1px 2px rgb(15 23 42 / 0.25);
+  transition: color 0.28s ease, text-shadow 0.28s ease;
+}
+
+:global(.services-home-categories-row) .cardFeaturedDesc {
+  font-weight: 400;
+  color: #fff;
+  text-shadow: 0 1px 2px rgb(15 23 42 / 0.2);
+  transition: color 0.28s ease, text-shadow 0.28s ease;
+}
+
+:global(.services-home-categories-row) .cardRootFeatured:hover .cardFeaturedTitle,
+:global(.services-home-categories-row) .cardRootFeatured:focus-visible .cardFeaturedTitle {
+  color: #496db3;
+  text-shadow: none;
+}
+
+:global(.services-home-categories-row) .cardRootFeatured:hover .cardFeaturedDesc,
+:global(.services-home-categories-row) .cardRootFeatured:focus-visible .cardFeaturedDesc {
+  color: #496db3;
+  text-shadow: none;
+}
+
+@media (min-width: 640px) {
+  :global(.services-home-categories-row) .cardRootFeatured,
+  :global(.services-home-categories-row) .cardRootFeaturedStretch {
+    min-height: 21rem;
+  }
+
+  :global(.services-home-categories-row) .cardFeaturedBannerPanel {
+    padding: 1.4rem 1.35rem 1.35rem;
+  }
+
+  :global(.services-home-categories-row) .cardFeaturedBannerPanelTop::before {
+    left: -1.35rem;
+    right: -1.35rem;
+    bottom: -1.35rem;
+    top: -3rem;
+  }
+
+  :global(.services-home-categories-row) .cardFeaturedTitle {
+    font-size: 1.375rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  :global(.services-home-categories-row) .cardRootFeatured,
+  :global(.services-home-categories-row) .cardRootFeaturedStretch {
+    min-height: 26rem;
+  }
+
+  :global(.services-home-categories-row) .cardFeaturedTitle {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 1023px) {
+  :global(.services-home-categories-row) .cardRootFeatured,
+  :global(.services-home-categories-row) .cardRootFeaturedStretch {
+    height: auto !important;
+    align-self: auto;
+  }
+
+  :global(.services-home-categories-row) .cardFeaturedBannerPanel,
+  :global(.services-home-categories-row) .cardFeaturedBannerPanel.cardFeaturedBannerPanelHub {
+    flex: 1 1 auto;
+    height: auto;
+    justify-content: flex-start;
+  }
+
+  :global(.services-home-categories-row) .cardFeaturedBannerPanelTop,
+  :global(.services-home-categories-row) .cardFeaturedBannerPanel.cardFeaturedBannerPanelHub .cardFeaturedBannerPanelTop {
+    flex: 0 1 auto;
+    justify-content: flex-end;
   }
 }
 
@@ -821,6 +1046,7 @@
 
 /* Описание карточки по ширине (слоги — .home-block-hyphens в globals.css). */
 :global(.home-page) :global(.services-home-categories-shell) .cardFeaturedDesc,
+:global(.home-page) :global(.services-home-categories-row) .cardFeaturedDesc,
 :global(.section-services-hub-hyphens) :global(.services-home-grid) .cardFeaturedDesc {
   text-align: justify;
   text-wrap: wrap;

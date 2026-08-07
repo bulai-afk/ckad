@@ -131,6 +131,8 @@ function FolderCard({
   const descHyphenClass = hyphenateDescriptions ? " home-block-hyphens" : "";
   const href = `/${c.slugPath}`;
   const touchHeld = !alwaysShowPreview && touchActiveSlug === c.slugPath;
+  const showCta = Boolean(ctaLabel.trim());
+  const cardAriaLabel = showCta ? `${c.label}. ${ctaLabel.trim()}` : c.label;
 
   if (layout === "horizontal") {
     return (
@@ -138,7 +140,7 @@ function FolderCard({
         href={href}
         data-service-folder-card=""
         className={`${styles.cardRootHorizontal} ${equalHeight ? styles.cardRootHorizontalStretch : ""}`}
-        aria-label={`${c.label}. ${ctaLabel}`}
+        aria-label={cardAriaLabel}
       >
         <div
           className={`${styles.cardHorizontalMedia} ${isLogoFallback ? styles.cardHorizontalMediaFallback : ""}`.trim()}
@@ -158,7 +160,7 @@ function FolderCard({
               <p className={`${styles.cardHorizontalDesc}${descHyphenClass}`}>{c.description.trim()}</p>
             ) : null}
           </div>
-          <span className={styles.cardHorizontalCta}>{ctaLabel}</span>
+          {showCta ? <span className={styles.cardHorizontalCta}>{ctaLabel}</span> : null}
         </div>
       </Link>
     );
@@ -170,7 +172,7 @@ function FolderCard({
         href={href}
         data-service-folder-card=""
         className={`${styles.cardRootFeatured} ${equalHeight ? styles.cardRootFeaturedStretch : ""}`}
-        aria-label={`${c.label}. ${ctaLabel}`}
+        aria-label={cardAriaLabel}
       >
         <div
           className={`${styles.cardFeaturedBannerMedia} ${isLogoFallback ? styles.cardFeaturedBannerMediaFallback : ""}`.trim()}
@@ -204,13 +206,22 @@ function FolderCard({
             featuredPanelVariant === "section-hub" ? ` ${styles.cardFeaturedBannerPanelHub}` : ""
           }`}
         >
+          <div className={styles.cardFeaturedHoverLogoSlot} aria-hidden data-logo-always={isLogoFallback ? "" : undefined}>
+            <ResponsiveCardImage
+              src={isLogoFallback ? displaySrc : fallbackSrc}
+              alt=""
+              className={styles.cardFeaturedHoverLogoImg}
+              sizes="(max-width: 639px) 70vw, (max-width: 1023px) 40vw, 22vw"
+              fill={false}
+            />
+          </div>
           <div className={styles.cardFeaturedBannerPanelTop}>
             <h3 className={styles.cardFeaturedTitle}>{c.label}</h3>
             {c.description?.trim() ? (
               <p className={`${styles.cardFeaturedDesc}${descHyphenClass}`}>{c.description.trim()}</p>
             ) : null}
           </div>
-          <span className={styles.cardFeaturedCtaGhost}>{ctaLabel}</span>
+          {showCta ? <span className={styles.cardFeaturedCtaGhost}>{ctaLabel}</span> : null}
         </div>
       </Link>
     );

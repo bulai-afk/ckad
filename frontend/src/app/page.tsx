@@ -133,8 +133,8 @@ export default async function Home() {
     folderMetaBySlug.set(key, f);
   }
 
-  const catalogCard = homeServiceCategoryCard(folderMetaBySlug, "catalogization", "Каталогизация");
-  const sideCategoryCards: HomeServicesFolderCard[] = [
+  const homeServiceCategoryCards: HomeServicesFolderCard[] = [
+    homeServiceCategoryCard(folderMetaBySlug, "catalogization", "Каталогизация"),
     homeServiceCategoryCard(folderMetaBySlug, "training-center", "Учебный центр"),
     homeServiceCategoryCard(folderMetaBySlug, "other-services", "Прочие услуги"),
   ];
@@ -159,35 +159,17 @@ export default async function Home() {
         </div>
         <div className="mx-auto max-w-7xl home-section-inline-padding">
           <div className="mt-6 max-w-none sm:mt-8">
-            <div className="services-home-categories-shell">
-              <div className="services-home-categories-shell__main">
-                <HomeServicesFolderCards
-                  layout="featured"
-                  equalHeight
-                  syncHeightsToTallest={false}
-                  featuredPanelVariant="home"
-                  alwaysShowPreview
-                  hyphenateDescriptions
-                  ctaLabel="Подробнее"
-                  gridClassName="services-home-categories-main-grid"
-                  cards={[catalogCard]}
-                  limit={1}
-                />
-              </div>
-              <div className="services-home-categories-shell__side">
-                <HomeServicesFolderCards
-                  layout="featured"
-                  syncHeightsToTallest={false}
-                  featuredPanelVariant="section-hub"
-                  alwaysShowPreview
-                  hyphenateDescriptions
-                  ctaLabel="Подробнее"
-                  gridClassName="services-home-categories-side-grid"
-                  cards={sideCategoryCards}
-                  limit={2}
-                />
-              </div>
-            </div>
+            <HomeServicesFolderCards
+              layout="featured"
+              equalHeight
+              featuredPanelVariant="section-hub"
+              alwaysShowPreview
+              hyphenateDescriptions
+              ctaLabel=""
+              gridClassName="services-home-categories-row"
+              cards={homeServiceCategoryCards}
+              limit={3}
+            />
           </div>
         </div>
       </section>

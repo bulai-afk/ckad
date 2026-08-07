@@ -375,14 +375,31 @@ body::-webkit-scrollbar:horizontal {
   text-wrap: wrap;
 }
 
+/* Главная «Наши услуги»: 1 колонка на мобиле, 3 в ряд на ПК, одинаковая высота */
+.services-home-categories-row {
+  display: grid;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: min(100%, 75rem);
+  margin-left: auto;
+  margin-right: auto;
+  min-width: 0;
+  box-sizing: border-box;
+  grid-template-columns: 1fr;
+  align-items: stretch;
+}
+
 @media (min-width: 1024px) {
-  /* Правая колонка (учебный центр / прочие услуги) чуть шире — больше места под переносы. */
-  .home-page .services-home-categories-shell {
-    grid-template-columns: minmax(0, 0.94fr) minmax(0, 1.06fr);
+  .services-home-categories-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.25rem;
   }
 
-  .home-page .services-home-categories-shell__side .home-service-card-panel {
-    padding-inline: 0.75rem 0.9rem;
+  .services-home-categories-row > [role="listitem"] {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
   }
 }
 
