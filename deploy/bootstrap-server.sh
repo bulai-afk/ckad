@@ -29,7 +29,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 mkdir -p /etc/ssl/ckad
 chmod 755 /etc/ssl/ckad
 install -m 0644 "${SCRIPT_DIR}/nginx/ckad-proxy.inc" /etc/nginx/snippets/ckad-proxy.inc
-if [ -f /etc/ssl/ckad/fullchain.pem ] && [ -f /etc/ssl/ckad/privkey.pem ]; then
+# Prefer Let's Encrypt live cert; keep /etc/ssl/ckad as synced copies for hooks/compat.
+if [ -f /etc/letsencrypt/live/ckad-all/fullchain.pem ] && [ -f /etc/letsencrypt/live/ckad-all/privkey.pem ]; then
+  NGINX_SITE="${SCRIPT_DIR}/nginx/ckad.conf"
+  mkdir -p /etc/ssl/ckad
+  install -m 644 /etc/letsencrypt/live/ckad-all/fullchain.pem /etc/ssl/ckad/fullchain.pem
+  install -m 600 /etc/letsencrypt/live/ckad-all/privkey.pem /etc/ssl/ckad/privkey.pem
+elif [ -f /etc/ssl/ckad/fullchain.pem ] && [ -f /etc/ssl/ckad/privkey.pem ]; then
   NGINX_SITE="${SCRIPT_DIR}/nginx/ckad.conf"
   chmod 644 /etc/ssl/ckad/fullchain.pem
   chmod 600 /etc/ssl/ckad/privkey.pem
@@ -42,10 +48,11 @@ rm -f /etc/nginx/sites-enabled/default
 nginx -t
 systemctl enable --now nginx
 systemctl reload nginx
-if [ -f /etc/ssl/ckad/fullchain.pem ] && [ -f /etc/ssl/ckad/privkey.pem ]; then
+if [ -f /etc/letsencrypt/live/ckad-all/fullchain.pem ] || { [ -f /etc/ssl/ckad/fullchain.pem ] && [ -f /etc/ssl/ckad/privkey.pem ]; }; then
   echo "[bootstrap] nginx :80 and :443 (SSL)"
+  systemctl enable --now certbot.timer 2>/dev/null || true
 else
-  echo "[bootstrap] nginx :80 only — run deploy/nginx/install-ssl-on-server.sh after placing certs"
+  echo "[bootstrap] nginx :80 only — run deploy/nginx/install-ssl-on-server.sh"
 fi
 
 if ! command -v mysql >/dev/null 2>&1; then
