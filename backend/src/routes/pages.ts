@@ -209,6 +209,8 @@ type StoredFolder = {
   preview?: string;
   showInNavbar?: boolean;
   keywords?: string;
+  seoTitle?: string;
+  seoDescription?: string;
 };
 
 type PageDisplayOrderMap = Record<string, string[]>;
@@ -1132,6 +1134,8 @@ function parseFoldersJsonArray(parsed: unknown): StoredFolder[] {
       preview: (typeof item.preview === "string" ? item.preview : "").trim(),
       showInNavbar: Boolean(item.showInNavbar),
       keywords: sanitizeKeywordsField(item.keywords),
+      seoTitle: sanitizeTextField(item.seoTitle, SEO_TITLE_MAX),
+      seoDescription: sanitizeTextField(item.seoDescription, SEO_DESCRIPTION_MAX),
     }))
     .filter((f) => f.name && f.slug);
 }
@@ -1469,6 +1473,8 @@ pagesRouter.put("/folders", async (req, res) => {
         preview: (typeof item.preview === "string" ? item.preview : "").trim(),
         showInNavbar: Boolean(item.showInNavbar),
         keywords: sanitizeKeywordsField(item.keywords),
+        seoTitle: sanitizeTextField(item.seoTitle, SEO_TITLE_MAX),
+        seoDescription: sanitizeTextField(item.seoDescription, SEO_DESCRIPTION_MAX),
       }))
       .filter((f) => f.name && f.slug);
 

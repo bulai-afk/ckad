@@ -294,6 +294,8 @@ type CustomFolder = {
   showInNavbar?: boolean;
   preview?: string;
   keywords?: string;
+  seoTitle?: string;
+  seoDescription?: string;
 };
 
 const FOLDER_PREVIEW_DEBUG = false;
@@ -317,6 +319,95 @@ function isAdminSectionRootSlug(slug: string): boolean {
 
 const PAGE_TITLE_MAX = 60;
 const PAGE_DESCRIPTION_MAX = 160;
+const SEO_TITLE_MAX = 60;
+const SEO_DESCRIPTION_MAX = 160;
+
+function SeoMetaFields({
+  seoTitle,
+  onSeoTitleChange,
+  seoDescription,
+  onSeoDescriptionChange,
+  keywords,
+  onKeywordsChange,
+  draftKeywords,
+  keywordKeyPrefix,
+}: {
+  seoTitle: string;
+  onSeoTitleChange: (value: string) => void;
+  seoDescription: string;
+  onSeoDescriptionChange: (value: string) => void;
+  keywords: string;
+  onKeywordsChange: (value: string) => void;
+  draftKeywords: string[];
+  keywordKeyPrefix: string;
+}) {
+  return (
+    <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+      <div>
+        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          SEO и мета-теги
+        </span>
+        <p className="mt-0.5 text-[11px] leading-snug text-slate-400">
+          Для поисковой выдачи и вкладки браузера. На сайте не отображаются.
+        </p>
+      </div>
+      <label className="flex flex-col gap-1 text-sm">
+        <span className="font-semibold text-slate-700">SEO-заголовок</span>
+        <input
+          value={seoTitle}
+          onChange={(e) => onSeoTitleChange(e.target.value.slice(0, SEO_TITLE_MAX))}
+          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#496db3] focus:ring-1 focus:ring-[#496db3]"
+          placeholder="Заголовок в поисковой выдаче"
+        />
+        <span className="text-[11px] text-slate-400">
+          {seoTitle.length}/{SEO_TITLE_MAX}
+        </span>
+      </label>
+      <label className="flex flex-col gap-1 text-sm">
+        <span className="font-semibold text-slate-700">SEO-описание</span>
+        <textarea
+          value={seoDescription}
+          onChange={(e) =>
+            onSeoDescriptionChange(e.target.value.slice(0, SEO_DESCRIPTION_MAX))
+          }
+          rows={3}
+          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#496db3] focus:ring-1 focus:ring-[#496db3]"
+          placeholder="Описание в поисковой выдаче"
+        />
+        <span className="text-[11px] text-slate-400">
+          {seoDescription.length}/{SEO_DESCRIPTION_MAX}
+        </span>
+      </label>
+      <label className="flex flex-col gap-1 text-sm">
+        <span className="font-semibold text-slate-700">
+          Введите ключевые слова через запятую
+        </span>
+        <textarea
+          value={keywords}
+          onChange={(e) => onKeywordsChange(truncateKeywordsField(e.target.value))}
+          rows={2}
+          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#496db3] focus:ring-1 focus:ring-[#496db3]"
+          placeholder="каталогизация, обучение, гоз, сертификация"
+        />
+        <span className="text-[11px] text-slate-400">
+          {keywords.length}/{PAGE_KEYWORDS_MAX}
+        </span>
+        {draftKeywords.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {draftKeywords.map((keyword) => (
+              <span
+                key={`${keywordKeyPrefix}-${keyword}`}
+                className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600"
+              >
+                {keyword}
+              </span>
+            ))}
+          </div>
+        )}
+      </label>
+    </div>
+  );
+}
 
 export default function AdminPage() {
   const router = useRouter();
@@ -330,6 +421,8 @@ export default function AdminPage() {
   const [slug, setSlug] = useState("");
   const [text, setText] = useState("");
   const [keywords, setKeywords] = useState("");
+  const [seoTitle, setSeoTitle] = useState("");
+  const [seoDescription, setSeoDescription] = useState("");
   const [pagePreview, setPagePreview] = useState("");
   const [currentFolder, setCurrentFolder] = useState<string | null>(null);
   const [customFolders, setCustomFolders] = useState<CustomFolder[]>([]);
@@ -375,6 +468,8 @@ export default function AdminPage() {
   const [editFolderDescription, setEditFolderDescription] = useState<string>("");
   const [editFolderPreview, setEditFolderPreview] = useState<string>("");
   const [editFolderKeywords, setEditFolderKeywords] = useState<string>("");
+  const [editFolderSeoTitle, setEditFolderSeoTitle] = useState<string>("");
+  const [editFolderSeoDescription, setEditFolderSeoDescription] = useState<string>("");
   const [editFolderModalError, setEditFolderModalError] =
     useState<string | null>(null);
 
@@ -435,6 +530,8 @@ export default function AdminPage() {
             showInNavbar: Boolean(f.showInNavbar),
             preview: typeof f.preview === "string" ? f.preview : "",
             keywords: typeof f.keywords === "string" ? f.keywords : "",
+            seoTitle: typeof f.seoTitle === "string" ? f.seoTitle : "",
+            seoDescription: typeof f.seoDescription === "string" ? f.seoDescription : "",
           }))
           .filter((f) => f.name && f.slug);
         const seen = new Map<string, (typeof loadedRaw)[0]>();
@@ -617,8 +714,8 @@ export default function AdminPage() {
         slug: fullSlug,
         description: text.trim().slice(0, PAGE_DESCRIPTION_MAX),
         keywords: truncateKeywordsField(keywords),
-        seoTitle: title.trim().slice(0, PAGE_TITLE_MAX),
-        seoDescription: text.trim().slice(0, PAGE_DESCRIPTION_MAX),
+        seoTitle: seoTitle.trim().slice(0, SEO_TITLE_MAX),
+        seoDescription: seoDescription.trim().slice(0, SEO_DESCRIPTION_MAX),
         preview: pagePreview.trim(),
         ...articlesKindPayload,
       };
@@ -635,8 +732,8 @@ export default function AdminPage() {
             status: "DRAFT",
             description: text.trim().slice(0, PAGE_DESCRIPTION_MAX),
             keywords: truncateKeywordsField(keywords),
-            seoTitle: title.trim().slice(0, PAGE_TITLE_MAX),
-            seoDescription: text.trim().slice(0, PAGE_DESCRIPTION_MAX),
+            seoTitle: seoTitle.trim().slice(0, SEO_TITLE_MAX),
+            seoDescription: seoDescription.trim().slice(0, SEO_DESCRIPTION_MAX),
             preview: pagePreview.trim(),
             ...articlesKindPayload,
           },
@@ -647,6 +744,8 @@ export default function AdminPage() {
       setSlug("");
       setText("");
       setKeywords("");
+      setSeoTitle("");
+      setSeoDescription("");
       setPagePreview("");
       setEditingPageId(null);
       setIsAddPageModalOpen(false);
@@ -1051,6 +1150,8 @@ export default function AdminPage() {
                 slug: oldN,
                 description: editFolderDescription.trim(),
                 keywords: truncateKeywordsField(editFolderKeywords),
+                seoTitle: editFolderSeoTitle.trim().slice(0, SEO_TITLE_MAX),
+                seoDescription: editFolderSeoDescription.trim().slice(0, SEO_DESCRIPTION_MAX),
                 showInNavbar: navFlag,
                 preview: webpDataUrl,
               },
@@ -1098,6 +1199,12 @@ export default function AdminPage() {
     setEditFolderPreview(entry?.preview ?? "");
     setEditFolderKeywords(
       entry && typeof entry.keywords === "string" ? entry.keywords : "",
+    );
+    setEditFolderSeoTitle(
+      entry && typeof entry.seoTitle === "string" ? entry.seoTitle : "",
+    );
+    setEditFolderSeoDescription(
+      entry && typeof entry.seoDescription === "string" ? entry.seoDescription : "",
     );
     setEditFolderModalError(null);
     setIsEditFolderModalOpen(true);
@@ -1157,6 +1264,8 @@ export default function AdminPage() {
           : Boolean(oldEntry?.showInNavbar);
         const nextPreview = editFolderPreview.trim();
         const nextKeywords = truncateKeywordsField(editFolderKeywords);
+        const nextSeoTitle = editFolderSeoTitle.trim().slice(0, SEO_TITLE_MAX);
+        const nextSeoDescription = editFolderSeoDescription.trim().slice(0, SEO_DESCRIPTION_MAX);
         const mapped = prev.map((f) => {
           const fs = normalizeUrlSlugPath(f.slug);
           if (fs === oldSlug) {
@@ -1166,6 +1275,8 @@ export default function AdminPage() {
               name: newName,
               description: editFolderDescription.trim(),
               keywords: nextKeywords,
+              seoTitle: nextSeoTitle,
+              seoDescription: nextSeoDescription,
               showInNavbar: nextShowInNavbar,
               preview: nextPreview,
             };
@@ -1184,6 +1295,8 @@ export default function AdminPage() {
                 slug: newSlug,
                 description: editFolderDescription.trim(),
                 keywords: nextKeywords,
+                seoTitle: nextSeoTitle,
+                seoDescription: nextSeoDescription,
                 showInNavbar: nextShowInNavbar,
                 preview: nextPreview || "",
               },
@@ -1229,6 +1342,8 @@ export default function AdminPage() {
         setEditFolderDescription("");
         setEditFolderPreview("");
         setEditFolderKeywords("");
+        setEditFolderSeoTitle("");
+        setEditFolderSeoDescription("");
       } catch (e) {
         const msg =
           e instanceof Error ? e.message : "Unknown error";
@@ -1251,6 +1366,8 @@ export default function AdminPage() {
     setSlug("");
     setText("");
     setKeywords("");
+    setSeoTitle("");
+    setSeoDescription("");
     setPagePreview("");
     setIsPageSlugEdited(false);
     setIsAddPageModalOpen(true);
@@ -1268,6 +1385,8 @@ export default function AdminPage() {
     setSlug("");
     setText("");
     setKeywords("");
+    setSeoTitle("");
+    setSeoDescription("");
     setPagePreview("");
     setIsPageSlugEdited(false);
     setIsAddPageModalOpen(true);
@@ -1291,6 +1410,8 @@ export default function AdminPage() {
     setSlug(shortSlug);
     setText(page.description ?? "");
     setKeywords(page.keywords ?? "");
+    setSeoTitle(page.seoTitle ?? "");
+    setSeoDescription(page.seoDescription ?? "");
     setPagePreview(page.preview ?? "");
     setIsPageSlugEdited(true);
     setOpenPageMenuId(null);
@@ -2186,7 +2307,7 @@ export default function AdminPage() {
                   placeholder="Например: О центре"
                 />
                 <span className="text-[11px] text-slate-400">
-                  {editFolderName.length}/{PAGE_TITLE_MAX}
+                  {editFolderName.length}/{PAGE_TITLE_MAX} · на сайте
                 </span>
               </label>
 
@@ -2206,39 +2327,20 @@ export default function AdminPage() {
                   placeholder="Описание страницы для быстрого просмотра…"
                 />
                 <span className="text-[11px] text-slate-400">
-                  {editFolderDescription.length}/{PAGE_DESCRIPTION_MAX}
+                  {editFolderDescription.length}/{PAGE_DESCRIPTION_MAX} · на сайте
                 </span>
               </label>
 
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="font-semibold text-slate-700">
-                  Введите ключевые слова через запятую
-                </span>
-                <textarea
-                  value={editFolderKeywords}
-                  onChange={(e) =>
-                    setEditFolderKeywords(truncateKeywordsField(e.target.value))
-                  }
-                  rows={2}
-                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#496db3] focus:ring-1 focus:ring-[#496db3]"
-                  placeholder="каталогизация, обучение, гоз, сертификация"
-                />
-                <span className="text-[11px] text-slate-400">
-                  {editFolderKeywords.length}/{PAGE_KEYWORDS_MAX}
-                </span>
-                {editFolderDraftKeywords.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {editFolderDraftKeywords.map((keyword) => (
-                      <span
-                        key={`folder-draft-${keyword}`}
-                        className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600"
-                      >
-                        {keyword}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </label>
+              <SeoMetaFields
+                seoTitle={editFolderSeoTitle}
+                onSeoTitleChange={setEditFolderSeoTitle}
+                seoDescription={editFolderSeoDescription}
+                onSeoDescriptionChange={setEditFolderSeoDescription}
+                keywords={editFolderKeywords}
+                onKeywordsChange={setEditFolderKeywords}
+                draftKeywords={editFolderDraftKeywords}
+                keywordKeyPrefix="folder-draft"
+              />
 
               <label className="flex flex-col gap-1 text-sm">
                 <span className="font-semibold text-slate-700">
@@ -2467,7 +2569,7 @@ export default function AdminPage() {
                   className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#496db3] focus:ring-1 focus:ring-[#496db3]"
                   placeholder="Например: О центре"
                 />
-                <span className="text-[11px] text-slate-400">{title.length}/{PAGE_TITLE_MAX}</span>
+                <span className="text-[11px] text-slate-400">{title.length}/{PAGE_TITLE_MAX} · на сайте</span>
               </label>
 
               <label className="flex flex-col gap-1 text-sm">
@@ -2481,34 +2583,19 @@ export default function AdminPage() {
                   className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#496db3] focus:ring-1 focus:ring-[#496db3]"
                   placeholder="Описание страницы для быстрого просмотра…"
                 />
-                <span className="text-[11px] text-slate-400">{text.length}/{PAGE_DESCRIPTION_MAX}</span>
+                <span className="text-[11px] text-slate-400">{text.length}/{PAGE_DESCRIPTION_MAX} · на сайте</span>
               </label>
 
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="font-semibold text-slate-700">
-                  Введите ключевые слова через запятую
-                </span>
-                <textarea
-                  value={keywords}
-                  onChange={(e) => setKeywords(truncateKeywordsField(e.target.value))}
-                  rows={2}
-                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-[#496db3] focus:ring-1 focus:ring-[#496db3]"
-                  placeholder="каталогизация, обучение, гоз, сертификация"
-                />
-                <span className="text-[11px] text-slate-400">{keywords.length}/{PAGE_KEYWORDS_MAX}</span>
-                {draftKeywords.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {draftKeywords.map((keyword) => (
-                      <span
-                        key={`draft-${keyword}`}
-                        className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600"
-                      >
-                        {keyword}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </label>
+              <SeoMetaFields
+                seoTitle={seoTitle}
+                onSeoTitleChange={setSeoTitle}
+                seoDescription={seoDescription}
+                onSeoDescriptionChange={setSeoDescription}
+                keywords={keywords}
+                onKeywordsChange={setKeywords}
+                draftKeywords={draftKeywords}
+                keywordKeyPrefix="draft"
+              />
 
               <label className="flex flex-col gap-1 text-sm">
                 <span className="font-semibold text-slate-700">

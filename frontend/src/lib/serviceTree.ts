@@ -29,6 +29,8 @@ export type ServiceFolderMeta = {
   description?: string;
   preview?: string;
   keywords?: string;
+  seoTitle?: string;
+  seoDescription?: string;
 };
 
 export function normalizeSlug(s: string): string {
@@ -216,10 +218,8 @@ export function collectServiceCardsForHome(root: ServiceTreeNode): ServiceTreeNo
   }
 
   out.sort((a, b) => {
-    const ta =
-      a.pages[0]?.title?.trim() || a.pages[0]?.seoTitle?.trim() || a.label;
-    const tb =
-      b.pages[0]?.title?.trim() || b.pages[0]?.seoTitle?.trim() || b.label;
+    const ta = a.pages[0]?.title?.trim() || a.label;
+    const tb = b.pages[0]?.title?.trim() || b.label;
     return ta.localeCompare(tb, "ru");
   });
   return out;
@@ -235,20 +235,19 @@ export type ServiceFolderCardProps = {
 /**
  * Поля для карточки раздела на главной и в /services:
  * **Название** — из первой страницы раздела (`/api/pages`) или подписи узла.
- * **Описание** — краткое описание / `seoDescription` страницы; если пусто — описание папки из `/api/pages/folders`.
+ * **Описание** — краткое описание страницы; если пусто — описание папки из `/api/pages/folders`.
  * **Превью** — со страницы, иначе с папки; иначе лого (см. HomeServicesFolderCards).
+ * SEO-поля (`seoTitle` / `seoDescription`) на сайт не выводятся.
  */
 export function folderCardPropsFromServiceNode(node: ServiceTreeNode): ServiceFolderCardProps {
   const first = node.pages[0];
   const folderPreview = node.preview?.trim() ?? "";
   const pagePreview = first?.preview?.trim() ?? "";
-  const pageTitle =
-    first?.title?.trim() || first?.seoTitle?.trim() || "";
+  const pageTitle = first?.title?.trim() || "";
   const pageDesc = first?.description?.trim() ?? "";
-  const pageSeoDesc = first?.seoDescription?.trim() ?? "";
   const folderDesc = node.description?.trim() ?? "";
 
-  const description = (pageDesc || pageSeoDesc || folderDesc) || undefined;
+  const description = (pageDesc || folderDesc) || undefined;
   const fromPageSettings = sanitizePublicAssetUrl(pagePreview);
   const fromFolderSettings =
     node.isMetaFolder === true ? sanitizePublicAssetUrl(folderPreview) : "";

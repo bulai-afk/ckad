@@ -159,8 +159,11 @@ export async function buildMetadataFromFolderMeta(
   const canonicalSlug = normalizeSlug(options?.canonicalSlug ?? folder.slug);
   const folderName = folder.name?.trim() || options?.fallbackTitle?.trim() || "";
   const sectionName = (options?.sectionFolderName || "").trim();
-  const title = composeRussianMetaTitle(sectionName, folderName) || folderName;
-  const description = folder.description?.trim() || undefined;
+  const customSeoTitle = (folder.seoTitle || "").trim();
+  const title =
+    customSeoTitle || composeRussianMetaTitle(sectionName, folderName) || folderName;
+  const description =
+    (folder.seoDescription || "").trim() || folder.description?.trim() || undefined;
   const keywords = folder.keywords?.trim() || undefined;
   if (!title && !description && !keywords) return {};
 
