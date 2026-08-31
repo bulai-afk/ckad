@@ -21,6 +21,7 @@ from docx.shared import Cm, Pt, RGBColor
 
 ROOT = Path(__file__).resolve().parent
 OUT_PATH = ROOT / "Отчет центр-каталогизации.рф за июль 2026.docx"
+OUT_PATH_ASCII = ROOT / "ckad-seo-report-july-2026.docx"
 
 NAVY = RGBColor(0x1F, 0x38, 0x64)
 ACCENT = RGBColor(0x1A, 0x56, 0x8C)
@@ -771,6 +772,7 @@ def build() -> Path:
     )
 
     doc.save(OUT_PATH)
+    doc.save(OUT_PATH_ASCII)
     return OUT_PATH
 
 
