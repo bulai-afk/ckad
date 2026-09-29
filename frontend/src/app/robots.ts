@@ -1,10 +1,8 @@
 import type { MetadataRoute } from "next";
 import { DEFAULT_PUBLIC_SITE_ORIGIN } from "@/lib/publicSiteConstants";
 
-const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/+$/, "") ||
-  process.env.SITE_URL?.trim().replace(/\/+$/, "") ||
-  DEFAULT_PUBLIC_SITE_ORIGIN;
+/** Sitemap и Host всегда на основном домене, без Host запроса и env-зеркала. */
+const siteUrl = DEFAULT_PUBLIC_SITE_ORIGIN;
 
 const DISALLOW_PATHS = ["/admin", "/api", "/services"];
 

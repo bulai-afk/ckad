@@ -8,6 +8,7 @@ import { SiteNavbar } from "@/components/SiteNavbar";
 import { SiteMainColumn } from "@/components/SiteMainColumn";
 import { LayoutClientEnhancements } from "@/components/LayoutClientEnhancements";
 import { OrganizationJsonLd } from "@/components/OrganizationJsonLd";
+import { PublicCanonicalTags } from "@/components/PublicCanonicalTags";
 import { NAV_FOLDERS_COOKIE_NAME, parseNavFoldersCookie } from "@/lib/navFoldersCookie";
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
 import {
@@ -21,10 +22,7 @@ import {
 } from "@/lib/hubFolderMetadata";
 import "./globals.css";
 
-const metadataBaseUrl =
-  process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/+$/, "") ||
-  process.env.SITE_URL?.trim().replace(/\/+$/, "") ||
-  DEFAULT_PUBLIC_SITE_ORIGIN;
+const metadataBaseUrl = DEFAULT_PUBLIC_SITE_ORIGIN;
 
 export const revalidate = 120;
 
@@ -132,6 +130,7 @@ export default async function RootLayout({
 
   return (
     <html lang="ru" suppressHydrationWarning>
+      <PublicCanonicalTags />
       <body
         className={`${exo2.className} flex min-h-screen flex-col antialiased`}
         style={{ backgroundColor: "#f3f4f6", color: "#020617" }}

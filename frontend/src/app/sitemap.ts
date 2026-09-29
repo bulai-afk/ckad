@@ -5,10 +5,8 @@ import { normalizeSlug, type ServiceListItem } from "@/lib/serviceTree";
 
 export const revalidate = 300;
 
-const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/+$/, "") ||
-  process.env.SITE_URL?.trim().replace(/\/+$/, "") ||
-  DEFAULT_PUBLIC_SITE_ORIGIN;
+/** Все <loc> на основном домене, без подстановки Host запроса. */
+const siteUrl = DEFAULT_PUBLIC_SITE_ORIGIN;
 
 /** Публичные маршруты с отдельными page.tsx. */
 const STATIC_PUBLIC_ROUTES: {

@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
 import {
   mergeUniqueKeywords,
   parseCommaSeparatedKeywords,
 } from "@/lib/keywordsField";
+import { canonicalPublicOrigin } from "@/lib/publicSiteHosts";
 import {
   DEFAULT_OG_IMAGE_PATH,
   DEFAULT_PUBLIC_SITE_ORIGIN,
@@ -27,29 +27,25 @@ export const FOLDERS_METADATA_REVALIDATE = 300;
 export async function buildSocialSharingFields(options: {
   title: string;
   description?: string;
+  /** Путь страницы для вызывающего кода. canonical и og:url рисует PublicCanonicalTags. */
   pathname: string;
   imagePathOrUrl?: string;
 }): Promise<{
-  alternates?: Metadata["alternates"];
   openGraph: NonNullable<Metadata["openGraph"]>;
   twitter: NonNullable<Metadata["twitter"]>;
 }> {
-  const origin = await getPublicSiteOrigin();
-  const pathname = options.pathname.startsWith("/") ? options.pathname : `/${options.pathname}`;
-  const canonicalUrl = toAbsolutePublicUrl(pathname, origin);
+  const origin = canonicalPublicOrigin();
   const rawImage = (options.imagePathOrUrl || "").trim() || DEFAULT_OG_IMAGE_PATH;
   const imageUrl = toAbsolutePublicUrl(rawImage, origin);
   const description = options.description?.trim() || undefined;
 
   return {
-    alternates: canonicalUrl ? { canonical: canonicalUrl } : undefined,
     openGraph: {
       type: "website",
       siteName: PUBLIC_SITE_NAME,
       locale: "ru_RU",
       title: options.title,
       description,
-      url: canonicalUrl || undefined,
       images: [{ url: imageUrl, alt: options.title }],
     },
     twitter: {
@@ -70,25 +66,12 @@ export function composeRussianMetaTitle(sectionName: string, pageTitle: string):
   return page || section;
 }
 
+/**
+ * Origin для canonical, og:url и JSON-LD.
+ * Всегда основной домен, даже если запрос пришёл на зеркало или в punycode.
+ */
 export async function getPublicSiteOrigin(): Promise<string> {
-  const fromEnv =
-    process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/+$/, "") ||
-    process.env.SITE_URL?.trim().replace(/\/+$/, "") ||
-    "";
-  if (fromEnv) return fromEnv;
-
-  try {
-    const headerStore = await headers();
-    const host = headerStore.get("x-forwarded-host") || headerStore.get("host");
-    const proto = (headerStore.get("x-forwarded-proto") || "https").split(",")[0]?.trim();
-    if (host) {
-      return `${proto || "https"}://${host}`.replace(/\/+$/, "");
-    }
-  } catch {
-    // headers() недоступен вне запроса
-  }
-
-  return DEFAULT_PUBLIC_SITE_ORIGIN;
+  return canonicalPublicOrigin();
 }
 
 export async function fetchFolderMetaMap(): Promise<Map<string, ServiceFolderMeta>> {

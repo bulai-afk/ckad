@@ -1,6 +1,17 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { canonicalHostRedirectTarget, selectPublicHost } from "@/lib/publicSiteHosts";
 import { requestPublicOrigin } from "@/lib/requestPublicOrigin";
+
+function publicHostHeader(req: NextRequest): string {
+  return selectPublicHost(req.headers.get("host"), req.headers.get("x-forwarded-host"));
+}
+
+function publicProtocol(req: NextRequest): string {
+  const forwarded = req.headers.get("x-forwarded-proto");
+  if (forwarded) return forwarded;
+  return req.nextUrl.protocol;
+}
 
 function isLikelyStaticPublicFile(pathname: string): boolean {
   if (pathname === "/favicon.ico") return true;
@@ -14,6 +25,18 @@ function withNoIndex(res: NextResponse): NextResponse {
 
 export function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
+
+  const redirectTarget = canonicalHostRedirectTarget({
+    host: publicHostHeader(req),
+    protocol: publicProtocol(req),
+    pathname,
+    search,
+  });
+  if (redirectTarget) {
+    const redirectRes = NextResponse.redirect(redirectTarget, 301);
+    redirectRes.headers.set("Cache-Control", "public, max-age=3600");
+    return redirectRes;
+  }
 
   /*
    * Статика Next (CSS/JS чанки), API и типичные файлы из public не трогаем.

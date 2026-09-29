@@ -28,6 +28,8 @@ const CtaYandexMetrikaTracker = dynamic(
   { ssr: false },
 );
 
+const productionAnalytics = process.env.NODE_ENV === "production";
+
 export function LayoutClientEnhancements() {
   return (
     <>
@@ -36,8 +38,12 @@ export function LayoutClientEnhancements() {
       </Suspense>
       <ViewportHeightSync />
       <CookieConsentBanner />
-      <YandexMetrika />
-      <CtaYandexMetrikaTracker />
+      {productionAnalytics ? (
+        <>
+          <YandexMetrika />
+          <CtaYandexMetrikaTracker />
+        </>
+      ) : null}
     </>
   );
 }

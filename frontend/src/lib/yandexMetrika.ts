@@ -1,3 +1,5 @@
+import { shouldEnableProductionAnalytics } from "@/lib/publicSiteHosts";
+
 export const YM_COUNTER_ID = Number(process.env.NEXT_PUBLIC_YM_COUNTER_ID || "98614192");
 
 export const YM_SCRIPT_SRC = "https://mc.yandex.ru/metrika/tag.js";
@@ -30,10 +32,13 @@ function getYm(): YmFn | undefined {
 }
 
 export function isYandexMetrikaConfigured(): boolean {
-  return Number.isFinite(YM_COUNTER_ID) && YM_COUNTER_ID > 0;
+  if (!Number.isFinite(YM_COUNTER_ID) || YM_COUNTER_ID <= 0) return false;
+  if (typeof window === "undefined") return false;
+  return shouldEnableProductionAnalytics(process.env.NODE_ENV, window.location.hostname);
 }
 
 export function loadYandexMetrikaScript(): void {
+  if (!isYandexMetrikaConfigured()) return;
   if (typeof window === "undefined" || typeof document === "undefined") return;
 
   const ym = getYm();
