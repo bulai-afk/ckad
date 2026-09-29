@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import {
   initYandexMetrika,
-  isYandexMetrikaConfigured,
+  isYandexMetrikaEnabled,
   trackYandexMetrikaHit,
 } from "@/lib/yandexMetrika";
 
@@ -23,13 +23,13 @@ export function YandexMetrika() {
   const skipNextHitRef = useRef(true);
 
   useEffect(() => {
-    if (!isYandexMetrikaConfigured() || isAdminPath(pathname)) return;
+    if (!isYandexMetrikaEnabled() || isAdminPath(pathname)) return;
     initYandexMetrika();
     skipNextHitRef.current = true;
   }, [pathname]);
 
   useEffect(() => {
-    if (!isYandexMetrikaConfigured() || isAdminPath(pathname) || !pathname) return;
+    if (!isYandexMetrikaEnabled() || isAdminPath(pathname) || !pathname) return;
 
     const url = buildPageUrl(pathname);
     if (skipNextHitRef.current) {

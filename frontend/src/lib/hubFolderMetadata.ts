@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import { apiBaseUrl } from "@/lib/apiBaseUrl";
 import {
   mergeUniqueKeywords,
@@ -10,6 +9,7 @@ import {
   DEFAULT_PUBLIC_SITE_ORIGIN,
   HOME_ROOT_SECTION_SLUGS,
   PUBLIC_SITE_NAME,
+  PUBLIC_SITE_ORIGIN,
   toAbsolutePublicUrl,
 } from "@/lib/publicSiteConstants";
 import { normalizeSlug, type ServiceFolderMeta } from "@/lib/serviceTree";
@@ -71,24 +71,7 @@ export function composeRussianMetaTitle(sectionName: string, pageTitle: string):
 }
 
 export async function getPublicSiteOrigin(): Promise<string> {
-  const fromEnv =
-    process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/+$/, "") ||
-    process.env.SITE_URL?.trim().replace(/\/+$/, "") ||
-    "";
-  if (fromEnv) return fromEnv;
-
-  try {
-    const headerStore = await headers();
-    const host = headerStore.get("x-forwarded-host") || headerStore.get("host");
-    const proto = (headerStore.get("x-forwarded-proto") || "https").split(",")[0]?.trim();
-    if (host) {
-      return `${proto || "https"}://${host}`.replace(/\/+$/, "");
-    }
-  } catch {
-    // headers() недоступен вне запроса
-  }
-
-  return DEFAULT_PUBLIC_SITE_ORIGIN;
+  return PUBLIC_SITE_ORIGIN;
 }
 
 export async function fetchFolderMetaMap(): Promise<Map<string, ServiceFolderMeta>> {

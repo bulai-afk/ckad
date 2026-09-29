@@ -14,17 +14,11 @@ import {
   buildRootSectionLabelMap,
   DEFAULT_ROOT_SECTION_LABELS,
 } from "@/lib/rootSectionLabels";
-import {
-  DEFAULT_OG_IMAGE_PATH,
-  DEFAULT_PUBLIC_SITE_ORIGIN,
-  PUBLIC_SITE_NAME,
-} from "@/lib/hubFolderMetadata";
+import { DEFAULT_OG_IMAGE_PATH, PUBLIC_SITE_NAME } from "@/lib/hubFolderMetadata";
+import { PUBLIC_SITE_ORIGIN } from "@/lib/publicSiteConstants";
 import "./globals.css";
 
-const metadataBaseUrl =
-  process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/+$/, "") ||
-  process.env.SITE_URL?.trim().replace(/\/+$/, "") ||
-  DEFAULT_PUBLIC_SITE_ORIGIN;
+const metadataBaseUrl = PUBLIC_SITE_ORIGIN;
 
 export const revalidate = 120;
 

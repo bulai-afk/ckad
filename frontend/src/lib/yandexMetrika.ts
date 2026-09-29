@@ -1,3 +1,5 @@
+import { isPrimarySiteHostname } from "@/lib/publicSiteConstants";
+
 export const YM_COUNTER_ID = Number(process.env.NEXT_PUBLIC_YM_COUNTER_ID || "98614192");
 
 export const YM_SCRIPT_SRC = "https://mc.yandex.ru/metrika/tag.js";
@@ -33,8 +35,16 @@ export function isYandexMetrikaConfigured(): boolean {
   return Number.isFinite(YM_COUNTER_ID) && YM_COUNTER_ID > 0;
 }
 
+/** Только прод-сборка на основном домене: localhost, preview и зеркала не пишут визиты. */
+export function isYandexMetrikaEnabled(): boolean {
+  if (process.env.NODE_ENV !== "production") return false;
+  if (typeof window === "undefined") return false;
+  return isYandexMetrikaConfigured() && isPrimarySiteHostname(window.location.hostname);
+}
+
 export function loadYandexMetrikaScript(): void {
   if (typeof window === "undefined" || typeof document === "undefined") return;
+  if (!isYandexMetrikaEnabled()) return;
 
   const ym = getYm();
   if (!ym) {
@@ -59,7 +69,7 @@ export function loadYandexMetrikaScript(): void {
 let initialized = false;
 
 export function initYandexMetrika(): void {
-  if (!isYandexMetrikaConfigured() || initialized) return;
+  if (!isYandexMetrikaEnabled() || initialized) return;
 
   loadYandexMetrikaScript();
   getYm()?.(YM_COUNTER_ID, "init", {
@@ -74,7 +84,7 @@ export function initYandexMetrika(): void {
 }
 
 export function trackYandexMetrikaHit(url: string): void {
-  if (!initialized || !isYandexMetrikaConfigured()) return;
+  if (!initialized || !isYandexMetrikaEnabled()) return;
   getYm()?.(YM_COUNTER_ID, "hit", url);
 }
 
@@ -86,7 +96,7 @@ export function copyYmGoalAttribute(from: Element, to: Element): void {
 
 export function reachYandexMetrikaGoal(goal: string): void {
   const name = goal.trim();
-  if (!name || !isYandexMetrikaConfigured()) return;
+  if (!name || !isYandexMetrikaEnabled()) return;
   loadYandexMetrikaScript();
   getYm()?.(YM_COUNTER_ID, "reachGoal", name);
 }
