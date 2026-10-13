@@ -39,10 +39,19 @@ export function siteDocumentDisplayName(name: string): string {
 export function isSiteHtmlDocument(doc: unknown): doc is SiteDocumentItem {
   if (!doc || typeof doc !== "object") return false;
   const row = doc as { name?: unknown; html?: unknown };
-  return typeof row.name === "string" && typeof row.html === "string" && row.html.trim().length > 0;
+  return typeof row.name === "string" && row.name.trim().length > 0 && typeof row.html === "string";
 }
 
 export function normalizeSiteDocumentsList(docs: unknown): SiteDocumentItem[] {
   if (!Array.isArray(docs)) return [];
-  return docs.filter(isSiteHtmlDocument).slice(0, 3);
+  return docs
+    .map((doc) => {
+      if (!doc || typeof doc !== "object") return null;
+      const row = doc as { name?: unknown; html?: unknown };
+      const name = typeof row.name === "string" ? row.name.trim() : "";
+      if (!name) return null;
+      return { name, html: typeof row.html === "string" ? row.html : "" };
+    })
+    .filter((row): row is SiteDocumentItem => row !== null)
+    .slice(0, 3);
 }

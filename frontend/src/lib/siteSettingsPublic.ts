@@ -62,13 +62,62 @@ export const DEFAULT_DIRECTOR: ResolvedDirector = {
   photo: null,
 };
 
+export type LayoutSiteSettings = Pick<
+  SiteSettings,
+  "email" | "phone" | "address" | "social" | "requisites"
+> & {
+  topRibbonMessages?: string[];
+  documents?: { name: string; html: string }[];
+};
+
+/** Контакты и имена документов без фото/Word-HTML — для шапки и подвала на всех страницах. */
+export function slimLayoutSiteSettings(settings: unknown): LayoutSiteSettings | null {
+  if (!settings || typeof settings !== "object") return null;
+  const s = settings as Record<string, unknown>;
+  const social = (s.social ?? {}) as SiteSettings["social"];
+  const requisites = (s.requisites ?? {}) as SiteSettings["requisites"];
+  const documents = Array.isArray(s.documents)
+    ? s.documents
+        .map((row) => {
+          if (!row || typeof row !== "object") return null;
+          const name = String((row as { name?: unknown }).name ?? "").trim();
+          if (!name) return null;
+          return { name, html: "" };
+        })
+        .filter((row): row is { name: string; html: string } => row !== null)
+        .slice(0, 3)
+    : [];
+  return {
+    email: typeof s.email === "string" ? s.email : "",
+    phone: typeof s.phone === "string" ? s.phone : "",
+    address: typeof s.address === "string" ? s.address : "",
+    social: {
+      vk: typeof social.vk === "string" ? social.vk : "",
+      telegram: typeof social.telegram === "string" ? social.telegram : "",
+      max: typeof social.max === "string" ? social.max : "",
+      whatsapp: typeof social.whatsapp === "string" ? social.whatsapp : "",
+    },
+    requisites: {
+      companyName: typeof requisites.companyName === "string" ? requisites.companyName : "",
+      inn: typeof requisites.inn === "string" ? requisites.inn : "",
+      kpp: typeof requisites.kpp === "string" ? requisites.kpp : "",
+      ogrn: typeof requisites.ogrn === "string" ? requisites.ogrn : "",
+    },
+    topRibbonMessages: Array.isArray(s.topRibbonMessages)
+      ? s.topRibbonMessages.filter((item): item is string => typeof item === "string")
+      : [],
+    documents,
+  };
+}
+
 export async function fetchPublicSiteSettings(): Promise<SiteSettings | null> {
   const base = apiBaseUrl();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10_000);
   try {
     const res = await fetch(`${base}/api/pages/site-settings`, {
-      cache: "no-store",
+      cache: "force-cache",
+      next: { revalidate: 120 },
       signal: controller.signal,
     });
     if (!res.ok) return null;
