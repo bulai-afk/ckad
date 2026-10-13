@@ -16,6 +16,7 @@ import {
 } from "@/lib/rootSectionLabels";
 import { DEFAULT_OG_IMAGE_PATH, PUBLIC_SITE_NAME } from "@/lib/hubFolderMetadata";
 import { PUBLIC_SITE_ORIGIN } from "@/lib/publicSiteConstants";
+import { slimLayoutSiteSettings, type LayoutSiteSettings } from "@/lib/siteSettingsPublic";
 import "./globals.css";
 
 const metadataBaseUrl = PUBLIC_SITE_ORIGIN;
@@ -52,28 +53,7 @@ export const metadata: Metadata = {
   },
 };
 
-type SiteSettings = {
-  email: string;
-  phone: string;
-  address: string;
-  social: {
-    vk: string;
-    telegram: string;
-    max: string;
-    whatsapp: string;
-  };
-  requisites: {
-    companyName: string;
-    inn: string;
-    kpp: string;
-    ogrn: string;
-  };
-  documents?: {
-    name: string;
-    html: string;
-  }[];
-  topRibbonMessages?: string[];
-};
+type SiteSettings = LayoutSiteSettings;
 
 export default async function RootLayout({
   children,
@@ -110,12 +90,11 @@ export default async function RootLayout({
       }
     };
     const [settingsRes, foldersRes] = await Promise.allSettled([
-      fetchJson<{ settings?: SiteSettings }>("/api/pages/site-settings", 10_000, true),
+      fetchJson<{ settings?: unknown }>("/api/pages/site-settings", 10_000, true),
       fetchJson<{ folders?: { slug: string; name?: string }[] }>("/api/pages/folders", 10_000, true),
     ]);
     if (settingsRes.status === "fulfilled" && settingsRes.value?.settings) {
-      // Убираем тяжёлые dataUrl документов из критического SSR payload.
-      siteSettings = { ...settingsRes.value.settings, documents: [] };
+      siteSettings = slimLayoutSiteSettings(settingsRes.value.settings);
     }
     if (foldersRes.status === "fulfilled" && Array.isArray(foldersRes.value?.folders)) {
       initialRootSectionLabels = buildRootSectionLabelMap(foldersRes.value.folders);

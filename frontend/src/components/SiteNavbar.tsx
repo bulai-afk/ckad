@@ -260,33 +260,8 @@ export function SiteNavbar({
   }, [pathname]);
 
   useEffect(() => {
-    if (navDocuments.length > 0) return;
-    let cancelled = false;
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-
-    const run = () => {
-      void apiGet<{ settings?: { documents?: unknown } }>("/api/pages/site-settings", 10_000)
-        .then((payload) => {
-          if (cancelled) return;
-          setNavDocuments(normalizeSiteDocumentsList(payload?.settings?.documents));
-        })
-        .catch(() => {
-          /* no-op */
-        });
-    };
-
-    const w = window as Window & { requestIdleCallback?: (cb: () => void) => number };
-    if (typeof w.requestIdleCallback === "function") {
-      w.requestIdleCallback(run);
-    } else {
-      timeoutId = globalThis.setTimeout(run, 1200);
-    }
-
-    return () => {
-      cancelled = true;
-      if (timeoutId !== undefined) globalThis.clearTimeout(timeoutId);
-    };
-  }, [navDocuments.length]);
+    setNavDocuments(normalizeSiteDocumentsList(siteSettings?.documents));
+  }, [siteSettings?.documents]);
 
   const catalogLinks = useMemo(() => {
     const fallback = buildFallbackSectionLinks(initialFolderNavItems, CATALOG_ROOT);

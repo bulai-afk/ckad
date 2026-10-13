@@ -59,10 +59,12 @@ export function SiteDocumentHtmlDialog({
   const usesDocumentsList = documentIndex !== null && htmlProp === undefined;
 
   useEffect(() => {
-    if (!open || !usesDocumentsList || documentsProp?.length) return;
+    if (!open || !usesDocumentsList || documentIndex === null) return;
+    const selectedHtml = (documentsProp?.[documentIndex] ?? documents[documentIndex])?.html ?? "";
+    if (selectedHtml.trim()) return;
     let cancelled = false;
     setLoading(true);
-    void fetch(`${apiBaseUrl()}/api/pages/site-settings`, { cache: "no-store" })
+    void fetch(`${apiBaseUrl()}/api/pages/site-settings`, { cache: "force-cache" })
       .then(async (res) => {
         if (!res.ok) return;
         const payload = (await res.json()) as { settings?: { documents?: unknown } };
@@ -78,7 +80,7 @@ export function SiteDocumentHtmlDialog({
     return () => {
       cancelled = true;
     };
-  }, [open, documentsProp, usesDocumentsList]);
+  }, [open, documentsProp, usesDocumentsList, documentIndex]);
 
   useEffect(() => {
     if (!open) return;

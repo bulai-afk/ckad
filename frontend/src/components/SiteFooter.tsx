@@ -219,7 +219,13 @@ function filenameWithoutExtension(name: string): string {
 function isFooterHtmlDocument(doc: unknown): doc is FooterDocument {
   if (typeof doc !== "object" || doc === null) return false;
   const item = doc as { name?: unknown; html?: unknown };
-  return typeof item.name === "string" && typeof item.html === "string" && item.html.trim().length > 0;
+  return typeof item.name === "string" && item.name.trim().length > 0;
+}
+
+function toFooterDocument(doc: unknown): FooterDocument | null {
+  if (!isFooterHtmlDocument(doc)) return null;
+  const item = doc as { name: string; html?: unknown };
+  return { name: item.name.trim(), html: typeof item.html === "string" ? item.html : "" };
 }
 
 export function SiteFooter({
@@ -244,7 +250,7 @@ export function SiteFooter({
   );
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [footerDocuments, setFooterDocuments] = useState<FooterDocument[]>(() =>
-    (siteSettings?.documents ?? []).filter(isFooterHtmlDocument).slice(0, 3),
+    (siteSettings?.documents ?? []).map(toFooterDocument).filter((row): row is FooterDocument => row !== null).slice(0, 3),
   );
 
   const hidden = useMemo(() => pathname?.startsWith("/admin"), [pathname]);
@@ -319,36 +325,36 @@ export function SiteFooter({
       : previewFile?.html ?? "";
 
   useEffect(() => {
-    if (hidden) return;
-    if (footerDocuments.length > 0) return;
+    setFooterDocuments(
+      (siteSettings?.documents ?? [])
+        .map(toFooterDocument)
+        .filter((row): row is FooterDocument => row !== null)
+        .slice(0, 3),
+    );
+  }, [siteSettings?.documents]);
+
+  useEffect(() => {
+    if (hidden || previewIndex === null) return;
+    const current = footerDocuments[previewIndex];
+    if (!current || current.html.trim()) return;
     let cancelled = false;
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-
-    const run = () => {
-      void fetch("/api/pages/site-settings", { cache: "no-store" })
-        .then(async (res) => {
-          if (!res.ok) return;
-          const payload = (await res.json()) as { settings?: SiteSettings };
-          const docs = (payload.settings?.documents ?? []).filter(isFooterHtmlDocument).slice(0, 3);
-          if (!cancelled) setFooterDocuments(docs);
-        })
-        .catch(() => {
-          /* no-op */
-        });
-    };
-
-    const w = window as Window & { requestIdleCallback?: (cb: () => void) => number };
-    if (typeof w.requestIdleCallback === "function") {
-      w.requestIdleCallback(run);
-    } else {
-      timeoutId = globalThis.setTimeout(run, 1200);
-    }
-
+    void fetch("/api/pages/site-settings", { cache: "force-cache" })
+      .then(async (res) => {
+        if (!res.ok) return;
+        const payload = (await res.json()) as { settings?: SiteSettings };
+        const docs = (payload.settings?.documents ?? [])
+          .map(toFooterDocument)
+          .filter((row): row is FooterDocument => row !== null)
+          .slice(0, 3);
+        if (!cancelled) setFooterDocuments(docs);
+      })
+      .catch(() => {
+        /* no-op */
+      });
     return () => {
       cancelled = true;
-      if (timeoutId !== undefined) globalThis.clearTimeout(timeoutId);
     };
-  }, [hidden, footerDocuments.length]);
+  }, [hidden, previewIndex]);
 
   useEffect(() => {
     if (previewIndex === null) return;
